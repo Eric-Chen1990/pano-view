@@ -158,6 +158,7 @@ export function HotspotAnchor({
   renderOrder = 0,
   visible = true,
   draggable = false,
+  interactive = true,
   ariaLabel,
   children,
   onClick,
@@ -191,7 +192,7 @@ export function HotspotAnchor({
   const focused = useHotspotAccessibility({
     id,
     ariaLabel,
-    onActivate: visible && onClick
+    onActivate: visible && interactive && onClick
       ? (event) => {
           onClick({
             id,
@@ -276,16 +277,16 @@ export function HotspotAnchor({
       renderOrder={renderOrder}
       scale={[worldWidth, worldHeight, 1]}
       visible={visible}
-      onClick={(event) => {
+      onClick={interactive ? (event) => {
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
           onClick?.(makeInteractionEvent(id, normalizedPosition, event));
         }
         suppressNextClickRef.current = false;
-      }}
-      onLostPointerCapture={(event) => releasePointer(event, false)}
-      onPointerCancel={(event) => releasePointer(event, false)}
-      onPointerDown={(event) => {
+      } : undefined}
+      onLostPointerCapture={interactive ? (event) => releasePointer(event, false) : undefined}
+      onPointerCancel={interactive ? (event) => releasePointer(event, false) : undefined}
+      onPointerDown={interactive ? (event) => {
         stopPointerEvent(event);
         if (!draggable || dragStateRef.current) {
           return;
@@ -306,8 +307,8 @@ export function HotspotAnchor({
           source: "pointer",
           startPosition,
         });
-      }}
-      onPointerMove={(event) => {
+      } : undefined}
+      onPointerMove={interactive ? (event) => {
         const dragState = dragStateRef.current;
         if (!dragState || dragState.pointerId !== event.pointerId) {
           return;
@@ -322,24 +323,24 @@ export function HotspotAnchor({
           source: "pointer",
           startPosition: dragState.startPosition,
         });
-      }}
-      onPointerOut={(event) => {
+      } : undefined}
+      onPointerOut={interactive ? (event) => {
         if (!dragStateRef.current) {
           onHoverChange?.(
             false,
             makeInteractionEvent(id, normalizedPosition, event),
           );
         }
-      }}
-      onPointerOver={(event) => {
+      } : undefined}
+      onPointerOver={interactive ? (event) => {
         if (!dragStateRef.current) {
           onHoverChange?.(
             true,
             makeInteractionEvent(id, normalizedPosition, event),
           );
         }
-      }}
-      onPointerUp={(event) => releasePointer(event, true)}
+      } : undefined}
+      onPointerUp={interactive ? (event) => releasePointer(event, true) : undefined}
     >
       {focused ? (focusContent ?? (
         <lineSegments

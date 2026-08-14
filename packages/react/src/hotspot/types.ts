@@ -56,6 +56,8 @@ export type HotspotCommonProps = {
   opacity?: number;
   renderOrder?: number;
   visible?: boolean;
+  /** Whether the hotspot accepts pointer and keyboard interaction. Defaults to true. */
+  interactive?: boolean;
   draggable?: boolean;
   /** Required for keyboard-accessible clickable hotspots. */
   ariaLabel?: string;

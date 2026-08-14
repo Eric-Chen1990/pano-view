@@ -419,6 +419,7 @@ export function PolygonHotspot({
   stroke = "#f5fbfc",
   strokeWidth = 2,
   strokeOpacity = 1,
+  interactive = true,
   renderOrder = 10,
   draggable = false,
   onVerticesChange,
@@ -497,6 +498,7 @@ export function PolygonHotspot({
       orientation="surface"
       renderOrder={renderOrder}
       draggable={draggable}
+      interactive={interactive}
       useAngularScale={false}
       focusContent={
         <primitive object={focusStrokeLine} renderOrder={renderOrder + 2} />

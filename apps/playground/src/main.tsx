@@ -1,4 +1,4 @@
-import { StrictMode, useMemo, useRef, useState } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AutoRotate,
@@ -14,7 +14,9 @@ import {
   type HotspotPosition,
   type PanoViewHandle,
   type PanoViewState,
+  type PolygonValidationIssue,
   type TileLoadProgress,
+  validatePolygonVertices,
 } from "@pano-view/react";
 import "./styles.css";
 
@@ -25,7 +27,8 @@ type EditorTool =
   | "image"
   | "graphic"
   | "sequence"
-  | "video";
+  | "video"
+  | "polygon";
 
 type EditorHotspot =
   | {
@@ -99,6 +102,18 @@ type EditorHotspot =
       volume: number;
     };
 
+type EditorPolygon = {
+  id: string;
+  label: string;
+  vertices: HotspotPosition[];
+  fill: string;
+  fillOpacity: number;
+  stroke: string;
+  strokeWidth: number;
+  strokeOpacity: number;
+  visible: boolean;
+};
+
 const INITIAL_VIEW: PanoViewState = { yaw: 0, pitch: 0, fov: 75 };
 const INITIAL_PROGRESS: TileLoadProgress = {
   requested: 0,
@@ -109,13 +124,23 @@ const INITIAL_PROGRESS: TileLoadProgress = {
 };
 
 const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
-const RUNTIME_POLYGON = [
+const DEMO_POLYGON: EditorPolygon = {
+  id: "runtime-polygon-example",
+  label: "Courtyard canopy",
+  vertices: [
   { yaw: -18, pitch: 16 },
   { yaw: -2, pitch: 13 },
   { yaw: 8, pitch: 23 },
   { yaw: -6, pitch: 31 },
   { yaw: -13, pitch: 24 },
-];
+  ],
+  fill: "#df6b42",
+  fillOpacity: 0.28,
+  stroke: "#f5fbfc",
+  strokeWidth: 2,
+  strokeOpacity: 0.88,
+  visible: true,
+};
 
 const DEMO_HOTSPOTS: EditorHotspot[] = [
   {
@@ -204,6 +229,13 @@ function cloneDemoHotspots(): EditorHotspot[] {
   }));
 }
 
+function cloneDemoPolygons(): EditorPolygon[] {
+  return [{
+    ...DEMO_POLYGON,
+    vertices: DEMO_POLYGON.vertices.map((vertex) => ({ ...vertex })),
+  }];
+}
+
 function createId(type: EditorHotspot["type"]): string {
   return `${type}-${crypto.randomUUID().slice(0, 8)}`;
 }
@@ -242,6 +274,20 @@ function formatPosition(position: HotspotPosition): string {
 function numberValue(value: string, fallback: number): number {
   const next = Number(value);
   return Number.isFinite(next) ? next : fallback;
+}
+
+function withoutTrailingDuplicate(vertices: HotspotPosition[]): HotspotPosition[] {
+  if (vertices.length < 2) return vertices;
+  const previous = vertices[vertices.length - 2]!;
+  const last = vertices[vertices.length - 1]!;
+  const yawDifference = Math.abs(((last.yaw - previous.yaw + 540) % 360) - 180);
+  return yawDifference < 0.001 && Math.abs(last.pitch - previous.pitch) < 0.001
+    ? vertices.slice(0, -1)
+    : vertices;
+}
+
+function polygonIssueSummary(issues: PolygonValidationIssue[]): string {
+  return issues.map((issue) => issue.message).join(" ");
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -286,6 +332,8 @@ function App() {
   const [autoRotate, setAutoRotate] = useState(false);
   const [tileErrors, setTileErrors] = useState(0);
   const [hotspots, setHotspots] = useState<EditorHotspot[]>(cloneDemoHotspots);
+  const [polygons, setPolygons] = useState<EditorPolygon[]>(cloneDemoPolygons);
+  const [draftVertices, setDraftVertices] = useState<HotspotPosition[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     DEMO_HOTSPOTS[0]!.id,
   );
@@ -294,12 +342,21 @@ function App() {
     () => hotspots.find((hotspot) => hotspot.id === selectedId) ?? null,
     [hotspots, selectedId],
   );
+  const selectedPolygon = useMemo(
+    () => polygons.find((polygon) => polygon.id === selectedId) ?? null,
+    [polygons, selectedId],
+  );
+  const draftIssues = useMemo(
+    () => draftVertices.length > 0 ? validatePolygonVertices(draftVertices) : [],
+    [draftVertices],
+  );
   const controls = { inertia: true, keyboard: true };
   const placementTool =
     tool === "image" ||
     tool === "graphic" ||
     tool === "sequence" ||
     tool === "video";
+  const drawingPolygon = tool === "polygon";
 
   const selectMode = (nextMode: ViewerMode) => {
     setMode(nextMode);
@@ -363,7 +420,71 @@ function App() {
     );
   };
 
+  const updatePolygon = (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => {
+    setPolygons((current) =>
+      current.map((polygon) =>
+        polygon.id === id ? { ...polygon, ...patch } : polygon,
+      ),
+    );
+  };
+
+  const updatePolygonVertex = (
+    id: string,
+    vertexIndex: number,
+    position: HotspotPosition,
+  ) => {
+    setPolygons((current) =>
+      current.map((polygon) =>
+        polygon.id === id
+          ? {
+              ...polygon,
+              vertices: polygon.vertices.map((vertex, index) =>
+                index === vertexIndex ? position : vertex,
+              ),
+            }
+          : polygon,
+      ),
+    );
+  };
+
+  const cancelPolygonDraft = () => {
+    setDraftVertices([]);
+    setTool("navigate");
+    setLastAction("Polygon draft cancelled.");
+  };
+
+  const finishPolygonDraft = () => {
+    const vertices = withoutTrailingDuplicate(draftVertices);
+    const issues = validatePolygonVertices(vertices);
+    if (issues.length > 0) {
+      setDraftVertices(vertices);
+      setLastAction(`Polygon cannot be completed: ${polygonIssueSummary(issues)}`);
+      return;
+    }
+    const polygon: EditorPolygon = {
+      id: `polygon-${crypto.randomUUID().slice(0, 8)}`,
+      label: "Drawn polygon",
+      vertices,
+      fill: "#df6b42",
+      fillOpacity: 0.28,
+      stroke: "#f5fbfc",
+      strokeWidth: 2,
+      strokeOpacity: 0.88,
+      visible: true,
+    };
+    setPolygons((current) => [...current, polygon]);
+    setDraftVertices([]);
+    setSelectedId(polygon.id);
+    setTool("select");
+    setLastAction(`Polygon created with ${vertices.length} vertices.`);
+  };
+
   const addHotspot = (position: HotspotPosition) => {
+    if (tool === "polygon") {
+      setDraftVertices((current) => [...current, position]);
+      setLastAction(`Polygon vertex ${draftVertices.length + 1} added at ${formatPosition(position)}.`);
+      return;
+    }
     if (tool === "image") {
       const hotspot: EditorHotspot = {
         id: createId("image"),
@@ -475,10 +596,39 @@ function App() {
   const resetDemo = () => {
     const next = cloneDemoHotspots();
     setHotspots(next);
+    setPolygons(cloneDemoPolygons());
+    setDraftVertices([]);
     setSelectedId(next[0]!.id);
     setTool("navigate");
     setLastAction("Demo hotspots restored.");
   };
+
+  useEffect(() => {
+    if (!drawingPolygon) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setDraftVertices([]);
+        setTool("navigate");
+        setLastAction("Polygon draft cancelled.");
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        setDraftVertices((current) => current.slice(0, -1));
+        setLastAction("Last polygon vertex removed.");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [drawingPolygon]);
 
   return (
     <main className="app-shell">
@@ -486,7 +636,7 @@ function App() {
         <a className="wordmark" href="#workspace" aria-label="Pano View home">
           PANO<span>/</span>VIEW
         </a>
-        <p>HOTSPOT AUTHORING · STAGE 03</p>
+        <p>HOTSPOT AUTHORING · STAGE 05</p>
       </header>
 
       <section className="authoring-intro" aria-labelledby="page-title">
@@ -495,8 +645,8 @@ function App() {
           <h1 id="page-title">Place it<br />where it lives.</h1>
         </div>
         <p className="lede">
-          Choose an image, graphic, sequence, or video tool, click the panorama,
-          then tune its controlled state without leaving the view.
+          Place media, then draw local polygon regions directly on the panorama.
+          Drag a selected polygon or its vertex handles without leaving the view.
         </p>
       </section>
 
@@ -562,8 +712,22 @@ function App() {
               setLastAction("Click the panorama to place a video hotspot.");
             }}
           />
+          <ToolButton
+            active={drawingPolygon}
+            detail="Draw + edit"
+            label="Polygon"
+            onClick={() => {
+              setSelectedId(null);
+              setTool("polygon");
+              setLastAction(
+                draftVertices.length
+                  ? `Continue polygon: ${draftVertices.length} vertices.`
+                  : "Click the panorama to add polygon vertices.",
+              );
+            }}
+          />
           <div className="tool-rail-footer">
-            <span>{hotspots.length}</span>
+            <span>{hotspots.length + polygons.length}</span>
             <small>HOTSPOTS</small>
           </div>
         </aside>
@@ -603,21 +767,37 @@ function App() {
                 Fullscreen
               </button>
             </div>
+            {drawingPolygon ? (
+              <div className="polygon-draft-actions">
+                <span>{draftVertices.length} vertices</span>
+                <button
+                  disabled={draftVertices.length < 3}
+                  onClick={finishPolygonDraft}
+                  type="button"
+                >
+                  Finish polygon
+                </button>
+                <button onClick={cancelPolygonDraft} type="button">Cancel</button>
+              </div>
+            ) : null}
           </div>
 
-          <div className={placementTool ? "viewer-frame placing" : "viewer-frame"}>
+          <div className={placementTool || drawingPolygon ? "viewer-frame placing" : "viewer-frame"}>
             <PanoView
               key={mode}
               ref={viewerRef}
               aria-label={`${mode} panorama hotspot editor`}
               className="pano-view"
-              controls={placementTool ? false : controls}
+              controls={placementTool || drawingPolygon ? false : controls}
               initialView={INITIAL_VIEW}
               onPanoramaClick={({ position }) => addHotspot(position)}
+              onPanoramaDoubleClick={() => {
+                if (drawingPolygon) finishPolygonDraft();
+              }}
               onViewChange={setView}
             >
               <AutoRotate
-                enabled={autoRotate && !placementTool}
+                enabled={autoRotate && !placementTool && !drawingPolygon}
                 speed={18}
                 acceleration={18}
                 startDelay={1_000}
@@ -642,6 +822,7 @@ function App() {
                   orientation: hotspot.orientation,
                   placement: hotspot.placement,
                   distance: hotspot.distance,
+                  interactive: !drawingPolygon,
                   position: hotspot.position,
                   scaleMode: hotspot.scaleMode,
                   visible: hotspot.visible,
@@ -711,15 +892,120 @@ function App() {
                   />
                 );
               })}
-              <PolygonHotspot
-                id="runtime-polygon-example"
-                fill="#df6b42"
-                fillOpacity={0.28}
-                stroke="#f5fbfc"
-                strokeWidth={2}
-                strokeOpacity={0.88}
-                vertices={RUNTIME_POLYGON}
-              />
+              {polygons.map((polygon) => (
+                <PolygonHotspot
+                  key={polygon.id}
+                  ariaLabel={polygon.label}
+                  draggable={tool === "select"}
+                  fill={polygon.fill}
+                  fillOpacity={polygon.fillOpacity}
+                  id={polygon.id}
+                  interactive={!drawingPolygon}
+                  onClick={() => {
+                    setSelectedId(polygon.id);
+                    setTool("select");
+                    setLastAction(`${polygon.label} selected.`);
+                  }}
+                  onDragEnd={({ vertices }) => {
+                    const issues = validatePolygonVertices(vertices);
+                    if (issues.length === 0) {
+                      updatePolygon(polygon.id, { vertices });
+                      setLastAction(`${polygon.label} moved.`);
+                    } else {
+                      setLastAction(`Polygon move rejected: ${polygonIssueSummary(issues)}`);
+                    }
+                  }}
+                  onDragStart={() => {
+                    setSelectedId(polygon.id);
+                    setLastAction(`Dragging ${polygon.label}.`);
+                  }}
+                  onVerticesChange={({ vertices }) => {
+                    if (validatePolygonVertices(vertices).length === 0) {
+                      updatePolygon(polygon.id, { vertices });
+                    }
+                  }}
+                  stroke={polygon.stroke}
+                  strokeOpacity={polygon.strokeOpacity}
+                  strokeWidth={polygon.strokeWidth}
+                  vertices={polygon.vertices}
+                  visible={polygon.visible}
+                />
+              ))}
+              {drawingPolygon && draftVertices.length >= 3 && draftIssues.length === 0 ? (
+                <PolygonHotspot
+                  fill="#df6b42"
+                  fillOpacity={0.2}
+                  id="polygon-draft"
+                  interactive={false}
+                  stroke="#75cbd3"
+                  strokeOpacity={1}
+                  strokeWidth={2}
+                  vertices={draftVertices}
+                />
+              ) : null}
+              {selectedPolygon && tool === "select" ? selectedPolygon.vertices.map((vertex, index) => (
+                <GraphicHotspot
+                  key={`${selectedPolygon.id}-vertex-${index}`}
+                  ariaLabel={`${selectedPolygon.label}, vertex ${index + 1}`}
+                  distance={8}
+                  draggable
+                  graphic={{
+                    kind: "circle",
+                    fill: "#f5fbfc",
+                    stroke: "#df6b42",
+                    strokeWidth: 14,
+                  }}
+                  height={2.2}
+                  id={`${selectedPolygon.id}-vertex-${index}`}
+                  onDragEnd={({ position }) => {
+                    const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
+                      currentIndex === index ? position : current,
+                    );
+                    const issues = validatePolygonVertices(vertices);
+                    if (issues.length === 0) {
+                      updatePolygon(selectedPolygon.id, { vertices });
+                      setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+                    } else {
+                      setLastAction(`Vertex move rejected: ${polygonIssueSummary(issues)}`);
+                    }
+                  }}
+                  onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
+                  onPositionChange={({ position }) => {
+                    const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
+                      currentIndex === index ? position : current,
+                    );
+                    if (validatePolygonVertices(vertices).length === 0) {
+                      updatePolygon(selectedPolygon.id, { vertices });
+                    }
+                  }}
+                  orientation="billboard"
+                  placement="floating"
+                  position={vertex}
+                  scaleMode="fixed"
+                  width={2.2}
+                />
+              )) : null}
+              {drawingPolygon ? draftVertices.map((vertex, index) => (
+                <GraphicHotspot
+                  key={`polygon-draft-vertex-${index}`}
+                  ariaLabel={`Draft vertex ${index + 1}`}
+                  distance={8}
+                  graphic={{
+                    kind: "circle",
+                    fill: "#75cbd3",
+                    stroke: "#071316",
+                    strokeWidth: 12,
+                  }}
+                  height={1.8}
+                  id={`polygon-draft-vertex-${index}`}
+                  interactive={false}
+                  orientation="billboard"
+                  placement="floating"
+                  position={vertex}
+                  scaleMode="fixed"
+                  width={1.8}
+                />
+              )) : null}
             </PanoView>
             <div className="reticle" aria-hidden="true" />
             <p className="canvas-status" role="status">{lastAction}</p>
@@ -743,9 +1029,14 @@ function App() {
           <div className="inspector-heading">
             <div>
               <p className="panel-label">INSPECTOR</p>
-              <h2>{selected ? selected.label : "No hotspot selected"}</h2>
+              <h2>
+                {selected?.label ?? selectedPolygon?.label ?? (
+                  drawingPolygon ? "Drawing polygon" : "No hotspot selected"
+                )}
+              </h2>
             </div>
             {selected ? <span className={`type-chip ${selected.type}`}>{selected.type}</span> : null}
+            {selectedPolygon ? <span className="type-chip polygon">polygon</span> : null}
           </div>
 
           {selected ? (
@@ -911,6 +1202,16 @@ function App() {
                 Delete selected hotspot
               </button>
             </div>
+          ) : selectedPolygon ? (
+            <PolygonFields
+              polygon={selectedPolygon}
+              onChange={(patch) => updatePolygon(selectedPolygon.id, patch)}
+            />
+          ) : drawingPolygon ? (
+            <PolygonDraftFields
+              issueSummary={draftIssues.length ? polygonIssueSummary(draftIssues) : null}
+              vertexCount={draftVertices.length}
+            />
           ) : (
             <p className="empty-inspector">Choose a hotspot tool, then click the panorama to place it.</p>
           )}
@@ -936,13 +1237,29 @@ function App() {
                 <small>{formatPosition(hotspot.position)}</small>
               </button>
             ))}
+            {polygons.map((polygon) => (
+              <button
+                className={selectedId === polygon.id ? "hotspot-row active" : "hotspot-row"}
+                key={polygon.id}
+                onClick={() => {
+                  setSelectedId(polygon.id);
+                  setTool("select");
+                  setLastAction(`${polygon.label} selected. Drag the polygon or a vertex handle.`);
+                }}
+                type="button"
+              >
+                <span>POLY</span>
+                <b>{polygon.label}</b>
+                <small>{polygon.vertices.length} vertices</small>
+              </button>
+            ))}
           </div>
         </aside>
       </section>
 
       <footer>
-        <span>@pano-view/react · image + graphic + media hotspots</span>
-        <span>Stage 3 of 6</span>
+        <span>@pano-view/react · point + polygon hotspots</span>
+        <span>Stage 5 of 6</span>
       </footer>
     </main>
   );
@@ -1023,6 +1340,104 @@ function GraphicFields({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+function PolygonDraftFields({
+  issueSummary,
+  vertexCount,
+}: {
+  issueSummary: string | null;
+  vertexCount: number;
+}) {
+  return (
+    <div className="inspector-content polygon-draft-fields">
+      <p className="polygon-draft-count">{vertexCount} / 3 minimum vertices</p>
+      {issueSummary ? (
+        <p className="polygon-validation invalid">{issueSummary}</p>
+      ) : vertexCount >= 3 ? (
+        <p className="polygon-validation valid">Polygon is valid. Finish it when ready.</p>
+      ) : (
+        <p className="polygon-validation">Click the panorama to add the next vertex.</p>
+      )}
+      <p className="polygon-keyboard-help">Double-click or use Finish to complete. Esc cancels; Backspace removes the last point.</p>
+    </div>
+  );
+}
+
+function PolygonFields({
+  polygon,
+  onChange,
+}: {
+  polygon: EditorPolygon;
+  onChange: (patch: Partial<Omit<EditorPolygon, "id">>) => void;
+}) {
+  return (
+    <div className="inspector-content">
+      <label className="field wide">
+        <span>Accessible label</span>
+        <input onChange={(event) => onChange({ label: event.currentTarget.value })} value={polygon.label} />
+      </label>
+      <div className="field-grid">
+        <label className="field">
+          <span>Fill</span>
+          <input onChange={(event) => onChange({ fill: event.currentTarget.value })} type="color" value={polygon.fill} />
+        </label>
+        <label className="field">
+          <span>Stroke</span>
+          <input onChange={(event) => onChange({ stroke: event.currentTarget.value })} type="color" value={polygon.stroke} />
+        </label>
+        <label className="field">
+          <span>Stroke width (px)</span>
+          <input
+            min="0.5"
+            onChange={(event) => onChange({ strokeWidth: numberValue(event.currentTarget.value, polygon.strokeWidth) })}
+            step="0.5"
+            type="number"
+            value={polygon.strokeWidth}
+          />
+        </label>
+        <label className="field">
+          <span>Vertices</span>
+          <output className="field-output">{polygon.vertices.length}</output>
+        </label>
+      </div>
+      <label className="field wide range-field">
+        <span>Fill opacity <b>{Math.round(polygon.fillOpacity * 100)}%</b></span>
+        <input
+          max="1"
+          min="0"
+          onChange={(event) => onChange({ fillOpacity: numberValue(event.currentTarget.value, polygon.fillOpacity) })}
+          step="0.05"
+          type="range"
+          value={polygon.fillOpacity}
+        />
+      </label>
+      <label className="field wide range-field">
+        <span>Stroke opacity <b>{Math.round(polygon.strokeOpacity * 100)}%</b></span>
+        <input
+          max="1"
+          min="0"
+          onChange={(event) => onChange({ strokeOpacity: numberValue(event.currentTarget.value, polygon.strokeOpacity) })}
+          step="0.05"
+          type="range"
+          value={polygon.strokeOpacity}
+        />
+      </label>
+      <label className="check-field">
+        <input
+          checked={polygon.visible}
+          onChange={(event) => onChange({ visible: event.currentTarget.checked })}
+          type="checkbox"
+        />
+        <span>Visible in panorama</span>
+      </label>
+      <div className="polygon-vertices" aria-label="Polygon vertices">
+        {polygon.vertices.map((vertex, index) => (
+          <span key={`${polygon.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>
+        ))}
+      </div>
     </div>
   );
 }
