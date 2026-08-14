@@ -592,7 +592,7 @@ function App() {
               {hotspots.map((hotspot) => {
                 const sharedProps = {
                   ariaLabel: hotspot.label,
-                  draggable: tool === "select" && selectedId === hotspot.id,
+                  draggable: tool === "select",
                   id: hotspot.id,
                   opacity: hotspot.opacity,
                   orientation: hotspot.orientation,
@@ -611,8 +611,15 @@ function App() {
                     }
                     setLastAction(`${hotspot.label} selected.`);
                   },
+                  onDragStart: () => {
+                    setSelectedId(hotspot.id);
+                    setLastAction(`Dragging ${hotspot.label}.`);
+                  },
                   onPositionChange: ({ position }: { position: HotspotPosition }) => {
                     updateHotspot(hotspot.id, { position });
+                  },
+                  onDragEnd: ({ position }: { position: HotspotPosition }) => {
+                    setLastAction(`${hotspot.label} moved to ${formatPosition(position)}.`);
                   },
                 };
 

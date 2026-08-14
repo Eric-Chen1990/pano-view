@@ -149,6 +149,7 @@ export function HotspotAnchor({
       dragStateRef.current?.releaseInteractionLock();
       dragStateRef.current = null;
     },
+    [],
   );
 
   useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
