@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="1080" viewBox="0 0 480 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#0d2a31"/><stop offset="1" stop-color="#071316"/></linearGradient>
+  </defs>
+  <g transform="translate(0 0)"><rect width="480" height="270" fill="url(#bg)"/><circle cx="94" cy="136" r="51" fill="#df6b42"/><circle cx="94" cy="136" r="24" fill="#f5fbfc"/><path d="M118 136h214" stroke="#75cbd3" stroke-width="5" stroke-linecap="round"/><text x="356" y="146" fill="#dcecef" font-family="monospace" font-size="25">01</text></g>
+  <g transform="translate(0 270)"><rect width="480" height="270" fill="url(#bg)"/><circle cx="188" cy="136" r="51" fill="#df6b42"/><circle cx="188" cy="136" r="24" fill="#f5fbfc"/><path d="M212 136h120" stroke="#75cbd3" stroke-width="5" stroke-linecap="round"/><text x="356" y="146" fill="#dcecef" font-family="monospace" font-size="25">02</text></g>
+  <g transform="translate(0 540)"><rect width="480" height="270" fill="url(#bg)"/><circle cx="292" cy="136" r="51" fill="#df6b42"/><circle cx="292" cy="136" r="24" fill="#f5fbfc"/><path d="M148 136h120" stroke="#75cbd3" stroke-width="5" stroke-linecap="round"/><text x="356" y="146" fill="#dcecef" font-family="monospace" font-size="25">03</text></g>
+  <g transform="translate(0 810)"><rect width="480" height="270" fill="url(#bg)"/><circle cx="386" cy="136" r="51" fill="#df6b42"/><circle cx="386" cy="136" r="24" fill="#f5fbfc"/><path d="M148 136h214" stroke="#75cbd3" stroke-width="5" stroke-linecap="round"/><text x="356" y="146" fill="#dcecef" font-family="monospace" font-size="25">04</text></g>
+</svg>

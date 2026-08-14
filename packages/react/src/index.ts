@@ -16,6 +16,21 @@ export type {
   SvgGraphic,
   SvgPathGraphic,
 } from "./hotspot/graphic-hotspot";
+export { SequenceHotspot } from "./hotspot/sequence-hotspot";
+export type {
+  SequenceFrameEvent,
+  SequenceFrameDirection,
+  SequenceHotspotErrorEvent,
+  SequenceHotspotProps,
+  SequenceLoadProgress,
+  SequencePlaybackState,
+} from "./hotspot/sequence-hotspot";
+export { VideoHotspot } from "./hotspot/video-hotspot";
+export type {
+  VideoHotspotErrorEvent,
+  VideoHotspotProps,
+  VideoPlaybackState,
+} from "./hotspot/video-hotspot";
 export { Tile } from "./tile/tile";
 export type {
   CubeFaceCode,

@@ -5,8 +5,10 @@ import {
   GraphicHotspot,
   ImageHotspot,
   PanoView,
+  SequenceHotspot,
   Sphere,
   Tile,
+  VideoHotspot,
   type GraphicDefinition,
   type HotspotPosition,
   type PanoViewHandle,
@@ -16,7 +18,13 @@ import {
 import "./styles.css";
 
 type ViewerMode = "sphere" | "tile";
-type EditorTool = "navigate" | "select" | "image" | "graphic";
+type EditorTool =
+  | "navigate"
+  | "select"
+  | "image"
+  | "graphic"
+  | "sequence"
+  | "video";
 
 type EditorHotspot =
   | {
@@ -42,6 +50,40 @@ type EditorHotspot =
       opacity: number;
       visible: boolean;
       graphic: GraphicDefinition;
+    }
+  | {
+      id: string;
+      type: "sequence";
+      label: string;
+      position: HotspotPosition;
+      width: number;
+      height: number;
+      orientation: "billboard" | "surface";
+      opacity: number;
+      visible: boolean;
+      src: string;
+      frameCount: number;
+      frameDirection: "horizontal" | "vertical";
+      playing: boolean;
+      fps: number;
+      loop: boolean;
+    }
+  | {
+      id: string;
+      type: "video";
+      label: string;
+      position: HotspotPosition;
+      width: number;
+      height: number;
+      orientation: "billboard" | "surface";
+      opacity: number;
+      visible: boolean;
+      src: string;
+      poster: string;
+      playing: boolean;
+      loop: boolean;
+      muted: boolean;
+      volume: number;
     };
 
 const INITIAL_VIEW: PanoViewState = { yaw: 0, pitch: 0, fov: 75 };
@@ -52,6 +94,8 @@ const INITIAL_PROGRESS: TileLoadProgress = {
   active: 0,
   queued: 0,
 };
+
+const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
 
 const DEMO_HOTSPOTS: EditorHotspot[] = [
   {
@@ -83,6 +127,40 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
       strokeWidth: 10,
       innerRadius: 0.66,
     },
+  },
+  {
+    id: "sequence-marker",
+    type: "sequence",
+    label: "Play sequence marker",
+    position: { yaw: -44, pitch: -7 },
+    width: 13,
+    height: 7.3,
+    orientation: "billboard",
+    opacity: 1,
+    visible: true,
+    src: SEQUENCE_SPRITE,
+    frameCount: 4,
+    frameDirection: "vertical",
+    playing: true,
+    fps: 3,
+    loop: true,
+  },
+  {
+    id: "video-window",
+    type: "video",
+    label: "Play video window",
+    position: { yaw: 52, pitch: 6 },
+    width: 18,
+    height: 10.1,
+    orientation: "surface",
+    opacity: 1,
+    visible: true,
+    src: "/fixtures/hotspots/loop.webm",
+    poster: "/fixtures/hotspots/gallery-card.svg",
+    playing: false,
+    loop: true,
+    muted: true,
+    volume: 1,
   },
 ];
 
@@ -185,7 +263,11 @@ function App() {
     [hotspots, selectedId],
   );
   const controls = { inertia: true, keyboard: true };
-  const placementTool = tool === "image" || tool === "graphic";
+  const placementTool =
+    tool === "image" ||
+    tool === "graphic" ||
+    tool === "sequence" ||
+    tool === "video";
 
   const selectMode = (nextMode: ViewerMode) => {
     setMode(nextMode);
@@ -221,6 +303,30 @@ function App() {
         hotspot.id === id && hotspot.type === "image"
           ? { ...hotspot, src }
           : hotspot,
+      ),
+    );
+  };
+
+  const updateSequence = (
+    id: string,
+    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
+  ) => {
+    setHotspots((current) =>
+      current.map((hotspot) =>
+        hotspot.id === id && hotspot.type === "sequence"
+          ? { ...hotspot, ...patch }
+          : hotspot,
+      ),
+    );
+  };
+
+  const updateVideo = (
+    id: string,
+    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
+  ) => {
+    setHotspots((current) =>
+      current.map((hotspot) =>
+        hotspot.id === id && hotspot.type === "video" ? { ...hotspot, ...patch } : hotspot,
       ),
     );
   };
@@ -262,6 +368,54 @@ function App() {
       setSelectedId(hotspot.id);
       setTool("select");
       setLastAction(`Graphic placed at ${formatPosition(position)}.`);
+      return;
+    }
+    if (tool === "sequence") {
+      const hotspot: EditorHotspot = {
+        id: createId("sequence"),
+        type: "sequence",
+        label: "Play sequence marker",
+        position,
+        width: 13,
+        height: 7.3,
+        orientation: "billboard",
+        opacity: 1,
+        visible: true,
+        src: SEQUENCE_SPRITE,
+        frameCount: 4,
+        frameDirection: "vertical",
+        playing: true,
+        fps: 12,
+        loop: true,
+      };
+      setHotspots((current) => [...current, hotspot]);
+      setSelectedId(hotspot.id);
+      setTool("select");
+      setLastAction(`Sequence placed at ${formatPosition(position)}.`);
+      return;
+    }
+    if (tool === "video") {
+      const hotspot: EditorHotspot = {
+        id: createId("video"),
+        type: "video",
+        label: "Play video window",
+        position,
+        width: 18,
+        height: 10.1,
+        orientation: "surface",
+        opacity: 1,
+        visible: true,
+        src: "/fixtures/hotspots/loop.webm",
+        poster: "/fixtures/hotspots/gallery-card.svg",
+        playing: false,
+        loop: true,
+        muted: true,
+        volume: 1,
+      };
+      setHotspots((current) => [...current, hotspot]);
+      setSelectedId(hotspot.id);
+      setTool("select");
+      setLastAction(`Video placed at ${formatPosition(position)}.`);
     }
   };
 
@@ -271,7 +425,7 @@ function App() {
     }
     setHotspots((current) => current.filter((hotspot) => hotspot.id !== selected.id));
     setSelectedId(null);
-    setLastAction(`${selected.type === "image" ? "Image" : "Graphic"} removed.`);
+    setLastAction(`${selected.type[0]!.toUpperCase()}${selected.type.slice(1)} removed.`);
   };
 
   const resetDemo = () => {
@@ -288,7 +442,7 @@ function App() {
         <a className="wordmark" href="#workspace" aria-label="Pano View home">
           PANO<span>/</span>VIEW
         </a>
-        <p>HOTSPOT AUTHORING · STAGE 02</p>
+        <p>HOTSPOT AUTHORING · STAGE 03</p>
       </header>
 
       <section className="authoring-intro" aria-labelledby="page-title">
@@ -297,8 +451,8 @@ function App() {
           <h1 id="page-title">Place it<br />where it lives.</h1>
         </div>
         <p className="lede">
-          Choose an image or graphic tool, click the panorama, then tune the
-          selected hotspot without leaving the view.
+          Choose an image, graphic, sequence, or video tool, click the panorama,
+          then tune its controlled state without leaving the view.
         </p>
       </section>
 
@@ -344,6 +498,24 @@ function App() {
             onClick={() => {
               setTool("graphic");
               setLastAction("Click the panorama to place a graphic hotspot.");
+            }}
+          />
+          <ToolButton
+            active={tool === "sequence"}
+            detail="Sprite sheet"
+            label="Sequence"
+            onClick={() => {
+              setTool("sequence");
+              setLastAction("Click the panorama to place a sprite-sheet sequence.");
+            }}
+          />
+          <ToolButton
+            active={tool === "video"}
+            detail="WebM"
+            label="Video"
+            onClick={() => {
+              setTool("video");
+              setLastAction("Click the panorama to place a video hotspot.");
             }}
           />
           <div className="tool-rail-footer">
@@ -431,6 +603,12 @@ function App() {
                   onClick: () => {
                     setSelectedId(hotspot.id);
                     setTool("select");
+                    if (hotspot.type === "sequence") {
+                      updateSequence(hotspot.id, { playing: !hotspot.playing });
+                    }
+                    if (hotspot.type === "video") {
+                      updateVideo(hotspot.id, { playing: !hotspot.playing });
+                    }
                     setLastAction(`${hotspot.label} selected.`);
                   },
                   onPositionChange: ({ position }: { position: HotspotPosition }) => {
@@ -438,13 +616,44 @@ function App() {
                   },
                 };
 
-                return hotspot.type === "image" ? (
-                  <ImageHotspot key={hotspot.id} {...sharedProps} src={hotspot.src} />
-                ) : (
+                if (hotspot.type === "image") {
+                  return <ImageHotspot key={hotspot.id} {...sharedProps} src={hotspot.src} />;
+                }
+                if (hotspot.type === "graphic") {
+                  return (
                   <GraphicHotspot
                     key={hotspot.id}
                     {...sharedProps}
                     graphic={hotspot.graphic}
+                  />
+                  );
+                }
+                if (hotspot.type === "sequence") {
+                  return (
+                    <SequenceHotspot
+                      key={hotspot.id}
+                      {...sharedProps}
+                      frameCount={hotspot.frameCount}
+                      frameDirection={hotspot.frameDirection}
+                      fps={hotspot.fps}
+                      loop={hotspot.loop}
+                      playing={hotspot.playing}
+                      src={hotspot.src}
+                      onEnded={() => updateSequence(hotspot.id, { playing: false })}
+                    />
+                  );
+                }
+                return (
+                  <VideoHotspot
+                    key={hotspot.id}
+                    {...sharedProps}
+                    loop={hotspot.loop}
+                    muted={hotspot.muted}
+                    onEnded={() => updateVideo(hotspot.id, { playing: false })}
+                    playing={hotspot.playing}
+                    poster={hotspot.poster}
+                    src={hotspot.src}
+                    volume={hotspot.volume}
                   />
                 );
               })}
@@ -573,10 +782,20 @@ function App() {
                     value={selected.src}
                   />
                 </label>
-              ) : (
+              ) : selected.type === "graphic" ? (
                 <GraphicFields
                   hotspot={selected}
                   onChange={(graphic) => updateGraphic(selected.id, graphic)}
+                />
+              ) : selected.type === "sequence" ? (
+                <SequenceFields
+                  hotspot={selected}
+                  onChange={(patch) => updateSequence(selected.id, patch)}
+                />
+              ) : (
+                <VideoFields
+                  hotspot={selected}
+                  onChange={(patch) => updateVideo(selected.id, patch)}
                 />
               )}
 
@@ -585,7 +804,7 @@ function App() {
               </button>
             </div>
           ) : (
-            <p className="empty-inspector">Choose Image or Graphic, then click the panorama to place it.</p>
+            <p className="empty-inspector">Choose a hotspot tool, then click the panorama to place it.</p>
           )}
 
           <div className="hotspot-list">
@@ -604,7 +823,7 @@ function App() {
                 }}
                 type="button"
               >
-                <span>{hotspot.type === "image" ? "IMG" : "GFX"}</span>
+                <span>{({ image: "IMG", graphic: "GFX", sequence: "SEQ", video: "VID" })[hotspot.type]}</span>
                 <b>{hotspot.label}</b>
                 <small>{formatPosition(hotspot.position)}</small>
               </button>
@@ -614,8 +833,8 @@ function App() {
       </section>
 
       <footer>
-        <span>@pano-view/react · image + graphic hotspots</span>
-        <span>Stage 2 of 6</span>
+        <span>@pano-view/react · image + graphic + media hotspots</span>
+        <span>Stage 3 of 6</span>
       </footer>
     </main>
   );
@@ -696,6 +915,119 @@ function GraphicFields({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+function SequenceFields({
+  hotspot,
+  onChange,
+}: {
+  hotspot: Extract<EditorHotspot, { type: "sequence" }>;
+  onChange: (
+    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
+  ) => void;
+}) {
+  return (
+    <div className="graphic-fields">
+      <button
+        className="media-action"
+        onClick={() => onChange({ playing: !hotspot.playing })}
+        type="button"
+      >
+        {hotspot.playing ? "Pause sequence" : "Play sequence"}
+      </button>
+      <label className="field wide">
+        <span>Sprite sheet URL</span>
+        <input onChange={(event) => onChange({ src: event.currentTarget.value })} value={hotspot.src} />
+      </label>
+      <div className="field-grid">
+        <label className="field">
+          <span>Frame count</span>
+          <input
+            min="1"
+            onChange={(event) => onChange({ frameCount: numberValue(event.currentTarget.value, hotspot.frameCount) })}
+            step="1"
+            type="number"
+            value={hotspot.frameCount}
+          />
+        </label>
+        <label className="field">
+          <span>Frames per second</span>
+          <input
+            min="0.1"
+            onChange={(event) => onChange({ fps: numberValue(event.currentTarget.value, hotspot.fps) })}
+            step="0.1"
+            type="number"
+            value={hotspot.fps}
+          />
+        </label>
+      </div>
+      <label className="field wide">
+        <span>Frame direction</span>
+        <select
+          onChange={(event) => onChange({ frameDirection: event.currentTarget.value as "horizontal" | "vertical" })}
+          value={hotspot.frameDirection}
+        >
+          <option value="vertical">Top to bottom</option>
+          <option value="horizontal">Left to right</option>
+        </select>
+      </label>
+      <label className="check-field">
+        <input checked={hotspot.loop} onChange={(event) => onChange({ loop: event.currentTarget.checked })} type="checkbox" />
+        <span>Loop sequence</span>
+      </label>
+    </div>
+  );
+}
+
+function VideoFields({
+  hotspot,
+  onChange,
+}: {
+  hotspot: Extract<EditorHotspot, { type: "video" }>;
+  onChange: (
+    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
+  ) => void;
+}) {
+  return (
+    <div className="graphic-fields">
+      <button
+        className="media-action"
+        onClick={() => onChange({ playing: !hotspot.playing })}
+        type="button"
+      >
+        {hotspot.playing ? "Pause video" : "Play video"}
+      </button>
+      <label className="field wide">
+        <span>Video URL</span>
+        <input onChange={(event) => onChange({ src: event.currentTarget.value })} value={hotspot.src} />
+      </label>
+      <label className="field wide">
+        <span>Poster URL</span>
+        <input onChange={(event) => onChange({ poster: event.currentTarget.value })} value={hotspot.poster} />
+      </label>
+      <label className="field wide range-field">
+        <span>Volume <b>{Math.round(hotspot.volume * 100)}%</b></span>
+        <input
+          max="1"
+          min="0"
+          onChange={(event) => onChange({ volume: numberValue(event.currentTarget.value, hotspot.volume) })}
+          step="0.05"
+          type="range"
+          value={hotspot.volume}
+        />
+      </label>
+      <div className="media-checks">
+        <label className="check-field">
+          <input checked={hotspot.loop} onChange={(event) => onChange({ loop: event.currentTarget.checked })} type="checkbox" />
+          <span>Loop video</span>
+        </label>
+        <label className="check-field">
+          <input checked={hotspot.muted} onChange={(event) => onChange({ muted: event.currentTarget.checked })} type="checkbox" />
+          <span>Muted</span>
+        </label>
+      </div>
     </div>
   );
 }

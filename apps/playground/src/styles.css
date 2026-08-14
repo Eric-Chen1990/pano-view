@@ -428,7 +428,8 @@ h1 {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid #38545b;
@@ -436,6 +437,24 @@ h1 {
   color: #e7f2f5;
   font-size: 0.74rem;
   padding: 8px;
+}
+
+.media-action {
+  border: 1px solid #3e6c73;
+  background: #102b31;
+  color: #f5fbfc;
+  padding: 9px;
+  font-size: 0.71rem;
+  text-align: left;
+}
+
+.media-action:hover {
+  border-color: #75cbd3;
+}
+
+.media-checks {
+  display: grid;
+  gap: 9px;
 }
 
 .field input[type="color"] {
@@ -607,7 +626,7 @@ footer {
 
   .tool-rail {
     display: grid;
-    grid-template-columns: repeat(4, minmax(112px, 1fr));
+    grid-template-columns: repeat(6, minmax(112px, 1fr));
     gap: 6px;
     min-height: 0;
     overflow-x: auto;

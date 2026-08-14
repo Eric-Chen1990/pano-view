@@ -209,6 +209,67 @@ move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates
 an internal semantic control for Tab, Enter, and Space activation, with a
 visible WebGL focus outline.
 
+## Sequence and video hotspots
+
+`SequenceHotspot` animates a sprite sheet: one image containing equally sized
+frames in a vertical or horizontal strip. This matches the common krpano
+animated-hotspot format. Give `width` and `height` the aspect ratio of a single
+frame, rather than the full strip. `playing` is controlled by the host; `fps`
+defaults to `12` and `loop` defaults to `true`.
+
+```tsx
+import { SequenceHotspot } from "@pano-view/react";
+
+<SequenceHotspot
+  id="pulse"
+  ariaLabel="Play marker sequence"
+  position={{ yaw: -42, pitch: -7 }}
+  width={8}
+  height={8}
+  src="/hotspots/pulse-strip.png"
+  frameCount={20}
+  frameDirection="vertical"
+  fps={12}
+  loop
+  playing={isPulsePlaying}
+  onEnded={() => setPulsePlaying(false)}
+  onError={({ error }) => console.error(error)}
+/>;
+```
+
+`VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
+prop is likewise controlled: toggle it from your click handler or application
+state. On source change or unmount, the element is paused and its texture is
+released. `playsInline` defaults to `true`, `muted` to `true`, `loop` to
+`false`, and `preload` to `"metadata"`.
+
+```tsx
+import { VideoHotspot } from "@pano-view/react";
+
+<VideoHotspot
+  id="clip"
+  ariaLabel="Play room video"
+  position={{ yaw: 48, pitch: 6 }}
+  width={18}
+  height={10.125}
+  orientation="surface"
+  src="/hotspots/room.webm"
+  poster="/hotspots/room-poster.webp"
+  playing={isClipPlaying}
+  muted
+  volume={0.8}
+  onClick={() => setClipPlaying((playing) => !playing)}
+  onEnded={() => setClipPlaying(false)}
+  onPlaybackStateChange={(state) => console.log(state)}
+  onPlaybackError={(error) => console.error(error)}
+/>;
+```
+
+Browsers can reject unmuted or otherwise non-gesture playback. In that case
+`onPlaybackStateChange` receives `"blocked"` and `onPlaybackError` receives
+the browser error; retain control of `playing` in the host and offer an
+explicit user action.
+
 ## Automatic rotation
 
 Render `AutoRotate` inside `PanoView` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
