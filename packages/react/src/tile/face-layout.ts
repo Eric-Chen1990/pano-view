@@ -5,10 +5,11 @@ import {
   Vector3,
 } from "three";
 import type { CubeFaceCode, TileAddress } from "./types";
+import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 
 export const CUBE_FACES: CubeFaceCode[] = ["f", "r", "b", "l", "u", "d"];
 export const PREVIEW_FACE_ORDER: CubeFaceCode[] = ["f", "r", "b", "l", "u", "d"];
-export const CUBE_RADIUS = 50;
+export const CUBE_RADIUS = DEFAULT_PANORAMA_RADIUS;
 
 export type FaceTransform = {
   position: [number, number, number];

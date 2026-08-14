@@ -209,6 +209,35 @@ move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates
 an internal semantic control for Tab, Enter, and Space activation, with a
 visible WebGL focus outline.
 
+## Placement and zoom behaviour
+
+Hotspot orientation, placement, and zoom behaviour are independent:
+
+- `orientation="surface"` rotates the plane to the local panorama normal;
+  `"billboard"` keeps it facing the camera.
+- `placement="surface"` places it beside the panorama shell. Use
+  `placement="floating"` with `distance` (world units, default `10`) to
+  bring it forward. The built-in panorama shell is at roughly `1000` units;
+  distance is automatically capped so the hotspot's corners cannot cross it.
+- `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
+  `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
+  close to the size at `referenceFov` (default `75`).
+
+```tsx
+<ImageHotspot
+  id="callout"
+  ariaLabel="Open callout"
+  position={{ yaw: 18, pitch: 5 }}
+  width={10}
+  height={6}
+  orientation="billboard"
+  placement="floating"
+  distance={14}
+  scaleMode="fixed"
+  src="/hotspots/callout.webp"
+/>
+```
+
 ## Sequence and video hotspots
 
 `SequenceHotspot` animates a sprite sheet: one image containing equally sized

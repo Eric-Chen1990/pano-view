@@ -2,8 +2,9 @@ import type { ThreeEvent } from "@react-three/fiber";
 import { BackSide } from "three";
 import { vector3ToPanoPosition } from "./hotspot/coordinates";
 import type { PanoramaPointerEvent } from "./hotspot/types";
+import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 
-const EVENT_SURFACE_RADIUS = 49;
+const EVENT_SURFACE_RADIUS = DEFAULT_PANORAMA_RADIUS - 1;
 
 type PanoramaEventSurfaceProps = {
   onClick?: (event: PanoramaPointerEvent) => void;

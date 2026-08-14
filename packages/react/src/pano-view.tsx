@@ -23,6 +23,10 @@ import {
 } from "./hotspot/accessibility";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoramaEventSurface } from "./panorama-event-surface";
+import {
+  DEFAULT_PANORAMA_CAMERA_FAR,
+  DEFAULT_PANORAMA_CAMERA_NEAR,
+} from "./panorama-radius";
 import type {
   PanoramaControlsOptions,
   PanoViewHandle,
@@ -175,9 +179,9 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
         <Canvas
           aria-label={`${ariaLabel} canvas`}
           camera={{
-            far: 200,
+            far: DEFAULT_PANORAMA_CAMERA_FAR,
             fov: normalizedInitialView.fov,
-            near: 0.01,
+            near: DEFAULT_PANORAMA_CAMERA_NEAR,
             position: [0, 0, 0.01],
           }}
           dpr={dpr}

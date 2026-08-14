@@ -10,6 +10,7 @@ import {
   Texture,
   TextureLoader,
 } from "three";
+import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 
 export type SphereProps = {
   src: string;
@@ -83,7 +84,7 @@ export function Sphere({
 
   return (
     <mesh rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]}>
-      <sphereGeometry args={[50, 128, 64]} />
+      <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
       <meshBasicMaterial
         map={texture}
         side={BackSide}

@@ -35,6 +35,9 @@ type EditorHotspot =
       width: number;
       height: number;
       orientation: "billboard" | "surface";
+      placement: "surface" | "floating";
+      distance: number;
+      scaleMode: "fov" | "fixed";
       opacity: number;
       visible: boolean;
       src: string;
@@ -47,6 +50,9 @@ type EditorHotspot =
       width: number;
       height: number;
       orientation: "billboard" | "surface";
+      placement: "surface" | "floating";
+      distance: number;
+      scaleMode: "fov" | "fixed";
       opacity: number;
       visible: boolean;
       graphic: GraphicDefinition;
@@ -59,6 +65,9 @@ type EditorHotspot =
       width: number;
       height: number;
       orientation: "billboard" | "surface";
+      placement: "surface" | "floating";
+      distance: number;
+      scaleMode: "fov" | "fixed";
       opacity: number;
       visible: boolean;
       src: string;
@@ -76,6 +85,9 @@ type EditorHotspot =
       width: number;
       height: number;
       orientation: "billboard" | "surface";
+      placement: "surface" | "floating";
+      distance: number;
+      scaleMode: "fov" | "fixed";
       opacity: number;
       visible: boolean;
       src: string;
@@ -106,6 +118,9 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     width: 18,
     height: 10,
     orientation: "surface",
+    placement: "surface",
+    distance: 10,
+    scaleMode: "fov",
     opacity: 1,
     visible: true,
     src: "/fixtures/hotspots/gallery-card.svg",
@@ -118,6 +133,9 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     width: 8,
     height: 8,
     orientation: "billboard",
+    placement: "floating",
+    distance: 10,
+    scaleMode: "fixed",
     opacity: 1,
     visible: true,
     graphic: {
@@ -136,6 +154,9 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     width: 13,
     height: 7.3,
     orientation: "billboard",
+    placement: "floating",
+    distance: 10,
+    scaleMode: "fixed",
     opacity: 1,
     visible: true,
     src: SEQUENCE_SPRITE,
@@ -153,6 +174,9 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     width: 18,
     height: 10.1,
     orientation: "surface",
+    placement: "surface",
+    distance: 10,
+    scaleMode: "fov",
     opacity: 1,
     visible: true,
     src: "/fixtures/hotspots/loop.webm",
@@ -341,6 +365,9 @@ function App() {
         width: 16,
         height: 9,
         orientation: "billboard",
+        placement: "floating",
+        distance: 10,
+        scaleMode: "fov",
         opacity: 1,
         visible: true,
         src: "/fixtures/hotspots/gallery-card.svg",
@@ -360,6 +387,9 @@ function App() {
         width: 9,
         height: 9,
         orientation: "billboard",
+        placement: "floating",
+        distance: 10,
+        scaleMode: "fixed",
         opacity: 1,
         visible: true,
         graphic: createGraphic("circle"),
@@ -379,6 +409,9 @@ function App() {
         width: 13,
         height: 7.3,
         orientation: "billboard",
+        placement: "floating",
+        distance: 10,
+        scaleMode: "fixed",
         opacity: 1,
         visible: true,
         src: SEQUENCE_SPRITE,
@@ -403,6 +436,9 @@ function App() {
         width: 18,
         height: 10.1,
         orientation: "surface",
+        placement: "surface",
+        distance: 10,
+        scaleMode: "fov",
         opacity: 1,
         visible: true,
         src: "/fixtures/hotspots/loop.webm",
@@ -596,7 +632,10 @@ function App() {
                   id: hotspot.id,
                   opacity: hotspot.opacity,
                   orientation: hotspot.orientation,
+                  placement: hotspot.placement,
+                  distance: hotspot.distance,
                   position: hotspot.position,
+                  scaleMode: hotspot.scaleMode,
                   visible: hotspot.visible,
                   width: hotspot.width,
                   height: hotspot.height,
@@ -758,6 +797,51 @@ function App() {
                   <option value="billboard">Billboard</option>
                   <option value="surface">Surface</option>
                 </select>
+              </label>
+
+              <div className="field-grid">
+                <label className="field">
+                  <span>Placement</span>
+                  <select
+                    onChange={(event) => updateHotspot(selected.id, {
+                      placement: event.currentTarget.value as EditorHotspot["placement"],
+                    })}
+                    value={selected.placement}
+                  >
+                    <option value="surface">Panorama surface</option>
+                    <option value="floating">Floating</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Size on zoom</span>
+                  <select
+                    onChange={(event) => updateHotspot(selected.id, {
+                      scaleMode: event.currentTarget.value as EditorHotspot["scaleMode"],
+                    })}
+                    value={selected.scaleMode}
+                  >
+                    <option value="fov">Follow FOV</option>
+                    <option value="fixed">Keep screen size</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="field wide range-field">
+                <span>
+                  Floating distance
+                  <b>{selected.placement === "surface" ? "surface" : selected.distance.toFixed(1)}</b>
+                </span>
+                <input
+                  disabled={selected.placement === "surface"}
+                  max="49.5"
+                  min="0.5"
+                  onChange={(event) => updateHotspot(selected.id, {
+                    distance: numberValue(event.currentTarget.value, selected.distance),
+                  })}
+                  step="0.5"
+                  type="range"
+                  value={selected.distance}
+                />
               </label>
 
               <label className="field wide range-field">

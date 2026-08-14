@@ -13,10 +13,12 @@ import {
   Matrix4,
   Object3D,
   PlaneGeometry,
+  PerspectiveCamera,
   Quaternion,
   Vector3,
 } from "three";
 import { PanoramaControlsContext } from "../auto-rotate";
+import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { useHotspotAccessibility } from "./accessibility";
 import {
   normalizePanoPosition,
@@ -29,7 +31,11 @@ import type {
   HotspotPosition,
 } from "./types";
 
-const HOTSPOT_RADIUS = 10;
+const DEFAULT_FLOATING_DISTANCE = 10;
+const PANORAMA_RADIUS = DEFAULT_PANORAMA_RADIUS;
+// Keep a stable gap from the shell; a sub-unit gap z-fights at radius 1000.
+const PANORAMA_SURFACE_INSET = 4;
+const DEFAULT_REFERENCE_FOV = 75;
 const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
@@ -53,6 +59,49 @@ function angularSizeToWorldSize(size: number, radius: number): number {
     ? MathUtils.clamp(Math.abs(size), MIN_ANGULAR_SIZE, MAX_ANGULAR_SIZE)
     : MIN_ANGULAR_SIZE;
   return 2 * radius * Math.tan(MathUtils.degToRad(safeSize) / 2);
+}
+
+function resolveDistance(
+  placement: "surface" | "floating",
+  distance: number | undefined,
+  width: number,
+  height: number,
+): number {
+  const maximumDistance = maximumHotspotDistance(width, height);
+  if (placement === "surface") {
+    return maximumDistance;
+  }
+  if (!Number.isFinite(distance)) {
+    return DEFAULT_FLOATING_DISTANCE;
+  }
+  return MathUtils.clamp(Math.abs(distance!), 0.1, maximumDistance);
+}
+
+function maximumHotspotDistance(width: number, height: number): number {
+  const safeWidth = MathUtils.clamp(
+    Math.abs(Number.isFinite(width) ? width : MIN_ANGULAR_SIZE),
+    MIN_ANGULAR_SIZE,
+    MAX_ANGULAR_SIZE,
+  );
+  const safeHeight = MathUtils.clamp(
+    Math.abs(Number.isFinite(height) ? height : MIN_ANGULAR_SIZE),
+    MIN_ANGULAR_SIZE,
+    MAX_ANGULAR_SIZE,
+  );
+  const cornerFactor = Math.hypot(
+    1,
+    Math.tan(MathUtils.degToRad(safeWidth) / 2),
+    Math.tan(MathUtils.degToRad(safeHeight) / 2),
+  );
+  return (PANORAMA_RADIUS - PANORAMA_SURFACE_INSET) / cornerFactor;
+}
+
+function fixedScaleFactor(cameraFov: number, referenceFov: number): number {
+  const safeReferenceFov = MathUtils.clamp(referenceFov, 1, 179);
+  return (
+    Math.tan(MathUtils.degToRad(cameraFov) / 2) /
+    Math.tan(MathUtils.degToRad(safeReferenceFov) / 2)
+  );
 }
 
 function createSurfaceQuaternion(position: HotspotPosition): Quaternion {
@@ -95,7 +144,11 @@ export function HotspotAnchor({
   position,
   width,
   height,
+  placement = "floating",
+  distance,
   orientation = "billboard",
+  scaleMode = "fov",
+  referenceFov = DEFAULT_REFERENCE_FOV,
   rotation = 0,
   renderOrder = 0,
   visible = true,
@@ -113,16 +166,17 @@ export function HotspotAnchor({
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
   const normalizedPosition = normalizePanoPosition(position);
+  const resolvedDistance = resolveDistance(placement, distance, width, height);
   const worldPosition = useMemo(
-    () => panoPositionToVector3(normalizedPosition, HOTSPOT_RADIUS),
-    [normalizedPosition.pitch, normalizedPosition.yaw],
+    () => panoPositionToVector3(normalizedPosition, resolvedDistance),
+    [normalizedPosition.pitch, normalizedPosition.yaw, resolvedDistance],
   );
   const surfaceQuaternion = useMemo(
     () => createSurfaceQuaternion(normalizedPosition),
     [normalizedPosition.pitch, normalizedPosition.yaw],
   );
-  const worldWidth = angularSizeToWorldSize(width, HOTSPOT_RADIUS);
-  const worldHeight = angularSizeToWorldSize(height, HOTSPOT_RADIUS);
+  const worldWidth = angularSizeToWorldSize(width, resolvedDistance);
+  const worldHeight = angularSizeToWorldSize(height, resolvedDistance);
   const focusGeometry = useMemo(() => {
     const planeGeometry = new PlaneGeometry(1, 1);
     const geometry = new EdgesGeometry(planeGeometry);
@@ -166,6 +220,15 @@ export function HotspotAnchor({
     groupRef.current.rotateOnAxis(
       LOCAL_FORWARD,
       MathUtils.degToRad(rotation),
+    );
+    const scaleFactor =
+      scaleMode === "fixed" && camera instanceof PerspectiveCamera
+        ? fixedScaleFactor(camera.fov, referenceFov)
+        : 1;
+    groupRef.current.scale.set(
+      worldWidth * scaleFactor,
+      worldHeight * scaleFactor,
+      1,
     );
   });
 

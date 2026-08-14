@@ -59,7 +59,9 @@ export type {
   HotspotInputSource,
   HotspotInteractionEvent,
   HotspotCommonProps,
+  HotspotPlacement,
   HotspotOrientation,
+  HotspotScaleMode,
   HotspotPosition,
   PanoramaPointerEvent,
 } from "./hotspot/types";

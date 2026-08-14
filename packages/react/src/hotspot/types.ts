@@ -9,6 +9,12 @@ export type HotspotPosition = {
 
 export type HotspotOrientation = "billboard" | "surface";
 
+/** Where the hotspot sits along the panorama ray. */
+export type HotspotPlacement = "surface" | "floating";
+
+/** Whether a hotspot grows with panorama zoom or preserves its screen size. */
+export type HotspotScaleMode = "fov" | "fixed";
+
 export type HotspotInputSource = "pointer" | "keyboard";
 
 export type HotspotInteractionEvent = {
@@ -30,7 +36,21 @@ export type HotspotCommonProps = {
   width?: number;
   /** Angular height in degrees. Defaults to 8. */
   height?: number;
+  /**
+   * Surface places the hotspot beside the panorama shell. Floating uses a
+   * nearer, configurable distance. Defaults to "floating" for compatibility.
+   */
+  placement?: HotspotPlacement;
+  /**
+   * World-space distance used by a floating hotspot. Defaults to 10 and is
+   * capped when needed so the full hotspot remains inside the panorama shell.
+   */
+  distance?: number;
   orientation?: HotspotOrientation;
+  /** FOV grows/shrinks with zoom; fixed preserves the reference screen size. */
+  scaleMode?: HotspotScaleMode;
+  /** Reference FOV in degrees used when scaleMode is "fixed". Defaults to 75. */
+  referenceFov?: number;
   /** Clockwise rotation around the hotspot normal in degrees. */
   rotation?: number;
   opacity?: number;
