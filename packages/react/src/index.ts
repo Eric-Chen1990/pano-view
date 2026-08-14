@@ -19,3 +19,19 @@ export type {
   PanoViewState,
   SetPanoViewOptions,
 } from "./types";
+export {
+  clampPanoPitch,
+  normalizePanoPosition,
+  normalizePanoYaw,
+  panoPositionToVector3,
+  vector3ToPanoPosition,
+} from "./hotspot/coordinates";
+export { MAX_HOTSPOT_PITCH } from "./hotspot/types";
+export type {
+  HotspotDragEvent,
+  HotspotInputSource,
+  HotspotInteractionEvent,
+  HotspotOrientation,
+  HotspotPosition,
+  PanoramaPointerEvent,
+} from "./hotspot/types";

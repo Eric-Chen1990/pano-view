@@ -17,6 +17,8 @@ import {
   type PanoramaControlsHandle,
 } from "./panorama-controls";
 import { AutoRotate, PanoramaControlsContext } from "./auto-rotate";
+import type { PanoramaPointerEvent } from "./hotspot/types";
+import { PanoramaEventSurface } from "./panorama-event-surface";
 import type {
   PanoramaControlsOptions,
   PanoViewHandle,
@@ -45,6 +47,9 @@ export type PanoViewProps = Omit<
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
   onViewChange?: (view: PanoViewState) => void;
+  onPanoramaClick?: (event: PanoramaPointerEvent) => void;
+  onPanoramaDoubleClick?: (event: PanoramaPointerEvent) => void;
+  onPanoramaPointerMove?: (event: PanoramaPointerEvent) => void;
   /** Canvas pixel ratio. Defaults to a capped range of 1–2. */
   dpr?: number | [number, number];
 };
@@ -58,6 +63,9 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       maxFov = 100,
       controls = true,
       onViewChange,
+      onPanoramaClick,
+      onPanoramaDoubleClick,
+      onPanoramaPointerMove,
       dpr = [1, 2],
       style,
       "aria-label": ariaLabel = "Panorama viewer",
@@ -191,6 +199,11 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
             <AutoRotate
               enabled={legacyAutoRotate}
               speed={legacyAutoRotateOptions.autoRotateSpeed}
+            />
+            <PanoramaEventSurface
+              onClick={onPanoramaClick}
+              onDoubleClick={onPanoramaDoubleClick}
+              onPointerMove={onPanoramaPointerMove}
             />
             {children}
           </PanoramaControlsContext.Provider>

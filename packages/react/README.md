@@ -118,6 +118,44 @@ export function ControlledExample() {
 
 The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, wheel, arrow keys, `+/-`, and `0` to reset. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
 
+## Panorama coordinate events
+
+Use the panorama pointer callbacks when an authoring UI needs the spherical
+position under the cursor. Event positions use the same public degree
+convention as the camera: positive yaw looks right and positive pitch looks up.
+
+```tsx
+import {
+  PanoView,
+  Sphere,
+  panoPositionToVector3,
+  type HotspotPosition,
+} from "@pano-view/react";
+
+export function PlacementExample() {
+  const place = (position: HotspotPosition) => {
+    const worldPosition = panoPositionToVector3(position, 10);
+    console.log(position, worldPosition);
+  };
+
+  return (
+    <PanoView
+      onPanoramaClick={({ position }) => place(position)}
+      onPanoramaDoubleClick={({ position }) => console.log("double", position)}
+      onPanoramaPointerMove={({ position }) => console.log("move", position)}
+      style={{ height: 560 }}
+    >
+      <Sphere src="/panoramas/room.webp" />
+    </PanoView>
+  );
+}
+```
+
+`normalizePanoPosition`, `normalizePanoYaw`, `clampPanoPitch`, and
+`vector3ToPanoPosition` are also exported for controlled authoring flows. Yaw
+is normalized to `[-180, 180)`. Pitch is clamped to `[-89.9, 89.9]` to avoid
+the spherical-coordinate singularity at the poles.
+
 ## Automatic rotation
 
 Render `AutoRotate` inside `PanoView` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.

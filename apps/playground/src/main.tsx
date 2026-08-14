@@ -44,6 +44,9 @@ function App() {
   const [progress, setProgress] = useState(INITIAL_PROGRESS);
   const [autoRotate, setAutoRotate] = useState(false);
   const [tileErrors, setTileErrors] = useState(0);
+  const [lastPointerPosition, setLastPointerPosition] = useState<string | null>(
+    null,
+  );
   const controls = { inertia: true, keyboard: true };
 
   const selectMode = (nextMode: ViewerMode) => {
@@ -51,6 +54,7 @@ function App() {
     setLevel(1);
     setProgress(INITIAL_PROGRESS);
     setTileErrors(0);
+    setLastPointerPosition(null);
   };
 
   return (
@@ -118,6 +122,11 @@ function App() {
             className="pano-view"
             controls={controls}
             initialView={INITIAL_VIEW}
+            onPanoramaClick={({ position }) => {
+              setLastPointerPosition(
+                `${position.yaw.toFixed(1)}° / ${position.pitch.toFixed(1)}°`,
+              );
+            }}
             onViewChange={setView}
           >
             <AutoRotate
@@ -139,7 +148,11 @@ function App() {
             )}
           </PanoView>
           <div className="reticle" aria-hidden="true" />
-          <p className="input-hint">Drag · Wheel · Pinch · Arrow keys</p>
+          <p className="input-hint">
+            {lastPointerPosition
+              ? `Click yaw / pitch · ${lastPointerPosition}`
+              : "Click to inspect · Drag · Wheel · Pinch · Arrow keys"}
+          </p>
         </div>
 
         <dl className="metrics" aria-label="Viewer state">

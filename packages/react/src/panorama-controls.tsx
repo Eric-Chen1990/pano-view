@@ -35,6 +35,7 @@ export type PanoramaControlsHandle = {
   ) => void;
   reset: () => void;
   applyAutoRotation: (yawDelta: number) => boolean;
+  acquireInteractionLock: () => () => void;
 };
 
 type PanoramaControlsProps = {
@@ -92,6 +93,7 @@ export const PanoramaControls = forwardRef<
   const zoomVelocityRef = useRef(0);
   const dirtyRef = useRef(true);
   const interactingRef = useRef(false);
+  const interactionLockCountRef = useRef(0);
   const optionsRef = useRef(options);
   const onViewChangeRef = useRef(onViewChange);
   const lastEmittedViewRef = useRef<PanoViewState | null>(null);
@@ -117,6 +119,31 @@ export const PanoramaControls = forwardRef<
     zoomVelocityRef.current = 0;
   };
 
+  const acquireInteractionLock = () => {
+    interactionLockCountRef.current += 1;
+    stopVelocity();
+    interactingRef.current = false;
+    pinchDistanceRef.current = null;
+    for (const pointerId of pointersRef.current.keys()) {
+      if (gl.domElement.hasPointerCapture?.(pointerId)) {
+        gl.domElement.releasePointerCapture?.(pointerId);
+      }
+    }
+    pointersRef.current.clear();
+
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      interactionLockCountRef.current = Math.max(
+        0,
+        interactionLockCountRef.current - 1,
+      );
+    };
+  };
+
   const setView = (
     view: Partial<PanoViewState>,
     setOptions?: SetPanoViewOptions,
@@ -136,6 +163,7 @@ export const PanoramaControls = forwardRef<
       getView: () => ({ ...viewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
+      acquireInteractionLock,
       applyAutoRotation: (yawDelta: number) => {
         const inertiaFinished =
           yawVelocityRef.current === 0 &&
@@ -143,6 +171,7 @@ export const PanoramaControls = forwardRef<
           zoomVelocityRef.current === 0;
         if (
           !Number.isFinite(yawDelta) ||
+          interactionLockCountRef.current > 0 ||
           interactingRef.current ||
           !inertiaFinished
         ) {
@@ -154,7 +183,7 @@ export const PanoramaControls = forwardRef<
         return true;
       },
     }),
-    [maxFov, minFov],
+    [gl, maxFov, minFov],
   );
 
   useEffect(() => {
@@ -179,6 +208,9 @@ export const PanoramaControls = forwardRef<
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      if (interactionLockCountRef.current > 0) {
+        return;
+      }
       event.preventDefault();
       interactingRef.current = true;
       stopVelocity();
@@ -196,6 +228,9 @@ export const PanoramaControls = forwardRef<
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      if (interactionLockCountRef.current > 0) {
+        return;
+      }
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
@@ -260,6 +295,10 @@ export const PanoramaControls = forwardRef<
     };
 
     const onWheel = (event: WheelEvent) => {
+      if (interactionLockCountRef.current > 0) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       const zoomSpeed = optionsRef.current.zoomSpeed ?? 0.08;
       const delta = event.deltaY * zoomSpeed;
@@ -281,6 +320,9 @@ export const PanoramaControls = forwardRef<
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (interactionLockCountRef.current > 0) {
+        return;
+      }
       if (optionsRef.current.keyboard === false) {
         return;
       }
