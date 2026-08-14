@@ -6,6 +6,17 @@ export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
+export { PolygonHotspot } from "./hotspot/polygon-hotspot";
+export type {
+  PolygonHotspotProps,
+  PolygonValidationCode,
+  PolygonValidationIssue,
+  PolygonVerticesChangeEvent,
+} from "./hotspot/polygon-hotspot";
+export {
+  unwrapPolygonVertices,
+  validatePolygonVertices,
+} from "./hotspot/polygon-hotspot";
 export { GraphicHotspot } from "./hotspot/graphic-hotspot";
 export type {
   CircleGraphic,

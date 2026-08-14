@@ -238,6 +238,41 @@ Hotspot orientation, placement, and zoom behaviour are independent:
 />
 ```
 
+## Polygon hotspots
+
+`PolygonHotspot` renders a local spherical area from three or more controlled
+yaw/pitch vertices. Concave polygons and the `-180°/180°` seam are supported.
+The component reports, rather than renders, self-intersecting polygons, shapes
+that contain a pole, and shapes that cannot fit within one hemisphere.
+
+```tsx
+import { PolygonHotspot } from "@pano-view/react";
+
+<PolygonHotspot
+  id="exhibit-zone"
+  ariaLabel="Open exhibit zone"
+  vertices={[
+    { yaw: 16, pitch: 8 },
+    { yaw: 31, pitch: 7 },
+    { yaw: 27, pitch: 19 },
+    { yaw: 19, pitch: 16 },
+  ]}
+  fill="#df6b42"
+  fillOpacity={0.32}
+  stroke="#f5fbfc"
+  strokeWidth={2}
+  strokeOpacity={0.8}
+  draggable
+  onVerticesChange={({ vertices }) => setZoneVertices(vertices)}
+  onInvalid={(issues) => console.error(issues)}
+/>
+```
+
+`strokeWidth` is a screen-space CSS pixel value, so it remains visually
+consistent across FOV changes. Dragging moves all vertices together while
+keeping yaw normalized and pitch clamped. Individual vertex editing is provided
+by the authoring workflow, not the runtime hotspot component.
+
 ## Sequence and video hotspots
 
 `SequenceHotspot` animates a sprite sheet: one image containing equally sized

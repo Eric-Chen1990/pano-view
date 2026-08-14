@@ -5,6 +5,7 @@ import {
   GraphicHotspot,
   ImageHotspot,
   PanoView,
+  PolygonHotspot,
   SequenceHotspot,
   Sphere,
   Tile,
@@ -108,6 +109,13 @@ const INITIAL_PROGRESS: TileLoadProgress = {
 };
 
 const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
+const RUNTIME_POLYGON = [
+  { yaw: -18, pitch: 16 },
+  { yaw: -2, pitch: 13 },
+  { yaw: 8, pitch: 23 },
+  { yaw: -6, pitch: 31 },
+  { yaw: -13, pitch: 24 },
+];
 
 const DEMO_HOTSPOTS: EditorHotspot[] = [
   {
@@ -703,6 +711,15 @@ function App() {
                   />
                 );
               })}
+              <PolygonHotspot
+                id="runtime-polygon-example"
+                fill="#df6b42"
+                fillOpacity={0.28}
+                stroke="#f5fbfc"
+                strokeWidth={2}
+                strokeOpacity={0.88}
+                vertices={RUNTIME_POLYGON}
+              />
             </PanoView>
             <div className="reticle" aria-hidden="true" />
             <p className="canvas-status" role="status">{lastAction}</p>

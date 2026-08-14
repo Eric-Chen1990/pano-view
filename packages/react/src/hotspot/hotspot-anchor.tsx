@@ -51,6 +51,9 @@ type DragState = {
 export type HotspotAnchorProps = Omit<HotspotCommonProps, "opacity"> & {
   width: number;
   height: number;
+  /** Internal escape hatch for world-space children such as polygons. */
+  useAngularScale?: boolean;
+  focusContent?: ReactNode;
   children?: ReactNode;
 };
 
@@ -144,6 +147,8 @@ export function HotspotAnchor({
   position,
   width,
   height,
+  useAngularScale = true,
+  focusContent,
   placement = "floating",
   distance,
   orientation = "billboard",
@@ -226,8 +231,8 @@ export function HotspotAnchor({
         ? fixedScaleFactor(camera.fov, referenceFov)
         : 1;
     groupRef.current.scale.set(
-      worldWidth * scaleFactor,
-      worldHeight * scaleFactor,
+      (useAngularScale ? worldWidth : 1) * scaleFactor,
+      (useAngularScale ? worldHeight : 1) * scaleFactor,
       1,
     );
   });
@@ -336,7 +341,7 @@ export function HotspotAnchor({
       }}
       onPointerUp={(event) => releasePointer(event, true)}
     >
-      {focused ? (
+      {focused ? (focusContent ?? (
         <lineSegments
           geometry={focusGeometry}
           position={[0, 0, 0.01]}
@@ -345,7 +350,7 @@ export function HotspotAnchor({
         >
           <lineBasicMaterial color="#f5fbfc" depthTest={false} />
         </lineSegments>
-      ) : null}
+      )) : null}
       {children}
     </group>
   );
