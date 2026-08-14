@@ -30,9 +30,7 @@ import type {
 } from "./types";
 
 const POLYGON_RADIUS = 990;
-const POLYGON_STROKE_RADIUS = POLYGON_RADIUS - 0.5;
 const MAX_FILL_SEGMENT_DEGREES = 7;
-const MAX_STROKE_SEGMENT_DEGREES = 3;
 
 export type PolygonValidationCode =
   | "too_few_vertices"
@@ -264,6 +262,23 @@ function projectedPoint(
   ).applyMatrix4(worldToLocal);
 }
 
+function polygonSubdivisionSteps(vertices: HotspotPosition[]): number {
+  let maxAngle = 0;
+  for (let index = 0; index < vertices.length; index += 1) {
+    const start = panoPositionToVector3(vertices[index]!).normalize();
+    for (let other = index + 1; other < vertices.length; other += 1) {
+      maxAngle = Math.max(
+        maxAngle,
+        start.angleTo(panoPositionToVector3(vertices[other]!).normalize()),
+      );
+    }
+  }
+  return Math.min(
+    8,
+    Math.max(1, Math.ceil((maxAngle * 180) / Math.PI / MAX_FILL_SEGMENT_DEGREES)),
+  );
+}
+
 function addSubdividedTriangle(
   positions: number[],
   indices: number[],
@@ -271,14 +286,8 @@ function addSubdividedTriangle(
   b: UnwrappedVertex,
   c: UnwrappedVertex,
   worldToLocal: Matrix4,
+  steps: number,
 ): void {
-  const directions = [a, b, c].map((vertex) => panoPositionToVector3(vertex).normalize());
-  const maxAngle = Math.max(
-    directions[0]!.angleTo(directions[1]!),
-    directions[1]!.angleTo(directions[2]!),
-    directions[2]!.angleTo(directions[0]!),
-  );
-  const steps = Math.min(8, Math.max(1, Math.ceil((maxAngle * 180) / Math.PI / MAX_FILL_SEGMENT_DEGREES)));
   const grid = new Map<string, number>();
   const pointIndex = (i: number, j: number) => {
     const key = `${i}:${j}`;
@@ -310,21 +319,21 @@ function makeFillGeometry(vertices: HotspotPosition[], center: HotspotPosition):
   const positions: number[] = [];
   const indices: number[] = [];
   const worldToLocal = makeWorldToLocal(center);
+  const steps = polygonSubdivisionSteps(vertices);
   for (const [a, b, c] of triangles) {
-    addSubdividedTriangle(positions, indices, unwrapped[a]!, unwrapped[b]!, unwrapped[c]!, worldToLocal);
+    addSubdividedTriangle(
+      positions,
+      indices,
+      unwrapped[a]!,
+      unwrapped[b]!,
+      unwrapped[c]!,
+      worldToLocal,
+      steps,
+    );
   }
   return new BufferGeometry()
     .setAttribute("position", new Float32BufferAttribute(positions, 3))
     .setIndex(indices);
-}
-
-function slerpDirection(a: Vector3, b: Vector3, t: number): Vector3 {
-  const angle = a.angleTo(b);
-  if (angle < 1e-6) return a.clone();
-  const sinAngle = Math.sin(angle);
-  return a.clone().multiplyScalar(Math.sin((1 - t) * angle) / sinAngle)
-    .addScaledVector(b, Math.sin(t * angle) / sinAngle)
-    .normalize();
 }
 
 function makeStrokePositions(
@@ -333,23 +342,28 @@ function makeStrokePositions(
 ): number[] {
   const positions: number[] = [];
   const worldToLocal = makeWorldToLocal(center);
-  const boundary: Vector3[] = [];
+  const unwrapped = unwrapPolygonVertices(vertices);
+  const steps = polygonSubdivisionSteps(vertices);
 
-  for (let edge = 0; edge < vertices.length; edge += 1) {
-    const start = panoPositionToVector3(vertices[edge]!).normalize();
-    const end = panoPositionToVector3(vertices[(edge + 1) % vertices.length]!).normalize();
-    const steps = Math.min(24, Math.max(1, Math.ceil((start.angleTo(end) * 180) / Math.PI / MAX_STROKE_SEGMENT_DEGREES)));
-    // Do not duplicate the edge end: the following edge begins at the same
-    // vertex, so Line2 receives one continuous closed path.
+  for (let edge = 0; edge < unwrapped.length; edge += 1) {
+    const start = unwrapped[edge]!;
+    const end = unwrapped[(edge + 1) % unwrapped.length]!;
+
+    // This is intentionally the same yaw/pitch interpolation and segment
+    // density used by the fill geometry. The outline therefore sits directly
+    // on its outer boundary instead of following a different great-circle arc.
     for (let step = 0; step < steps; step += 1) {
-      boundary.push(slerpDirection(start, end, step / steps));
-    }
-  }
-
-  for (const direction of boundary) {
-    const point = direction.clone().multiplyScalar(POLYGON_STROKE_RADIUS)
+      const progress = step / steps;
+      const point = panoPositionToVector3(
+        {
+          yaw: start.unwrappedYaw + (end.unwrappedYaw - start.unwrappedYaw) * progress,
+          pitch: start.pitch + (end.pitch - start.pitch) * progress,
+        },
+        POLYGON_RADIUS,
+      )
       .applyMatrix4(worldToLocal);
-    positions.push(point.x, point.y, point.z);
+      positions.push(point.x, point.y, point.z);
+    }
   }
   positions.push(...positions.slice(0, 3));
   return positions;
@@ -371,6 +385,7 @@ function makeStrokeLine(
     opacity,
     transparent: true,
     worldUnits: false,
+    alphaToCoverage: true,
   });
   const line = new Line2(geometry, material);
   line.computeLineDistances();

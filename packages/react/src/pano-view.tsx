@@ -186,7 +186,9 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           }}
           dpr={dpr}
           gl={{
-            antialias: false,
+            // Hotspots contain transparent textures and curved outlines. Keep
+            // the canvas multisampled so their visible edges are smoothed.
+            antialias: true,
             powerPreference: "high-performance",
             stencil: false,
           }}

@@ -4,6 +4,7 @@ import {
   ClampToEdgeWrapping,
   DoubleSide,
   LinearFilter,
+  LinearMipmapLinearFilter,
   SRGBColorSpace,
   Texture,
 } from "three";
@@ -192,8 +193,8 @@ function createGraphicTexture(
   texture.wrapS = ClampToEdgeWrapping;
   texture.wrapT = ClampToEdgeWrapping;
   texture.magFilter = LinearFilter;
-  texture.minFilter = LinearFilter;
-  texture.generateMipmaps = false;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
 }
