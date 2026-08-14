@@ -35,6 +35,16 @@ export type PanoramaControlsOptions = {
   rotateSpeed?: number;
   /** Wheel zoom multiplier. Defaults to 0.08. */
   zoomSpeed?: number;
+  /**
+   * Rotation target-following speed in seconds^-1. Defaults to 14; use 0 for
+   * immediate response. Must be a non-negative finite number.
+   */
+  rotateDamping?: number;
+  /**
+   * FOV target-following speed in seconds^-1. Defaults to 16; use 0 for
+   * immediate response. Must be a non-negative finite number.
+   */
+  zoomDamping?: number;
   /** Enables focusable keyboard controls. Defaults to true. */
   keyboard?: boolean;
 };

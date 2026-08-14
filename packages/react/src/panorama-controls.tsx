@@ -13,10 +13,13 @@ import type {
 } from "./types";
 
 const MAX_PITCH = 89.9;
-const ROTATION_DAMPING = 8;
-const ZOOM_DAMPING = 12;
+const INERTIA_ROTATION_DAMPING = 8;
+const INERTIA_ZOOM_DAMPING = 12;
+const DEFAULT_ROTATE_DAMPING = 14;
+const DEFAULT_ZOOM_DAMPING = 16;
 const MIN_ROTATION_VELOCITY = 0.01;
 const MIN_ZOOM_VELOCITY = 0.01;
+const VIEW_SETTLE_EPSILON = 0.001;
 
 type PointerPosition = {
   x: number;
@@ -52,6 +55,18 @@ function normalizeYaw(yaw: number): number {
   return MathUtils.euclideanModulo(yaw + 180, 360) - 180;
 }
 
+function shortestYawDelta(from: number, to: number): number {
+  return normalizeYaw(to - from);
+}
+
+function dampingFactor(damping: number, deltaSeconds: number): number {
+  return damping === 0 ? 1 : 1 - Math.exp(-damping * deltaSeconds);
+}
+
+function resolveDamping(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) && value! >= 0 ? value! : fallback;
+}
+
 function pointerDistance(a: PointerPosition, b: PointerPosition): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -69,6 +84,7 @@ export const PanoramaControls = forwardRef<
 ) {
   const { camera, gl } = useThree();
   const viewRef = useRef<PanoViewState>({ ...initialView });
+  const targetViewRef = useRef<PanoViewState>({ ...initialView });
   const initialViewRef = useRef<PanoViewState>({ ...initialView });
   const pointersRef = useRef(new Map<number, PointerPosition>());
   const pinchDistanceRef = useRef<number | null>(null);
@@ -86,8 +102,10 @@ export const PanoramaControls = forwardRef<
   optionsRef.current = options;
   onViewChangeRef.current = onViewChange;
 
-  const constrainView = (view: Partial<PanoViewState>): PanoViewState => {
-    const current = viewRef.current;
+  const constrainView = (
+    view: Partial<PanoViewState>,
+    current: PanoViewState = targetViewRef.current,
+  ): PanoViewState => {
     return {
       yaw: normalizeYaw(view.yaw ?? current.yaw),
       pitch: clamp(view.pitch ?? current.pitch, -MAX_PITCH, MAX_PITCH),
@@ -105,7 +123,9 @@ export const PanoramaControls = forwardRef<
     view: Partial<PanoViewState>,
     setOptions?: SetPanoViewOptions,
   ) => {
-    viewRef.current = constrainView(view);
+    const nextView = constrainView(view);
+    targetViewRef.current = nextView;
+    viewRef.current = nextView;
     if (setOptions?.immediate !== false) {
       stopVelocity();
     }
@@ -187,7 +207,7 @@ export const PanoramaControls = forwardRef<
         const previousDistance = pinchDistanceRef.current;
         pinchDistanceRef.current = distance;
         if (previousDistance && distance > 0) {
-          const currentFov = viewRef.current.fov;
+          const currentFov = targetViewRef.current.fov;
           const nextFov = clamp(
             currentFov * (previousDistance / distance),
             minFov,
@@ -195,7 +215,10 @@ export const PanoramaControls = forwardRef<
           );
           const elapsed = Math.max((next.at - previous.at) / 1000, 1 / 120);
           zoomVelocityRef.current = (nextFov - currentFov) / elapsed;
-          viewRef.current = { ...viewRef.current, fov: nextFov };
+          targetViewRef.current = {
+            ...targetViewRef.current,
+            fov: nextFov,
+          };
           dirtyRef.current = true;
         }
         return;
@@ -211,9 +234,9 @@ export const PanoramaControls = forwardRef<
         Math.max(rect.height, 1);
       const elapsed = Math.max((next.at - previous.at) / 1000, 1 / 120);
 
-      viewRef.current = constrainView({
-        yaw: viewRef.current.yaw + deltaYaw,
-        pitch: viewRef.current.pitch + deltaPitch,
+      targetViewRef.current = constrainView({
+        yaw: targetViewRef.current.yaw + deltaYaw,
+        pitch: targetViewRef.current.pitch + deltaPitch,
       });
       yawVelocityRef.current = deltaYaw / elapsed;
       pitchVelocityRef.current = deltaPitch / elapsed;
@@ -235,13 +258,20 @@ export const PanoramaControls = forwardRef<
       event.preventDefault();
       const zoomSpeed = optionsRef.current.zoomSpeed ?? 0.08;
       const delta = event.deltaY * zoomSpeed;
-      const nextFov = clamp(viewRef.current.fov + delta, minFov, maxFov);
+      const nextFov = clamp(
+        targetViewRef.current.fov + delta,
+        minFov,
+        maxFov,
+      );
       zoomVelocityRef.current = clamp(
         zoomVelocityRef.current + delta * 12,
         -180,
         180,
       );
-      viewRef.current = { ...viewRef.current, fov: nextFov };
+      targetViewRef.current = {
+        ...targetViewRef.current,
+        fov: nextFov,
+      };
       dirtyRef.current = true;
     };
 
@@ -253,17 +283,17 @@ export const PanoramaControls = forwardRef<
       const step = event.shiftKey ? 10 : 3;
       let next: Partial<PanoViewState> | null = null;
       if (event.key === "ArrowLeft") {
-        next = { yaw: viewRef.current.yaw - step };
+        next = { yaw: targetViewRef.current.yaw - step };
       } else if (event.key === "ArrowRight") {
-        next = { yaw: viewRef.current.yaw + step };
+        next = { yaw: targetViewRef.current.yaw + step };
       } else if (event.key === "ArrowUp") {
-        next = { pitch: viewRef.current.pitch + step };
+        next = { pitch: targetViewRef.current.pitch + step };
       } else if (event.key === "ArrowDown") {
-        next = { pitch: viewRef.current.pitch - step };
+        next = { pitch: targetViewRef.current.pitch - step };
       } else if (event.key === "+" || event.key === "=") {
-        next = { fov: viewRef.current.fov - step };
+        next = { fov: targetViewRef.current.fov - step };
       } else if (event.key === "-" || event.key === "_") {
-        next = { fov: viewRef.current.fov + step };
+        next = { fov: targetViewRef.current.fov + step };
       } else if (event.key === "0") {
         setView(initialViewRef.current);
         event.preventDefault();
@@ -272,7 +302,8 @@ export const PanoramaControls = forwardRef<
 
       if (next) {
         event.preventDefault();
-        setView(next);
+        targetViewRef.current = constrainView(next);
+        dirtyRef.current = true;
       }
     };
 
@@ -301,11 +332,13 @@ export const PanoramaControls = forwardRef<
 
     const inertiaEnabled = optionsRef.current.inertia !== false;
     if (!interactingRef.current && inertiaEnabled) {
-      const rotationDamping = Math.exp(-ROTATION_DAMPING * deltaSeconds);
-      const zoomDamping = Math.exp(-ZOOM_DAMPING * deltaSeconds);
+      const rotationDamping = Math.exp(
+        -INERTIA_ROTATION_DAMPING * deltaSeconds,
+      );
+      const zoomDamping = Math.exp(-INERTIA_ZOOM_DAMPING * deltaSeconds);
 
       if (Math.abs(yawVelocityRef.current) >= MIN_ROTATION_VELOCITY) {
-        viewRef.current.yaw += yawVelocityRef.current * deltaSeconds;
+        targetViewRef.current.yaw += yawVelocityRef.current * deltaSeconds;
         yawVelocityRef.current *= rotationDamping;
         dirtyRef.current = true;
       } else {
@@ -313,7 +346,7 @@ export const PanoramaControls = forwardRef<
       }
 
       if (Math.abs(pitchVelocityRef.current) >= MIN_ROTATION_VELOCITY) {
-        viewRef.current.pitch += pitchVelocityRef.current * deltaSeconds;
+        targetViewRef.current.pitch += pitchVelocityRef.current * deltaSeconds;
         pitchVelocityRef.current *= rotationDamping;
         dirtyRef.current = true;
       } else {
@@ -321,7 +354,7 @@ export const PanoramaControls = forwardRef<
       }
 
       if (Math.abs(zoomVelocityRef.current) >= MIN_ZOOM_VELOCITY) {
-        viewRef.current.fov += zoomVelocityRef.current * deltaSeconds;
+        targetViewRef.current.fov += zoomVelocityRef.current * deltaSeconds;
         zoomVelocityRef.current *= zoomDamping;
         dirtyRef.current = true;
       } else {
@@ -340,16 +373,44 @@ export const PanoramaControls = forwardRef<
       !interactingRef.current &&
       inertiaFinished
     ) {
-      viewRef.current.yaw +=
+      targetViewRef.current.yaw +=
         (optionsRef.current.autoRotateSpeed ?? 18) * deltaSeconds;
       dirtyRef.current = true;
     }
+
+    targetViewRef.current = constrainView(targetViewRef.current);
 
     if (!dirtyRef.current) {
       return;
     }
 
-    viewRef.current = constrainView(viewRef.current);
+    const targetView = targetViewRef.current;
+    const rotateDamping = resolveDamping(
+      optionsRef.current.rotateDamping,
+      DEFAULT_ROTATE_DAMPING,
+    );
+    const zoomDamping = resolveDamping(
+      optionsRef.current.zoomDamping,
+      DEFAULT_ZOOM_DAMPING,
+    );
+    const rotationFactor = dampingFactor(rotateDamping, deltaSeconds);
+    const zoomFactor = dampingFactor(zoomDamping, deltaSeconds);
+    const yawDelta = shortestYawDelta(viewRef.current.yaw, targetView.yaw);
+    const smoothedView = {
+      yaw: normalizeYaw(viewRef.current.yaw + yawDelta * rotationFactor),
+      pitch:
+        viewRef.current.pitch +
+        (targetView.pitch - viewRef.current.pitch) * rotationFactor,
+      fov:
+        viewRef.current.fov +
+        (targetView.fov - viewRef.current.fov) * zoomFactor,
+    };
+    const hasSettled =
+      Math.abs(shortestYawDelta(smoothedView.yaw, targetView.yaw)) <
+        VIEW_SETTLE_EPSILON &&
+      Math.abs(smoothedView.pitch - targetView.pitch) < VIEW_SETTLE_EPSILON &&
+      Math.abs(smoothedView.fov - targetView.fov) < VIEW_SETTLE_EPSILON;
+    viewRef.current = hasSettled ? { ...targetView } : smoothedView;
     eulerRef.current.set(
       MathUtils.degToRad(viewRef.current.pitch),
       MathUtils.degToRad(-viewRef.current.yaw),
@@ -367,7 +428,7 @@ export const PanoramaControls = forwardRef<
       lastEmittedViewRef.current = nextView;
       onViewChangeRef.current?.(nextView);
     }
-    dirtyRef.current = false;
+    dirtyRef.current = !hasSettled;
   });
 
   return null;

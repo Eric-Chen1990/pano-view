@@ -96,7 +96,12 @@ export function ControlledExample() {
       </button>
       <PanoView
         ref={ref}
-        controls={{ inertia: true, autoRotate: false }}
+        controls={{
+          inertia: true,
+          autoRotate: false,
+          rotateDamping: 14,
+          zoomDamping: 16,
+        }}
         initialView={{ yaw: 0, pitch: 0, fov: 75 }}
         minFov={30}
         maxFov={100}
@@ -111,6 +116,8 @@ export function ControlledExample() {
 ```
 
 The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, wheel, arrow keys, `+/-`, and `0` to reset.
+
+Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
 ## Next.js and SSR
 
