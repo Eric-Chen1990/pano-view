@@ -1,6 +1,7 @@
 # Pano View
 
-React components for building panoramic viewing experiences.
+Composable React components for building single-image sphere and six-face
+multiresolution panoramic viewing experiences.
 
 This repository is a `pnpm` workspace with the publishable `@pano-view/react`
 package and a local Vite playground.
@@ -34,8 +35,9 @@ cd packages/react
 npm publish --access public
 ```
 
-The package is currently an early placeholder API. Review its version, README,
-and package contents before every release.
+The package exports `PanoView`, `Sphere`, and `Tile`. See the
+[`@pano-view/react` README](./packages/react/README.md) for the public API,
+krpano-compatible tile layout, controls, and Next.js usage.
 
 ## Maintainer and support
 

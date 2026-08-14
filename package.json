@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.29.2",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19"
   },
   "scripts": {
     "dev": "pnpm --filter @pano-view/playground dev",

@@ -1,78 +1,163 @@
-import { StrictMode } from "react";
+import { StrictMode, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { PanoView } from "@pano-view/react";
+import {
+  PanoView,
+  Sphere,
+  Tile,
+  type PanoViewHandle,
+  type PanoViewState,
+  type TileLoadProgress,
+} from "@pano-view/react";
 import "./styles.css";
 
-function App() {
+type ViewerMode = "sphere" | "tile";
+
+const INITIAL_VIEW: PanoViewState = {
+  yaw: 0,
+  pitch: 0,
+  fov: 75,
+};
+
+const INITIAL_PROGRESS: TileLoadProgress = {
+  requested: 0,
+  loaded: 0,
+  failed: 0,
+  active: 0,
+  queued: 0,
+};
+
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <main className="page-shell">
-      <header className="masthead">
-        <a className="wordmark" href="#top" aria-label="Pano View playground home">
+    <div className="metric">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function App() {
+  const viewerRef = useRef<PanoViewHandle>(null);
+  const [mode, setMode] = useState<ViewerMode>("sphere");
+  const [view, setView] = useState(INITIAL_VIEW);
+  const [level, setLevel] = useState(1);
+  const [progress, setProgress] = useState(INITIAL_PROGRESS);
+  const [autoRotate, setAutoRotate] = useState(false);
+  const [tileErrors, setTileErrors] = useState(0);
+  const controls = useMemo(
+    () => ({ autoRotate, inertia: true, keyboard: true }),
+    [autoRotate],
+  );
+
+  const selectMode = (nextMode: ViewerMode) => {
+    setMode(nextMode);
+    setLevel(1);
+    setProgress(INITIAL_PROGRESS);
+    setTileErrors(0);
+  };
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <a className="wordmark" href="#viewer" aria-label="Pano View home">
           PANO<span>/</span>VIEW
         </a>
-        <p>React component workspace</p>
+        <p>React 19 · R3F · six-face multires</p>
       </header>
 
-      <section className="intro" id="top" aria-labelledby="page-title">
+      <section className="hero" aria-labelledby="page-title">
         <div>
-          <p className="eyebrow">Component 001 — unstyled root</p>
-          <h1 id="page-title">Frame the view<br />before the view exists.</h1>
+          <p className="eyebrow">Component playground</p>
+          <h1 id="page-title">One camera.<br />Two projections.</h1>
         </div>
         <p className="lede">
-          The first public surface of <code>@pano-view/react</code> is a quiet,
-          flexible container. Style the frame today; add the panorama engine
-          when it is ready.
+          Drag to look around, scroll or pinch to zoom, and use the live metrics
+          to inspect the shared panorama controller.
         </p>
       </section>
 
-      <section className="viewer-section" aria-label="PanoView component preview">
-        <div className="viewer-meta">
-          <span>LIVE FRAME</span>
-          <span>360° / 00:00</span>
+      <section className="viewer-card" id="viewer" aria-label="Panorama demo">
+        <div className="viewer-toolbar">
+          <div className="mode-switch" aria-label="Panorama source" role="group">
+            <button
+              className={mode === "sphere" ? "active" : ""}
+              onClick={() => selectMode("sphere")}
+              type="button"
+            >
+              Sphere
+            </button>
+            <button
+              className={mode === "tile" ? "active" : ""}
+              onClick={() => selectMode("tile")}
+              type="button"
+            >
+              Cube Tile
+            </button>
+          </div>
+          <div className="viewer-actions">
+            <button
+              onClick={() => setAutoRotate((current) => !current)}
+              type="button"
+            >
+              {autoRotate ? "Stop rotation" : "Auto rotate"}
+            </button>
+            <button onClick={() => viewerRef.current?.reset()} type="button">
+              Reset view
+            </button>
+            <button
+              onClick={() => void viewerRef.current?.toggleFullscreen()}
+              type="button"
+            >
+              Fullscreen
+            </button>
+          </div>
         </div>
-        <PanoView className="hero-view" aria-label="Styled PanoView placeholder">
-          <div className="horizon" aria-hidden="true" />
+
+        <div className="viewer-frame">
+          <PanoView
+            key={mode}
+            ref={viewerRef}
+            aria-label={`${mode} panorama example`}
+            className="pano-view"
+            controls={controls}
+            initialView={INITIAL_VIEW}
+            onViewChange={setView}
+          >
+            {mode === "sphere" ? (
+              <Sphere src="/fixtures/panorama/panos/1.jpg" />
+            ) : (
+              <Tile
+                baseUrl="/fixtures/panorama"
+                multires="512,500,1000,2000"
+                onLevelChange={setLevel}
+                onLoadProgress={setProgress}
+                onTileError={() => setTileErrors((count) => count + 1)}
+              />
+            )}
+          </PanoView>
           <div className="reticle" aria-hidden="true" />
-          <p>Drop a renderer here.</p>
-        </PanoView>
-        <div className="viewer-caption">
-          <span>Panoramic canvas reserved</span>
-          <span>React 18–19</span>
-        </div>
-      </section>
-
-      <section className="examples" aria-labelledby="examples-title">
-        <div className="section-heading">
-          <p className="eyebrow">Three small guarantees</p>
-          <h2 id="examples-title">It behaves like a div.</h2>
+          <p className="input-hint">Drag · Wheel · Pinch · Arrow keys</p>
         </div>
 
-        <div className="example-grid">
-          <article>
-            <p className="example-label">Default</p>
-            <PanoView className="empty-frame" aria-label="Empty PanoView example" />
-            <code>{"<PanoView />"}</code>
-          </article>
-          <article>
-            <p className="example-label">Children</p>
-            <PanoView className="content-frame">
-              <span>Scene content</span>
-            </PanoView>
-            <code>{"<PanoView>…</PanoView>"}</code>
-          </article>
-          <article>
-            <p className="example-label">className</p>
-            <PanoView className="accent-frame">
-              <span>Application styles</span>
-            </PanoView>
-            <code>{'className="…"'}</code>
-          </article>
-        </div>
+        <dl className="metrics" aria-label="Viewer state">
+          <Metric label="SOURCE" value={mode === "sphere" ? "2:1 SPHERE" : "CUBE TILE"} />
+          <Metric label="YAW" value={`${view.yaw.toFixed(1)}°`} />
+          <Metric label="PITCH" value={`${view.pitch.toFixed(1)}°`} />
+          <Metric label="FOV" value={`${view.fov.toFixed(1)}°`} />
+          <Metric label="LOD" value={mode === "tile" ? `L${level}` : "—"} />
+          <Metric
+            label="TILES"
+            value={
+              mode === "tile"
+                ? `${progress.loaded}/${progress.requested} · ${tileErrors} ERR`
+                : "—"
+            }
+          />
+        </dl>
       </section>
 
       <footer>
-        <span>Source alias → packages/react/src</span>
-        <span>v0.0.0 placeholder</span>
+        <span>@pano-view/react</span>
+        <span>Sphere + krpano-style Cube Tile</span>
       </footer>
     </main>
   );

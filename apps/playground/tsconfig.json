@@ -1,4 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@pano-view/react": ["../../packages/react/src/index.ts"]
+    }
+  },
   "include": ["src", "vite.config.ts"]
 }
