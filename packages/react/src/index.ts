@@ -4,6 +4,18 @@ export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
+export { ImageHotspot } from "./hotspot/image-hotspot";
+export type { ImageHotspotProps } from "./hotspot/image-hotspot";
+export { GraphicHotspot } from "./hotspot/graphic-hotspot";
+export type {
+  CircleGraphic,
+  GraphicDefinition,
+  GraphicHotspotProps,
+  RectangleGraphic,
+  RingGraphic,
+  SvgGraphic,
+  SvgPathGraphic,
+} from "./hotspot/graphic-hotspot";
 export { Tile } from "./tile/tile";
 export type {
   CubeFaceCode,
@@ -31,6 +43,7 @@ export type {
   HotspotDragEvent,
   HotspotInputSource,
   HotspotInteractionEvent,
+  HotspotCommonProps,
   HotspotOrientation,
   HotspotPosition,
   PanoramaPointerEvent,

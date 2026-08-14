@@ -17,6 +17,10 @@ import {
   type PanoramaControlsHandle,
 } from "./panorama-controls";
 import { AutoRotate, PanoramaControlsContext } from "./auto-rotate";
+import {
+  HotspotAccessibilityContext,
+  useHotspotAccessibilityLayer,
+} from "./hotspot/accessibility";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import type {
@@ -75,6 +79,8 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaControlsHandle>(null);
+    const { controls: hotspotAccessibilityControls, registry } =
+      useHotspotAccessibilityLayer();
     const fallbackViewRef = useRef<PanoViewState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -186,28 +192,31 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           }}
           tabIndex={controlsEnabled ? 0 : undefined}
         >
-          <PanoramaControlsContext.Provider value={controlsRef}>
-            <PanoramaControls
-              ref={controlsRef}
-              enabled={controlsEnabled}
-              initialView={normalizedInitialView}
-              maxFov={normalizedMaxFov}
-              minFov={normalizedMinFov}
-              onViewChange={onViewChange}
-              options={controlOptions}
-            />
-            <AutoRotate
-              enabled={legacyAutoRotate}
-              speed={legacyAutoRotateOptions.autoRotateSpeed}
-            />
-            <PanoramaEventSurface
-              onClick={onPanoramaClick}
-              onDoubleClick={onPanoramaDoubleClick}
-              onPointerMove={onPanoramaPointerMove}
-            />
-            {children}
-          </PanoramaControlsContext.Provider>
+          <HotspotAccessibilityContext.Provider value={registry}>
+            <PanoramaControlsContext.Provider value={controlsRef}>
+              <PanoramaControls
+                ref={controlsRef}
+                enabled={controlsEnabled}
+                initialView={normalizedInitialView}
+                maxFov={normalizedMaxFov}
+                minFov={normalizedMinFov}
+                onViewChange={onViewChange}
+                options={controlOptions}
+              />
+              <AutoRotate
+                enabled={legacyAutoRotate}
+                speed={legacyAutoRotateOptions.autoRotateSpeed}
+              />
+              <PanoramaEventSurface
+                onClick={onPanoramaClick}
+                onDoubleClick={onPanoramaDoubleClick}
+                onPointerMove={onPanoramaPointerMove}
+              />
+              {children}
+            </PanoramaControlsContext.Provider>
+          </HotspotAccessibilityContext.Provider>
         </Canvas>
+        {hotspotAccessibilityControls}
       </div>
     );
   },

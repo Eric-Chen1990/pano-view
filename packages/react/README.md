@@ -156,6 +156,59 @@ export function PlacementExample() {
 is normalized to `[-180, 180)`. Pitch is clamped to `[-89.9, 89.9]` to avoid
 the spherical-coordinate singularity at the poles.
 
+## Image and graphic hotspots
+
+`ImageHotspot` renders an image at a controlled spherical position. Dimensions
+are angular degrees, so they remain independent of the canvas resolution.
+
+```tsx
+import { ImageHotspot, PanoView, Sphere } from "@pano-view/react";
+
+<PanoView style={{ height: 560 }}>
+  <Sphere src="/panoramas/room.webp" />
+  <ImageHotspot
+    id="gallery"
+    ariaLabel="Open gallery"
+    position={{ yaw: 28, pitch: -4 }}
+    width={18}
+    height={10}
+    orientation="surface"
+    src="/hotspots/gallery.webp"
+    onClick={({ position }) => console.log("gallery", position)}
+  />
+</PanoView>;
+```
+
+`GraphicHotspot` accepts built-in `circle`, `rectangle`, and `ring` graphics,
+an SVG URL, or safe SVG path data with an explicit viewBox. Built-in graphics
+support `fill`, `stroke`, and `strokeWidth`; rectangles also support
+`cornerRadius` and rings support `innerRadius`.
+
+```tsx
+import { GraphicHotspot } from "@pano-view/react";
+
+<GraphicHotspot
+  id="wayfinding"
+  ariaLabel="Open wayfinding point"
+  position={{ yaw: -18, pitch: 9 }}
+  width={8}
+  height={8}
+  graphic={{
+    kind: "ring",
+    fill: "#df6b42",
+    stroke: "#f5fbfc",
+    strokeWidth: 8,
+    innerRadius: 0.64,
+  }}
+  onClick={({ position }) => console.log("wayfinding", position)}
+/>
+```
+
+Set `draggable` and update the controlled position from `onPositionChange` to
+move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates
+an internal semantic control for Tab, Enter, and Space activation, with a
+visible WebGL focus outline.
+
 ## Automatic rotation
 
 Render `AutoRotate` inside `PanoView` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.

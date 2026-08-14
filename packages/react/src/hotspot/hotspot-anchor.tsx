@@ -8,22 +8,24 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import {
+  EdgesGeometry,
   MathUtils,
   Matrix4,
   Object3D,
+  PlaneGeometry,
   Quaternion,
   Vector3,
 } from "three";
 import { PanoramaControlsContext } from "../auto-rotate";
+import { useHotspotAccessibility } from "./accessibility";
 import {
   normalizePanoPosition,
   panoPositionToVector3,
   vector3ToPanoPosition,
 } from "./coordinates";
 import type {
-  HotspotDragEvent,
+  HotspotCommonProps,
   HotspotInteractionEvent,
-  HotspotOrientation,
   HotspotPosition,
 } from "./types";
 
@@ -40,22 +42,10 @@ type DragState = {
   moved: boolean;
 };
 
-export type HotspotAnchorProps = {
-  id: string;
-  position: HotspotPosition;
+export type HotspotAnchorProps = Omit<HotspotCommonProps, "opacity"> & {
   width: number;
   height: number;
-  orientation?: HotspotOrientation;
-  rotation?: number;
-  renderOrder?: number;
-  visible?: boolean;
-  draggable?: boolean;
   children?: ReactNode;
-  onClick?: (event: HotspotInteractionEvent) => void;
-  onHoverChange?: (hovered: boolean, event: HotspotInteractionEvent) => void;
-  onDragStart?: (event: HotspotDragEvent) => void;
-  onPositionChange?: (event: HotspotDragEvent) => void;
-  onDragEnd?: (event: HotspotDragEvent) => void;
 };
 
 function angularSizeToWorldSize(size: number, radius: number): number {
@@ -110,6 +100,7 @@ export function HotspotAnchor({
   renderOrder = 0,
   visible = true,
   draggable = false,
+  ariaLabel,
   children,
   onClick,
   onHoverChange,
@@ -132,6 +123,26 @@ export function HotspotAnchor({
   );
   const worldWidth = angularSizeToWorldSize(width, HOTSPOT_RADIUS);
   const worldHeight = angularSizeToWorldSize(height, HOTSPOT_RADIUS);
+  const focusGeometry = useMemo(() => {
+    const planeGeometry = new PlaneGeometry(1, 1);
+    const geometry = new EdgesGeometry(planeGeometry);
+    planeGeometry.dispose();
+    return geometry;
+  }, []);
+  const focused = useHotspotAccessibility({
+    id,
+    ariaLabel,
+    onActivate: visible && onClick
+      ? (event) => {
+          onClick({
+            id,
+            position: normalizedPosition,
+            source: "keyboard",
+            nativeEvent: event,
+          });
+        }
+      : undefined,
+  });
 
   useEffect(
     () => () => {
@@ -139,6 +150,8 @@ export function HotspotAnchor({
       dragStateRef.current = null;
     },
   );
+
+  useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
 
   useFrame(({ camera }) => {
     if (!groupRef.current) {
@@ -259,6 +272,16 @@ export function HotspotAnchor({
       }}
       onPointerUp={(event) => releasePointer(event, true)}
     >
+      {focused ? (
+        <lineSegments
+          geometry={focusGeometry}
+          position={[0, 0, 0.01]}
+          renderOrder={renderOrder + 1}
+          scale={[1.12, 1.12, 1]}
+        >
+          <lineBasicMaterial color="#f5fbfc" depthTest={false} />
+        </lineSegments>
+      ) : null}
       {children}
     </group>
   );

@@ -23,6 +23,29 @@ export type HotspotDragEvent = HotspotInteractionEvent & {
   startPosition: HotspotPosition;
 };
 
+export type HotspotCommonProps = {
+  id: string;
+  position: HotspotPosition;
+  /** Angular width in degrees. Defaults to 12. */
+  width?: number;
+  /** Angular height in degrees. Defaults to 8. */
+  height?: number;
+  orientation?: HotspotOrientation;
+  /** Clockwise rotation around the hotspot normal in degrees. */
+  rotation?: number;
+  opacity?: number;
+  renderOrder?: number;
+  visible?: boolean;
+  draggable?: boolean;
+  /** Required for keyboard-accessible clickable hotspots. */
+  ariaLabel?: string;
+  onClick?: (event: HotspotInteractionEvent) => void;
+  onHoverChange?: (hovered: boolean, event: HotspotInteractionEvent) => void;
+  onDragStart?: (event: HotspotDragEvent) => void;
+  onPositionChange?: (event: HotspotDragEvent) => void;
+  onDragEnd?: (event: HotspotDragEvent) => void;
+};
+
 export type PanoramaPointerEvent = {
   position: HotspotPosition;
   nativeEvent: MouseEvent | PointerEvent;
