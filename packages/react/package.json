@@ -1,0 +1,52 @@
+{
+  "name": "@pano-view/react",
+  "version": "0.0.0",
+  "description": "React components for panoramic viewing experiences.",
+  "author": "Eric Chen",
+  "license": "MIT",
+  "keywords": [
+    "panorama",
+    "360",
+    "react",
+    "viewer",
+    "webgl"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eric-Chen1990/pano-view.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Eric-Chen1990/pano-view/issues"
+  },
+  "homepage": "https://github.com/Eric-Chen1990/pano-view#readme",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}
