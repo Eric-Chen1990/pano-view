@@ -1,6 +1,7 @@
-import { StrictMode, useMemo, useRef, useState } from "react";
+import { StrictMode, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  AutoRotate,
   PanoView,
   Sphere,
   Tile,
@@ -43,10 +44,7 @@ function App() {
   const [progress, setProgress] = useState(INITIAL_PROGRESS);
   const [autoRotate, setAutoRotate] = useState(false);
   const [tileErrors, setTileErrors] = useState(0);
-  const controls = useMemo(
-    () => ({ autoRotate, inertia: true, keyboard: true }),
-    [autoRotate],
-  );
+  const controls = { inertia: true, keyboard: true };
 
   const selectMode = (nextMode: ViewerMode) => {
     setMode(nextMode);
@@ -122,6 +120,12 @@ function App() {
             initialView={INITIAL_VIEW}
             onViewChange={setView}
           >
+            <AutoRotate
+              enabled={autoRotate}
+              speed={18}
+              acceleration={18}
+              startDelay={1_000}
+            />
             {mode === "sphere" ? (
               <Sphere src="/fixtures/panorama/panos/1.jpg" />
             ) : (

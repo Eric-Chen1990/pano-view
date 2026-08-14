@@ -19,7 +19,9 @@ export type PanoViewHandle = {
     options?: SetPanoViewOptions,
   ) => void;
   reset: () => void;
+  /** @deprecated Control an AutoRotate component's enabled prop instead. */
   startAutoRotate: () => void;
+  /** @deprecated Control an AutoRotate component's enabled prop instead. */
   stopAutoRotate: () => void;
   toggleFullscreen: () => Promise<void>;
 };
@@ -27,9 +29,9 @@ export type PanoViewHandle = {
 export type PanoramaControlsOptions = {
   /** Enables drag and zoom inertia. Defaults to true. */
   inertia?: boolean;
-  /** Starts automatic horizontal rotation. Defaults to false. */
+  /** @deprecated Render <AutoRotate enabled /> inside PanoView instead. */
   autoRotate?: boolean;
-  /** Automatic rotation speed in degrees per second. Defaults to 18. */
+  /** @deprecated Use AutoRotate's speed prop instead. */
   autoRotateSpeed?: number;
   /** Pointer drag multiplier. Defaults to 0.35. */
   rotateSpeed?: number;

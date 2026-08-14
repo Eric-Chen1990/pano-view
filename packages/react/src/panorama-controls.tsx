@@ -34,8 +34,7 @@ export type PanoramaControlsHandle = {
     options?: SetPanoViewOptions,
   ) => void;
   reset: () => void;
-  startAutoRotate: () => void;
-  stopAutoRotate: () => void;
+  applyAutoRotation: (yawDelta: number) => boolean;
 };
 
 type PanoramaControlsProps = {
@@ -93,7 +92,6 @@ export const PanoramaControls = forwardRef<
   const zoomVelocityRef = useRef(0);
   const dirtyRef = useRef(true);
   const interactingRef = useRef(false);
-  const autoRotateRef = useRef(options.autoRotate ?? false);
   const optionsRef = useRef(options);
   const onViewChangeRef = useRef(onViewChange);
   const lastEmittedViewRef = useRef<PanoViewState | null>(null);
@@ -138,19 +136,26 @@ export const PanoramaControls = forwardRef<
       getView: () => ({ ...viewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
-      startAutoRotate: () => {
-        autoRotateRef.current = true;
-      },
-      stopAutoRotate: () => {
-        autoRotateRef.current = false;
+      applyAutoRotation: (yawDelta: number) => {
+        const inertiaFinished =
+          yawVelocityRef.current === 0 &&
+          pitchVelocityRef.current === 0 &&
+          zoomVelocityRef.current === 0;
+        if (
+          !Number.isFinite(yawDelta) ||
+          interactingRef.current ||
+          !inertiaFinished
+        ) {
+          return false;
+        }
+
+        targetViewRef.current.yaw += yawDelta;
+        dirtyRef.current = true;
+        return true;
       },
     }),
     [maxFov, minFov],
   );
-
-  useEffect(() => {
-    autoRotateRef.current = options.autoRotate ?? false;
-  }, [options.autoRotate]);
 
   useEffect(() => {
     initialViewRef.current = { ...initialView };
@@ -362,20 +367,6 @@ export const PanoramaControls = forwardRef<
       }
     } else if (!inertiaEnabled) {
       stopVelocity();
-    }
-
-    const inertiaFinished =
-      yawVelocityRef.current === 0 &&
-      pitchVelocityRef.current === 0 &&
-      zoomVelocityRef.current === 0;
-    if (
-      autoRotateRef.current &&
-      !interactingRef.current &&
-      inertiaFinished
-    ) {
-      targetViewRef.current.yaw +=
-        (optionsRef.current.autoRotateSpeed ?? 18) * deltaSeconds;
-      dirtyRef.current = true;
     }
 
     targetViewRef.current = constrainView(targetViewRef.current);

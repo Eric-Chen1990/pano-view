@@ -1,9 +1,11 @@
 import { Canvas } from "@react-three/fiber";
 import {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type {
   ComponentPropsWithoutRef,
@@ -14,6 +16,7 @@ import {
   PanoramaControls,
   type PanoramaControlsHandle,
 } from "./panorama-controls";
+import { AutoRotate, PanoramaControlsContext } from "./auto-rotate";
 import type {
   PanoramaControlsOptions,
   PanoViewHandle,
@@ -94,6 +97,19 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       () => (typeof controls === "object" ? controls : {}),
       [controls],
     );
+    // Bridge deprecated controls.autoRotate / autoRotateSpeed without
+    // surfacing @deprecated diagnostics on this compatibility path.
+    const legacyAutoRotateOptions = controlOptions as {
+      autoRotate?: boolean;
+      autoRotateSpeed?: number;
+    };
+    const [legacyAutoRotate, setLegacyAutoRotate] = useState(
+      legacyAutoRotateOptions.autoRotate ?? false,
+    );
+
+    useEffect(() => {
+      setLegacyAutoRotate(legacyAutoRotateOptions.autoRotate ?? false);
+    }, [legacyAutoRotateOptions.autoRotate]);
 
     useImperativeHandle(
       ref,
@@ -107,10 +123,10 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           controlsRef.current?.reset();
         },
         startAutoRotate: () => {
-          controlsRef.current?.startAutoRotate();
+          setLegacyAutoRotate(true);
         },
         stopAutoRotate: () => {
-          controlsRef.current?.stopAutoRotate();
+          setLegacyAutoRotate(false);
         },
         toggleFullscreen: async () => {
           if (typeof document === "undefined") {
@@ -162,16 +178,22 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           }}
           tabIndex={controlsEnabled ? 0 : undefined}
         >
-          <PanoramaControls
-            ref={controlsRef}
-            enabled={controlsEnabled}
-            initialView={normalizedInitialView}
-            maxFov={normalizedMaxFov}
-            minFov={normalizedMinFov}
-            onViewChange={onViewChange}
-            options={controlOptions}
-          />
-          {children}
+          <PanoramaControlsContext.Provider value={controlsRef}>
+            <PanoramaControls
+              ref={controlsRef}
+              enabled={controlsEnabled}
+              initialView={normalizedInitialView}
+              maxFov={normalizedMaxFov}
+              minFov={normalizedMinFov}
+              onViewChange={onViewChange}
+              options={controlOptions}
+            />
+            <AutoRotate
+              enabled={legacyAutoRotate}
+              speed={legacyAutoRotateOptions.autoRotateSpeed}
+            />
+            {children}
+          </PanoramaControlsContext.Provider>
         </Canvas>
       </div>
     );

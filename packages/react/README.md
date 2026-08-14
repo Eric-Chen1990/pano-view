@@ -83,6 +83,7 @@ import { useRef } from "react";
 import {
   PanoView,
   Sphere,
+  AutoRotate,
   type PanoViewHandle,
 } from "@pano-view/react";
 
@@ -98,7 +99,6 @@ export function ControlledExample() {
         ref={ref}
         controls={{
           inertia: true,
-          autoRotate: false,
           rotateDamping: 14,
           zoomDamping: 16,
         }}
@@ -108,6 +108,7 @@ export function ControlledExample() {
         onViewChange={(view) => console.log(view)}
         style={{ height: 560 }}
       >
+        <AutoRotate enabled speed={18} acceleration={18} startDelay={1_000} />
         <Sphere src="/panoramas/room.webp" />
       </PanoView>
     </>
@@ -115,7 +116,18 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, wheel, arrow keys, `+/-`, and `0` to reset.
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, wheel, arrow keys, `+/-`, and `0` to reset. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
+
+## Automatic rotation
+
+Render `AutoRotate` inside `PanoView` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
+
+```tsx
+<PanoView style={{ height: 560 }}>
+  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
 
 Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
