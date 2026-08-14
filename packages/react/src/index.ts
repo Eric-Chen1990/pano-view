@@ -13,6 +13,12 @@ export type {
   PolygonValidationIssue,
   PolygonVerticesChangeEvent,
 } from "./hotspot/polygon-hotspot";
+export { PolylineHotspot, validatePolylineVertices } from "./hotspot/polyline-hotspot";
+export type {
+  PolylineHotspotProps,
+  PolylineValidationIssue,
+  PolylineVerticesChangeEvent,
+} from "./hotspot/polyline-hotspot";
 export {
   unwrapPolygonVertices,
   validatePolygonVertices,

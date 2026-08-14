@@ -6,6 +6,7 @@ import {
   ImageHotspot,
   PanoView,
   PolygonHotspot,
+  PolylineHotspot,
   SequenceHotspot,
   Sphere,
   Tile,
@@ -28,7 +29,8 @@ type EditorTool =
   | "graphic"
   | "sequence"
   | "video"
-  | "polygon";
+  | "polygon"
+  | "polyline";
 
 type EditorHotspot =
   | {
@@ -108,6 +110,16 @@ type EditorPolygon = {
   vertices: HotspotPosition[];
   fill: string;
   fillOpacity: number;
+  stroke: string;
+  strokeWidth: number;
+  strokeOpacity: number;
+  visible: boolean;
+};
+
+type EditorPolyline = {
+  id: string;
+  label: string;
+  vertices: HotspotPosition[];
   stroke: string;
   strokeWidth: number;
   strokeOpacity: number;
@@ -236,6 +248,10 @@ function cloneDemoPolygons(): EditorPolygon[] {
   }];
 }
 
+function cloneDemoPolylines(): EditorPolyline[] {
+  return [];
+}
+
 function createId(type: EditorHotspot["type"]): string {
   return `${type}-${crypto.randomUUID().slice(0, 8)}`;
 }
@@ -333,7 +349,9 @@ function App() {
   const [tileErrors, setTileErrors] = useState(0);
   const [hotspots, setHotspots] = useState<EditorHotspot[]>(cloneDemoHotspots);
   const [polygons, setPolygons] = useState<EditorPolygon[]>(cloneDemoPolygons);
+  const [polylines, setPolylines] = useState<EditorPolyline[]>(cloneDemoPolylines);
   const [draftVertices, setDraftVertices] = useState<HotspotPosition[]>([]);
+  const [draftPolygonFilled, setDraftPolygonFilled] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(
     DEMO_HOTSPOTS[0]!.id,
   );
@@ -346,6 +364,10 @@ function App() {
     () => polygons.find((polygon) => polygon.id === selectedId) ?? null,
     [polygons, selectedId],
   );
+  const selectedPolyline = useMemo(
+    () => polylines.find((polyline) => polyline.id === selectedId) ?? null,
+    [polylines, selectedId],
+  );
   const draftIssues = useMemo(
     () => draftVertices.length > 0 ? validatePolygonVertices(draftVertices) : [],
     [draftVertices],
@@ -357,6 +379,8 @@ function App() {
     tool === "sequence" ||
     tool === "video";
   const drawingPolygon = tool === "polygon";
+  const drawingPolyline = tool === "polyline";
+  const drawingPath = drawingPolygon || drawingPolyline;
 
   const selectMode = (nextMode: ViewerMode) => {
     setMode(nextMode);
@@ -447,6 +471,14 @@ function App() {
     );
   };
 
+  const updatePolyline = (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => {
+    setPolylines((current) =>
+      current.map((polyline) =>
+        polyline.id === id ? { ...polyline, ...patch } : polyline,
+      ),
+    );
+  };
+
   const cancelPolygonDraft = () => {
     setDraftVertices([]);
     setTool("navigate");
@@ -454,6 +486,27 @@ function App() {
   };
 
   const finishPolygonDraft = () => {
+    if (drawingPolyline) {
+      if (draftVertices.length < 2) {
+        setLastAction("A polyline needs at least two vertices.");
+        return;
+      }
+      const polyline: EditorPolyline = {
+        id: `polyline-${crypto.randomUUID().slice(0, 8)}`,
+        label: "Drawn polyline",
+        vertices: withoutTrailingDuplicate(draftVertices),
+        stroke: "#f5fbfc",
+        strokeWidth: 2,
+        strokeOpacity: 0.88,
+        visible: true,
+      };
+      setPolylines((current) => [...current, polyline]);
+      setDraftVertices([]);
+      setSelectedId(polyline.id);
+      setTool("select");
+      setLastAction(`Polyline created with ${polyline.vertices.length} vertices.`);
+      return;
+    }
     const vertices = withoutTrailingDuplicate(draftVertices);
     const issues = validatePolygonVertices(vertices);
     if (issues.length > 0) {
@@ -466,7 +519,7 @@ function App() {
       label: "Drawn polygon",
       vertices,
       fill: "#df6b42",
-      fillOpacity: 0.28,
+      fillOpacity: draftPolygonFilled ? 0.28 : 0,
       stroke: "#f5fbfc",
       strokeWidth: 2,
       strokeOpacity: 0.88,
@@ -480,9 +533,9 @@ function App() {
   };
 
   const addHotspot = (position: HotspotPosition) => {
-    if (tool === "polygon") {
+    if (drawingPath) {
       setDraftVertices((current) => [...current, position]);
-      setLastAction(`Polygon vertex ${draftVertices.length + 1} added at ${formatPosition(position)}.`);
+      setLastAction(`${drawingPolyline ? "Polyline" : "Polygon"} vertex ${draftVertices.length + 1} added at ${formatPosition(position)}.`);
       return;
     }
     if (tool === "image") {
@@ -597,6 +650,7 @@ function App() {
     const next = cloneDemoHotspots();
     setHotspots(next);
     setPolygons(cloneDemoPolygons());
+    setPolylines(cloneDemoPolylines());
     setDraftVertices([]);
     setSelectedId(next[0]!.id);
     setTool("navigate");
@@ -604,7 +658,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (!drawingPolygon) return;
+    if (!drawingPath) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
       if (
@@ -628,7 +682,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [drawingPolygon]);
+  }, [drawingPath]);
 
   return (
     <main className="app-shell">
@@ -726,8 +780,22 @@ function App() {
               );
             }}
           />
+          <ToolButton
+            active={drawingPolyline}
+            detail="Draw + edit"
+            label="Polyline"
+            onClick={() => {
+              setSelectedId(null);
+              setTool("polyline");
+              setLastAction(
+                draftVertices.length
+                  ? `Continue polyline: ${draftVertices.length} vertices.`
+                  : "Click the panorama to add polyline vertices.",
+              );
+            }}
+          />
           <div className="tool-rail-footer">
-            <span>{hotspots.length + polygons.length}</span>
+            <span>{hotspots.length + polygons.length + polylines.length}</span>
             <small>HOTSPOTS</small>
           </div>
         </aside>
@@ -767,37 +835,46 @@ function App() {
                 Fullscreen
               </button>
             </div>
-            {drawingPolygon ? (
+            {drawingPath ? (
               <div className="polygon-draft-actions">
                 <span>{draftVertices.length} vertices</span>
+                {drawingPolygon ? (
+                  <button
+                    aria-pressed={draftPolygonFilled}
+                    onClick={() => setDraftPolygonFilled((current) => !current)}
+                    type="button"
+                  >
+                    {draftPolygonFilled ? "Fill on" : "Outline only"}
+                  </button>
+                ) : null}
                 <button
-                  disabled={draftVertices.length < 3}
+                  disabled={draftVertices.length < (drawingPolyline ? 2 : 3)}
                   onClick={finishPolygonDraft}
                   type="button"
                 >
-                  Finish polygon
+                  {drawingPolyline ? "Finish polyline" : "Finish polygon"}
                 </button>
                 <button onClick={cancelPolygonDraft} type="button">Cancel</button>
               </div>
             ) : null}
           </div>
 
-          <div className={placementTool || drawingPolygon ? "viewer-frame placing" : "viewer-frame"}>
+          <div className={placementTool || drawingPath ? "viewer-frame placing" : "viewer-frame"}>
             <PanoView
               key={mode}
               ref={viewerRef}
               aria-label={`${mode} panorama hotspot editor`}
               className="pano-view"
-              controls={placementTool || drawingPolygon ? false : controls}
+              controls={placementTool || drawingPath ? false : controls}
               initialView={INITIAL_VIEW}
               onPanoramaClick={({ position }) => addHotspot(position)}
               onPanoramaDoubleClick={() => {
-                if (drawingPolygon) finishPolygonDraft();
+                if (drawingPath) finishPolygonDraft();
               }}
               onViewChange={setView}
             >
               <AutoRotate
-                enabled={autoRotate && !placementTool && !drawingPolygon}
+                enabled={autoRotate && !placementTool && !drawingPath}
                 speed={18}
                 acceleration={18}
                 startDelay={1_000}
@@ -822,7 +899,7 @@ function App() {
                   orientation: hotspot.orientation,
                   placement: hotspot.placement,
                   distance: hotspot.distance,
-                  interactive: !drawingPolygon,
+                  interactive: !drawingPath,
                   position: hotspot.position,
                   scaleMode: hotspot.scaleMode,
                   visible: hotspot.visible,
@@ -900,7 +977,7 @@ function App() {
                   fill={polygon.fill}
                   fillOpacity={polygon.fillOpacity}
                   id={polygon.id}
-                  interactive={!drawingPolygon}
+                  interactive={!drawingPath}
                   onClick={() => {
                     setSelectedId(polygon.id);
                     setTool("select");
@@ -931,10 +1008,48 @@ function App() {
                   visible={polygon.visible}
                 />
               ))}
+              {polylines.map((polyline) => (
+                <PolylineHotspot
+                  key={polyline.id}
+                  ariaLabel={polyline.label}
+                  draggable={tool === "select"}
+                  id={polyline.id}
+                  interactive={!drawingPath}
+                  onClick={() => {
+                    setSelectedId(polyline.id);
+                    setTool("select");
+                    setLastAction(`${polyline.label} selected.`);
+                  }}
+                  onDragEnd={({ vertices }) => {
+                    updatePolyline(polyline.id, { vertices });
+                    setLastAction(`${polyline.label} moved.`);
+                  }}
+                  onDragStart={() => {
+                    setSelectedId(polyline.id);
+                    setLastAction(`Dragging ${polyline.label}.`);
+                  }}
+                  onVerticesChange={({ vertices }) => updatePolyline(polyline.id, { vertices })}
+                  stroke={polyline.stroke}
+                  strokeOpacity={polyline.strokeOpacity}
+                  strokeWidth={polyline.strokeWidth}
+                  vertices={polyline.vertices}
+                  visible={polyline.visible}
+                />
+              ))}
+              {drawingPath && draftVertices.length >= 2 ? (
+                <PolylineHotspot
+                  id="path-draft"
+                  interactive={false}
+                  stroke="#75cbd3"
+                  strokeOpacity={1}
+                  strokeWidth={2}
+                  vertices={draftVertices}
+                />
+              ) : null}
               {drawingPolygon && draftVertices.length >= 3 && draftIssues.length === 0 ? (
                 <PolygonHotspot
                   fill="#df6b42"
-                  fillOpacity={0.2}
+                  fillOpacity={draftPolygonFilled ? 0.2 : 0}
                   id="polygon-draft"
                   interactive={false}
                   stroke="#75cbd3"
@@ -985,7 +1100,42 @@ function App() {
                   width={2.2}
                 />
               )) : null}
-              {drawingPolygon ? draftVertices.map((vertex, index) => (
+              {selectedPolyline && tool === "select" ? selectedPolyline.vertices.map((vertex, index) => (
+                <GraphicHotspot
+                  key={`${selectedPolyline.id}-vertex-${index}`}
+                  ariaLabel={`${selectedPolyline.label}, vertex ${index + 1}`}
+                  distance={8}
+                  draggable
+                  graphic={{
+                    kind: "circle",
+                    fill: "#f5fbfc",
+                    stroke: "#df6b42",
+                    strokeWidth: 14,
+                  }}
+                  height={2.2}
+                  id={`${selectedPolyline.id}-vertex-${index}`}
+                  onDragEnd={({ position }) => {
+                    const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
+                      currentIndex === index ? position : current,
+                    );
+                    updatePolyline(selectedPolyline.id, { vertices });
+                    setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+                  }}
+                  onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
+                  onPositionChange={({ position }) => {
+                    const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
+                      currentIndex === index ? position : current,
+                    );
+                    updatePolyline(selectedPolyline.id, { vertices });
+                  }}
+                  orientation="billboard"
+                  placement="floating"
+                  position={vertex}
+                  scaleMode="fixed"
+                  width={2.2}
+                />
+              )) : null}
+              {drawingPath ? draftVertices.map((vertex, index) => (
                 <GraphicHotspot
                   key={`polygon-draft-vertex-${index}`}
                   ariaLabel={`Draft vertex ${index + 1}`}
@@ -1030,13 +1180,16 @@ function App() {
             <div>
               <p className="panel-label">INSPECTOR</p>
               <h2>
-                {selected?.label ?? selectedPolygon?.label ?? (
-                  drawingPolygon ? "Drawing polygon" : "No hotspot selected"
+                {selected?.label ?? selectedPolygon?.label ?? selectedPolyline?.label ?? (
+                  drawingPath
+                    ? drawingPolyline ? "Drawing polyline" : "Drawing polygon"
+                    : "No hotspot selected"
                 )}
               </h2>
             </div>
             {selected ? <span className={`type-chip ${selected.type}`}>{selected.type}</span> : null}
             {selectedPolygon ? <span className="type-chip polygon">polygon</span> : null}
+            {selectedPolyline ? <span className="type-chip polyline">polyline</span> : null}
           </div>
 
           {selected ? (
@@ -1207,9 +1360,15 @@ function App() {
               polygon={selectedPolygon}
               onChange={(patch) => updatePolygon(selectedPolygon.id, patch)}
             />
-          ) : drawingPolygon ? (
+          ) : selectedPolyline ? (
+            <PolylineFields
+              polyline={selectedPolyline}
+              onChange={(patch) => updatePolyline(selectedPolyline.id, patch)}
+            />
+          ) : drawingPath ? (
             <PolygonDraftFields
-              issueSummary={draftIssues.length ? polygonIssueSummary(draftIssues) : null}
+              kind={drawingPolyline ? "polyline" : "polygon"}
+              issueSummary={drawingPolygon && draftIssues.length ? polygonIssueSummary(draftIssues) : null}
               vertexCount={draftVertices.length}
             />
           ) : (
@@ -1251,6 +1410,22 @@ function App() {
                 <span>POLY</span>
                 <b>{polygon.label}</b>
                 <small>{polygon.vertices.length} vertices</small>
+              </button>
+            ))}
+            {polylines.map((polyline) => (
+              <button
+                className={selectedId === polyline.id ? "hotspot-row active" : "hotspot-row"}
+                key={polyline.id}
+                onClick={() => {
+                  setSelectedId(polyline.id);
+                  setTool("select");
+                  setLastAction(`${polyline.label} selected. Drag the path or a vertex handle.`);
+                }}
+                type="button"
+              >
+                <span>LINE</span>
+                <b>{polyline.label}</b>
+                <small>{polyline.vertices.length} vertices</small>
               </button>
             ))}
           </div>
@@ -1345,23 +1520,32 @@ function GraphicFields({
 }
 
 function PolygonDraftFields({
+  kind,
   issueSummary,
   vertexCount,
 }: {
+  kind: "polygon" | "polyline";
   issueSummary: string | null;
   vertexCount: number;
 }) {
+  const minimumVertices = kind === "polygon" ? 3 : 2;
+  const label = kind === "polygon" ? "Polygon" : "Polyline";
   return (
     <div className="inspector-content polygon-draft-fields">
-      <p className="polygon-draft-count">{vertexCount} / 3 minimum vertices</p>
+      <p className="polygon-draft-count">{vertexCount} / {minimumVertices} minimum vertices</p>
       {issueSummary ? (
         <p className="polygon-validation invalid">{issueSummary}</p>
-      ) : vertexCount >= 3 ? (
-        <p className="polygon-validation valid">Polygon is valid. Finish it when ready.</p>
+      ) : vertexCount >= minimumVertices ? (
+        <p className="polygon-validation valid">{label} is ready. Finish it when ready.</p>
       ) : (
         <p className="polygon-validation">Click the panorama to add the next vertex.</p>
       )}
-      <p className="polygon-keyboard-help">Double-click or use Finish to complete. Esc cancels; Backspace removes the last point.</p>
+      <p className="polygon-keyboard-help">
+        {kind === "polygon"
+          ? "The third point closes the preview. Set fill opacity to 0% for an outline-only polygon."
+          : "The path stays open: the final vertex never reconnects to the first."}
+        {" "}Double-click or use Finish to complete. Esc cancels; Backspace removes the last point.
+      </p>
     </div>
   );
 }
@@ -1427,6 +1611,14 @@ function PolygonFields({
       </label>
       <label className="check-field">
         <input
+          checked={polygon.fillOpacity > 0}
+          onChange={(event) => onChange({ fillOpacity: event.currentTarget.checked ? 0.28 : 0 })}
+          type="checkbox"
+        />
+        <span>Fill closed polygon</span>
+      </label>
+      <label className="check-field">
+        <input
           checked={polygon.visible}
           onChange={(event) => onChange({ visible: event.currentTarget.checked })}
           type="checkbox"
@@ -1436,6 +1628,63 @@ function PolygonFields({
       <div className="polygon-vertices" aria-label="Polygon vertices">
         {polygon.vertices.map((vertex, index) => (
           <span key={`${polygon.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PolylineFields({
+  polyline,
+  onChange,
+}: {
+  polyline: EditorPolyline;
+  onChange: (patch: Partial<Omit<EditorPolyline, "id">>) => void;
+}) {
+  return (
+    <div className="inspector-content">
+      <label className="field wide">
+        <span>Accessible label</span>
+        <input onChange={(event) => onChange({ label: event.currentTarget.value })} value={polyline.label} />
+      </label>
+      <div className="field-grid">
+        <label className="field">
+          <span>Stroke</span>
+          <input onChange={(event) => onChange({ stroke: event.currentTarget.value })} type="color" value={polyline.stroke} />
+        </label>
+        <label className="field">
+          <span>Stroke width (px)</span>
+          <input
+            min="0.5"
+            onChange={(event) => onChange({ strokeWidth: numberValue(event.currentTarget.value, polyline.strokeWidth) })}
+            step="0.5"
+            type="number"
+            value={polyline.strokeWidth}
+          />
+        </label>
+      </div>
+      <label className="field wide range-field">
+        <span>Stroke opacity <b>{Math.round(polyline.strokeOpacity * 100)}%</b></span>
+        <input
+          max="1"
+          min="0"
+          onChange={(event) => onChange({ strokeOpacity: numberValue(event.currentTarget.value, polyline.strokeOpacity) })}
+          step="0.05"
+          type="range"
+          value={polyline.strokeOpacity}
+        />
+      </label>
+      <label className="check-field">
+        <input
+          checked={polyline.visible}
+          onChange={(event) => onChange({ visible: event.currentTarget.checked })}
+          type="checkbox"
+        />
+        <span>Visible in panorama</span>
+      </label>
+      <div className="polygon-vertices" aria-label="Polyline vertices">
+        {polyline.vertices.map((vertex, index) => (
+          <span key={`${polyline.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>
         ))}
       </div>
     </div>
