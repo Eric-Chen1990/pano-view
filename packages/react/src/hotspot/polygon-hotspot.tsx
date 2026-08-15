@@ -56,8 +56,7 @@ export type PolygonHotspotProps = Omit<
   | "position"
   | "width"
   | "height"
-  | "orientation"
-  | "placement"
+  | "mode"
   | "distance"
   | "scaleMode"
   | "onDragStart"
@@ -493,9 +492,9 @@ export function PolygonHotspot({
       position={center}
       width={1}
       height={1}
-      placement="floating"
+      internalPlacement="floating"
       distance={POLYGON_RADIUS}
-      orientation="surface"
+      internalOrientation="surface"
       renderOrder={renderOrder}
       draggable={draggable}
       interactive={interactive}

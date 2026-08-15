@@ -214,7 +214,7 @@ the spherical-coordinate singularity at the poles.
 
 Every hotspot has an `id`, optional `visible`, `interactive`, `renderOrder`,
 and semantic interaction callbacks. Point hotspots additionally use a
-controlled `position`, angular `width`/`height`, and the placement and zoom
+controlled `position`, angular `width`/`height`, hotspot mode, and the zoom
 options described below. `interactive={false}` keeps a hotspot visible while
 letting a drawing tool receive the panorama pointer events beneath it.
 
@@ -261,7 +261,7 @@ import { ImageHotspot, PanoView, Sphere } from "@pano-view/react";
     position={{ yaw: 28, pitch: -4 }}
     width={18}
     height={10}
-    orientation="surface"
+    mode="surface"
     src="/hotspots/gallery.webp"
     onClick={({ position }) => console.log("gallery", position)}
   />
@@ -303,16 +303,16 @@ uses the same callbacks. Built-in paths are rasterized locally; only an SVG URL
 or SVG `path` data plus an explicit `viewBox` is accepted, never arbitrary SVG
 markup.
 
-## Placement and zoom behaviour
+## Hotspot mode and zoom behaviour
 
-Hotspot orientation, placement, and zoom behaviour are independent:
+Point hotspots use one safe `mode` instead of separate orientation and
+placement properties:
 
-- `orientation="surface"` rotates the plane to the local panorama normal;
-  `"billboard"` keeps it facing the camera.
-- `placement="surface"` places it beside the panorama shell. Use
-  `placement="floating"` with `distance` (world units, default `10`) to
-  bring it forward. The built-in panorama shell is at roughly `1000` units;
-  distance is automatically capped so the hotspot's corners cannot cross it.
+- `mode="surface"` attaches the plane to the local panorama surface.
+- `mode="billboard"` keeps the plane facing the camera and floats it in front
+  of the shell. Set `distance` (world units, default `10`) to bring it nearer.
+  The built-in panorama shell is at roughly `1000` units; distance is
+  automatically capped so the hotspot's corners cannot cross it.
 - `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
@@ -324,8 +324,7 @@ Hotspot orientation, placement, and zoom behaviour are independent:
   position={{ yaw: 18, pitch: 5 }}
   width={10}
   height={6}
-  orientation="billboard"
-  placement="floating"
+  mode="billboard"
   distance={14}
   scaleMode="fixed"
   src="/hotspots/callout.webp"
@@ -438,7 +437,7 @@ import { VideoHotspot } from "@pano-view/react";
   position={{ yaw: 48, pitch: 6 }}
   width={18}
   height={10.125}
-  orientation="surface"
+  mode="surface"
   src="/hotspots/room.webm"
   poster="/hotspots/room-poster.webp"
   playing={isClipPlaying}

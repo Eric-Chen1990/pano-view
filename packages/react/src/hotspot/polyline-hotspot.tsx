@@ -45,8 +45,7 @@ export type PolylineHotspotProps = Omit<
   | "position"
   | "width"
   | "height"
-  | "orientation"
-  | "placement"
+  | "mode"
   | "distance"
   | "scaleMode"
   | "onDragStart"
@@ -287,9 +286,9 @@ export function PolylineHotspot({
       position={center}
       width={1}
       height={1}
-      placement="floating"
+      internalPlacement="floating"
       distance={POLYLINE_RADIUS}
-      orientation="surface"
+      internalOrientation="surface"
       renderOrder={renderOrder}
       draggable={draggable}
       useAngularScale={false}

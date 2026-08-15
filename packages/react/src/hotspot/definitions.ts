@@ -1,7 +1,6 @@
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type {
-  HotspotOrientation,
-  HotspotPlacement,
+  HotspotMode,
   HotspotPosition,
   HotspotScaleMode,
 } from "./types";
@@ -21,9 +20,8 @@ export type PointHotspotDefinitionBase = HotspotDefinitionBase & {
   position: HotspotPosition;
   width?: number;
   height?: number;
-  placement?: HotspotPlacement;
+  mode?: HotspotMode;
   distance?: number;
-  orientation?: HotspotOrientation;
   scaleMode?: HotspotScaleMode;
   referenceFov?: number;
   rotation?: number;

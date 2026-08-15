@@ -13,6 +13,7 @@ import {
   Tile,
   VideoHotspot,
   type GraphicDefinition,
+  type HotspotMode,
   type HotspotPosition,
   type PanoViewHandle,
   type PanoViewState,
@@ -43,8 +44,7 @@ type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
-      orientation: "billboard" | "surface";
-      placement: "surface" | "floating";
+      mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
       opacity: number;
@@ -58,8 +58,7 @@ type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
-      orientation: "billboard" | "surface";
-      placement: "surface" | "floating";
+      mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
       opacity: number;
@@ -73,8 +72,7 @@ type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
-      orientation: "billboard" | "surface";
-      placement: "surface" | "floating";
+      mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
       opacity: number;
@@ -93,8 +91,7 @@ type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
-      orientation: "billboard" | "surface";
-      placement: "surface" | "floating";
+      mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
       opacity: number;
@@ -198,8 +195,7 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     position: { yaw: 24, pitch: -5 },
     width: 18,
     height: 10,
-    orientation: "surface",
-    placement: "surface",
+    mode: "surface",
     distance: 10,
     scaleMode: "fov",
     opacity: 1,
@@ -213,8 +209,7 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     position: { yaw: -18, pitch: 9 },
     width: 8,
     height: 8,
-    orientation: "billboard",
-    placement: "floating",
+    mode: "billboard",
     distance: 10,
     scaleMode: "fixed",
     opacity: 1,
@@ -234,8 +229,7 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     position: { yaw: -44, pitch: -7 },
     width: 13,
     height: 7.3,
-    orientation: "billboard",
-    placement: "floating",
+    mode: "billboard",
     distance: 10,
     scaleMode: "fixed",
     opacity: 1,
@@ -254,8 +248,7 @@ const DEMO_HOTSPOTS: EditorHotspot[] = [
     position: { yaw: 52, pitch: 6 },
     width: 18,
     height: 10.1,
-    orientation: "surface",
-    placement: "surface",
+    mode: "surface",
     distance: 10,
     scaleMode: "fov",
     opacity: 1,
@@ -582,8 +575,7 @@ function HotspotBenchPage() {
         position,
         width: 16,
         height: 9,
-        orientation: "billboard",
-        placement: "floating",
+        mode: "billboard",
         distance: 10,
         scaleMode: "fov",
         opacity: 1,
@@ -604,8 +596,7 @@ function HotspotBenchPage() {
         position,
         width: 9,
         height: 9,
-        orientation: "billboard",
-        placement: "floating",
+        mode: "billboard",
         distance: 10,
         scaleMode: "fixed",
         opacity: 1,
@@ -626,8 +617,7 @@ function HotspotBenchPage() {
         position,
         width: 13,
         height: 7.3,
-        orientation: "billboard",
-        placement: "floating",
+        mode: "billboard",
         distance: 10,
         scaleMode: "fixed",
         opacity: 1,
@@ -653,8 +643,7 @@ function HotspotBenchPage() {
         position,
         width: 18,
         height: 10.1,
-        orientation: "surface",
-        placement: "surface",
+        mode: "surface",
         distance: 10,
         scaleMode: "fov",
         opacity: 1,
@@ -939,8 +928,7 @@ function HotspotBenchPage() {
                   draggable: tool === "select",
                   id: hotspot.id,
                   opacity: hotspot.opacity,
-                  orientation: hotspot.orientation,
-                  placement: hotspot.placement,
+                  mode: hotspot.mode,
                   distance: hotspot.distance,
                   interactive: !drawingPath,
                   position: hotspot.position,
@@ -1136,8 +1124,7 @@ function HotspotBenchPage() {
                       updatePolygon(selectedPolygon.id, { vertices });
                     }
                   }}
-                  orientation="billboard"
-                  placement="floating"
+                  mode="billboard"
                   position={vertex}
                   scaleMode="fixed"
                   width={2.2}
@@ -1171,8 +1158,7 @@ function HotspotBenchPage() {
                     );
                     updatePolyline(selectedPolyline.id, { vertices });
                   }}
-                  orientation="billboard"
-                  placement="floating"
+                  mode="billboard"
                   position={vertex}
                   scaleMode="fixed"
                   width={2.2}
@@ -1192,8 +1178,7 @@ function HotspotBenchPage() {
                   height={1.8}
                   id={`polygon-draft-vertex-${index}`}
                   interactive={false}
-                  orientation="billboard"
-                  placement="floating"
+                  mode="billboard"
                   position={vertex}
                   scaleMode="fixed"
                   width={1.8}
@@ -1290,30 +1275,17 @@ function HotspotBenchPage() {
                 </label>
               </div>
 
-              <label className="field wide">
-                <span>Orientation</span>
-                <select
-                  onChange={(event) => updateHotspot(selected.id, {
-                    orientation: event.currentTarget.value as EditorHotspot["orientation"],
-                  })}
-                  value={selected.orientation}
-                >
-                  <option value="billboard">Billboard</option>
-                  <option value="surface">Surface</option>
-                </select>
-              </label>
-
               <div className="field-grid">
                 <label className="field">
-                  <span>Placement</span>
+                  <span>Hotspot mode</span>
                   <select
                     onChange={(event) => updateHotspot(selected.id, {
-                      placement: event.currentTarget.value as EditorHotspot["placement"],
+                      mode: event.currentTarget.value as HotspotMode,
                     })}
-                    value={selected.placement}
+                    value={selected.mode}
                   >
-                    <option value="surface">Panorama surface</option>
-                    <option value="floating">Floating</option>
+                    <option value="surface">Attach to panorama</option>
+                    <option value="billboard">Float facing viewer</option>
                   </select>
                 </label>
                 <label className="field">
@@ -1330,23 +1302,21 @@ function HotspotBenchPage() {
                 </label>
               </div>
 
-              <label className="field wide range-field">
-                <span>
-                  Floating distance
-                  <b>{selected.placement === "surface" ? "surface" : selected.distance.toFixed(1)}</b>
-                </span>
-                <input
-                  disabled={selected.placement === "surface"}
-                  max="49.5"
-                  min="0.5"
-                  onChange={(event) => updateHotspot(selected.id, {
-                    distance: numberValue(event.currentTarget.value, selected.distance),
-                  })}
-                  step="0.5"
-                  type="range"
-                  value={selected.distance}
-                />
-              </label>
+              {selected.mode === "billboard" ? (
+                <label className="field wide range-field">
+                  <span>Floating distance <b>{selected.distance.toFixed(1)}</b></span>
+                  <input
+                    max="49.5"
+                    min="0.5"
+                    onChange={(event) => updateHotspot(selected.id, {
+                      distance: numberValue(event.currentTarget.value, selected.distance),
+                    })}
+                    step="0.5"
+                    type="range"
+                    value={selected.distance}
+                  />
+                </label>
+              ) : null}
 
               <label className="field wide range-field">
                 <span>Opacity <b>{Math.round(selected.opacity * 100)}%</b></span>

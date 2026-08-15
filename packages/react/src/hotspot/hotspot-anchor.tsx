@@ -28,6 +28,7 @@ import {
 import type {
   HotspotCommonProps,
   HotspotInteractionEvent,
+  HotspotMode,
   HotspotPosition,
 } from "./types";
 
@@ -40,6 +41,13 @@ const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
 const LOCAL_FORWARD = new Vector3(0, 0, 1);
+const HOTSPOT_MODE_RENDERING: Record<
+  HotspotMode,
+  { orientation: "billboard" | "surface"; placement: "surface" | "floating" }
+> = {
+  surface: { orientation: "surface", placement: "surface" },
+  billboard: { orientation: "billboard", placement: "floating" },
+};
 
 type DragState = {
   pointerId: number;
@@ -55,6 +63,10 @@ export type HotspotAnchorProps = Omit<HotspotCommonProps, "opacity"> & {
   useAngularScale?: boolean;
   focusContent?: ReactNode;
   children?: ReactNode;
+  /** Private support for world-space polygon and polyline primitives. */
+  internalOrientation?: "billboard" | "surface";
+  /** Private support for world-space polygon and polyline primitives. */
+  internalPlacement?: "surface" | "floating";
 };
 
 function angularSizeToWorldSize(size: number, radius: number): number {
@@ -149,9 +161,10 @@ export function HotspotAnchor({
   height,
   useAngularScale = true,
   focusContent,
-  placement = "floating",
+  mode = "billboard",
   distance,
-  orientation = "billboard",
+  internalOrientation,
+  internalPlacement,
   scaleMode = "fov",
   referenceFov = DEFAULT_REFERENCE_FOV,
   rotation = 0,
@@ -172,6 +185,11 @@ export function HotspotAnchor({
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
   const normalizedPosition = normalizePanoPosition(position);
+  const rendering =
+    internalOrientation && internalPlacement
+      ? { orientation: internalOrientation, placement: internalPlacement }
+      : HOTSPOT_MODE_RENDERING[mode];
+  const { orientation, placement } = rendering;
   const resolvedDistance = resolveDistance(placement, distance, width, height);
   const worldPosition = useMemo(
     () => panoPositionToVector3(normalizedPosition, resolvedDistance),
