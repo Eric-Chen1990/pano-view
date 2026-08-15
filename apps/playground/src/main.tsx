@@ -374,7 +374,7 @@ function ToolButton({
   );
 }
 
-function App() {
+function HotspotBenchPage() {
   const viewerRef = useRef<PanoViewHandle>(null);
   const [mode, setMode] = useState<ViewerMode>("sphere");
   const [tool, setTool] = useState<EditorTool>("navigate");
@@ -733,12 +733,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <a className="wordmark" href="#workspace" aria-label="Pano View home">
-          PANO<span>/</span>VIEW
-        </a>
-        <p>HOTSPOT AUTHORING · STAGE 06</p>
-      </header>
+      <SiteHeader activePage="hotspots" />
 
       <section className="authoring-intro" aria-labelledby="page-title">
         <div>
@@ -1482,8 +1477,6 @@ function App() {
         </aside>
       </section>
 
-      <SceneTransitionBench />
-
       <footer>
         <span>@pano-view/react · point, polygon + polyline hotspots</span>
         <span>Stage 6 of 6</span>
@@ -1492,73 +1485,99 @@ function App() {
   );
 }
 
-function SceneTransitionBench() {
+function SiteHeader({ activePage }: { activePage: "hotspots" | "transitions" }) {
+  return (
+    <header className="topbar">
+      <a className="wordmark" href="/hotspots" aria-label="Pano View home">
+        PANO<span>/</span>VIEW
+      </a>
+      <nav className="bench-nav" aria-label="Playground pages">
+        <a aria-current={activePage === "hotspots" ? "page" : undefined} href="/hotspots">
+          Hotspot bench
+        </a>
+        <a aria-current={activePage === "transitions" ? "page" : undefined} href="/scene-transitions">
+          Scene transitions
+        </a>
+      </nav>
+      <p>{activePage === "hotspots" ? "HOTSPOT AUTHORING · STAGE 06" : "SCENE TRANSITIONS · STAGE 06"}</p>
+    </header>
+  );
+}
+
+function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<PanoramaTransitionPreset>("crossfade");
   const [status, setStatus] = useState("Choose a scene and a KRpano-style blend.");
 
   return (
-    <section className="transition-bench" aria-labelledby="transition-bench-title">
-      <div className="transition-bench-heading">
-        <div>
-          <p className="eyebrow">Scene transition bench</p>
-          <h2 id="transition-bench-title">GPU snapshot blending</h2>
+    <main className="app-shell">
+      <SiteHeader activePage="transitions" />
+      <section className="transition-bench" aria-labelledby="transition-bench-title">
+        <div className="transition-bench-heading">
+          <div>
+            <p className="eyebrow">Scene transition bench</p>
+            <h1 id="transition-bench-title">GPU snapshot blending</h1>
+          </div>
+          <p>{status}</p>
         </div>
-        <p>{status}</p>
-      </div>
-      <div className="transition-bench-controls">
-        <div className="scene-buttons" role="group" aria-label="Target panorama scene">
-          {TRANSITION_SCENES.map((scene) => (
-            <button
-              className={activeSceneId === scene.id ? "active" : ""}
-              key={scene.id}
-              onClick={() => setActiveSceneId(scene.id)}
-              type="button"
-            >
-              {scene.id}
-            </button>
-          ))}
-        </div>
-        <label>
-          Blend
-          <select
-            onChange={(event) => setPreset(event.currentTarget.value as PanoramaTransitionPreset)}
-            value={preset}
-          >
-            {TRANSITION_PRESETS.map((entry) => (
-              <option key={entry.value} value={entry.value}>{entry.label}</option>
+        <div className="transition-bench-controls">
+          <div className="scene-buttons" role="group" aria-label="Target panorama scene">
+            {TRANSITION_SCENES.map((scene) => (
+              <button
+                className={activeSceneId === scene.id ? "active" : ""}
+                key={scene.id}
+                onClick={() => setActiveSceneId(scene.id)}
+                type="button"
+              >
+                {scene.id}
+              </button>
             ))}
-          </select>
-        </label>
-      </div>
-      <div className="transition-viewer">
-        <PanoView aria-label="Panorama scene transition demo" style={{ height: 380 }}>
-          <PanoramaScenes
-            activeSceneId={activeSceneId}
-            maxConcurrentTileLoads={3}
-            maxTextureMemoryMb={96}
-            scenes={TRANSITION_SCENES}
-            transition={preset}
-            onTransitionEnd={({ previousSceneId, sceneId, preset: completedPreset }) => {
-              setStatus(`${previousSceneId} → ${sceneId} · ${completedPreset}`);
-            }}
-            onTransitionError={({ sceneId }) => {
-              setStatus(`Could not prepare ${sceneId}; current scene remains visible.`);
-            }}
-            renderHotspots={(scene) => (
-              <ImageHotspot
-                ariaLabel={`${scene.id} scene marker`}
-                height={6}
-                id={`transition-marker-${scene.id}`}
-                position={{ yaw: 18, pitch: 5 }}
-                src="/fixtures/hotspots/signal.svg"
-                width={6}
-              />
-            )}
-          />
-        </PanoView>
-      </div>
-    </section>
+          </div>
+          <label>
+            Blend
+            <select
+              onChange={(event) => setPreset(event.currentTarget.value as PanoramaTransitionPreset)}
+              value={preset}
+            >
+              {TRANSITION_PRESETS.map((entry) => (
+                <option key={entry.value} value={entry.value}>{entry.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="transition-viewer">
+          <PanoView aria-label="Panorama scene transition demo" style={{ height: 540 }}>
+            <PanoramaScenes
+              activeSceneId={activeSceneId}
+              maxConcurrentTileLoads={3}
+              maxTextureMemoryMb={96}
+              scenes={TRANSITION_SCENES}
+              transition={preset}
+              onTransitionEnd={({ previousSceneId, sceneId, preset: completedPreset }) => {
+                setStatus(`${previousSceneId} → ${sceneId} · ${completedPreset}`);
+              }}
+              onTransitionError={({ sceneId }) => {
+                setStatus(`Could not prepare ${sceneId}; current scene remains visible.`);
+              }}
+              renderHotspots={(scene) => (
+                <ImageHotspot
+                  ariaLabel={`${scene.id} scene marker`}
+                  height={6}
+                  id={`transition-marker-${scene.id}`}
+                  position={{ yaw: 18, pitch: 5 }}
+                  src="/fixtures/hotspots/signal.svg"
+                  width={6}
+                />
+              )}
+            />
+          </PanoView>
+        </div>
+      </section>
+      <footer>
+        <span>@pano-view/react · panorama scene transitions</span>
+        <span>Stage 6 of 6</span>
+      </footer>
+    </main>
   );
 }
 
@@ -1934,6 +1953,12 @@ function VideoFields({
       </div>
     </div>
   );
+}
+
+function App() {
+  return window.location.pathname === "/scene-transitions"
+    ? <SceneTransitionPage />
+    : <HotspotBenchPage />;
 }
 
 createRoot(document.getElementById("root")!).render(

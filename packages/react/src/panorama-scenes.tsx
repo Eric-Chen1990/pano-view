@@ -115,19 +115,22 @@ type Snapshot = {
 
 type Phase = "idle" | "preloading" | "capturing" | "recapturing" | "transitioning";
 
-const TRANSITION_DEFAULTS: Record<PanoramaTransitionPreset, number> = {
-  none: 0,
-  crossfade: 1,
-  zoom: 2,
-  blackout: 2,
-  whiteFlash: 1,
-  slideRightToLeft: 1,
-  slideTopToBottom: 1,
-  slideDiagonal: 1,
-  circleOpen: 1,
-  verticalOpen: 0.7,
-  horizontalOpen: 1,
-  ellipticZoomOpen: 1,
+const TRANSITION_DEFAULTS: Record<PanoramaTransitionPreset, {
+  duration: number;
+  krpanoBlend: string;
+}> = {
+  none: { duration: 0, krpanoBlend: "NOBLEND" },
+  crossfade: { duration: 1, krpanoBlend: "BLEND(1.0, easeInCubic)" },
+  zoom: { duration: 2, krpanoBlend: "ZOOMBLEND(2.0, 2.0, easeInOutSine)" },
+  blackout: { duration: 2, krpanoBlend: "COLORBLEND(2.0, 0x000000, easeOutSine)" },
+  whiteFlash: { duration: 1, krpanoBlend: "LIGHTBLEND(1.0, 0xFFFFFF, 2.0, linear)" },
+  slideRightToLeft: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 0.0, 0.2, linear)" },
+  slideTopToBottom: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 90.0, 0.01, linear)" },
+  slideDiagonal: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 135.0, 0.4, linear)" },
+  circleOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, 0.0, 0.2, 0.0, linear)" },
+  verticalOpen: { duration: 0.7, krpanoBlend: "OPENBLEND(0.7, 1.0, 0.1, 0.0, linear)" },
+  horizontalOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -1.0, 0.3, 0.0, linear)" },
+  ellipticZoomOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -0.5, 0.3, 0.8, linear)" },
 };
 
 const EFFECT_INDEX: Record<PanoramaTransitionPreset, number> = {
@@ -153,7 +156,7 @@ function resolveTransition(transition: PanoramaTransition | undefined): Transiti
       0,
       transition && typeof transition === "object" && Number.isFinite(transition.duration)
         ? transition.duration!
-        : TRANSITION_DEFAULTS[preset],
+        : TRANSITION_DEFAULTS[preset].duration,
     ),
   };
 }
@@ -322,15 +325,21 @@ function SnapshotOverlay({
             if (effect == 1.0) {
               alpha = 1.0 - easeInCubic(t);
             } else if (effect == 2.0) {
-              uv = 0.5 + (vUv - 0.5) * (1.0 - 0.22 * easeInOutSine(t));
+              float eased = easeInOutSine(t);
+              // ZOOMBLEND(2.0, 2.0, easeInOutSine): reach 2x zoom.
+              uv = 0.5 + (vUv - 0.5) / mix(1.0, 2.0, eased);
               old = texture2D(map, uv);
-              alpha = 1.0 - easeInOutSine(t);
+              alpha = 1.0 - eased;
             } else if (effect == 3.0) {
-              float midpoint = smoothstep(0.0, 0.5, t);
-              old.rgb = mix(old.rgb, vec3(0.0), midpoint);
-              alpha = 1.0 - smoothstep(0.5, 1.0, t);
+              // COLORBLEND(2.0, 0x000000, easeOutSine).
+              float blackout = easeOutSine(min(1.0, t * 2.0));
+              float reveal = easeOutSine(max(0.0, (t - 0.5) * 2.0));
+              old.rgb = mix(old.rgb, vec3(0.0), blackout);
+              alpha = 1.0 - reveal;
             } else if (effect == 4.0) {
-              old.rgb = mix(old.rgb, vec3(1.0), sin(t * 3.14159265359));
+              // LIGHTBLEND(1.0, 0xFFFFFF, 2.0, linear).
+              float flash = min(1.0, 2.0 * sin(t * 3.14159265359));
+              old.rgb = mix(old.rgb, vec3(1.0), flash);
               alpha = 1.0 - t;
             } else if (effect >= 5.0 && effect <= 7.0) {
               vec2 direction = effect == 5.0 ? vec2(1.0, 0.0) : (effect == 6.0 ? vec2(0.0, 1.0) : normalize(vec2(-1.0, 1.0)));
@@ -341,11 +350,12 @@ function SnapshotOverlay({
               vec2 point = vUv - 0.5;
               vec2 scale = effect == 9.0 ? vec2(4.0, 1.0) : (effect == 10.0 ? vec2(1.0, 4.0) : vec2(1.35, 0.8));
               float distanceFromCenter = length(point * scale);
-              float edge = effect == 9.0 ? 0.1 : (effect == 10.0 ? 0.3 : 0.3);
+              float edge = effect == 8.0 ? 0.2 : (effect == 9.0 ? 0.1 : 0.3);
               float radius = t * (effect == 9.0 ? 1.1 : 1.45);
               alpha = smoothstep(radius, radius + edge, distanceFromCenter);
               if (effect == 11.0) {
-                old = texture2D(map, 0.5 + point * (1.0 - 0.18 * t));
+                // OPENBLEND(1.0, -0.5, 0.3, 0.8, linear).
+                old = texture2D(map, 0.5 + point / (1.0 + 0.8 * t));
               }
             }
             gl_FragColor = vec4(old.rgb, old.a * alpha);
