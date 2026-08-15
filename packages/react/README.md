@@ -65,7 +65,18 @@ export function TileExample() {
 }
 ```
 
-The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with faces stacked as `l/f/r/b/u/d`. Use `previewFaceOrder` when a preview atlas uses a different top-to-bottom order.
+The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Use `previewFaceOrder` when an atlas uses a different order:
+
+```tsx
+<Tile
+  baseUrl="/panoramas/room"
+  multires="512,1000,2000"
+  previewUrl="/panoramas/room/previews/cube-vertical.webp"
+  previewFaceOrder={["l", "f", "r", "b", "u", "d"]}
+/>
+```
+
+`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
