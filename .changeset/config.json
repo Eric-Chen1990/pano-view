@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@pano-view/playground"]
+  "ignore": ["@ericchen1990/pano-view-playground"]
 }
