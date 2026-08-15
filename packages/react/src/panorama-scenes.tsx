@@ -164,13 +164,13 @@ function resolveTransition(transition: PanoramaTransition | undefined): Transiti
 function SceneSource({
   scene,
   visible,
-  previewOnly,
+  baseOnly,
   onReady,
   onError,
 }: {
   scene: PanoramaScene | null;
   visible: boolean;
-  previewOnly: boolean;
+  baseOnly: boolean;
   onReady: () => void;
   onError: (error: unknown) => void;
 }) {
@@ -195,7 +195,7 @@ function SceneSource({
     <Tile
       {...tileProps}
       visible={visible}
-      loadMode={previewOnly ? "preview" : "full"}
+      loadMode={baseOnly ? "base" : "full"}
       onReady={onReady}
       onPreviewError={onError}
     />
@@ -645,7 +645,7 @@ function PanoramaScenesController({
             key={`${slot}:${source?.id ?? "empty"}:${recoveryKey}`}
             scene={source}
             visible={isLive}
-            previewOnly={isPending && phase === "preloading"}
+            baseOnly={isPending && phase !== "idle"}
             onReady={() => handleReady(slot)}
             onError={(error) => {
               if (source) {

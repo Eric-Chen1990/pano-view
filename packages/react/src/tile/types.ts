@@ -49,8 +49,11 @@ export type TileProps = {
   maxTextureMemoryMb?: number;
   maxConcurrentLoads?: number;
   retryCount?: number;
-  /** Loads only the preview atlas and skips visible high-resolution tiles. */
-  loadMode?: "full" | "preview";
+  /**
+   * `preview` loads only the preview atlas; `base` also preloads the visible
+   * lowest-resolution tiles before full-resolution loading begins.
+   */
+  loadMode?: "full" | "preview" | "base";
   /** Keeps the source mounted for preloading without drawing it. */
   visible?: boolean;
   /** Called when the preview atlas is ready for display. */

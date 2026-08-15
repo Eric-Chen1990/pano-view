@@ -656,13 +656,15 @@ export function Tile({
 
     lastUpdateAtRef.current = now;
 
-    const targetLevel = getPreferredLevel(
-      levels,
-      size.height,
-      pixelRatio,
-      camera.fov,
-      currentLevelRef.current,
-    );
+    const targetLevel = loadMode === "base"
+      ? 1
+      : getPreferredLevel(
+        levels,
+        size.height,
+        pixelRatio,
+        camera.fov,
+        currentLevelRef.current,
+      );
     if (targetLevel !== currentLevelRef.current) {
       currentLevelRef.current = targetLevel;
       levelChangeRef.current?.(targetLevel);
