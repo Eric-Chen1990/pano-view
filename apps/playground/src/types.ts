@@ -24,6 +24,8 @@ export type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
+      rotation: number;
+      scale: number;
       mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
@@ -38,6 +40,8 @@ export type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
+      rotation: number;
+      scale: number;
       mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
@@ -52,6 +56,8 @@ export type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
+      rotation: number;
+      scale: number;
       mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";
@@ -71,6 +77,8 @@ export type EditorHotspot =
       position: HotspotPosition;
       width: number;
       height: number;
+      rotation: number;
+      scale: number;
       mode: HotspotMode;
       distance: number;
       scaleMode: "fov" | "fixed";

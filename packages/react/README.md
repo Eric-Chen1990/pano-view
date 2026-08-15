@@ -65,7 +65,18 @@ export function TileExample() {
 }
 ```
 
-The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with faces stacked as `l/f/r/b/u/d`. Use `previewFaceOrder` when a preview atlas uses a different top-to-bottom order.
+The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Use `previewFaceOrder` when an atlas uses a different order:
+
+```tsx
+<Tile
+  baseUrl="/panoramas/room"
+  multires="512,1000,2000"
+  previewUrl="/panoramas/room/previews/cube-vertical.webp"
+  previewFaceOrder={["l", "f", "r", "b", "u", "d"]}
+/>
+```
+
+`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
@@ -217,8 +228,8 @@ export function PlacementExample() {
 
 `normalizePanoPosition`, `normalizePanoYaw`, `clampPanoPitch`, and
 `vector3ToPanoPosition` are also exported for controlled authoring flows. Yaw
-is normalized to `[-180, 180)`. Pitch is clamped to `[-89.9, 89.9]` to avoid
-the spherical-coordinate singularity at the poles.
+is normalized to `[-180, 180)`. Pitch is clamped to `[-90, 90]`; at either
+pole, yaw is normalized to `0` because it does not identify a unique point.
 
 ## Shared hotspot contract and saved definitions
 
@@ -326,6 +337,9 @@ placement properties:
 - `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
+- `rotation` rotates the hotspot around its own normal in degrees. `scale`
+  applies an overall positive multiplier to its angular width and height and
+  defaults to `1`.
 
 ```tsx
 <ImageHotspot
@@ -336,6 +350,8 @@ placement properties:
   height={6}
   mode="billboard"
   distance={14}
+  rotation={-12}
+  scale={1.25}
   scaleMode="fixed"
   src="/hotspots/callout.webp"
 />

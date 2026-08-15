@@ -1,4 +1,4 @@
-export const MAX_HOTSPOT_PITCH = 89.9;
+export const MAX_HOTSPOT_PITCH = 90;
 
 export type HotspotPosition = {
   /** Horizontal panorama angle in degrees. Positive values look right. */
@@ -39,6 +39,8 @@ export type HotspotCommonProps = {
   width?: number;
   /** Angular height in degrees. Defaults to 8. */
   height?: number;
+  /** Overall multiplier for the hotspot's angular width and height. Defaults to 1. */
+  scale?: number;
   /** Defaults to "billboard". */
   mode?: HotspotMode;
   /**

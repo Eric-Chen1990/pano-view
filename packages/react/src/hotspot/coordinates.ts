@@ -2,6 +2,8 @@ import { MathUtils, Vector3 } from "three";
 import { MAX_HOTSPOT_PITCH } from "./types";
 import type { HotspotPosition } from "./types";
 
+const POLE_EPSILON_DEGREES = 1e-6;
+
 export function normalizePanoYaw(yaw: number): number {
   if (!Number.isFinite(yaw)) {
     return 0;
@@ -13,15 +15,25 @@ export function clampPanoPitch(pitch: number): number {
   if (!Number.isFinite(pitch)) {
     return 0;
   }
-  return MathUtils.clamp(pitch, -MAX_HOTSPOT_PITCH, MAX_HOTSPOT_PITCH);
+  const clamped = MathUtils.clamp(
+    pitch,
+    -MAX_HOTSPOT_PITCH,
+    MAX_HOTSPOT_PITCH,
+  );
+  return Math.abs(clamped) >= MAX_HOTSPOT_PITCH - POLE_EPSILON_DEGREES
+    ? Math.sign(clamped) * MAX_HOTSPOT_PITCH
+    : clamped;
 }
 
 export function normalizePanoPosition(
   position: HotspotPosition,
 ): HotspotPosition {
+  const pitch = clampPanoPitch(position.pitch);
   return {
-    yaw: normalizePanoYaw(position.yaw),
-    pitch: clampPanoPitch(position.pitch),
+    yaw: Math.abs(pitch) === MAX_HOTSPOT_PITCH
+      ? 0
+      : normalizePanoYaw(position.yaw),
+    pitch,
   };
 }
 

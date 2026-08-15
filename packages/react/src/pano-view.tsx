@@ -27,6 +27,7 @@ import {
   DEFAULT_PANORAMA_CAMERA_FAR,
   DEFAULT_PANORAMA_CAMERA_NEAR,
 } from "./panorama-radius";
+import { clampPanoPitch } from "./hotspot/coordinates";
 import type {
   PanoramaControlsOptions,
   PanoViewHandle,
@@ -94,7 +95,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
     const normalizedInitialView = useMemo<PanoViewState>(
       () => ({
         yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
-        pitch: initialView?.pitch ?? DEFAULT_VIEW.pitch,
+        pitch: clampPanoPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),
         fov: Math.max(
           normalizedMinFov,
           Math.min(initialView?.fov ?? DEFAULT_VIEW.fov, normalizedMaxFov),

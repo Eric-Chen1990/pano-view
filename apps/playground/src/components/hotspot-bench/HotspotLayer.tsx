@@ -73,6 +73,8 @@ export function HotspotLayer({
           distance: hotspot.distance,
           interactive: !drawingPath,
           position: hotspot.position,
+          rotation: hotspot.rotation,
+          scale: hotspot.scale,
           scaleMode: hotspot.scaleMode,
           visible: hotspot.visible,
           width: hotspot.width,

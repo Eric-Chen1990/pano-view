@@ -12,7 +12,7 @@ import type {
   SetPanoViewOptions,
 } from "./types";
 
-const MAX_PITCH = 89.9;
+const MAX_PITCH = 90;
 const INERTIA_ROTATION_DAMPING = 8;
 const INERTIA_ZOOM_DAMPING = 12;
 const DEFAULT_ROTATE_DAMPING = 14;

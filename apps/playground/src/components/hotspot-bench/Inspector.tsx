@@ -212,6 +212,7 @@ function SelectedHotspotFields({
         <label className="field">
           <span>Yaw</span>
           <input
+            disabled={Math.abs(selected.position.pitch) >= 90}
             onChange={(event) => onUpdateHotspot(selected.id, {
               position: { ...selected.position, yaw: numberValue(event.currentTarget.value, selected.position.yaw) },
             })}
@@ -249,6 +250,25 @@ function SelectedHotspotFields({
             step="0.1"
             type="number"
             value={selected.height}
+          />
+        </label>
+        <label className="field">
+          <span>Rotation</span>
+          <input
+            onChange={(event) => onUpdateHotspot(selected.id, { rotation: numberValue(event.currentTarget.value, selected.rotation) })}
+            step="1"
+            type="number"
+            value={selected.rotation}
+          />
+        </label>
+        <label className="field">
+          <span>Scale</span>
+          <input
+            min="0.01"
+            onChange={(event) => onUpdateHotspot(selected.id, { scale: numberValue(event.currentTarget.value, selected.scale) })}
+            step="0.1"
+            type="number"
+            value={selected.scale}
           />
         </label>
       </div>
