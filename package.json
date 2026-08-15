@@ -10,6 +10,12 @@
     "dev": "pnpm --filter @pano-view/playground dev",
     "build": "pnpm --filter @ericchen1990/pano-view build && pnpm --filter @pano-view/playground build",
     "typecheck": "pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @pano-view/playground typecheck",
-    "pack:check": "pnpm --filter @ericchen1990/pano-view exec env npm_config_cache=../../.npm-cache npm pack --dry-run"
+    "pack:check": "pnpm --filter @ericchen1990/pano-view exec env npm_config_cache=../../.npm-cache npm pack --dry-run",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm install --lockfile-only",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.7"
   }
 }
