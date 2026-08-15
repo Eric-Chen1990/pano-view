@@ -11,12 +11,12 @@ import {
 import type { ReactNode } from "react";
 import {
   DoubleSide,
+  LinearSRGBColorSpace,
   LinearFilter,
   Mesh,
   PlaneGeometry,
   PerspectiveCamera,
   ShaderMaterial,
-  SRGBColorSpace,
   Texture,
   Vector2,
   Vector3,
@@ -238,7 +238,9 @@ function SnapshotCapture({
       depthBuffer: false,
       stencilBuffer: false,
     });
-    nextTarget.texture.colorSpace = SRGBColorSpace;
+    // WebGLRenderer renders non-XR targets in its linear working color space.
+    // Keep this metadata accurate so the snapshot is not treated as display-encoded.
+    nextTarget.texture.colorSpace = LinearSRGBColorSpace;
     nextTarget.texture.generateMipmaps = false;
     nextTarget.texture.minFilter = LinearFilter;
     nextTarget.texture.magFilter = LinearFilter;
@@ -359,6 +361,9 @@ function SnapshotOverlay({
               }
             }
             gl_FragColor = vec4(old.rgb, old.a * alpha);
+            // The snapshot is linear. Encode it for the drawing buffer so it
+            // matches the newly rendered panorama beneath this overlay.
+            #include <colorspace_fragment>
           }
         `,
       }),
