@@ -82,3 +82,15 @@ export type {
   HotspotPosition,
   PanoramaPointerEvent,
 } from "./hotspot/types";
+export type {
+  GraphicHotspotDefinition,
+  HotspotDefinition,
+  HotspotDefinitionBase,
+  ImageHotspotDefinition,
+  PointHotspotDefinition,
+  PointHotspotDefinitionBase,
+  PolygonHotspotDefinition,
+  PolylineHotspotDefinition,
+  SequenceHotspotDefinition,
+  VideoHotspotDefinition,
+} from "./hotspot/definitions";

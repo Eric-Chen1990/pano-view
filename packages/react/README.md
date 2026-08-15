@@ -156,6 +156,41 @@ export function PlacementExample() {
 is normalized to `[-180, 180)`. Pitch is clamped to `[-89.9, 89.9]` to avoid
 the spherical-coordinate singularity at the poles.
 
+## Shared hotspot contract and saved definitions
+
+Every hotspot has an `id`, optional `visible`, `interactive`, `renderOrder`,
+and semantic interaction callbacks. Point hotspots additionally use a
+controlled `position`, angular `width`/`height`, and the placement and zoom
+options described below. `interactive={false}` keeps a hotspot visible while
+letting a drawing tool receive the panorama pointer events beneath it.
+
+`onClick` and `onHoverChange` receive a position and input source (`"pointer"`
+or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
+`onPositionChange`, and `onDragEnd`; the host must write the reported position
+back to its state. Polygon and polyline hotspots report the corresponding
+controlled `vertices` through `onVerticesChange`.
+
+For persistence or a host-owned editor, use the exported discriminated
+`HotspotDefinition` union. It contains the original five categories plus the
+open `polyline` extension:
+
+```ts
+import type { HotspotDefinition } from "@pano-view/react";
+
+const hotspots: HotspotDefinition[] = [
+  { type: "image", id: "gallery", position: { yaw: 24, pitch: -5 }, src: "/hotspots/card.webp" },
+  { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
+  { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
+  { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
+  { type: "polyline", id: "route", vertices: [{ yaw: -8, pitch: 1 }, { yaw: 4, pitch: 8 }] },
+];
+```
+
+Definitions intentionally contain data only. Render them with a switch in the
+host, where application-specific click actions, controlled media state, and
+error reporting belong.
+
 ## Image and graphic hotspots
 
 `ImageHotspot` renders an image at a controlled spherical position. Dimensions
@@ -208,6 +243,11 @@ Set `draggable` and update the controlled position from `onPositionChange` to
 move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates
 an internal semantic control for Tab, Enter, and Space activation, with a
 visible WebGL focus outline.
+
+`ImageHotspot` calls `onLoad(texture)` and `onError(error)`. `GraphicHotspot`
+uses the same callbacks. Built-in paths are rasterized locally; only an SVG URL
+or SVG `path` data plus an explicit `viewBox` is accepted, never arbitrary SVG
+markup.
 
 ## Placement and zoom behaviour
 
@@ -273,6 +313,34 @@ consistent across FOV changes. Dragging moves all vertices together while
 keeping yaw normalized and pitch clamped. Individual vertex editing is provided
 by the authoring workflow, not the runtime hotspot component.
 
+Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
+share the same spherical edge sampling, so there is no intentional seam
+between them.
+
+## Polyline hotspots
+
+`PolylineHotspot` is an open path of at least two yaw/pitch vertices. It uses
+the same CSS-pixel `strokeWidth`, visibility, semantic interaction, controlled
+whole-path drag, and vertex-change callback as `PolygonHotspot`, but it never
+connects the final point to the first and has no fill.
+
+```tsx
+import { PolylineHotspot } from "@pano-view/react";
+
+<PolylineHotspot
+  id="guided-route"
+  ariaLabel="Guided route"
+  vertices={routeVertices}
+  stroke="#75cbd3"
+  strokeWidth={2}
+  strokeOpacity={0.9}
+  draggable
+  onVerticesChange={({ vertices }) => setRouteVertices(vertices)}
+/>;
+```
+
+`onInvalid` reports the only invalid runtime shape: fewer than two vertices.
+
 ## Sequence and video hotspots
 
 `SequenceHotspot` animates a sprite sheet: one image containing equally sized
@@ -333,6 +401,12 @@ Browsers can reject unmuted or otherwise non-gesture playback. In that case
 `onPlaybackStateChange` receives `"blocked"` and `onPlaybackError` receives
 the browser error; retain control of `playing` in the host and offer an
 explicit user action.
+
+Sequence loading uses `onLoadProgress` and `onError`; video reports media and
+poster failures through `onError`. Neither component changes `playing` by
+itself: update that prop in response to your UI, click handler, `onEnded`, or
+playback error. This keeps source changes, unmounts, and React StrictMode
+lifecycles deterministic.
 
 ## Automatic rotation
 

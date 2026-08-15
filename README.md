@@ -35,9 +35,12 @@ cd packages/react
 npm publish --access public
 ```
 
-The package exports `PanoView`, `Sphere`, and `Tile`. See the
+The package exports `PanoView`, `Sphere`, `Tile`, and five point/area hotspot
+renderers: `ImageHotspot`, `GraphicHotspot`, `SequenceHotspot`, `VideoHotspot`,
+and `PolygonHotspot`. `PolylineHotspot` is available for open paths. See the
 [`@pano-view/react` README](./packages/react/README.md) for the public API,
-krpano-compatible tile layout, controls, and Next.js usage.
+krpano-compatible tile layout, controls, hotspot coordinates, accessibility,
+and Next.js usage. Domain terms are defined in [CONTEXT.md](./CONTEXT.md).
 
 ## Maintainer and support
 

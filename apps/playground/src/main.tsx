@@ -638,12 +638,23 @@ function App() {
   };
 
   const deleteSelected = () => {
-    if (!selected) {
+    if (selected) {
+      setHotspots((current) => current.filter((hotspot) => hotspot.id !== selected.id));
+      setSelectedId(null);
+      setLastAction(`${selected.type[0]!.toUpperCase()}${selected.type.slice(1)} removed.`);
       return;
     }
-    setHotspots((current) => current.filter((hotspot) => hotspot.id !== selected.id));
-    setSelectedId(null);
-    setLastAction(`${selected.type[0]!.toUpperCase()}${selected.type.slice(1)} removed.`);
+    if (selectedPolygon) {
+      setPolygons((current) => current.filter((polygon) => polygon.id !== selectedPolygon.id));
+      setSelectedId(null);
+      setLastAction("Polygon removed.");
+      return;
+    }
+    if (selectedPolyline) {
+      setPolylines((current) => current.filter((polyline) => polyline.id !== selectedPolyline.id));
+      setSelectedId(null);
+      setLastAction("Polyline removed.");
+    }
   };
 
   const resetDemo = () => {
@@ -672,12 +683,12 @@ function App() {
         event.preventDefault();
         setDraftVertices([]);
         setTool("navigate");
-        setLastAction("Polygon draft cancelled.");
+        setLastAction(`${drawingPolyline ? "Polyline" : "Polygon"} draft cancelled.`);
       }
       if (event.key === "Backspace") {
         event.preventDefault();
         setDraftVertices((current) => current.slice(0, -1));
-        setLastAction("Last polygon vertex removed.");
+        setLastAction(`Last ${drawingPolyline ? "polyline" : "polygon"} vertex removed.`);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -690,7 +701,7 @@ function App() {
         <a className="wordmark" href="#workspace" aria-label="Pano View home">
           PANO<span>/</span>VIEW
         </a>
-        <p>HOTSPOT AUTHORING · STAGE 05</p>
+        <p>HOTSPOT AUTHORING · STAGE 06</p>
       </header>
 
       <section className="authoring-intro" aria-labelledby="page-title">
@@ -699,8 +710,8 @@ function App() {
           <h1 id="page-title">Place it<br />where it lives.</h1>
         </div>
         <p className="lede">
-          Place media, then draw local polygon regions directly on the panorama.
-          Drag a selected polygon or its vertex handles without leaving the view.
+          Place media, draw local regions or open paths, then adjust every hotspot
+          directly in its panoramic context.
         </p>
       </section>
 
@@ -1359,11 +1370,13 @@ function App() {
             <PolygonFields
               polygon={selectedPolygon}
               onChange={(patch) => updatePolygon(selectedPolygon.id, patch)}
+              onDelete={deleteSelected}
             />
           ) : selectedPolyline ? (
             <PolylineFields
               polyline={selectedPolyline}
               onChange={(patch) => updatePolyline(selectedPolyline.id, patch)}
+              onDelete={deleteSelected}
             />
           ) : drawingPath ? (
             <PolygonDraftFields
@@ -1433,8 +1446,8 @@ function App() {
       </section>
 
       <footer>
-        <span>@pano-view/react · point + polygon hotspots</span>
-        <span>Stage 5 of 6</span>
+        <span>@pano-view/react · point, polygon + polyline hotspots</span>
+        <span>Stage 6 of 6</span>
       </footer>
     </main>
   );
@@ -1553,9 +1566,11 @@ function PolygonDraftFields({
 function PolygonFields({
   polygon,
   onChange,
+  onDelete,
 }: {
   polygon: EditorPolygon;
   onChange: (patch: Partial<Omit<EditorPolygon, "id">>) => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="inspector-content">
@@ -1630,6 +1645,9 @@ function PolygonFields({
           <span key={`${polygon.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>
         ))}
       </div>
+      <button className="delete-button" onClick={onDelete} type="button">
+        Delete polygon
+      </button>
     </div>
   );
 }
@@ -1637,9 +1655,11 @@ function PolygonFields({
 function PolylineFields({
   polyline,
   onChange,
+  onDelete,
 }: {
   polyline: EditorPolyline;
   onChange: (patch: Partial<Omit<EditorPolyline, "id">>) => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="inspector-content">
@@ -1687,6 +1707,9 @@ function PolylineFields({
           <span key={`${polyline.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>
         ))}
       </div>
+      <button className="delete-button" onClick={onDelete} type="button">
+        Delete polyline
+      </button>
     </div>
   );
 }
