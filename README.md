@@ -9,6 +9,8 @@ custom application. Its default tile URL layout is compatible with common
 krpano multires exports, so an existing krpano tile pyramid can be reused
 without a viewer runtime or XML configuration.
 
+Try the components in the [live playground](https://pano-view-playground.vercel.app/).
+
 This repository is a `pnpm` workspace with the publishable `@ericchen1990/pano-view`
 package and a local Vite playground.
 

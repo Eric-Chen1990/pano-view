@@ -2,6 +2,8 @@
 
 Composable React components for equirectangular and krpano-style multiresolution panorama viewers.
 
+Try the components in the [live playground](https://pano-view-playground.vercel.app/).
+
 ## krpano-compatible tile output
 
 Use this package when you want a React-native viewer around equirectangular
