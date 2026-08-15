@@ -4,6 +4,17 @@ export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
+export { PanoramaScenes } from "./panorama-scenes";
+export type {
+  PanoramaScene,
+  PanoramaScenesProps,
+  PanoramaTransition,
+  PanoramaTransitionEndEvent,
+  PanoramaTransitionErrorEvent,
+  PanoramaTransitionPreset,
+  SpherePanoramaScene,
+  TilePanoramaScene,
+} from "./panorama-scenes";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
 export { PolygonHotspot } from "./hotspot/polygon-hotspot";

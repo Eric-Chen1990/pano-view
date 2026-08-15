@@ -136,6 +136,23 @@ export class TileTextureManager {
     this.totalBytes = 0;
   }
 
+  /**
+   * Releases textures that are no longer rendered by any Tile instance.
+   * Scene transitions call this after the outgoing panorama has been
+   * snapshotted, so the incoming scene never competes with stale GPU tiles.
+   */
+  releaseUnused() {
+    for (const entry of Array.from(this.entries.values())) {
+      if (entry.refs > 0) {
+        continue;
+      }
+      entry.texture?.dispose();
+      this.totalBytes -= entry.bytes;
+      this.entries.delete(entry.key);
+    }
+    this.totalBytes = Math.max(0, this.totalBytes);
+  }
+
   private snapshot(entry: TextureEntry): TextureEntrySnapshot {
     return {
       status: entry.status,
@@ -246,6 +263,7 @@ export class TileTextureManager {
       this.totalBytes -= entry.bytes;
       this.entries.delete(entry.key);
     }
+    this.totalBytes = Math.max(0, this.totalBytes);
   }
 
   private finishLoad(generation: number) {

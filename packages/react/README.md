@@ -82,6 +82,52 @@ horizontal index and `%00v` produces a three-digit vertical index. The stereo
 `%t` and frame `%f` placeholders are not applicable to `Tile`, which represents
 a single non-stereo cube panorama.
 
+## Scene transitions
+
+`PanoramaScenes` switches controlled sphere and cube-tile scenes with GPU-only
+snapshot blending. The target scene loads its sphere image or tile preview first;
+once ready, the current framebuffer becomes a temporary GPU texture, its source
+textures are released, and the target scene blends in. This avoids holding two
+high-resolution tile scenes in WebGL memory at once.
+
+```tsx
+import {
+  PanoramaScenes,
+  PanoView,
+  type PanoramaScene,
+} from "@pano-view/react";
+
+const scenes: PanoramaScene[] = [
+  { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp" },
+  {
+    id: "terrace",
+    type: "tile",
+    baseUrl: "/panoramas/terrace",
+    multires: "512,1000,2000",
+  },
+];
+
+<PanoView style={{ height: 560 }}>
+  <PanoramaScenes
+    scenes={scenes}
+    activeSceneId={activeSceneId}
+    transition="ellipticZoomOpen"
+    renderHotspots={(scene) => <SceneHotspots sceneId={scene.id} />}
+    onTransitionError={({ sceneId }) => console.warn("Could not load", sceneId)}
+  />
+</PanoView>;
+```
+
+Available presets are `none`, `crossfade`, `zoom`, `blackout`, `whiteFlash`,
+`slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`, `circleOpen`,
+`verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`. Pass
+`{ preset: "crossfade", duration: 0.6 }` to override a preset duration.
+
+While a transition runs, panorama drag/zoom input is locked and
+`renderHotspots` is hidden. New `activeSceneId` values supersede a target that
+is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
+apply to the whole `PanoramaScenes` viewer rather than to each tile scene.
+
 ## Controls and imperative API
 
 Angles are public degrees. Positive yaw looks right and positive pitch looks up.

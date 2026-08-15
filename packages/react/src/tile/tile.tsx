@@ -37,6 +37,7 @@ import {
   resolveTemplateUrl,
 } from "./multires";
 import { TileTextureManager } from "./texture-manager";
+import { useSharedTileTextureManager } from "./texture-manager-context";
 import type {
   CubeFaceCode,
   TextureEntrySnapshot,
@@ -63,8 +64,14 @@ type TileCandidate = {
   bounds: Box3;
 };
 
-function usePreviewTexture(url: string | null, anisotropy: number) {
+function usePreviewTexture(
+  url: string | null,
+  anisotropy: number,
+  onError?: (error: unknown) => void,
+) {
   const [texture, setTexture] = useState<Texture | null>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   useEffect(() => {
     if (!url) {
@@ -93,9 +100,10 @@ function usePreviewTexture(url: string | null, anisotropy: number) {
         setTexture(loadedTexture);
       },
       undefined,
-      () => {
+      (error) => {
         if (active) {
           setTexture(null);
+          onErrorRef.current?.(error);
         }
       },
     );
@@ -219,9 +227,12 @@ const TileMesh = memo(function TileMesh({
   renderOrder: number;
   resolveUrl: (address: TileAddress) => string;
 }) {
-  const key = tileKey(address);
   const url = resolveUrl(address);
-  const snapshot = useManagedTexture(manager, key, url, address);
+  // A viewer-scoped manager serves multiple scenes. The tile coordinate alone
+  // is only unique within one cube panorama, so include the resolved resource
+  // URL to prevent same-address tiles from different scenes sharing a texture.
+  const cacheKey = `${url}\u0000${tileKey(address)}`;
+  const snapshot = useManagedTexture(manager, cacheKey, url, address);
   const layout = getTileLocalLayout(address);
   const transform = getFaceTransform(address.face);
 
@@ -473,6 +484,10 @@ export function Tile({
   maxTextureMemoryMb = 128,
   maxConcurrentLoads = 8,
   retryCount = 1,
+  loadMode = "full",
+  visible = true,
+  onReady,
+  onPreviewError,
   onLoadProgress,
   onTileError,
   onLevelChange,
@@ -490,7 +505,12 @@ export function Tile({
     previewUrl === undefined
       ? `${baseUrl.replace(/\/$/, "")}/previews/cube-vertical.webp`
       : previewUrl;
-  const previewTexture = usePreviewTexture(effectivePreviewUrl, anisotropy);
+  const previewTexture = usePreviewTexture(
+    effectivePreviewUrl,
+    anisotropy,
+    onPreviewError,
+  );
+  const sharedManager = useSharedTileTextureManager();
   const progressRef = useRef(onLoadProgress);
   const errorRef = useRef(onTileError);
   const levelChangeRef = useRef(onLevelChange);
@@ -498,7 +518,7 @@ export function Tile({
   errorRef.current = onTileError;
   levelChangeRef.current = onLevelChange;
 
-  const manager = useMemo(
+  const ownedManager = useMemo(
     () =>
       new TileTextureManager({
         anisotropy,
@@ -519,12 +539,29 @@ export function Tile({
       urlTemplate,
     ],
   );
+  const manager = sharedManager ?? ownedManager;
   useEffect(() => {
     manager.resume();
     return () => {
-      manager.dispose();
+      if (manager === ownedManager) {
+        manager.dispose();
+        return;
+      }
+      queueMicrotask(() => manager.releaseUnused());
     };
-  }, [manager]);
+  }, [manager, ownedManager]);
+
+  const readyRef = useRef(false);
+  useEffect(() => {
+    readyRef.current = false;
+  }, [effectivePreviewUrl]);
+  useEffect(() => {
+    if (!previewTexture || readyRef.current) {
+      return;
+    }
+    readyRef.current = true;
+    onReady?.();
+  }, [onReady, previewTexture]);
 
   const template = urlTemplate ?? buildDefaultTileUrlTemplate();
   const resolveUrl = useMemo(
@@ -556,6 +593,14 @@ export function Tile({
     setLayers([]);
   }, [manager, multiresToken]);
 
+  useEffect(() => {
+    if (loadMode !== "preview") {
+      return;
+    }
+    layerTokenRef.current = "";
+    setLayers([]);
+  }, [loadMode]);
+
   const commitLayers = (nextLayers: TileLayer[]) => {
     const nextToken = layerToken(nextLayers);
     if (nextToken !== layerTokenRef.current) {
@@ -565,6 +610,9 @@ export function Tile({
   };
 
   useFrame(() => {
+    if (loadMode === "preview") {
+      return;
+    }
     if (!(camera instanceof PerspectiveCamera)) {
       return;
     }
@@ -653,7 +701,7 @@ export function Tile({
   });
 
   return (
-    <group>
+    <group visible={visible}>
       {previewTexture ? <PreviewCube texture={previewTexture} /> : null}
       {layers.map((layer) => (
         <TileLayerMeshes

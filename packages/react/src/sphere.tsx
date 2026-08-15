@@ -18,6 +18,8 @@ export type SphereProps = {
   yawOffset?: number;
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
+  /** Keeps the source mounted for preloading without drawing it. */
+  visible?: boolean;
 };
 
 export function Sphere({
@@ -25,6 +27,7 @@ export function Sphere({
   yawOffset = 0,
   onLoad,
   onError,
+  visible = true,
 }: SphereProps) {
   const gl = useThree((state) => state.gl);
   const [texture, setTexture] = useState<Texture | null>(null);
@@ -83,7 +86,10 @@ export function Sphere({
   }
 
   return (
-    <mesh rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]}>
+    <mesh
+      rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]}
+      visible={visible}
+    >
       <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
       <meshBasicMaterial
         map={texture}

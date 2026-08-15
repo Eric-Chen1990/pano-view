@@ -4,6 +4,7 @@ import {
   AutoRotate,
   GraphicHotspot,
   ImageHotspot,
+  PanoramaScenes,
   PanoView,
   PolygonHotspot,
   PolylineHotspot,
@@ -15,6 +16,8 @@ import {
   type HotspotPosition,
   type PanoViewHandle,
   type PanoViewState,
+  type PanoramaScene,
+  type PanoramaTransitionPreset,
   type PolygonValidationIssue,
   type TileLoadProgress,
   validatePolygonVertices,
@@ -136,6 +139,39 @@ const INITIAL_PROGRESS: TileLoadProgress = {
 };
 
 const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
+const TRANSITION_SCENES = [
+  { id: "sphere-1", type: "sphere", src: "/fixtures/panorama/panos/1.jpg" },
+  { id: "sphere-2", type: "sphere", src: "/fixtures/panorama/panos/2.jpg", yawOffset: 12 },
+  {
+    id: "tile-3",
+    type: "tile",
+    baseUrl: "/fixtures/panorama/cube-tiles/3",
+    multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+  },
+  {
+    id: "tile-4",
+    type: "tile",
+    baseUrl: "/fixtures/panorama/cube-tiles/4",
+    multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+  },
+] satisfies readonly PanoramaScene[];
+
+const TRANSITION_PRESETS: Array<{ value: PanoramaTransitionPreset; label: string }> = [
+  { value: "none", label: "No blend" },
+  { value: "crossfade", label: "Crossfade" },
+  { value: "zoom", label: "Zoom blend" },
+  { value: "blackout", label: "Black-out" },
+  { value: "whiteFlash", label: "White flash" },
+  { value: "slideRightToLeft", label: "Right to left" },
+  { value: "slideTopToBottom", label: "Top to bottom" },
+  { value: "slideDiagonal", label: "Diagonal slide" },
+  { value: "circleOpen", label: "Circle open" },
+  { value: "verticalOpen", label: "Vertical open" },
+  { value: "horizontalOpen", label: "Horizontal open" },
+  { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+];
 const DEMO_POLYGON: EditorPolygon = {
   id: "runtime-polygon-example",
   label: "Courtyard canopy",
@@ -1446,11 +1482,83 @@ function App() {
         </aside>
       </section>
 
+      <SceneTransitionBench />
+
       <footer>
         <span>@pano-view/react · point, polygon + polyline hotspots</span>
         <span>Stage 6 of 6</span>
       </footer>
     </main>
+  );
+}
+
+function SceneTransitionBench() {
+  const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+  const [preset, setPreset] = useState<PanoramaTransitionPreset>("crossfade");
+  const [status, setStatus] = useState("Choose a scene and a KRpano-style blend.");
+
+  return (
+    <section className="transition-bench" aria-labelledby="transition-bench-title">
+      <div className="transition-bench-heading">
+        <div>
+          <p className="eyebrow">Scene transition bench</p>
+          <h2 id="transition-bench-title">GPU snapshot blending</h2>
+        </div>
+        <p>{status}</p>
+      </div>
+      <div className="transition-bench-controls">
+        <div className="scene-buttons" role="group" aria-label="Target panorama scene">
+          {TRANSITION_SCENES.map((scene) => (
+            <button
+              className={activeSceneId === scene.id ? "active" : ""}
+              key={scene.id}
+              onClick={() => setActiveSceneId(scene.id)}
+              type="button"
+            >
+              {scene.id}
+            </button>
+          ))}
+        </div>
+        <label>
+          Blend
+          <select
+            onChange={(event) => setPreset(event.currentTarget.value as PanoramaTransitionPreset)}
+            value={preset}
+          >
+            {TRANSITION_PRESETS.map((entry) => (
+              <option key={entry.value} value={entry.value}>{entry.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="transition-viewer">
+        <PanoView aria-label="Panorama scene transition demo" style={{ height: 380 }}>
+          <PanoramaScenes
+            activeSceneId={activeSceneId}
+            maxConcurrentTileLoads={3}
+            maxTextureMemoryMb={96}
+            scenes={TRANSITION_SCENES}
+            transition={preset}
+            onTransitionEnd={({ previousSceneId, sceneId, preset: completedPreset }) => {
+              setStatus(`${previousSceneId} → ${sceneId} · ${completedPreset}`);
+            }}
+            onTransitionError={({ sceneId }) => {
+              setStatus(`Could not prepare ${sceneId}; current scene remains visible.`);
+            }}
+            renderHotspots={(scene) => (
+              <ImageHotspot
+                ariaLabel={`${scene.id} scene marker`}
+                height={6}
+                id={`transition-marker-${scene.id}`}
+                position={{ yaw: 18, pitch: 5 }}
+                src="/fixtures/hotspots/signal.svg"
+                width={6}
+              />
+            )}
+          />
+        </PanoView>
+      </div>
+    </section>
   );
 }
 
