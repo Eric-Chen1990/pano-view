@@ -1,5 +1,10 @@
-import type { GraphicDefinition, HotspotPosition, PanoViewHandle } from "@ericchen1990/pano-view";
-import { validatePolygonVertices } from "@ericchen1990/pano-view";
+import {
+  normalizePanoPosition,
+  validatePolygonVertices,
+  type GraphicDefinition,
+  type HotspotPosition,
+  type PanoViewHandle,
+} from "@ericchen1990/pano-view";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEMO_HOTSPOTS, INITIAL_PROGRESS, INITIAL_VIEW, SEQUENCE_SPRITE } from "../../constants";
 import type {
@@ -77,7 +82,15 @@ export function useHotspotBench() {
   ) => {
     setHotspots((current) =>
       current.map((hotspot) =>
-        hotspot.id === id ? ({ ...hotspot, ...patch } as EditorHotspot) : hotspot,
+        hotspot.id === id
+          ? ({
+              ...hotspot,
+              ...patch,
+              ...(patch.position
+                ? { position: normalizePanoPosition(patch.position) }
+                : {}),
+            } as EditorHotspot)
+          : hotspot,
       ),
     );
   };
@@ -196,9 +209,10 @@ export function useHotspotBench() {
   };
 
   const addHotspot = (position: HotspotPosition) => {
+    const normalizedPosition = normalizePanoPosition(position);
     if (drawingPath) {
-      setDraftVertices((current) => [...current, position]);
-      setLastAction(`${drawingPolyline ? "Polyline" : "Polygon"} vertex ${draftVertices.length + 1} added at ${formatPosition(position)}.`);
+      setDraftVertices((current) => [...current, normalizedPosition]);
+      setLastAction(`${drawingPolyline ? "Polyline" : "Polygon"} vertex ${draftVertices.length + 1} added at ${formatPosition(normalizedPosition)}.`);
       return;
     }
     if (tool === "image") {
@@ -206,9 +220,11 @@ export function useHotspotBench() {
         id: createId("image"),
         type: "image",
         label: "Open image hotspot",
-        position,
+        position: normalizedPosition,
         width: 16,
         height: 9,
+        rotation: 0,
+        scale: 1,
         mode: "billboard",
         distance: 10,
         scaleMode: "fov",
@@ -227,9 +243,11 @@ export function useHotspotBench() {
         id: createId("graphic"),
         type: "graphic",
         label: "Explore graphic hotspot",
-        position,
+        position: normalizedPosition,
         width: 9,
         height: 9,
+        rotation: 0,
+        scale: 1,
         mode: "billboard",
         distance: 10,
         scaleMode: "fixed",
@@ -248,9 +266,11 @@ export function useHotspotBench() {
         id: createId("sequence"),
         type: "sequence",
         label: "Play sequence marker",
-        position,
+        position: normalizedPosition,
         width: 13,
         height: 7.3,
+        rotation: 0,
+        scale: 1,
         mode: "billboard",
         distance: 10,
         scaleMode: "fixed",
@@ -274,9 +294,11 @@ export function useHotspotBench() {
         id: createId("video"),
         type: "video",
         label: "Play video window",
-        position,
+        position: normalizedPosition,
         width: 18,
         height: 10.1,
+        rotation: 0,
+        scale: 1,
         mode: "surface",
         distance: 10,
         scaleMode: "fov",

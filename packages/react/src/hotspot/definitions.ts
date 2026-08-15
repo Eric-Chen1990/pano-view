@@ -20,6 +20,7 @@ export type PointHotspotDefinitionBase = HotspotDefinitionBase & {
   position: HotspotPosition;
   width?: number;
   height?: number;
+  scale?: number;
   mode?: HotspotMode;
   distance?: number;
   scaleMode?: HotspotScaleMode;

@@ -76,6 +76,10 @@ function angularSizeToWorldSize(size: number, radius: number): number {
   return 2 * radius * Math.tan(MathUtils.degToRad(safeSize) / 2);
 }
 
+function resolveScale(scale: number | undefined): number {
+  return Number.isFinite(scale) && scale! > 0 ? scale! : 1;
+}
+
 function resolveDistance(
   placement: "surface" | "floating",
   distance: number | undefined,
@@ -159,6 +163,7 @@ export function HotspotAnchor({
   position,
   width,
   height,
+  scale = 1,
   useAngularScale = true,
   focusContent,
   mode = "billboard",
@@ -190,7 +195,15 @@ export function HotspotAnchor({
       ? { orientation: internalOrientation, placement: internalPlacement }
       : HOTSPOT_MODE_RENDERING[mode];
   const { orientation, placement } = rendering;
-  const resolvedDistance = resolveDistance(placement, distance, width, height);
+  const resolvedScale = resolveScale(scale);
+  const scaledWidth = width * resolvedScale;
+  const scaledHeight = height * resolvedScale;
+  const resolvedDistance = resolveDistance(
+    placement,
+    distance,
+    scaledWidth,
+    scaledHeight,
+  );
   const worldPosition = useMemo(
     () => panoPositionToVector3(normalizedPosition, resolvedDistance),
     [normalizedPosition.pitch, normalizedPosition.yaw, resolvedDistance],
@@ -199,8 +212,8 @@ export function HotspotAnchor({
     () => createSurfaceQuaternion(normalizedPosition),
     [normalizedPosition.pitch, normalizedPosition.yaw],
   );
-  const worldWidth = angularSizeToWorldSize(width, resolvedDistance);
-  const worldHeight = angularSizeToWorldSize(height, resolvedDistance);
+  const worldWidth = angularSizeToWorldSize(scaledWidth, resolvedDistance);
+  const worldHeight = angularSizeToWorldSize(scaledHeight, resolvedDistance);
   const focusGeometry = useMemo(() => {
     const planeGeometry = new PlaneGeometry(1, 1);
     const geometry = new EdgesGeometry(planeGeometry);
