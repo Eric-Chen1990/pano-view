@@ -289,10 +289,11 @@ import { ImageHotspot, PanoView, Sphere } from "@ericchen1990/pano-view";
 </PanoView>;
 ```
 
-`GraphicHotspot` accepts built-in `circle`, `rectangle`, and `ring` graphics,
-an SVG URL, or safe SVG path data with an explicit viewBox. Built-in graphics
-support `fill`, `stroke`, and `strokeWidth`; rectangles also support
-`cornerRadius` and rings support `innerRadius`.
+`GraphicHotspot` accepts built-in `circle`, `triangle`, `diamond`, `star`,
+`arrow`, `rectangle`, and `ring` graphics, an SVG URL, or safe SVG path data
+with an explicit viewBox. Built-in graphics support `fill`, `stroke`, and
+`strokeWidth`; rectangles support a relative `cornerRadius` from `0` to `0.5`,
+and rings support `innerRadius`.
 
 ```tsx
 import { GraphicHotspot } from "@ericchen1990/pano-view";
@@ -313,6 +314,31 @@ import { GraphicHotspot } from "@ericchen1990/pano-view";
   onClick={({ position }) => console.log("wayfinding", position)}
 />
 ```
+
+Triangle, diamond, star, and arrow graphics use the same paint properties. The
+triangle and arrow point upward at `rotation={0}`; use the hotspot's `rotation`
+property to orient them in another direction.
+
+```tsx
+<GraphicHotspot
+  id="direction"
+  ariaLabel="Open next scene"
+  position={{ yaw: 8, pitch: 2 }}
+  rotation={45}
+  width={8}
+  height={8}
+  graphic={{
+    kind: "arrow",
+    fill: "#df6b42",
+    stroke: "#f5fbfc",
+    strokeWidth: 8,
+  }}
+/>
+```
+
+`cornerRadius` is relative to the rendered graphic's shorter side: `0` keeps
+square corners and `0.5` produces the maximum rounded corners. This replaces
+the previous Canvas-texture pixel interpretation.
 
 Set `draggable` and update the controlled position from `onPositionChange` to
 move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates

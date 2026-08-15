@@ -30,7 +30,7 @@ export function createId(type: EditorHotspot["type"]): string {
 }
 
 export function createGraphic(
-  kind: "circle" | "rectangle" | "ring" | "svg",
+  kind: "circle" | "triangle" | "diamond" | "star" | "arrow" | "rectangle" | "ring" | "svg",
 ): GraphicDefinition {
   switch (kind) {
     case "rectangle":
@@ -39,8 +39,13 @@ export function createGraphic(
         fill: "#df6b42",
         stroke: "#f5fbfc",
         strokeWidth: 8,
-        cornerRadius: 48,
+        cornerRadius: 0.1,
       };
+    case "triangle":
+    case "diamond":
+    case "star":
+    case "arrow":
+      return { kind, fill: "#df6b42", stroke: "#f5fbfc", strokeWidth: 8 };
     case "ring":
       return {
         kind,

@@ -36,13 +36,17 @@ export {
 } from "./hotspot/polygon-hotspot";
 export { GraphicHotspot } from "./hotspot/graphic-hotspot";
 export type {
+  ArrowGraphic,
   CircleGraphic,
+  DiamondGraphic,
   GraphicDefinition,
   GraphicHotspotProps,
   RectangleGraphic,
   RingGraphic,
+  StarGraphic,
   SvgGraphic,
   SvgPathGraphic,
+  TriangleGraphic,
 } from "./hotspot/graphic-hotspot";
 export { SequenceHotspot } from "./hotspot/sequence-hotspot";
 export type {
