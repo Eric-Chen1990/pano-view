@@ -256,7 +256,7 @@ export function HotspotAnchor({
     }
     groupRef.current.rotateOnAxis(
       LOCAL_FORWARD,
-      MathUtils.degToRad(rotation),
+      MathUtils.degToRad(-rotation),
     );
     const scaleFactor =
       scaleMode === "fixed" && camera instanceof PerspectiveCamera

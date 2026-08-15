@@ -337,9 +337,10 @@ placement properties:
 - `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
-- `rotation` rotates the hotspot around its own normal in degrees. `scale`
-  applies an overall positive multiplier to its angular width and height and
-  defaults to `1`.
+- `rotation` rotates the hotspot around its own normal in degrees; positive
+  values rotate clockwise and negative values rotate counterclockwise.
+  `scale` applies an overall positive multiplier to its angular width and
+  height and defaults to `1`.
 
 ```tsx
 <ImageHotspot
