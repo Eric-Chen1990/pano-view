@@ -38,8 +38,13 @@ export type TileProps = {
   multires: string | TileMultiresConfig;
   /** Defaults to `${baseUrl}/previews/cube-vertical.webp`. */
   previewUrl?: string | null;
-  /** Supports krpano `%s`, `%l`, `%h`, and `%v` placeholders. */
+  /**
+   * Relative to `baseUrl`; supports krpano cube-tile `%s` and `%l` placeholders,
+   * horizontal `%h`/`%x`/`%u`/`%c`, vertical `%v`/`%y`/`%w`/`%r`, and index padding
+   * such as `%0h` or `%00v`.
+   */
   urlTemplate?: string;
+  /** Returns a path relative to `baseUrl`; takes precedence over `urlTemplate`. */
   resolveTileUrl?: (address: TileAddress) => string;
   maxTextureMemoryMb?: number;
   maxConcurrentLoads?: number;

@@ -52,9 +52,19 @@ export function parseMultires(
   return { tileSize, levels };
 }
 
-export function buildDefaultTileUrlTemplate(baseUrl: string): string {
-  const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
-  return `${normalizedBaseUrl}/tiles/%s/l%l/%v/l%l_%s_%h_%v.webp`;
+export function buildDefaultTileUrlTemplate(): string {
+  return "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
+}
+
+export function resolveRelativeTileUrl(
+  baseUrl: string,
+  relativePath: string,
+): string {
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
+  const normalizedPath = relativePath.replace(/^\/+/, "");
+  return normalizedBaseUrl
+    ? `${normalizedBaseUrl}/${normalizedPath}`
+    : normalizedPath;
 }
 
 export function resolveTemplateUrl(
@@ -64,6 +74,10 @@ export function resolveTemplateUrl(
   return template
     .replace(/%s/g, address.face)
     .replace(/%l/g, String(address.level))
-    .replace(/%h/g, String(address.col))
-    .replace(/%v/g, String(address.row));
+    .replace(/%(0*)([hxucvywr])/g, (_match, zeroes: string, placeholder: string) => {
+      const value = "hxuc".includes(placeholder)
+        ? address.col
+        : address.row;
+      return String(value).padStart(zeroes.length + 1, "0");
+    });
 }

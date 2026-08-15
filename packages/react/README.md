@@ -59,20 +59,28 @@ The first `multires` value is the tile size. Remaining values are ascending cube
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
-Override storage conventions with either a krpano placeholder template or a resolver:
+Override storage conventions with either a krpano placeholder template or a resolver. Both return paths relative to `baseUrl`:
 
 ```tsx
 <Tile
   baseUrl="/panoramas/room"
   multires={{ tileSize: 512, levels: [500, 1000, 2000] }}
-  urlTemplate="/assets/%s/%l/%v_%h.webp"
+  urlTemplate="assets/%s/%l/%v_%h.webp"
   resolveTileUrl={({ face, level, row, col }) =>
-    `/api/tile/${face}/${level}/${row}/${col}`
+    `api/tile/${face}/${level}/${row}/${col}`
   }
 />
 ```
 
 `resolveTileUrl` takes precedence over `urlTemplate`.
+
+For krpano cube-tile templates, `%s` is the cube face and `%l` is the multires
+level. Horizontal tile indices support the equivalent `%h`, `%x`, `%u`, and
+`%c` placeholders; vertical tile indices support `%v`, `%y`, `%w`, and `%r`.
+Prefix an index placeholder with zeroes for padding: `%0h` produces a two-digit
+horizontal index and `%00v` produces a three-digit vertical index. The stereo
+`%t` and frame `%f` placeholders are not applicable to `Tile`, which represents
+a single non-stereo cube panorama.
 
 ## Controls and imperative API
 

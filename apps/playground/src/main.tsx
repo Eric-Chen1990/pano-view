@@ -894,8 +894,9 @@ function App() {
                 <Sphere src="/fixtures/panorama/panos/1.jpg" />
               ) : (
                 <Tile
-                  baseUrl="/fixtures/panorama"
-                  multires="512,500,1000,2000"
+                  baseUrl="/fixtures/panorama/cube-tiles/4"
+                  multires="512,1000,2000"
+                  urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
                   onLevelChange={setLevel}
                   onLoadProgress={setProgress}
                   onTileError={() => setTileErrors((count) => count + 1)}

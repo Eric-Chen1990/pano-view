@@ -33,6 +33,7 @@ import {
 import {
   buildDefaultTileUrlTemplate,
   parseMultires,
+  resolveRelativeTileUrl,
   resolveTemplateUrl,
 } from "./multires";
 import { TileTextureManager } from "./texture-manager";
@@ -525,13 +526,15 @@ export function Tile({
     };
   }, [manager]);
 
-  const template =
-    urlTemplate ?? buildDefaultTileUrlTemplate(baseUrl);
+  const template = urlTemplate ?? buildDefaultTileUrlTemplate();
   const resolveUrl = useMemo(
-    () =>
-      resolveTileUrl ??
-      ((address: TileAddress) => resolveTemplateUrl(template, address)),
-    [resolveTileUrl, template],
+    () => (address: TileAddress) => {
+      const relativePath = resolveTileUrl
+        ? resolveTileUrl(address)
+        : resolveTemplateUrl(template, address);
+      return resolveRelativeTileUrl(baseUrl, relativePath);
+    },
+    [baseUrl, resolveTileUrl, template],
   );
 
   const [layers, setLayers] = useState<TileLayer[]>([]);
