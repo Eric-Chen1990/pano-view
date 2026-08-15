@@ -3,7 +3,13 @@
 Composable React components for building single-image sphere and six-face
 multiresolution panoramic viewing experiences.
 
-This repository is a `pnpm` workspace with the publishable `@pano-view/react`
+`@ericchen1990/pano-view` is a lightweight React alternative for projects that
+need to display equirectangular panoramas or krpano-style cube-tile output in a
+custom application. Its default tile URL layout is compatible with common
+krpano multires exports, so an existing krpano tile pyramid can be reused
+without a viewer runtime or XML configuration.
+
+This repository is a `pnpm` workspace with the publishable `@ericchen1990/pano-view`
 package and a local Vite playground.
 
 ## Local development
@@ -26,7 +32,7 @@ pnpm pack:check
 
 ## Publishing
 
-Before the first public release, confirm that you own the `@pano-view` npm
+Before the first public release, confirm that you own the `@ericchen1990` npm
 scope, then authenticate and publish from the package directory:
 
 ```bash
@@ -38,7 +44,7 @@ npm publish --access public
 The package exports `PanoView`, `Sphere`, `Tile`, and five point/area hotspot
 renderers: `ImageHotspot`, `GraphicHotspot`, `SequenceHotspot`, `VideoHotspot`,
 and `PolygonHotspot`. `PolylineHotspot` is available for open paths. See the
-[`@pano-view/react` README](./packages/react/README.md) for the public API,
+[`@ericchen1990/pano-view` README](./packages/react/README.md) for the public API,
 krpano-compatible tile layout, controls, hotspot coordinates, accessibility,
 and Next.js usage. Domain terms are defined in [CONTEXT.md](./CONTEXT.md).
 

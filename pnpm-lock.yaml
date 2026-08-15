@@ -10,7 +10,7 @@ importers:
 
   apps/playground:
     dependencies:
-      '@pano-view/react':
+      '@ericchen1990/pano-view':
         specifier: workspace:*
         version: link:../../packages/react
       '@react-three/fiber':

@@ -1,6 +1,6 @@
 {
-  "name": "@pano-view/react",
-  "version": "0.0.0",
+  "name": "@ericchen1990/pano-view",
+  "version": "0.1.0",
   "description": "React components for panoramic viewing experiences.",
   "author": "Eric Chen",
   "license": "MIT",

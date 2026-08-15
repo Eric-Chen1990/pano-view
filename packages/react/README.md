@@ -1,11 +1,19 @@
-# @pano-view/react
+# @ericchen1990/pano-view
 
 Composable React components for equirectangular and krpano-style multiresolution panorama viewers.
+
+## krpano-compatible tile output
+
+Use this package when you want a React-native viewer around equirectangular
+images or an existing krpano cube-tile pyramid. `Tile` understands the common
+krpano-style multires directory layout by default, while keeping rendering,
+controls, hotspots, and scene transitions in your React application. It is
+compatible with that tile output format but is not affiliated with krpano.
 
 ## Install
 
 ```bash
-npm install @pano-view/react react react-dom three @react-three/fiber
+npm install @ericchen1990/pano-view react react-dom three @react-three/fiber
 ```
 
 React 19, React DOM 19, `@react-three/fiber` 9, and Three.js are peer dependencies.
@@ -17,7 +25,7 @@ React 19, React DOM 19, `@react-three/fiber` 9, and Three.js are peer dependenci
 ```tsx
 "use client";
 
-import { PanoView, Sphere } from "@pano-view/react";
+import { PanoView, Sphere } from "@ericchen1990/pano-view";
 
 export function SphereExample() {
   return (
@@ -41,7 +49,7 @@ tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp
 Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
 
 ```tsx
-import { PanoView, Tile } from "@pano-view/react";
+import { PanoView, Tile } from "@ericchen1990/pano-view";
 
 export function TileExample() {
   return (
@@ -95,7 +103,7 @@ import {
   PanoramaScenes,
   PanoView,
   type PanoramaScene,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 
 const scenes: PanoramaScene[] = [
   { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp" },
@@ -139,7 +147,7 @@ import {
   Sphere,
   AutoRotate,
   type PanoViewHandle,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 
 export function ControlledExample() {
   const ref = useRef<PanoViewHandle>(null);
@@ -184,7 +192,7 @@ import {
   Sphere,
   panoPositionToVector3,
   type HotspotPosition,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 
 export function PlacementExample() {
   const place = (position: HotspotPosition) => {
@@ -229,7 +237,7 @@ For persistence or a host-owned editor, use the exported discriminated
 open `polyline` extension:
 
 ```ts
-import type { HotspotDefinition } from "@pano-view/react";
+import type { HotspotDefinition } from "@ericchen1990/pano-view";
 
 const hotspots: HotspotDefinition[] = [
   { type: "image", id: "gallery", position: { yaw: 24, pitch: -5 }, src: "/hotspots/card.webp" },
@@ -251,7 +259,7 @@ error reporting belong.
 are angular degrees, so they remain independent of the canvas resolution.
 
 ```tsx
-import { ImageHotspot, PanoView, Sphere } from "@pano-view/react";
+import { ImageHotspot, PanoView, Sphere } from "@ericchen1990/pano-view";
 
 <PanoView style={{ height: 560 }}>
   <Sphere src="/panoramas/room.webp" />
@@ -274,7 +282,7 @@ support `fill`, `stroke`, and `strokeWidth`; rectangles also support
 `cornerRadius` and rings support `innerRadius`.
 
 ```tsx
-import { GraphicHotspot } from "@pano-view/react";
+import { GraphicHotspot } from "@ericchen1990/pano-view";
 
 <GraphicHotspot
   id="wayfinding"
@@ -339,7 +347,7 @@ The component reports, rather than renders, self-intersecting polygons, shapes
 that contain a pole, and shapes that cannot fit within one hemisphere.
 
 ```tsx
-import { PolygonHotspot } from "@pano-view/react";
+import { PolygonHotspot } from "@ericchen1990/pano-view";
 
 <PolygonHotspot
   id="exhibit-zone"
@@ -378,7 +386,7 @@ whole-path drag, and vertex-change callback as `PolygonHotspot`, but it never
 connects the final point to the first and has no fill.
 
 ```tsx
-import { PolylineHotspot } from "@pano-view/react";
+import { PolylineHotspot } from "@ericchen1990/pano-view";
 
 <PolylineHotspot
   id="guided-route"
@@ -403,7 +411,7 @@ frame, rather than the full strip. `playing` is controlled by the host; `fps`
 defaults to `12` and `loop` defaults to `true`.
 
 ```tsx
-import { SequenceHotspot } from "@pano-view/react";
+import { SequenceHotspot } from "@ericchen1990/pano-view";
 
 <SequenceHotspot
   id="pulse"
@@ -429,7 +437,7 @@ released. `playsInline` defaults to `true`, `muted` to `true`, `loop` to
 `false`, and `preload` to `"metadata"`.
 
 ```tsx
-import { VideoHotspot } from "@pano-view/react";
+import { VideoHotspot } from "@ericchen1990/pano-view";
 
 <VideoHotspot
   id="clip"

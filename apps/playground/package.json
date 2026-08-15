@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
-    "@pano-view/react": "workspace:*",
+    "@ericchen1990/pano-view": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.185.1"

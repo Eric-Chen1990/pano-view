@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "pnpm --filter @pano-view/playground dev",
-    "build": "pnpm --filter @pano-view/react build && pnpm --filter @pano-view/playground build",
-    "typecheck": "pnpm --filter @pano-view/react typecheck && pnpm --filter @pano-view/playground typecheck",
-    "pack:check": "pnpm --filter @pano-view/react exec env npm_config_cache=../../.npm-cache npm pack --dry-run"
+    "build": "pnpm --filter @ericchen1990/pano-view build && pnpm --filter @pano-view/playground build",
+    "typecheck": "pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @pano-view/playground typecheck",
+    "pack:check": "pnpm --filter @ericchen1990/pano-view exec env npm_config_cache=../../.npm-cache npm pack --dry-run"
   }
 }
