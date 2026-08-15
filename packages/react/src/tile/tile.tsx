@@ -22,6 +22,7 @@ import {
 import {
   CUBE_FACES,
   CUBE_RADIUS,
+  PREVIEW_FACE_ORDER,
   getFaceTransform,
   getPreferredLevel,
   getTileBoundingBox,
@@ -126,9 +127,11 @@ function usePreviewTexture(
 function PreviewFace({
   face,
   texture,
+  faceOrder,
 }: {
   face: CubeFaceCode;
   texture: Texture;
+  faceOrder: readonly CubeFaceCode[];
 }) {
   const geometry = useMemo(() => {
     const nextGeometry = new PlaneGeometry(
@@ -136,7 +139,7 @@ function PreviewFace({
       PREVIEW_RADIUS * 2,
     );
     const uv = nextGeometry.getAttribute("uv");
-    const { offset, scale } = previewAtlasVRange(face);
+    const { offset, scale } = previewAtlasVRange(face, faceOrder);
     const inset = scale / 512;
     for (let index = 0; index < uv.count; index += 1) {
       const sourceV = uv.getY(index);
@@ -147,7 +150,7 @@ function PreviewFace({
     }
     uv.needsUpdate = true;
     return nextGeometry;
-  }, [face]);
+  }, [face, faceOrder]);
 
   useEffect(
     () => () => {
@@ -174,9 +177,20 @@ function PreviewFace({
   );
 }
 
-function PreviewCube({ texture }: { texture: Texture }) {
+function PreviewCube({
+  texture,
+  faceOrder,
+}: {
+  texture: Texture;
+  faceOrder: readonly CubeFaceCode[];
+}) {
   return CUBE_FACES.map((face) => (
-    <PreviewFace key={face} face={face} texture={texture} />
+    <PreviewFace
+      key={face}
+      face={face}
+      texture={texture}
+      faceOrder={faceOrder}
+    />
   ));
 }
 
@@ -479,6 +493,7 @@ export function Tile({
   baseUrl,
   multires,
   previewUrl,
+  previewFaceOrder = PREVIEW_FACE_ORDER,
   urlTemplate,
   resolveTileUrl,
   maxTextureMemoryMb = 128,
@@ -704,7 +719,12 @@ export function Tile({
 
   return (
     <group visible={visible}>
-      {previewTexture ? <PreviewCube texture={previewTexture} /> : null}
+      {previewTexture ? (
+        <PreviewCube
+          texture={previewTexture}
+          faceOrder={previewFaceOrder}
+        />
+      ) : null}
       {layers.map((layer) => (
         <TileLayerMeshes
           key={layer.level}

@@ -39,6 +39,11 @@ export type TileProps = {
   /** Defaults to `${baseUrl}/previews/cube-vertical.webp`. */
   previewUrl?: string | null;
   /**
+   * Face order in the vertical preview atlas, from top to bottom. Defaults to
+   * `l/f/r/b/u/d`.
+   */
+  previewFaceOrder?: readonly CubeFaceCode[];
+  /**
    * Relative to `baseUrl`; supports krpano cube-tile `%s` and `%l` placeholders,
    * horizontal `%h`/`%x`/`%u`/`%c`, vertical `%v`/`%y`/`%w`/`%r`, and index padding
    * such as `%0h` or `%00v`.

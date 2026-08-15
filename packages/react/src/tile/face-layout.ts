@@ -8,7 +8,7 @@ import type { CubeFaceCode, TileAddress } from "./types";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 
 export const CUBE_FACES: CubeFaceCode[] = ["f", "r", "b", "l", "u", "d"];
-export const PREVIEW_FACE_ORDER: CubeFaceCode[] = ["f", "r", "b", "l", "u", "d"];
+export const PREVIEW_FACE_ORDER: CubeFaceCode[] = ["l", "f", "r", "b", "u", "d"];
 export const CUBE_RADIUS = DEFAULT_PANORAMA_RADIUS;
 
 export type FaceTransform = {
@@ -158,13 +158,16 @@ export function getPreferredLevel(
   return currentLevel;
 }
 
-export function previewAtlasVRange(face: CubeFaceCode): {
+export function previewAtlasVRange(
+  face: CubeFaceCode,
+  faceOrder: readonly CubeFaceCode[] = PREVIEW_FACE_ORDER,
+): {
   offset: number;
   scale: number;
 } {
-  const index = PREVIEW_FACE_ORDER.indexOf(face);
+  const index = faceOrder.indexOf(face);
   return {
-    offset: (PREVIEW_FACE_ORDER.length - index - 1) / PREVIEW_FACE_ORDER.length,
-    scale: 1 / PREVIEW_FACE_ORDER.length,
+    offset: (faceOrder.length - index - 1) / faceOrder.length,
+    scale: 1 / faceOrder.length,
   };
 }
