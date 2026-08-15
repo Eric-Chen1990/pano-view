@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@pano-view/react": fileURLToPath(
+      "@ericchen1990/pano-view": fileURLToPath(
         new URL("../../packages/react/src/index.ts", import.meta.url),
       ),
     },

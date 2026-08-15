@@ -1,4 +1,4 @@
-import type { GraphicDefinition } from "@pano-view/react";
+import type { GraphicDefinition } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
 import { createGraphic, numberValue } from "../../../utils";
 

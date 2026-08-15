@@ -2,7 +2,7 @@ import type {
   GraphicDefinition,
   HotspotMode,
   HotspotPosition,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 
 export type ViewerMode = "sphere" | "tile";
 

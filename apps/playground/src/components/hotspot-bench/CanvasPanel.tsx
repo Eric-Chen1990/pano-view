@@ -8,7 +8,7 @@ import {
   type PanoViewState,
   type PolygonValidationIssue,
   type TileLoadProgress,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 import type { RefObject } from "react";
 import { Metric } from "../Metric";
 import type {

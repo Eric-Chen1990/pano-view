@@ -1,5 +1,5 @@
-import type { GraphicDefinition, HotspotPosition, PanoViewHandle } from "@pano-view/react";
-import { validatePolygonVertices } from "@pano-view/react";
+import type { GraphicDefinition, HotspotPosition, PanoViewHandle } from "@ericchen1990/pano-view";
+import { validatePolygonVertices } from "@ericchen1990/pano-view";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEMO_HOTSPOTS, INITIAL_PROGRESS, INITIAL_VIEW, SEQUENCE_SPRITE } from "../../constants";
 import type {

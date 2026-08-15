@@ -3,7 +3,7 @@ import type {
   PanoramaTransitionPreset,
   PanoViewState,
   TileLoadProgress,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 import type { EditorHotspot, EditorPolygon } from "./types";
 
 export const INITIAL_VIEW: PanoViewState = { yaw: 0, pitch: 0, fov: 75 };

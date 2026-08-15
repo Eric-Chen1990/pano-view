@@ -7,7 +7,7 @@ import {
   VideoHotspot,
   validatePolygonVertices,
   type HotspotPosition,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 import type { EditorHotspot, EditorPolygon, EditorPolyline, EditorTool } from "../../types";
 import { formatPosition, polygonIssueSummary } from "../../utils";
 

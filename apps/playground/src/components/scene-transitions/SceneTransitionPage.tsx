@@ -3,7 +3,7 @@ import {
   PanoramaScenes,
   PanoView,
   type PanoramaTransitionPreset,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 import { useState } from "react";
 import { TRANSITION_PRESETS, TRANSITION_SCENES } from "../../constants";
 import { SiteHeader } from "../SiteHeader";
@@ -78,7 +78,7 @@ export function SceneTransitionPage() {
         </div>
       </section>
       <footer>
-        <span>@pano-view/react · panorama scene transitions</span>
+        <span>@ericchen1990/pano-view · panorama scene transitions</span>
         <span>Stage 6 of 6</span>
       </footer>
     </main>

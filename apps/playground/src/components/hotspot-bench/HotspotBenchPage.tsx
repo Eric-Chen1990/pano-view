@@ -128,7 +128,7 @@ export function HotspotBenchPage() {
       </section>
 
       <footer>
-        <span>@pano-view/react · point, polygon + polyline hotspots</span>
+        <span>@ericchen1990/pano-view · point, polygon + polyline hotspots</span>
         <span>Stage 6 of 6</span>
       </footer>
     </main>

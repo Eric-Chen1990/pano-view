@@ -2,7 +2,7 @@ import type {
   GraphicDefinition,
   HotspotPosition,
   PolygonValidationIssue,
-} from "@pano-view/react";
+} from "@ericchen1990/pano-view";
 import { DEMO_HOTSPOTS, DEMO_POLYGON } from "./constants";
 import type { EditorHotspot, EditorPolygon, EditorPolyline } from "./types";
 
