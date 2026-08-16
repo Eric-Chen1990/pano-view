@@ -8,6 +8,10 @@ export type {
   KeyboardControlKeys,
   KeyboardControlsProps,
 } from "./keyboard-controls";
+export { MouseControls } from "./mouse-controls";
+export type { MouseControlsProps } from "./mouse-controls";
+export { TouchControls } from "./touch-controls";
+export type { TouchControlsProps } from "./touch-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
 export { PanoramaScenes } from "./panorama-scenes";
@@ -79,10 +83,13 @@ export type {
   TileProps,
 } from "./tile/types";
 export type {
+  MouseControlButton,
+  MouseControlsOptions,
   PanoramaControlsOptions,
   PanoViewHandle,
   PanoViewState,
   SetPanoViewOptions,
+  TouchControlsOptions,
 } from "./types";
 export {
   clampPanoPitch,

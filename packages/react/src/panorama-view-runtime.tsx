@@ -1,10 +1,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import {
+  createContext,
   forwardRef,
   useEffect,
   useImperativeHandle,
   useRef,
 } from "react";
+import type { RefObject } from "react";
 import { Euler, MathUtils, PerspectiveCamera } from "three";
 import type {
   PanoramaControlsOptions,
@@ -13,22 +15,24 @@ import type {
 } from "./types";
 
 const MAX_PITCH = 90;
+const BOUNCE_OVERSHOOT_PITCH = 12;
+const BOUNCE_OVERSHOOT_FOV_RATIO = 0.15;
 const INERTIA_ROTATION_DAMPING = 8;
 const INERTIA_ZOOM_DAMPING = 12;
 const DEFAULT_ROTATE_DAMPING = 14;
 const DEFAULT_ZOOM_DAMPING = 16;
-const MIN_ROTATION_VELOCITY = 0.01;
-const MIN_ZOOM_VELOCITY = 0.01;
+const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
 
-type PointerPosition = {
-  x: number;
-  y: number;
-  at: number;
+export type ApplyViewDeltaOptions = {
+  /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
+  recordVelocity?: boolean;
 };
 
-export type PanoramaControlsHandle = {
+export type PanoramaViewRuntimeHandle = {
   getView: () => PanoViewState;
+  /** Target view used by drag/zoom input before camera smoothing. */
+  getTargetView: () => PanoViewState;
   setView: (
     view: Partial<PanoViewState>,
     options?: SetPanoViewOptions,
@@ -38,15 +42,25 @@ export type PanoramaControlsHandle = {
    * Adjusts the target view by relative deltas without snapping the current
    * view. Returns false while an interaction lock is held.
    */
-  applyViewDelta: (delta: Partial<PanoViewState>) => boolean;
+  applyViewDelta: (
+    delta: Partial<PanoViewState>,
+    options?: ApplyViewDeltaOptions,
+  ) => boolean;
   /** Marks whether keyboard navigation is currently driving the view. */
   setKeyboardActive: (active: boolean) => void;
+  /** Marks whether mouse or touch input is currently driving the view. */
+  setPointerActive: (source: "mouse" | "touch", active: boolean) => void;
+  /** Whether hotspot / transition locks currently block user input. */
+  isInteractionLocked: () => boolean;
   applyAutoRotation: (yawDelta: number) => boolean;
   acquireInteractionLock: () => () => void;
 };
 
-type PanoramaControlsProps = {
-  enabled: boolean;
+export const PanoramaViewContext = createContext<
+  RefObject<PanoramaViewRuntimeHandle | null> | null
+>(null);
+
+type PanoramaViewRuntimeProps = {
   initialView: PanoViewState;
   minFov: number;
   maxFov: number;
@@ -74,50 +88,93 @@ function resolveDamping(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! >= 0 ? value! : fallback;
 }
 
-function pointerDistance(a: PointerPosition, b: PointerPosition): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function resolveFrictionStop(value: number | undefined): number {
+  return Number.isFinite(value) && value! >= 0 ? value! : DEFAULT_FRICTION_STOP;
 }
 
 function viewsEqual(a: PanoViewState, b: PanoViewState): boolean {
   return a.yaw === b.yaw && a.pitch === b.pitch && a.fov === b.fov;
 }
 
-export const PanoramaControls = forwardRef<
-  PanoramaControlsHandle,
-  PanoramaControlsProps
->(function PanoramaControls(
-  { enabled, initialView, minFov, maxFov, options, onViewChange },
+/**
+ * Internal canvas host for view following, inertia, and interaction locks.
+ * Not part of the public API — input is provided by Mouse/Touch/Keyboard.
+ */
+export const PanoramaViewRuntime = forwardRef<
+  PanoramaViewRuntimeHandle,
+  PanoramaViewRuntimeProps
+>(function PanoramaViewRuntime(
+  { initialView, minFov, maxFov, options, onViewChange },
   ref,
 ) {
-  const { camera, gl } = useThree();
+  const { camera } = useThree();
   const viewRef = useRef<PanoViewState>({ ...initialView });
   const targetViewRef = useRef<PanoViewState>({ ...initialView });
   const initialViewRef = useRef<PanoViewState>({ ...initialView });
-  const pointersRef = useRef(new Map<number, PointerPosition>());
-  const pinchDistanceRef = useRef<number | null>(null);
   const yawVelocityRef = useRef(0);
   const pitchVelocityRef = useRef(0);
   const zoomVelocityRef = useRef(0);
   const dirtyRef = useRef(true);
   const interactingRef = useRef(false);
+  const mouseActiveRef = useRef(false);
+  const touchActiveRef = useRef(false);
   const interactionLockCountRef = useRef(0);
   const keyboardActiveRef = useRef(false);
+  const lastVelocitySampleAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
   const onViewChangeRef = useRef(onViewChange);
   const lastEmittedViewRef = useRef<PanoViewState | null>(null);
   const eulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
+  const minFovRef = useRef(minFov);
+  const maxFovRef = useRef(maxFov);
 
   optionsRef.current = options;
   onViewChangeRef.current = onViewChange;
+  minFovRef.current = minFov;
+  maxFovRef.current = maxFov;
 
-  const constrainView = (
+  const syncInteracting = () => {
+    interactingRef.current = mouseActiveRef.current || touchActiveRef.current;
+  };
+
+  const hardConstrainView = (
     view: Partial<PanoViewState>,
     current: PanoViewState = targetViewRef.current,
   ): PanoViewState => {
     return {
       yaw: normalizeYaw(view.yaw ?? current.yaw),
       pitch: clamp(view.pitch ?? current.pitch, -MAX_PITCH, MAX_PITCH),
-      fov: clamp(view.fov ?? current.fov, minFov, maxFov),
+      fov: clamp(
+        view.fov ?? current.fov,
+        minFovRef.current,
+        maxFovRef.current,
+      ),
+    };
+  };
+
+  const softConstrainView = (
+    view: Partial<PanoViewState>,
+    current: PanoViewState = targetViewRef.current,
+  ): PanoViewState => {
+    const bouncing = optionsRef.current.bouncingLimits === true;
+    if (!bouncing || !interactingRef.current) {
+      return hardConstrainView(view, current);
+    }
+
+    const fovRange = Math.max(maxFovRef.current - minFovRef.current, 1);
+    const fovOvershoot = fovRange * BOUNCE_OVERSHOOT_FOV_RATIO;
+    return {
+      yaw: normalizeYaw(view.yaw ?? current.yaw),
+      pitch: clamp(
+        view.pitch ?? current.pitch,
+        -MAX_PITCH - BOUNCE_OVERSHOOT_PITCH,
+        MAX_PITCH + BOUNCE_OVERSHOOT_PITCH,
+      ),
+      fov: clamp(
+        view.fov ?? current.fov,
+        minFovRef.current - fovOvershoot,
+        maxFovRef.current + fovOvershoot,
+      ),
     };
   };
 
@@ -125,19 +182,27 @@ export const PanoramaControls = forwardRef<
     yawVelocityRef.current = 0;
     pitchVelocityRef.current = 0;
     zoomVelocityRef.current = 0;
+    lastVelocitySampleAtRef.current = null;
+  };
+
+  const snapTargetToHardLimits = () => {
+    const next = hardConstrainView(targetViewRef.current);
+    if (
+      next.yaw !== targetViewRef.current.yaw ||
+      next.pitch !== targetViewRef.current.pitch ||
+      next.fov !== targetViewRef.current.fov
+    ) {
+      targetViewRef.current = next;
+      dirtyRef.current = true;
+    }
   };
 
   const acquireInteractionLock = () => {
     interactionLockCountRef.current += 1;
     stopVelocity();
-    interactingRef.current = false;
-    pinchDistanceRef.current = null;
-    for (const pointerId of pointersRef.current.keys()) {
-      if (gl.domElement.hasPointerCapture?.(pointerId)) {
-        gl.domElement.releasePointerCapture?.(pointerId);
-      }
-    }
-    pointersRef.current.clear();
+    mouseActiveRef.current = false;
+    touchActiveRef.current = false;
+    syncInteracting();
 
     let released = false;
     return () => {
@@ -156,7 +221,7 @@ export const PanoramaControls = forwardRef<
     view: Partial<PanoViewState>,
     setOptions?: SetPanoViewOptions,
   ) => {
-    const nextView = constrainView(view);
+    const nextView = hardConstrainView(view);
     targetViewRef.current = nextView;
     viewRef.current = nextView;
     if (setOptions?.immediate !== false) {
@@ -165,27 +230,55 @@ export const PanoramaControls = forwardRef<
     dirtyRef.current = true;
   };
 
-  const applyViewDelta = (delta: Partial<PanoViewState>): boolean => {
+  const applyViewDelta = (
+    delta: Partial<PanoViewState>,
+    applyOptions?: ApplyViewDeltaOptions,
+  ): boolean => {
     if (interactionLockCountRef.current > 0) {
       return false;
     }
 
     const current = targetViewRef.current;
-    targetViewRef.current = constrainView({
-      yaw:
-        delta.yaw !== undefined && Number.isFinite(delta.yaw)
-          ? current.yaw + delta.yaw
-          : current.yaw,
-      pitch:
-        delta.pitch !== undefined && Number.isFinite(delta.pitch)
-          ? current.pitch + delta.pitch
-          : current.pitch,
-      fov:
-        delta.fov !== undefined && Number.isFinite(delta.fov)
-          ? current.fov + delta.fov
-          : current.fov,
+    const nextYaw =
+      delta.yaw !== undefined && Number.isFinite(delta.yaw)
+        ? current.yaw + delta.yaw
+        : current.yaw;
+    const nextPitch =
+      delta.pitch !== undefined && Number.isFinite(delta.pitch)
+        ? current.pitch + delta.pitch
+        : current.pitch;
+    const nextFov =
+      delta.fov !== undefined && Number.isFinite(delta.fov)
+        ? current.fov + delta.fov
+        : current.fov;
+
+    targetViewRef.current = softConstrainView({
+      yaw: nextYaw,
+      pitch: nextPitch,
+      fov: nextFov,
     });
     dirtyRef.current = true;
+
+    if (applyOptions?.recordVelocity) {
+      const now = performance.now();
+      const previousAt = lastVelocitySampleAtRef.current;
+      const elapsed =
+        previousAt === null
+          ? 1 / 60
+          : Math.max((now - previousAt) / 1000, 1 / 120);
+      lastVelocitySampleAtRef.current = now;
+
+      if (delta.yaw !== undefined && Number.isFinite(delta.yaw)) {
+        yawVelocityRef.current = delta.yaw / elapsed;
+      }
+      if (delta.pitch !== undefined && Number.isFinite(delta.pitch)) {
+        pitchVelocityRef.current = delta.pitch / elapsed;
+      }
+      if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
+        zoomVelocityRef.current = clamp(delta.fov / elapsed, -180, 180);
+      }
+    }
+
     return true;
   };
 
@@ -193,12 +286,28 @@ export const PanoramaControls = forwardRef<
     ref,
     () => ({
       getView: () => ({ ...viewRef.current }),
+      getTargetView: () => ({ ...targetViewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
       applyViewDelta,
       setKeyboardActive: (active: boolean) => {
         keyboardActiveRef.current = active;
       },
+      setPointerActive: (source, active) => {
+        if (source === "mouse") {
+          mouseActiveRef.current = active;
+        } else {
+          touchActiveRef.current = active;
+        }
+        syncInteracting();
+        if (active) {
+          stopVelocity();
+        } else if (!mouseActiveRef.current && !touchActiveRef.current) {
+          lastVelocitySampleAtRef.current = null;
+          snapTargetToHardLimits();
+        }
+      },
+      isInteractionLocked: () => interactionLockCountRef.current > 0,
       acquireInteractionLock,
       applyAutoRotation: (yawDelta: number) => {
         const inertiaFinished =
@@ -220,7 +329,7 @@ export const PanoramaControls = forwardRef<
         return true;
       },
     }),
-    [gl, maxFov, minFov],
+    [],
   );
 
   useEffect(() => {
@@ -228,155 +337,12 @@ export const PanoramaControls = forwardRef<
     setView(initialView);
   }, [initialView.fov, initialView.pitch, initialView.yaw]);
 
-  useEffect(() => {
-    const element = gl.domElement;
-    if (!enabled) {
-      pointersRef.current.clear();
-      interactingRef.current = false;
-      return;
-    }
-
-    const updatePointer = (event: PointerEvent) => {
-      const previous = pointersRef.current.get(event.pointerId);
-      const now = performance.now();
-      const next = { x: event.clientX, y: event.clientY, at: now };
-      pointersRef.current.set(event.pointerId, next);
-      return { previous, next };
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (interactionLockCountRef.current > 0) {
-        return;
-      }
-      event.preventDefault();
-      interactingRef.current = true;
-      stopVelocity();
-      pointersRef.current.set(event.pointerId, {
-        x: event.clientX,
-        y: event.clientY,
-        at: performance.now(),
-      });
-      element.setPointerCapture?.(event.pointerId);
-
-      if (pointersRef.current.size === 2) {
-        const [first, second] = Array.from(pointersRef.current.values());
-        pinchDistanceRef.current = pointerDistance(first!, second!);
-      }
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (interactionLockCountRef.current > 0) {
-        return;
-      }
-      if (!pointersRef.current.has(event.pointerId)) {
-        return;
-      }
-
-      event.preventDefault();
-      const { previous, next } = updatePointer(event);
-      if (!previous) {
-        return;
-      }
-
-      const pointers = Array.from(pointersRef.current.values());
-      if (pointers.length >= 2) {
-        const distance = pointerDistance(pointers[0]!, pointers[1]!);
-        const previousDistance = pinchDistanceRef.current;
-        pinchDistanceRef.current = distance;
-        if (previousDistance && distance > 0) {
-          const currentFov = targetViewRef.current.fov;
-          const nextFov = clamp(
-            currentFov * (previousDistance / distance),
-            minFov,
-            maxFov,
-          );
-          const elapsed = Math.max((next.at - previous.at) / 1000, 1 / 120);
-          zoomVelocityRef.current = (nextFov - currentFov) / elapsed;
-          targetViewRef.current = {
-            ...targetViewRef.current,
-            fov: nextFov,
-          };
-          dirtyRef.current = true;
-        }
-        return;
-      }
-
-      const rect = element.getBoundingClientRect();
-      const rotateSpeed = optionsRef.current.rotateSpeed ?? 0.35;
-      const deltaYaw =
-        (-(next.x - previous.x) * 360 * rotateSpeed) /
-        Math.max(rect.width, 1);
-      const deltaPitch =
-        ((next.y - previous.y) * 180 * rotateSpeed) /
-        Math.max(rect.height, 1);
-      const elapsed = Math.max((next.at - previous.at) / 1000, 1 / 120);
-
-      targetViewRef.current = constrainView({
-        yaw: targetViewRef.current.yaw + deltaYaw,
-        pitch: targetViewRef.current.pitch + deltaPitch,
-      });
-      yawVelocityRef.current = deltaYaw / elapsed;
-      pitchVelocityRef.current = deltaPitch / elapsed;
-      dirtyRef.current = true;
-    };
-
-    const releasePointer = (event: PointerEvent) => {
-      pointersRef.current.delete(event.pointerId);
-      if (element.hasPointerCapture?.(event.pointerId)) {
-        element.releasePointerCapture?.(event.pointerId);
-      }
-      if (pointersRef.current.size < 2) {
-        pinchDistanceRef.current = null;
-      }
-      interactingRef.current = pointersRef.current.size > 0;
-    };
-
-    const onWheel = (event: WheelEvent) => {
-      if (interactionLockCountRef.current > 0) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      const zoomSpeed = optionsRef.current.zoomSpeed ?? 0.08;
-      const delta = event.deltaY * zoomSpeed;
-      const nextFov = clamp(
-        targetViewRef.current.fov + delta,
-        minFov,
-        maxFov,
-      );
-      zoomVelocityRef.current = clamp(
-        zoomVelocityRef.current + delta * 12,
-        -180,
-        180,
-      );
-      targetViewRef.current = {
-        ...targetViewRef.current,
-        fov: nextFov,
-      };
-      dirtyRef.current = true;
-    };
-
-    element.addEventListener("pointerdown", onPointerDown);
-    element.addEventListener("pointermove", onPointerMove);
-    element.addEventListener("pointerup", releasePointer);
-    element.addEventListener("pointercancel", releasePointer);
-    element.addEventListener("wheel", onWheel, { passive: false });
-
-    return () => {
-      element.removeEventListener("pointerdown", onPointerDown);
-      element.removeEventListener("pointermove", onPointerMove);
-      element.removeEventListener("pointerup", releasePointer);
-      element.removeEventListener("pointercancel", releasePointer);
-      element.removeEventListener("wheel", onWheel);
-      pointersRef.current.clear();
-    };
-  }, [enabled, gl, maxFov, minFov]);
-
   useFrame((_, deltaSeconds) => {
     if (!(camera instanceof PerspectiveCamera)) {
       return;
     }
 
+    const frictionStop = resolveFrictionStop(optionsRef.current.frictionStop);
     const inertiaEnabled = optionsRef.current.inertia !== false;
     if (!interactingRef.current && inertiaEnabled) {
       const rotationDamping = Math.exp(
@@ -384,7 +350,7 @@ export const PanoramaControls = forwardRef<
       );
       const zoomDamping = Math.exp(-INERTIA_ZOOM_DAMPING * deltaSeconds);
 
-      if (Math.abs(yawVelocityRef.current) >= MIN_ROTATION_VELOCITY) {
+      if (Math.abs(yawVelocityRef.current) >= frictionStop) {
         targetViewRef.current.yaw += yawVelocityRef.current * deltaSeconds;
         yawVelocityRef.current *= rotationDamping;
         dirtyRef.current = true;
@@ -392,7 +358,7 @@ export const PanoramaControls = forwardRef<
         yawVelocityRef.current = 0;
       }
 
-      if (Math.abs(pitchVelocityRef.current) >= MIN_ROTATION_VELOCITY) {
+      if (Math.abs(pitchVelocityRef.current) >= frictionStop) {
         targetViewRef.current.pitch += pitchVelocityRef.current * deltaSeconds;
         pitchVelocityRef.current *= rotationDamping;
         dirtyRef.current = true;
@@ -400,7 +366,7 @@ export const PanoramaControls = forwardRef<
         pitchVelocityRef.current = 0;
       }
 
-      if (Math.abs(zoomVelocityRef.current) >= MIN_ZOOM_VELOCITY) {
+      if (Math.abs(zoomVelocityRef.current) >= frictionStop) {
         targetViewRef.current.fov += zoomVelocityRef.current * deltaSeconds;
         zoomVelocityRef.current *= zoomDamping;
         dirtyRef.current = true;
@@ -411,7 +377,11 @@ export const PanoramaControls = forwardRef<
       stopVelocity();
     }
 
-    targetViewRef.current = constrainView(targetViewRef.current);
+    if (!interactingRef.current) {
+      targetViewRef.current = hardConstrainView(targetViewRef.current);
+    } else {
+      targetViewRef.current = softConstrainView(targetViewRef.current);
+    }
 
     if (!dirtyRef.current) {
       return;

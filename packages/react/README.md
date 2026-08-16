@@ -191,11 +191,38 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, and wheel. Keyboard navigation is provided by a default `KeyboardControls` instance (arrow keys, `+/-`, and `0` to reset). Set `controls.keyboard` to `false` and render your own `KeyboardControls` to customize bindings. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
 
-## Keyboard controls
+## Mouse, touch, and keyboard controls
 
-Render `KeyboardControls` inside `PanoView` when you need custom bindings, continuous hold-to-look motion, or scene switching. Scene changes stay host-controlled: the component only fires `onPreviousScene` / `onNextScene`. Use `cycleSceneId` to pick the adjacent id from your scene list.
+`PanoView` mounts default `MouseControls`, `TouchControls`, and `KeyboardControls` instances. Configure them through `controls` for most apps; render the components yourself only when you need to replace a channel (for example scene-switch callbacks).
+
+```tsx
+<PanoView
+  controls={{
+    invert: false,
+    bouncingLimits: false,
+    mouse: { zoomSpeed: 0.12, wheel: true, buttons: ["left"] },
+    touch: { pinchZoom: true },
+    keyboard: { enabled: true, rotateSpeed: 90 },
+  }}
+  style={{ height: 560 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+**Mouse** (pointer types `mouse` / `pen`): drag look and optional wheel zoom. Defaults: `rotateSpeed` `0.35`, `zoomSpeed` `0.08`, `wheel` `true`, `buttons` `["left"]`.
+
+**Touch**: one-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`).
+
+**Keyboard**: hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only.
+
+Shared all-mode options on `controls`: `enabled`, `invert` (drag direction for mouse/touch), `bouncingLimits`, `fovSpeed`, `frictionStop` (default `0.01`), plus existing damping / inertia.
+
+### Overriding a control channel
+
+Set the channel to `false` and render your own component when you need callbacks or fully custom behaviour:
 
 ```tsx
 import { useState } from "react";
@@ -242,7 +269,7 @@ export function KeyboardExample({ scenes }: { scenes: PanoramaScene[] }) {
 
 Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
 
-Default bindings match the previous built-in keyboard: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided.
+Default bindings: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same override pattern works with `MouseControls` and `TouchControls` (`controls.mouse={false}` / `controls.touch={false}`).
 
 ## Panorama coordinate events
 

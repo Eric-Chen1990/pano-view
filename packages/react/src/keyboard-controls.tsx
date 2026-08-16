@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef } from "react";
-import { PanoramaControlsContext } from "./auto-rotate";
+import { PanoramaViewContext } from "./panorama-view-runtime";
 
 const DEFAULT_ROTATE_SPEED = 60;
 const DEFAULT_ZOOM_SPEED = 30;
@@ -36,6 +36,13 @@ export type KeyboardControlsProps = {
   zoomSpeed?: number;
   /** Speed multiplier while Shift is held. Defaults to 3. */
   shiftMultiplier?: number;
+  /** Inverts up/down look direction. Defaults to false. */
+  invert?: boolean;
+  /**
+   * Maximum FOV change rate in degrees per second. When omitted, no extra
+   * rate cap is applied. Usually supplied by PanoView from `controls.fovSpeed`.
+   */
+  fovSpeed?: number;
   /** Called once when the previous-scene binding is pressed. */
   onPreviousScene?: () => void;
   /** Called once when the next-scene binding is pressed. */
@@ -125,9 +132,10 @@ export function cycleSceneId(
 }
 
 /**
- * Adds keyboard navigation to the nearest PanoView. Render one instance as a
- * child of PanoView. Hold movement/zoom keys for continuous motion; scene and
- * reset bindings fire once per key press.
+ * Adds keyboard navigation to the nearest PanoView. PanoView mounts a default
+ * instance; render your own to customize bindings or scene callbacks. Hold
+ * movement/zoom keys for continuous motion; scene and reset bindings fire once
+ * per key press.
  */
 export function KeyboardControls({
   enabled = true,
@@ -135,13 +143,17 @@ export function KeyboardControls({
   rotateSpeed = DEFAULT_ROTATE_SPEED,
   zoomSpeed = DEFAULT_ZOOM_SPEED,
   shiftMultiplier = DEFAULT_SHIFT_MULTIPLIER,
+  invert = false,
+  fovSpeed,
   onPreviousScene,
   onNextScene,
 }: KeyboardControlsProps) {
-  const controlsRef = useContext(PanoramaControlsContext);
+  const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pressedRef = useRef(new Set<KeyboardControlAction>());
   const shiftHeldRef = useRef(false);
+  const invertRef = useRef(invert);
+  const fovSpeedRef = useRef(fovSpeed);
   const onPreviousSceneRef = useRef(onPreviousScene);
   const onNextSceneRef = useRef(onNextScene);
   const keyMap = useMemo(() => resolveKeyMap(keys), [keys]);
@@ -150,6 +162,8 @@ export function KeyboardControls({
     throw new Error("<KeyboardControls> must be rendered inside <PanoView>.");
   }
 
+  invertRef.current = invert;
+  fovSpeedRef.current = fovSpeed;
   onPreviousSceneRef.current = onPreviousScene;
   onNextSceneRef.current = onNextScene;
 
@@ -186,6 +200,10 @@ export function KeyboardControls({
 
       const action = matchAction(event, keyMap);
       if (!action) {
+        return;
+      }
+
+      if (controlsRef.current?.isInteractionLocked()) {
         return;
       }
 
@@ -263,9 +281,14 @@ export function KeyboardControls({
       : 1;
     const rotation =
       resolveSpeed(rotateSpeed, DEFAULT_ROTATE_SPEED) * multiplier * deltaSeconds;
-    const zoom =
+    let zoom =
       resolveSpeed(zoomSpeed, DEFAULT_ZOOM_SPEED) * multiplier * deltaSeconds;
+    const fovCap = fovSpeedRef.current;
+    if (Number.isFinite(fovCap) && fovCap! >= 0) {
+      zoom = Math.min(zoom, fovCap! * deltaSeconds);
+    }
 
+    const pitchSign = invertRef.current ? -1 : 1;
     let yaw = 0;
     let pitch = 0;
     let fov = 0;
@@ -279,10 +302,10 @@ export function KeyboardControls({
           yaw += rotation;
           break;
         case "up":
-          pitch += rotation;
+          pitch += pitchSign * rotation;
           break;
         case "down":
-          pitch -= rotation;
+          pitch -= pitchSign * rotation;
           break;
         case "zoomIn":
           fov -= zoom;
