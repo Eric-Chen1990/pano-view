@@ -24,6 +24,9 @@ import type { PanoViewState } from "./types";
 const DEFAULT_ICON_SIZE = 16;
 const MENU_EDGE_PADDING = 8;
 
+/** Lowest allowed `appearance.opacity` (background only). */
+export const MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY = 0.4;
+
 export type PanoContextMenuSelectContext = {
   position: PanoramaPointerEvent["position"];
   view: PanoViewState;
@@ -90,7 +93,10 @@ export type PanoContextMenuAppearance = {
   border?: string;
   borderRadius?: number | string;
   shadow?: string;
-  /** Panel opacity from 0 to 1. Defaults to 1. */
+  /**
+   * Background-only opacity from {@link MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY}
+   * to 1. Defaults to 1. Text and icons stay fully opaque.
+   */
   opacity?: number;
   fontSize?: number | string;
   minWidth?: number | string;
@@ -191,11 +197,14 @@ const DEFAULT_APPEARANCE: Required<
   separatorMargin: "4px 6px",
 };
 
-function clampOpacity(value: number | undefined): number {
+function clampBackgroundOpacity(value: number | undefined): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_APPEARANCE.opacity;
   }
-  return Math.min(1, Math.max(0, value!));
+  return Math.min(
+    1,
+    Math.max(MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY, value!),
+  );
 }
 
 function isActionItem(
@@ -345,17 +354,17 @@ function DefaultContextMenuPanel({
     }
   };
 
+  const backgroundOpacity = clampBackgroundOpacity(resolved.opacity);
   const panelStyle: CSSProperties = {
-    background: resolved.background,
     color: resolved.color,
     border: resolved.border,
     borderRadius: resolved.borderRadius,
     boxShadow: resolved.shadow,
-    opacity: clampOpacity(resolved.opacity),
     fontSize: resolved.fontSize,
     minWidth: resolved.minWidth,
     padding: resolved.padding,
     pointerEvents: "auto",
+    position: "relative",
     userSelect: "none",
     ...style,
   };
@@ -370,6 +379,19 @@ function DefaultContextMenuPanel({
       style={panelStyle}
       tabIndex={-1}
     >
+      <div
+        aria-hidden
+        style={{
+          background: resolved.background,
+          borderRadius: resolved.borderRadius,
+          inset: 0,
+          opacity: backgroundOpacity,
+          pointerEvents: "none",
+          position: "absolute",
+          zIndex: 0,
+        }}
+      />
+      <div style={{ position: "relative", zIndex: 1 }}>
       {visibleItems.map((item, index) => {
         if (!isActionItem(item)) {
           return (
@@ -465,6 +487,7 @@ function DefaultContextMenuPanel({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

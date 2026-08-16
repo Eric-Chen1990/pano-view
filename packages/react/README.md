@@ -457,9 +457,10 @@ toggleFullscreen, isFullscreen })` and use `.resetView` / `.fullscreen` /
 
 Concrete items may use an `icon` React node or an `image` URL. Separators
 always come from the `"separator"` preset. Appearance covers background, text
-color, border, radius, shadow, `opacity` (0–1 for the whole panel),
-hover/disabled colors, and icon size. For background-only transparency, prefer
-`background: "rgba(...)"` so labels stay opaque.
+color, border, radius, shadow, background-only `opacity` (clamped from
+`MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY` / `0.4` to `1`; labels and icons
+stay opaque), hover/disabled colors, and icon size. For an explicit translucent
+fill without using `opacity`, you can still pass `background: "rgba(...)"`.
 
 For a fully custom DOM menu, set `contextMenu={false}` and render
 `PanoContextMenu` as a child (same override pattern as `MouseControls`). Do

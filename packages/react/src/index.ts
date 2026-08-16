@@ -7,6 +7,7 @@ export {
   composePanoContextMenuItems,
   createDefaultPanoContextMenuItems,
   createPanoContextMenuPresets,
+  MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   resolvePanoContextMenuEntries,
 } from "./pano-context-menu";
 export type {

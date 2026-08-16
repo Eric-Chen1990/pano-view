@@ -1,4 +1,5 @@
 import {
+  MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   PanoEvents,
   PanoView,
   Sphere,
@@ -145,7 +146,7 @@ export function ContextMenuPage() {
             Opacity
             <input
               max={1}
-              min={0.4}
+              min={MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY}
               onChange={(event) => setOpacity(Number(event.currentTarget.value))}
               step={0.01}
               type="range"
