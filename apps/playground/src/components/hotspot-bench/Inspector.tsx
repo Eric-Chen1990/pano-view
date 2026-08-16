@@ -1,9 +1,7 @@
-import type {
-  GraphicDefinition,
-  HotspotMode,
-  PolygonValidationIssue,
-} from "@ericchen1990/pano-view";
-import type { EditorHotspot, EditorPolygon, EditorPolyline } from "../../types";
+import { validatePolygonVertices, type GraphicDefinition, type HotspotMode } from "@ericchen1990/pano-view";
+import { useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
+import type { EditorHotspot } from "../../types";
 import { formatPosition, numberValue, polygonIssueSummary } from "../../utils";
 import { GraphicFields } from "./fields/GraphicFields";
 import { PolygonDraftFields } from "./fields/PolygonDraftFields";
@@ -11,65 +9,73 @@ import { PolygonFields } from "./fields/PolygonFields";
 import { PolylineFields } from "./fields/PolylineFields";
 import { SequenceFields } from "./fields/SequenceFields";
 import { VideoFields } from "./fields/VideoFields";
+import {
+  selectDrawingPath,
+  selectDrawingPolygon,
+  selectDrawingPolyline,
+  selectSelected,
+  selectSelectedPolygon,
+  selectSelectedPolyline,
+  useHotspotBenchStore,
+  type HotspotPatch,
+  type SequencePatch,
+  type VideoPatch,
+} from "./store";
 
-type InspectorProps = {
-  selected: EditorHotspot | null;
-  selectedPolygon: EditorPolygon | null;
-  selectedPolyline: EditorPolyline | null;
-  selectedId: string | null;
-  drawingPath: boolean;
-  drawingPolygon: boolean;
-  drawingPolyline: boolean;
-  draftVertices: { yaw: number; pitch: number }[];
-  draftIssues: PolygonValidationIssue[];
-  hotspots: EditorHotspot[];
-  polygons: EditorPolygon[];
-  polylines: EditorPolyline[];
-  onUpdateHotspot: (
-    id: string,
-    patch: Partial<Omit<EditorHotspot, "id" | "type" | "graphic">>,
-  ) => void;
-  onUpdateGraphic: (id: string, graphic: GraphicDefinition) => void;
-  onUpdateImageSource: (id: string, src: string) => void;
-  onUpdateSequence: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
-  ) => void;
-  onUpdateVideo: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
-  ) => void;
-  onUpdatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
-  onUpdatePolyline: (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => void;
-  onDeleteSelected: () => void;
-  onResetDemo: () => void;
-  onSelectItem: (id: string, message: string) => void;
-};
+export function Inspector() {
+  const {
+    selected,
+    selectedPolygon,
+    selectedPolyline,
+    selectedId,
+    drawingPath,
+    drawingPolygon,
+    drawingPolyline,
+    draftVertices,
+    hotspots,
+    polygons,
+    polylines,
+    updateHotspot,
+    updateGraphic,
+    updateImageSource,
+    updateSequence,
+    updateVideo,
+    updatePolygon,
+    updatePolyline,
+    deleteSelected,
+    resetDemo,
+    selectItem,
+  } = useHotspotBenchStore(
+    useShallow((state) => ({
+      selected: selectSelected(state),
+      selectedPolygon: selectSelectedPolygon(state),
+      selectedPolyline: selectSelectedPolyline(state),
+      selectedId: state.selectedId,
+      drawingPath: selectDrawingPath(state),
+      drawingPolygon: selectDrawingPolygon(state),
+      drawingPolyline: selectDrawingPolyline(state),
+      draftVertices: state.draftVertices,
+      hotspots: state.hotspots,
+      polygons: state.polygons,
+      polylines: state.polylines,
+      updateHotspot: state.updateHotspot,
+      updateGraphic: state.updateGraphic,
+      updateImageSource: state.updateImageSource,
+      updateSequence: state.updateSequence,
+      updateVideo: state.updateVideo,
+      updatePolygon: state.updatePolygon,
+      updatePolyline: state.updatePolyline,
+      deleteSelected: state.deleteSelected,
+      resetDemo: state.resetDemo,
+      selectItem: state.selectItem,
+    })),
+  );
+  const draftIssues = useMemo(
+    () =>
+      draftVertices.length > 0 ? validatePolygonVertices(draftVertices) : [],
+    [draftVertices],
+  );
 
-export function Inspector({
-  selected,
-  selectedPolygon,
-  selectedPolyline,
-  selectedId,
-  drawingPath,
-  drawingPolygon,
-  drawingPolyline,
-  draftVertices,
-  draftIssues,
-  hotspots,
-  polygons,
-  polylines,
-  onUpdateHotspot,
-  onUpdateGraphic,
-  onUpdateImageSource,
-  onUpdateSequence,
-  onUpdateVideo,
-  onUpdatePolygon,
-  onUpdatePolyline,
-  onDeleteSelected,
-  onResetDemo,
-  onSelectItem,
-}: InspectorProps) {
   return (
     <aside className="inspector" aria-label="Hotspot inspector">
       <div className="inspector-heading">
@@ -91,24 +97,24 @@ export function Inspector({
       {selected ? (
         <SelectedHotspotFields
           selected={selected}
-          onUpdateHotspot={onUpdateHotspot}
-          onUpdateGraphic={onUpdateGraphic}
-          onUpdateImageSource={onUpdateImageSource}
-          onUpdateSequence={onUpdateSequence}
-          onUpdateVideo={onUpdateVideo}
-          onDelete={onDeleteSelected}
+          onUpdateHotspot={updateHotspot}
+          onUpdateGraphic={updateGraphic}
+          onUpdateImageSource={updateImageSource}
+          onUpdateSequence={updateSequence}
+          onUpdateVideo={updateVideo}
+          onDelete={deleteSelected}
         />
       ) : selectedPolygon ? (
         <PolygonFields
           polygon={selectedPolygon}
-          onChange={(patch) => onUpdatePolygon(selectedPolygon.id, patch)}
-          onDelete={onDeleteSelected}
+          onChange={(patch) => updatePolygon(selectedPolygon.id, patch)}
+          onDelete={deleteSelected}
         />
       ) : selectedPolyline ? (
         <PolylineFields
           polyline={selectedPolyline}
-          onChange={(patch) => onUpdatePolyline(selectedPolyline.id, patch)}
-          onDelete={onDeleteSelected}
+          onChange={(patch) => updatePolyline(selectedPolyline.id, patch)}
+          onDelete={deleteSelected}
         />
       ) : drawingPath ? (
         <PolygonDraftFields
@@ -123,13 +129,13 @@ export function Inspector({
       <div className="hotspot-list">
         <div className="list-heading">
           <p className="panel-label">IN THIS VIEW</p>
-          <button onClick={onResetDemo} type="button">Restore demo</button>
+          <button onClick={resetDemo} type="button">Restore demo</button>
         </div>
         {hotspots.map((hotspot) => (
           <button
             className={selectedId === hotspot.id ? "hotspot-row active" : "hotspot-row"}
             key={hotspot.id}
-            onClick={() => onSelectItem(hotspot.id, `${hotspot.label} selected.`)}
+            onClick={() => selectItem(hotspot.id, `${hotspot.label} selected.`)}
             type="button"
           >
             <span>{({ image: "IMG", graphic: "GFX", sequence: "SEQ", video: "VID" })[hotspot.type]}</span>
@@ -141,7 +147,7 @@ export function Inspector({
           <button
             className={selectedId === polygon.id ? "hotspot-row active" : "hotspot-row"}
             key={polygon.id}
-            onClick={() => onSelectItem(
+            onClick={() => selectItem(
               polygon.id,
               `${polygon.label} selected. Drag the polygon or a vertex handle.`,
             )}
@@ -156,7 +162,7 @@ export function Inspector({
           <button
             className={selectedId === polyline.id ? "hotspot-row active" : "hotspot-row"}
             key={polyline.id}
-            onClick={() => onSelectItem(
+            onClick={() => selectItem(
               polyline.id,
               `${polyline.label} selected. Drag the path or a vertex handle.`,
             )}
@@ -182,20 +188,11 @@ function SelectedHotspotFields({
   onDelete,
 }: {
   selected: EditorHotspot;
-  onUpdateHotspot: (
-    id: string,
-    patch: Partial<Omit<EditorHotspot, "id" | "type" | "graphic">>,
-  ) => void;
+  onUpdateHotspot: (id: string, patch: HotspotPatch) => void;
   onUpdateGraphic: (id: string, graphic: GraphicDefinition) => void;
   onUpdateImageSource: (id: string, src: string) => void;
-  onUpdateSequence: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
-  ) => void;
-  onUpdateVideo: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
-  ) => void;
+  onUpdateSequence: (id: string, patch: SequencePatch) => void;
+  onUpdateVideo: (id: string, patch: VideoPatch) => void;
   onDelete: () => void;
 }) {
   return (

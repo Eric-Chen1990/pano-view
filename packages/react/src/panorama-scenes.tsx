@@ -22,7 +22,7 @@ import {
   Vector3,
   WebGLRenderTarget,
 } from "three";
-import { PanoramaControlsContext } from "./auto-rotate";
+import { PanoramaViewContext } from "./panorama-view-runtime";
 import { Sphere } from "./sphere";
 import {
   TileTextureManagerProvider,
@@ -425,7 +425,7 @@ function PanoramaScenesController({
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
 }: Omit<PanoramaScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
-  const controlsRef = useContext(PanoramaControlsContext);
+  const controlsRef = useContext(PanoramaViewContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
     () => resolveTransition(transitionInput),

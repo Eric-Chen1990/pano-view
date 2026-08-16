@@ -17,7 +17,7 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { PanoramaControlsContext } from "../auto-rotate";
+import { PanoramaViewContext } from "../panorama-view-runtime";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { useHotspotAccessibility } from "./accessibility";
 import {
@@ -185,7 +185,7 @@ export function HotspotAnchor({
   onPositionChange,
   onDragEnd,
 }: HotspotAnchorProps) {
-  const controlsRef = useContext(PanoramaControlsContext);
+  const controlsRef = useContext(PanoramaViewContext);
   const groupRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -256,7 +256,7 @@ export function HotspotAnchor({
     }
     groupRef.current.rotateOnAxis(
       LOCAL_FORWARD,
-      MathUtils.degToRad(rotation),
+      MathUtils.degToRad(-rotation),
     );
     const scaleFactor =
       scaleMode === "fixed" && camera instanceof PerspectiveCamera

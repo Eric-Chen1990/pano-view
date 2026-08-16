@@ -2,6 +2,50 @@ export { PanoView } from "./pano-view";
 export type { PanoViewProps } from "./pano-view";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { PanoContextMenu } from "./pano-context-menu";
+export {
+  composePanoContextMenuItems,
+  createDefaultPanoContextMenuItems,
+  createPanoContextMenuPresets,
+  MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
+  resolvePanoContextMenuEntries,
+} from "./pano-context-menu";
+export type {
+  PanoContextMenuActionItem,
+  PanoContextMenuAppearance,
+  PanoContextMenuEntry,
+  PanoContextMenuItem,
+  PanoContextMenuPresetActions,
+  PanoContextMenuPresetId,
+  PanoContextMenuPresetRef,
+  PanoContextMenuPresets,
+  PanoContextMenuProps,
+  PanoContextMenuRenderProps,
+  PanoContextMenuSelectContext,
+  PanoContextMenuSeparatorItem,
+} from "./pano-context-menu";
+export { PanoEvents, usePanoEvents } from "./pano-events";
+export type { PanoEventsProps } from "./pano-events";
+export type {
+  PanoEventBus,
+  PanoEventListener,
+  PanoEventMap,
+  PanoEventType,
+  PanoResizeEvent,
+  PanoWheelEvent,
+  ViewInteractionEvent,
+  ViewInteractionSource,
+} from "./pano-event-bus";
+export { KeyboardControls, cycleSceneId } from "./keyboard-controls";
+export type {
+  KeyboardControlAction,
+  KeyboardControlKeys,
+  KeyboardControlsProps,
+} from "./keyboard-controls";
+export { MouseControls } from "./mouse-controls";
+export type { MouseControlsProps } from "./mouse-controls";
+export { TouchControls } from "./touch-controls";
+export type { TouchControlsProps } from "./touch-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
 export { PanoramaScenes } from "./panorama-scenes";
@@ -36,13 +80,17 @@ export {
 } from "./hotspot/polygon-hotspot";
 export { GraphicHotspot } from "./hotspot/graphic-hotspot";
 export type {
+  ArrowGraphic,
   CircleGraphic,
+  DiamondGraphic,
   GraphicDefinition,
   GraphicHotspotProps,
   RectangleGraphic,
   RingGraphic,
+  StarGraphic,
   SvgGraphic,
   SvgPathGraphic,
+  TriangleGraphic,
 } from "./hotspot/graphic-hotspot";
 export { SequenceHotspot } from "./hotspot/sequence-hotspot";
 export type {
@@ -69,10 +117,13 @@ export type {
   TileProps,
 } from "./tile/types";
 export type {
+  MouseControlButton,
+  MouseControlsOptions,
   PanoramaControlsOptions,
   PanoViewHandle,
   PanoViewState,
   SetPanoViewOptions,
+  TouchControlsOptions,
 } from "./types";
 export {
   clampPanoPitch,

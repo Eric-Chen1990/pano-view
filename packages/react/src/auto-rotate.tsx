@@ -1,12 +1,7 @@
 import { useFrame } from "@react-three/fiber";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-} from "react";
-import type { RefObject } from "react";
-import type { PanoramaControlsHandle } from "./panorama-controls";
+import { useContext, useEffect, useRef } from "react";
+import { PanoEventBusContext } from "./pano-event-bus";
+import { PanoramaViewContext } from "./panorama-view-runtime";
 
 const DEFAULT_AUTO_ROTATE_SPEED = 18;
 const DEFAULT_AUTO_ROTATE_ACCELERATION = 18;
@@ -26,10 +21,6 @@ export type AutoRotateProps = {
   /** Milliseconds to wait after enabling before rotation begins. */
   startDelay?: number;
 };
-
-export const PanoramaControlsContext = createContext<
-  RefObject<PanoramaControlsHandle | null> | null
->(null);
 
 function resolveStartDelay(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(value!, 0) : 0;
@@ -51,9 +42,12 @@ export function AutoRotate({
   acceleration = DEFAULT_AUTO_ROTATE_ACCELERATION,
   startDelay = DEFAULT_AUTO_ROTATE_START_DELAY,
 }: AutoRotateProps) {
-  const controlsRef = useContext(PanoramaControlsContext);
+  const controlsRef = useContext(PanoramaViewContext);
+  const eventBus = useContext(PanoEventBusContext);
   const elapsedRef = useRef(0);
   const rotationSpeedRef = useRef(0);
+  const rotatingRef = useRef(false);
+  const yawAccumulatedRef = useRef(0);
 
   if (!controlsRef) {
     throw new Error("<AutoRotate> must be rendered inside <PanoView>.");
@@ -62,11 +56,20 @@ export function AutoRotate({
   useEffect(() => {
     elapsedRef.current = 0;
     rotationSpeedRef.current = 0;
-  }, [enabled, startDelay]);
+    yawAccumulatedRef.current = 0;
+    if (rotatingRef.current) {
+      rotatingRef.current = false;
+      eventBus?.emit("autorotatestop", undefined);
+    }
+  }, [enabled, eventBus, startDelay]);
 
   useFrame((_, deltaSeconds) => {
     if (!enabled || !Number.isFinite(speed) || speed === 0) {
       rotationSpeedRef.current = 0;
+      if (rotatingRef.current) {
+        rotatingRef.current = false;
+        eventBus?.emit("autorotatestop", undefined);
+      }
       return;
     }
 
@@ -91,7 +94,22 @@ export function AutoRotate({
 
     if (!controlsRef.current?.applyAutoRotation(yawDelta)) {
       rotationSpeedRef.current = 0;
+      if (rotatingRef.current) {
+        rotatingRef.current = false;
+        eventBus?.emit("autorotatestop", undefined);
+      }
       return;
+    }
+
+    if (!rotatingRef.current) {
+      rotatingRef.current = true;
+      eventBus?.emit("autorotatestart", undefined);
+    }
+
+    yawAccumulatedRef.current += Math.abs(yawDelta);
+    while (yawAccumulatedRef.current >= 360) {
+      yawAccumulatedRef.current -= 360;
+      eventBus?.emit("autorotateoneround", undefined);
     }
 
     rotationSpeedRef.current = nextSpeed;

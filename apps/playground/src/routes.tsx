@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 
@@ -24,6 +25,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
     navLabel: "Scene transitions",
     stageLabel: "SCENE TRANSITIONS · STAGE 06",
     Component: SceneTransitionPage,
+  },
+  {
+    path: "/context-menu",
+    navLabel: "Context menu",
+    stageLabel: "CONTEXT MENU · STAGE 07",
+    Component: ContextMenuPage,
   },
 ];
 

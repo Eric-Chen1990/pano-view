@@ -17,10 +17,14 @@ export function GraphicFields({
       <label className="field wide">
         <span>Graphic type</span>
         <select
-          onChange={(event) => onChange(createGraphic(event.currentTarget.value as "circle" | "rectangle" | "ring" | "svg"))}
+          onChange={(event) => onChange(createGraphic(event.currentTarget.value as "circle" | "triangle" | "diamond" | "star" | "arrow" | "rectangle" | "ring" | "svg"))}
           value={selectableKind}
         >
           <option value="circle">Circle</option>
+          <option value="triangle">Triangle</option>
+          <option value="diamond">Diamond</option>
+          <option value="star">Star</option>
+          <option value="arrow">Arrow</option>
           <option value="rectangle">Rounded rectangle</option>
           <option value="ring">Ring</option>
           <option value="svg">SVG asset</option>
@@ -53,10 +57,12 @@ export function GraphicFields({
           </label>
           {graphic.kind === "rectangle" ? (
             <label className="field">
-              <span>Corner radius</span>
+              <span>Corner radius (0–0.5)</span>
               <input
+                max="0.5"
                 min="0"
                 onChange={(event) => onChange({ ...graphic, cornerRadius: numberValue(event.currentTarget.value, graphic.cornerRadius ?? 0) })}
+                step="0.01"
                 type="number"
                 value={graphic.cornerRadius ?? 0}
               />

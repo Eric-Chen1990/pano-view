@@ -3,137 +3,98 @@ import {
   PanoView,
   Sphere,
   Tile,
-  type HotspotPosition,
   type PanoViewHandle,
-  type PanoViewState,
-  type PolygonValidationIssue,
-  type TileLoadProgress,
 } from "@ericchen1990/pano-view";
-import type { RefObject } from "react";
+import { useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Metric } from "../Metric";
-import type {
-  EditorHotspot,
-  EditorPolygon,
-  EditorPolyline,
-  EditorTool,
-  ViewerMode,
-} from "../../types";
 import { INITIAL_VIEW } from "../../constants";
 import { HotspotLayer } from "./HotspotLayer";
+import {
+  selectDrawingPath,
+  selectDrawingPolygon,
+  selectDrawingPolyline,
+  selectPlacementTool,
+  useHotspotBenchStore,
+} from "./store";
 
-type CanvasPanelProps = {
-  viewerRef: RefObject<PanoViewHandle | null>;
-  mode: ViewerMode;
-  tool: EditorTool;
-  view: PanoViewState;
-  level: number;
-  progress: TileLoadProgress;
-  tileErrors: number;
-  autoRotate: boolean;
-  placementTool: boolean;
-  drawingPath: boolean;
-  drawingPolygon: boolean;
-  drawingPolyline: boolean;
-  draftVertices: HotspotPosition[];
-  draftIssues: PolygonValidationIssue[];
-  draftPolygonFilled: boolean;
-  lastAction: string;
-  controls: { inertia: boolean; keyboard: boolean };
-  hotspots: EditorHotspot[];
-  polygons: EditorPolygon[];
-  polylines: EditorPolyline[];
-  selectedPolygon: EditorPolygon | null;
-  selectedPolyline: EditorPolyline | null;
-  onSelectMode: (mode: ViewerMode) => void;
-  onToggleAutoRotate: () => void;
-  onViewChange: (view: PanoViewState) => void;
-  onLevelChange: (level: number) => void;
-  onLoadProgress: (progress: TileLoadProgress) => void;
-  onTileError: () => void;
-  onPanoramaClick: (position: HotspotPosition) => void;
-  onFinishDraft: () => void;
-  onCancelDraft: () => void;
-  onToggleDraftFill: () => void;
-  onSelectItem: (id: string) => void;
-  onUpdateHotspot: (
-    id: string,
-    patch: Partial<Omit<EditorHotspot, "id" | "type" | "graphic">>,
-  ) => void;
-  onUpdateSequence: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
-  ) => void;
-  onUpdateVideo: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
-  ) => void;
-  onUpdatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
-  onUpdatePolyline: (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => void;
-  onStatus: (message: string) => void;
-};
+const VIEWER_CONTROLS = { inertia: true, keyboard: true };
 
-export function CanvasPanel({
-  viewerRef,
-  mode,
-  tool,
-  view,
-  level,
-  progress,
-  tileErrors,
-  autoRotate,
-  placementTool,
-  drawingPath,
-  drawingPolygon,
-  drawingPolyline,
-  draftVertices,
-  draftIssues,
-  draftPolygonFilled,
-  lastAction,
-  controls,
-  hotspots,
-  polygons,
-  polylines,
-  selectedPolygon,
-  selectedPolyline,
-  onSelectMode,
-  onToggleAutoRotate,
-  onViewChange,
-  onLevelChange,
-  onLoadProgress,
-  onTileError,
-  onPanoramaClick,
-  onFinishDraft,
-  onCancelDraft,
-  onToggleDraftFill,
-  onSelectItem,
-  onUpdateHotspot,
-  onUpdateSequence,
-  onUpdateVideo,
-  onUpdatePolygon,
-  onUpdatePolyline,
-  onStatus,
-}: CanvasPanelProps) {
+export function CanvasPanel() {
+  const viewerRef = useRef<PanoViewHandle>(null);
+  const {
+    mode,
+    view,
+    level,
+    progress,
+    tileErrors,
+    autoRotate,
+    placementTool,
+    drawingPath,
+    drawingPolygon,
+    drawingPolyline,
+    draftVertices,
+    draftPolygonFilled,
+    lastAction,
+    selectMode,
+    toggleAutoRotate,
+    setView,
+    setLevel,
+    setProgress,
+    incrementTileErrors,
+    addHotspot,
+    finishPolygonDraft,
+    cancelPolygonDraft,
+    toggleDraftFill,
+  } = useHotspotBenchStore(
+    useShallow((state) => ({
+      mode: state.mode,
+      view: state.view,
+      level: state.level,
+      progress: state.progress,
+      tileErrors: state.tileErrors,
+      autoRotate: state.autoRotate,
+      placementTool: selectPlacementTool(state),
+      drawingPath: selectDrawingPath(state),
+      drawingPolygon: selectDrawingPolygon(state),
+      drawingPolyline: selectDrawingPolyline(state),
+      draftVertices: state.draftVertices,
+      draftPolygonFilled: state.draftPolygonFilled,
+      lastAction: state.lastAction,
+      selectMode: state.selectMode,
+      toggleAutoRotate: state.toggleAutoRotate,
+      setView: state.setView,
+      setLevel: state.setLevel,
+      setProgress: state.setProgress,
+      incrementTileErrors: state.incrementTileErrors,
+      addHotspot: state.addHotspot,
+      finishPolygonDraft: state.finishPolygonDraft,
+      cancelPolygonDraft: state.cancelPolygonDraft,
+      toggleDraftFill: state.toggleDraftFill,
+    })),
+  );
+
   return (
     <section className="canvas-panel" aria-label="Panorama canvas">
       <div className="canvas-toolbar">
         <div className="mode-switch" aria-label="Panorama source" role="group">
           <button
             className={mode === "sphere" ? "active" : ""}
-            onClick={() => onSelectMode("sphere")}
+            onClick={() => selectMode("sphere")}
             type="button"
           >
             Sphere
           </button>
           <button
             className={mode === "tile" ? "active" : ""}
-            onClick={() => onSelectMode("tile")}
+            onClick={() => selectMode("tile")}
             type="button"
           >
             Cube Tile
           </button>
         </div>
         <div className="viewer-actions">
-          <button onClick={onToggleAutoRotate} type="button">
+          <button onClick={toggleAutoRotate} type="button">
             {autoRotate ? "Stop rotation" : "Auto rotate"}
           </button>
           <button onClick={() => viewerRef.current?.reset()} type="button">
@@ -152,7 +113,7 @@ export function CanvasPanel({
             {drawingPolygon ? (
               <button
                 aria-pressed={draftPolygonFilled}
-                onClick={onToggleDraftFill}
+                onClick={toggleDraftFill}
                 type="button"
               >
                 {draftPolygonFilled ? "Fill on" : "Outline only"}
@@ -160,12 +121,12 @@ export function CanvasPanel({
             ) : null}
             <button
               disabled={draftVertices.length < (drawingPolyline ? 2 : 3)}
-              onClick={onFinishDraft}
+              onClick={finishPolygonDraft}
               type="button"
             >
               {drawingPolyline ? "Finish polyline" : "Finish polygon"}
             </button>
-            <button onClick={onCancelDraft} type="button">Cancel</button>
+            <button onClick={cancelPolygonDraft} type="button">Cancel</button>
           </div>
         ) : null}
       </div>
@@ -176,13 +137,13 @@ export function CanvasPanel({
           ref={viewerRef}
           aria-label={`${mode} panorama hotspot editor`}
           className="pano-view"
-          controls={placementTool || drawingPath ? false : controls}
+          controls={placementTool || drawingPath ? false : VIEWER_CONTROLS}
           initialView={INITIAL_VIEW}
-          onPanoramaClick={({ position }) => onPanoramaClick(position)}
+          onPanoramaClick={({ position }) => addHotspot(position)}
           onPanoramaDoubleClick={() => {
-            if (drawingPath) onFinishDraft();
+            if (drawingPath) finishPolygonDraft();
           }}
-          onViewChange={onViewChange}
+          onViewChange={setView}
         >
           <AutoRotate
             enabled={autoRotate && !placementTool && !drawingPath}
@@ -197,31 +158,12 @@ export function CanvasPanel({
               baseUrl="/fixtures/panorama/cube-tiles/4"
               multires="512,1000,2000"
               urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
-              onLevelChange={onLevelChange}
-              onLoadProgress={onLoadProgress}
-              onTileError={onTileError}
+              onLevelChange={setLevel}
+              onLoadProgress={setProgress}
+              onTileError={incrementTileErrors}
             />
           )}
-          <HotspotLayer
-            tool={tool}
-            drawingPath={drawingPath}
-            drawingPolygon={drawingPolygon}
-            draftVertices={draftVertices}
-            draftIssues={draftIssues}
-            draftPolygonFilled={draftPolygonFilled}
-            hotspots={hotspots}
-            polygons={polygons}
-            polylines={polylines}
-            selectedPolygon={selectedPolygon}
-            selectedPolyline={selectedPolyline}
-            onSelectItem={onSelectItem}
-            onUpdateHotspot={onUpdateHotspot}
-            onUpdateSequence={onUpdateSequence}
-            onUpdateVideo={onUpdateVideo}
-            onUpdatePolygon={onUpdatePolygon}
-            onUpdatePolyline={onUpdatePolyline}
-            onStatus={onStatus}
-          />
+          <HotspotLayer />
         </PanoView>
         <div className="reticle" aria-hidden="true" />
         <p className="canvas-status" role="status">{lastAction}</p>
