@@ -191,7 +191,58 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, wheel, arrow keys, `+/-`, and `0` to reset. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Built-in input supports pointer drag, touch drag, pinch, and wheel. Keyboard navigation is provided by a default `KeyboardControls` instance (arrow keys, `+/-`, and `0` to reset). Set `controls.keyboard` to `false` and render your own `KeyboardControls` to customize bindings. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
+
+## Keyboard controls
+
+Render `KeyboardControls` inside `PanoView` when you need custom bindings, continuous hold-to-look motion, or scene switching. Scene changes stay host-controlled: the component only fires `onPreviousScene` / `onNextScene`. Use `cycleSceneId` to pick the adjacent id from your scene list.
+
+```tsx
+import { useState } from "react";
+import {
+  KeyboardControls,
+  PanoramaScenes,
+  PanoView,
+  cycleSceneId,
+  type PanoramaScene,
+} from "@ericchen1990/pano-view";
+
+export function KeyboardExample({ scenes }: { scenes: PanoramaScene[] }) {
+  const [activeSceneId, setActiveSceneId] = useState(scenes[0]!.id);
+
+  return (
+    <PanoView controls={{ keyboard: false }} style={{ height: 560 }}>
+      <KeyboardControls
+        keys={{
+          left: ["ArrowLeft", "a"],
+          right: ["ArrowRight", "d"],
+          up: ["ArrowUp", "w"],
+          down: ["ArrowDown", "s"],
+          zoomIn: ["=", "+"],
+          zoomOut: ["-", "_"],
+          previousScene: ["[", "PageUp"],
+          nextScene: ["]", "PageDown"],
+        }}
+        rotateSpeed={60}
+        zoomSpeed={30}
+        onPreviousScene={() => {
+          const next = cycleSceneId(scenes, activeSceneId, -1);
+          if (next) setActiveSceneId(next);
+        }}
+        onNextScene={() => {
+          const next = cycleSceneId(scenes, activeSceneId, 1);
+          if (next) setActiveSceneId(next);
+        }}
+      />
+      <PanoramaScenes scenes={scenes} activeSceneId={activeSceneId} />
+    </PanoView>
+  );
+}
+```
+
+Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
+
+Default bindings match the previous built-in keyboard: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided.
 
 ## Panorama coordinate events
 

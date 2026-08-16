@@ -1,7 +1,9 @@
 import {
   ImageHotspot,
+  KeyboardControls,
   PanoramaScenes,
   PanoView,
+  cycleSceneId,
   type PanoramaTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
@@ -50,7 +52,25 @@ export function SceneTransitionPage() {
           </label>
         </div>
         <div className="transition-viewer">
-          <PanoView aria-label="Panorama scene transition demo" style={{ height: 540 }}>
+          <PanoView
+            aria-label="Panorama scene transition demo"
+            controls={{ keyboard: false }}
+            style={{ height: 540 }}
+          >
+            <KeyboardControls
+              onNextScene={() => {
+                const next = cycleSceneId(TRANSITION_SCENES, activeSceneId, 1);
+                if (next) {
+                  setActiveSceneId(next);
+                }
+              }}
+              onPreviousScene={() => {
+                const next = cycleSceneId(TRANSITION_SCENES, activeSceneId, -1);
+                if (next) {
+                  setActiveSceneId(next);
+                }
+              }}
+            />
             <PanoramaScenes
               activeSceneId={activeSceneId}
               maxConcurrentTileLoads={3}

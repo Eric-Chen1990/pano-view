@@ -22,6 +22,7 @@ import {
   useHotspotAccessibilityLayer,
 } from "./hotspot/accessibility";
 import type { PanoramaPointerEvent } from "./hotspot/types";
+import { KeyboardControls } from "./keyboard-controls";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import {
   DEFAULT_PANORAMA_CAMERA_FAR,
@@ -116,6 +117,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       () => (typeof controls === "object" ? controls : {}),
       [controls],
     );
+    const keyboardEnabled = controlsEnabled && controlOptions.keyboard !== false;
     // Bridge deprecated controls.autoRotate / autoRotateSpeed without
     // surfacing @deprecated diagnostics on this compatibility path.
     const legacyAutoRotateOptions = controlOptions as {
@@ -214,6 +216,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
                 enabled={legacyAutoRotate}
                 speed={legacyAutoRotateOptions.autoRotateSpeed}
               />
+              {keyboardEnabled ? <KeyboardControls /> : null}
               <PanoramaEventSurface
                 onClick={onPanoramaClick}
                 onDoubleClick={onPanoramaDoubleClick}

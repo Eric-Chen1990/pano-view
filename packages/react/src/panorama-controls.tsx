@@ -34,6 +34,13 @@ export type PanoramaControlsHandle = {
     options?: SetPanoViewOptions,
   ) => void;
   reset: () => void;
+  /**
+   * Adjusts the target view by relative deltas without snapping the current
+   * view. Returns false while an interaction lock is held.
+   */
+  applyViewDelta: (delta: Partial<PanoViewState>) => boolean;
+  /** Marks whether keyboard navigation is currently driving the view. */
+  setKeyboardActive: (active: boolean) => void;
   applyAutoRotation: (yawDelta: number) => boolean;
   acquireInteractionLock: () => () => void;
 };
@@ -94,6 +101,7 @@ export const PanoramaControls = forwardRef<
   const dirtyRef = useRef(true);
   const interactingRef = useRef(false);
   const interactionLockCountRef = useRef(0);
+  const keyboardActiveRef = useRef(false);
   const optionsRef = useRef(options);
   const onViewChangeRef = useRef(onViewChange);
   const lastEmittedViewRef = useRef<PanoViewState | null>(null);
@@ -157,12 +165,40 @@ export const PanoramaControls = forwardRef<
     dirtyRef.current = true;
   };
 
+  const applyViewDelta = (delta: Partial<PanoViewState>): boolean => {
+    if (interactionLockCountRef.current > 0) {
+      return false;
+    }
+
+    const current = targetViewRef.current;
+    targetViewRef.current = constrainView({
+      yaw:
+        delta.yaw !== undefined && Number.isFinite(delta.yaw)
+          ? current.yaw + delta.yaw
+          : current.yaw,
+      pitch:
+        delta.pitch !== undefined && Number.isFinite(delta.pitch)
+          ? current.pitch + delta.pitch
+          : current.pitch,
+      fov:
+        delta.fov !== undefined && Number.isFinite(delta.fov)
+          ? current.fov + delta.fov
+          : current.fov,
+    });
+    dirtyRef.current = true;
+    return true;
+  };
+
   useImperativeHandle(
     ref,
     () => ({
       getView: () => ({ ...viewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
+      applyViewDelta,
+      setKeyboardActive: (active: boolean) => {
+        keyboardActiveRef.current = active;
+      },
       acquireInteractionLock,
       applyAutoRotation: (yawDelta: number) => {
         const inertiaFinished =
@@ -173,6 +209,7 @@ export const PanoramaControls = forwardRef<
           !Number.isFinite(yawDelta) ||
           interactionLockCountRef.current > 0 ||
           interactingRef.current ||
+          keyboardActiveRef.current ||
           !inertiaFinished
         ) {
           return false;
@@ -319,47 +356,11 @@ export const PanoramaControls = forwardRef<
       dirtyRef.current = true;
     };
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (interactionLockCountRef.current > 0) {
-        return;
-      }
-      if (optionsRef.current.keyboard === false) {
-        return;
-      }
-
-      const step = event.shiftKey ? 10 : 3;
-      let next: Partial<PanoViewState> | null = null;
-      if (event.key === "ArrowLeft") {
-        next = { yaw: targetViewRef.current.yaw - step };
-      } else if (event.key === "ArrowRight") {
-        next = { yaw: targetViewRef.current.yaw + step };
-      } else if (event.key === "ArrowUp") {
-        next = { pitch: targetViewRef.current.pitch + step };
-      } else if (event.key === "ArrowDown") {
-        next = { pitch: targetViewRef.current.pitch - step };
-      } else if (event.key === "+" || event.key === "=") {
-        next = { fov: targetViewRef.current.fov - step };
-      } else if (event.key === "-" || event.key === "_") {
-        next = { fov: targetViewRef.current.fov + step };
-      } else if (event.key === "0") {
-        setView(initialViewRef.current);
-        event.preventDefault();
-        return;
-      }
-
-      if (next) {
-        event.preventDefault();
-        targetViewRef.current = constrainView(next);
-        dirtyRef.current = true;
-      }
-    };
-
     element.addEventListener("pointerdown", onPointerDown);
     element.addEventListener("pointermove", onPointerMove);
     element.addEventListener("pointerup", releasePointer);
     element.addEventListener("pointercancel", releasePointer);
     element.addEventListener("wheel", onWheel, { passive: false });
-    element.addEventListener("keydown", onKeyDown);
 
     return () => {
       element.removeEventListener("pointerdown", onPointerDown);
@@ -367,7 +368,6 @@ export const PanoramaControls = forwardRef<
       element.removeEventListener("pointerup", releasePointer);
       element.removeEventListener("pointercancel", releasePointer);
       element.removeEventListener("wheel", onWheel);
-      element.removeEventListener("keydown", onKeyDown);
       pointersRef.current.clear();
     };
   }, [enabled, gl, maxFov, minFov]);

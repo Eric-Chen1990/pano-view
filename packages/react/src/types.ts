@@ -47,6 +47,9 @@ export type PanoramaControlsOptions = {
    * immediate response. Must be a non-negative finite number.
    */
   zoomDamping?: number;
-  /** Enables focusable keyboard controls. Defaults to true. */
+  /**
+   * Renders the default KeyboardControls instance. Defaults to true. Set to
+   * false when providing a custom KeyboardControls child.
+   */
   keyboard?: boolean;
 };

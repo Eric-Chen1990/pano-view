@@ -2,6 +2,12 @@ export { PanoView } from "./pano-view";
 export type { PanoViewProps } from "./pano-view";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { KeyboardControls, cycleSceneId } from "./keyboard-controls";
+export type {
+  KeyboardControlAction,
+  KeyboardControlKeys,
+  KeyboardControlsProps,
+} from "./keyboard-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
 export { PanoramaScenes } from "./panorama-scenes";
