@@ -8,59 +8,63 @@ import {
   validatePolygonVertices,
   type HotspotPosition,
 } from "@ericchen1990/pano-view";
-import type { EditorHotspot, EditorPolygon, EditorPolyline, EditorTool } from "../../types";
+import { memo, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { formatPosition, polygonIssueSummary } from "../../utils";
+import {
+  selectDrawingPath,
+  selectDrawingPolygon,
+  selectSelectedPolygon,
+  selectSelectedPolyline,
+  useHotspotBenchStore,
+} from "./store";
 
-type HotspotLayerProps = {
-  tool: EditorTool;
-  drawingPath: boolean;
-  drawingPolygon: boolean;
-  draftVertices: HotspotPosition[];
-  draftIssues: ReturnType<typeof validatePolygonVertices>;
-  draftPolygonFilled: boolean;
-  hotspots: EditorHotspot[];
-  polygons: EditorPolygon[];
-  polylines: EditorPolyline[];
-  selectedPolygon: EditorPolygon | null;
-  selectedPolyline: EditorPolyline | null;
-  onSelectItem: (id: string) => void;
-  onUpdateHotspot: (
-    id: string,
-    patch: Partial<Omit<EditorHotspot, "id" | "type" | "graphic">>,
-  ) => void;
-  onUpdateSequence: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
-  ) => void;
-  onUpdateVideo: (
-    id: string,
-    patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
-  ) => void;
-  onUpdatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
-  onUpdatePolyline: (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => void;
-  onStatus: (message: string) => void;
-};
+export const HotspotLayer = memo(function HotspotLayer() {
+  const {
+    tool,
+    drawingPath,
+    drawingPolygon,
+    draftVertices,
+    draftPolygonFilled,
+    hotspots,
+    polygons,
+    polylines,
+    selectedPolygon,
+    selectedPolyline,
+    selectItem,
+    updateHotspot,
+    updateSequence,
+    updateVideo,
+    updatePolygon,
+    updatePolyline,
+    setLastAction,
+  } = useHotspotBenchStore(
+    useShallow((state) => ({
+      tool: state.tool,
+      drawingPath: selectDrawingPath(state),
+      drawingPolygon: selectDrawingPolygon(state),
+      draftVertices: state.draftVertices,
+      draftPolygonFilled: state.draftPolygonFilled,
+      hotspots: state.hotspots,
+      polygons: state.polygons,
+      polylines: state.polylines,
+      selectedPolygon: selectSelectedPolygon(state),
+      selectedPolyline: selectSelectedPolyline(state),
+      selectItem: state.selectItem,
+      updateHotspot: state.updateHotspot,
+      updateSequence: state.updateSequence,
+      updateVideo: state.updateVideo,
+      updatePolygon: state.updatePolygon,
+      updatePolyline: state.updatePolyline,
+      setLastAction: state.setLastAction,
+    })),
+  );
+  const draftIssues = useMemo(
+    () =>
+      draftVertices.length > 0 ? validatePolygonVertices(draftVertices) : [],
+    [draftVertices],
+  );
 
-export function HotspotLayer({
-  tool,
-  drawingPath,
-  drawingPolygon,
-  draftVertices,
-  draftIssues,
-  draftPolygonFilled,
-  hotspots,
-  polygons,
-  polylines,
-  selectedPolygon,
-  selectedPolyline,
-  onSelectItem,
-  onUpdateHotspot,
-  onUpdateSequence,
-  onUpdateVideo,
-  onUpdatePolygon,
-  onUpdatePolyline,
-  onStatus,
-}: HotspotLayerProps) {
   return (
     <>
       {hotspots.map((hotspot) => {
@@ -80,24 +84,24 @@ export function HotspotLayer({
           width: hotspot.width,
           height: hotspot.height,
           onClick: () => {
-            onSelectItem(hotspot.id);
+            selectItem(hotspot.id);
             if (hotspot.type === "sequence") {
-              onUpdateSequence(hotspot.id, { playing: !hotspot.playing });
+              updateSequence(hotspot.id, { playing: !hotspot.playing });
             }
             if (hotspot.type === "video") {
-              onUpdateVideo(hotspot.id, { playing: !hotspot.playing });
+              updateVideo(hotspot.id, { playing: !hotspot.playing });
             }
-            onStatus(`${hotspot.label} selected.`);
+            setLastAction(`${hotspot.label} selected.`);
           },
           onDragStart: () => {
-            onSelectItem(hotspot.id);
-            onStatus(`Dragging ${hotspot.label}.`);
+            selectItem(hotspot.id);
+            setLastAction(`Dragging ${hotspot.label}.`);
           },
           onPositionChange: ({ position }: { position: HotspotPosition }) => {
-            onUpdateHotspot(hotspot.id, { position });
+            updateHotspot(hotspot.id, { position });
           },
           onDragEnd: ({ position }: { position: HotspotPosition }) => {
-            onStatus(`${hotspot.label} moved to ${formatPosition(position)}.`);
+            setLastAction(`${hotspot.label} moved to ${formatPosition(position)}.`);
           },
         };
 
@@ -124,7 +128,7 @@ export function HotspotLayer({
               loop={hotspot.loop}
               playing={hotspot.playing}
               src={hotspot.src}
-              onEnded={() => onUpdateSequence(hotspot.id, { playing: false })}
+              onEnded={() => updateSequence(hotspot.id, { playing: false })}
             />
           );
         }
@@ -134,7 +138,7 @@ export function HotspotLayer({
             {...sharedProps}
             loop={hotspot.loop}
             muted={hotspot.muted}
-            onEnded={() => onUpdateVideo(hotspot.id, { playing: false })}
+            onEnded={() => updateVideo(hotspot.id, { playing: false })}
             playing={hotspot.playing}
             poster={hotspot.poster}
             src={hotspot.src}
@@ -152,25 +156,25 @@ export function HotspotLayer({
           id={polygon.id}
           interactive={!drawingPath}
           onClick={() => {
-            onSelectItem(polygon.id);
-            onStatus(`${polygon.label} selected.`);
+            selectItem(polygon.id);
+            setLastAction(`${polygon.label} selected.`);
           }}
           onDragEnd={({ vertices }) => {
             const issues = validatePolygonVertices(vertices);
             if (issues.length === 0) {
-              onUpdatePolygon(polygon.id, { vertices });
-              onStatus(`${polygon.label} moved.`);
+              updatePolygon(polygon.id, { vertices });
+              setLastAction(`${polygon.label} moved.`);
             } else {
-              onStatus(`Polygon move rejected: ${polygonIssueSummary(issues)}`);
+              setLastAction(`Polygon move rejected: ${polygonIssueSummary(issues)}`);
             }
           }}
           onDragStart={() => {
-            onSelectItem(polygon.id);
-            onStatus(`Dragging ${polygon.label}.`);
+            selectItem(polygon.id);
+            setLastAction(`Dragging ${polygon.label}.`);
           }}
           onVerticesChange={({ vertices }) => {
             if (validatePolygonVertices(vertices).length === 0) {
-              onUpdatePolygon(polygon.id, { vertices });
+              updatePolygon(polygon.id, { vertices });
             }
           }}
           stroke={polygon.stroke}
@@ -188,18 +192,18 @@ export function HotspotLayer({
           id={polyline.id}
           interactive={!drawingPath}
           onClick={() => {
-            onSelectItem(polyline.id);
-            onStatus(`${polyline.label} selected.`);
+            selectItem(polyline.id);
+            setLastAction(`${polyline.label} selected.`);
           }}
           onDragEnd={({ vertices }) => {
-            onUpdatePolyline(polyline.id, { vertices });
-            onStatus(`${polyline.label} moved.`);
+            updatePolyline(polyline.id, { vertices });
+            setLastAction(`${polyline.label} moved.`);
           }}
           onDragStart={() => {
-            onSelectItem(polyline.id);
-            onStatus(`Dragging ${polyline.label}.`);
+            selectItem(polyline.id);
+            setLastAction(`Dragging ${polyline.label}.`);
           }}
-          onVerticesChange={({ vertices }) => onUpdatePolyline(polyline.id, { vertices })}
+          onVerticesChange={({ vertices }) => updatePolyline(polyline.id, { vertices })}
           stroke={polyline.stroke}
           strokeOpacity={polyline.strokeOpacity}
           strokeWidth={polyline.strokeWidth}
@@ -249,19 +253,19 @@ export function HotspotLayer({
             );
             const issues = validatePolygonVertices(vertices);
             if (issues.length === 0) {
-              onUpdatePolygon(selectedPolygon.id, { vertices });
-              onStatus(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+              updatePolygon(selectedPolygon.id, { vertices });
+              setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
             } else {
-              onStatus(`Vertex move rejected: ${polygonIssueSummary(issues)}`);
+              setLastAction(`Vertex move rejected: ${polygonIssueSummary(issues)}`);
             }
           }}
-          onDragStart={() => onStatus(`Dragging vertex ${index + 1}.`)}
+          onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
           onPositionChange={({ position }) => {
             const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
               currentIndex === index ? position : current,
             );
             if (validatePolygonVertices(vertices).length === 0) {
-              onUpdatePolygon(selectedPolygon.id, { vertices });
+              updatePolygon(selectedPolygon.id, { vertices });
             }
           }}
           mode="billboard"
@@ -288,15 +292,15 @@ export function HotspotLayer({
             const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
               currentIndex === index ? position : current,
             );
-            onUpdatePolyline(selectedPolyline.id, { vertices });
-            onStatus(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+            updatePolyline(selectedPolyline.id, { vertices });
+            setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
           }}
-          onDragStart={() => onStatus(`Dragging vertex ${index + 1}.`)}
+          onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
           onPositionChange={({ position }) => {
             const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
               currentIndex === index ? position : current,
             );
-            onUpdatePolyline(selectedPolyline.id, { vertices });
+            updatePolyline(selectedPolyline.id, { vertices });
           }}
           mode="billboard"
           position={vertex}
@@ -326,4 +330,4 @@ export function HotspotLayer({
       )) : null}
     </>
   );
-}
+});

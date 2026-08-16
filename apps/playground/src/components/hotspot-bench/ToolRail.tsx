@@ -1,25 +1,33 @@
 import { ToolButton } from "../ToolButton";
-import type { EditorTool } from "../../types";
+import { useShallow } from "zustand/react/shallow";
+import {
+  selectDrawingPolygon,
+  selectDrawingPolyline,
+  selectHotspotCount,
+  useHotspotBenchStore,
+} from "./store";
 
-type ToolRailProps = {
-  tool: EditorTool;
-  drawingPolygon: boolean;
-  drawingPolyline: boolean;
-  hotspotCount: number;
-  onSelectTool: (tool: EditorTool, message: string) => void;
-  onStartPolygon: () => void;
-  onStartPolyline: () => void;
-};
+export function ToolRail() {
+  const {
+    tool,
+    drawingPolygon,
+    drawingPolyline,
+    hotspotCount,
+    selectTool,
+    startPolygon,
+    startPolyline,
+  } = useHotspotBenchStore(
+    useShallow((state) => ({
+      tool: state.tool,
+      drawingPolygon: selectDrawingPolygon(state),
+      drawingPolyline: selectDrawingPolyline(state),
+      hotspotCount: selectHotspotCount(state),
+      selectTool: state.selectTool,
+      startPolygon: state.startPolygon,
+      startPolyline: state.startPolyline,
+    })),
+  );
 
-export function ToolRail({
-  tool,
-  drawingPolygon,
-  drawingPolyline,
-  hotspotCount,
-  onSelectTool,
-  onStartPolygon,
-  onStartPolyline,
-}: ToolRailProps) {
   return (
     <aside className="tool-rail" aria-label="Hotspot tools">
       <p className="panel-label">MODE</p>
@@ -27,50 +35,50 @@ export function ToolRail({
         active={tool === "navigate"}
         detail="Orbit"
         label="Navigate"
-        onClick={() => onSelectTool("navigate", "Navigation restored.")}
+        onClick={() => selectTool("navigate", "Navigation restored.")}
       />
       <ToolButton
         active={tool === "select"}
         detail="Drag"
         label="Select"
-        onClick={() => onSelectTool("select", "Select a hotspot, then drag it in the panorama.")}
+        onClick={() => selectTool("select", "Select a hotspot, then drag it in the panorama.")}
       />
       <p className="panel-label">ADD</p>
       <ToolButton
         active={tool === "image"}
         detail="Bitmap"
         label="Image"
-        onClick={() => onSelectTool("image", "Click the panorama to place an image hotspot.")}
+        onClick={() => selectTool("image", "Click the panorama to place an image hotspot.")}
       />
       <ToolButton
         active={tool === "graphic"}
         detail="Vector"
         label="Graphic"
-        onClick={() => onSelectTool("graphic", "Click the panorama to place a graphic hotspot.")}
+        onClick={() => selectTool("graphic", "Click the panorama to place a graphic hotspot.")}
       />
       <ToolButton
         active={tool === "sequence"}
         detail="Sprite sheet"
         label="Sequence"
-        onClick={() => onSelectTool("sequence", "Click the panorama to place a sprite-sheet sequence.")}
+        onClick={() => selectTool("sequence", "Click the panorama to place a sprite-sheet sequence.")}
       />
       <ToolButton
         active={tool === "video"}
         detail="WebM"
         label="Video"
-        onClick={() => onSelectTool("video", "Click the panorama to place a video hotspot.")}
+        onClick={() => selectTool("video", "Click the panorama to place a video hotspot.")}
       />
       <ToolButton
         active={drawingPolygon}
         detail="Draw + edit"
         label="Polygon"
-        onClick={onStartPolygon}
+        onClick={startPolygon}
       />
       <ToolButton
         active={drawingPolyline}
         detail="Draw + edit"
         label="Polyline"
-        onClick={onStartPolyline}
+        onClick={startPolyline}
       />
       <div className="tool-rail-footer">
         <span>{hotspotCount}</span>
