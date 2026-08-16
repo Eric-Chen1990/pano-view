@@ -1,6 +1,7 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useContext } from "react";
-import { BackSide } from "three";
+import { useThree } from "@react-three/fiber";
+import { useContext, useEffect } from "react";
+import { BackSide, Raycaster, Vector2, Vector3 } from "three";
 import { vector3ToPanoPosition } from "./hotspot/coordinates";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoEventBusContext } from "./pano-event-bus";
@@ -30,6 +31,50 @@ function makePanoramaPointerEvent(
  */
 export function PanoramaEventSurface() {
   const eventBus = useContext(PanoEventBusContext);
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    if (!eventBus) {
+      return;
+    }
+
+    const element = gl.domElement;
+    const ndc = new Vector2();
+    const raycaster = new Raycaster();
+    const direction = new Vector3();
+
+    const handleContextMenu = (nativeEvent: MouseEvent) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+
+      ndc.set(
+        ((nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
+        -((nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      direction.copy(raycaster.ray.direction);
+
+      eventBus.emit("contextmenu", {
+        position: vector3ToPanoPosition(direction),
+        nativeEvent,
+        pointerId:
+          "pointerId" in nativeEvent
+            ? (nativeEvent as PointerEvent).pointerId
+            : undefined,
+        button: nativeEvent.button,
+        buttons: nativeEvent.buttons,
+        clientX: nativeEvent.clientX,
+        clientY: nativeEvent.clientY,
+      });
+    };
+
+    element.addEventListener("contextmenu", handleContextMenu);
+    return () => {
+      element.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, [camera, eventBus, gl]);
 
   if (!eventBus) {
     return null;

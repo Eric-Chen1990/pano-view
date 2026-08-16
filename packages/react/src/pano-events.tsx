@@ -27,6 +27,7 @@ export type PanoEventsProps = {
   onPointerDown?: (event: PanoramaPointerEvent) => void;
   onPointerUp?: (event: PanoramaPointerEvent) => void;
   onPointerMove?: (event: PanoramaPointerEvent) => void;
+  onContextMenu?: (event: PanoramaPointerEvent) => void;
   onWheel?: (event: PanoWheelEvent) => void;
   onIdle?: () => void;
   onIdleEnd?: () => void;
@@ -57,6 +58,7 @@ export function usePanoEvents({
   onPointerDown,
   onPointerUp,
   onPointerMove,
+  onContextMenu,
   onWheel,
   onIdle,
   onIdleEnd,
@@ -85,6 +87,7 @@ export function usePanoEvents({
     onPointerDown,
     onPointerUp,
     onPointerMove,
+    onContextMenu,
     onWheel,
     onIdle,
     onIdleEnd,
@@ -105,6 +108,7 @@ export function usePanoEvents({
     onPointerDown,
     onPointerUp,
     onPointerMove,
+    onContextMenu,
     onWheel,
     onIdle,
     onIdleEnd,
@@ -154,6 +158,9 @@ export function usePanoEvents({
       }),
       eventBus.subscribe("pointermove", (event) => {
         callbacksRef.current.onPointerMove?.(event);
+      }),
+      eventBus.subscribe("contextmenu", (event) => {
+        callbacksRef.current.onContextMenu?.(event);
       }),
       eventBus.subscribe("autorotatestart", () => {
         callbacksRef.current.onAutoRotateStart?.();

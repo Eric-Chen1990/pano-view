@@ -191,7 +191,7 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code.
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code. A default context menu (Reset view / Enter fullscreen) is also mounted — see [Context menu](#context-menu).
 
 ## Mouse, touch, and keyboard controls
 
@@ -344,7 +344,7 @@ import {
 Supported callbacks (krpano names in parentheses where applicable):
 
 - View: `onViewChange` (`onviewchange`), `onViewSettled`, `onViewInteractionStart` / `onViewInteractionEnd`
-- Pointer on the panorama shell (not hotspots): `onClick`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`
+- Pointer on the panorama shell (not hotspots): `onClick`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onContextMenu`
 - `onWheel` — mouse wheel only; touch pinch does not synthesize a wheel event
 - Idle: `onIdle` / `onIdleEnd` with per-instance `idleTime` (ms, default `2000`)
 - Fullscreen: `onEnterFullscreen` / `onExitFullscreen`
@@ -358,6 +358,114 @@ Resource loading and scene blending stay on their owners: use `Sphere` /
 `Tile` `onLoad` / `onError` / `onLoadProgress`, and `PanoramaScenes`
 `onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
 xml/VR/gyro/frame-render events.
+
+## Context menu
+
+`PanoView` mounts a default context menu that replaces the browser menu on
+right-click. Default items: **Reset view** and **Enter fullscreen** / **Exit
+fullscreen** (label and icon follow the current fullscreen state), with a
+separator between them.
+
+```tsx
+<PanoView style={{ height: 560 }}>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+Disable the default menu (restore the browser menu, or mount your own):
+
+```tsx
+<PanoView contextMenu={false}>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+Tune appearance while keeping the default items:
+
+```tsx
+<PanoView contextMenu={{ appearance: { opacity: 0.92, borderRadius: 8 } }}>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+### Adding items without rebuilding defaults
+
+Use `append` or `prepend` to keep the built-in Reset / Fullscreen entries and
+only add your own:
+
+```tsx
+<PanoView
+  contextMenu={{
+    append: [
+      "separator",
+      {
+        id: "copy",
+        label: "Copy yaw / pitch",
+        onSelect: ({ position }) => {
+          void navigator.clipboard.writeText(
+            `${position.yaw.toFixed(1)}, ${position.pitch.toFixed(1)}`,
+          );
+        },
+      },
+    ],
+  }}
+  style={{ height: 560 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+### Built-in presets
+
+When you need a custom order, reuse built-in presets by id instead of
+reimplementing fullscreen enter/exit state:
+
+- `"resetView"` — resets the view
+- `"fullscreen"` — Enter / Exit fullscreen with the matching icon
+- `"separator"` — a horizontal rule
+
+```tsx
+<PanoView
+  contextMenu={{
+    items: [
+      "resetView",
+      "separator",
+      {
+        id: "copy",
+        label: "Copy yaw / pitch",
+        onSelect: ({ position }) => {
+          void navigator.clipboard.writeText(
+            `${position.yaw.toFixed(1)}, ${position.pitch.toFixed(1)}`,
+          );
+        },
+      },
+      "separator",
+      "fullscreen",
+    ],
+  }}
+  style={{ height: 560 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>
+```
+
+Override presentation on a preset with `{ preset: "fullscreen", label: "…" }`.
+For fully manual assembly outside the prop (for example a custom
+`PanoContextMenu` child), call `createPanoContextMenuPresets({ reset,
+toggleFullscreen, isFullscreen })` and use `.resetView` / `.fullscreen` /
+`.defaults`.
+
+Concrete items may use an `icon` React node or an `image` URL. Separators
+always come from the `"separator"` preset. Appearance covers background, text
+color, border, radius, shadow, `opacity` (0–1 for the whole panel),
+hover/disabled colors, and icon size. For background-only transparency, prefer
+`background: "rgba(...)"` so labels stay opaque.
+
+For a fully custom DOM menu, set `contextMenu={false}` and render
+`PanoContextMenu` as a child (same override pattern as `MouseControls`). Do
+not mount both the default menu and a child `PanoContextMenu` at once. Avoid
+combining the context menu with `controls.mouse.buttons: ["right"]` — both
+claim the right mouse button.
 
 ## Shared hotspot contract and saved definitions
 

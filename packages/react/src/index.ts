@@ -2,6 +2,27 @@ export { PanoView } from "./pano-view";
 export type { PanoViewProps } from "./pano-view";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { PanoContextMenu } from "./pano-context-menu";
+export {
+  composePanoContextMenuItems,
+  createDefaultPanoContextMenuItems,
+  createPanoContextMenuPresets,
+  resolvePanoContextMenuEntries,
+} from "./pano-context-menu";
+export type {
+  PanoContextMenuActionItem,
+  PanoContextMenuAppearance,
+  PanoContextMenuEntry,
+  PanoContextMenuItem,
+  PanoContextMenuPresetActions,
+  PanoContextMenuPresetId,
+  PanoContextMenuPresetRef,
+  PanoContextMenuPresets,
+  PanoContextMenuProps,
+  PanoContextMenuRenderProps,
+  PanoContextMenuSelectContext,
+  PanoContextMenuSeparatorItem,
+} from "./pano-context-menu";
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
 export type {

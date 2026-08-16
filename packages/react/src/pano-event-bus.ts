@@ -29,6 +29,7 @@ export type PanoEventMap = {
   pointerdown: PanoramaPointerEvent;
   pointerup: PanoramaPointerEvent;
   pointermove: PanoramaPointerEvent;
+  contextmenu: PanoramaPointerEvent;
   wheel: PanoWheelEvent;
   idle: undefined;
   idleend: undefined;

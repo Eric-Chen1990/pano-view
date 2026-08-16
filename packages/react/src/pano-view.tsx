@@ -1,6 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -23,6 +24,13 @@ import {
   type KeyboardControlsProps,
 } from "./keyboard-controls";
 import { MouseControls } from "./mouse-controls";
+import {
+  PanoContextMenu,
+  PanoContextMenuActionsContext,
+  PanoContextMenuOverlayContext,
+  usePanoContextMenuOverlay,
+  type PanoContextMenuProps,
+} from "./pano-context-menu";
 import {
   createPanoEventBus,
   PanoEventBusContext,
@@ -65,13 +73,20 @@ const DEFAULT_CANVAS_STYLE: CSSProperties = {
 
 export type PanoViewProps = Omit<
   ComponentPropsWithoutRef<"div">,
-  "children" | "onChange"
+  "children" | "onChange" | "contextMenu"
 > & {
   children?: ReactNode;
   initialView?: Partial<PanoViewState>;
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
+  /**
+   * Default context menu. `true` / omit mounts Reset view + Fullscreen;
+   * `false` skips the default instance; an object merges appearance and
+   * may use `items` (full replace, supports preset ids), or `prepend` /
+   * `append` to keep the defaults and add entries.
+   */
+  contextMenu?: boolean | PanoContextMenuProps;
   onViewChange?: (view: PanoViewState) => void;
   onPanoramaClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaDoubleClick?: (event: PanoramaPointerEvent) => void;
@@ -104,6 +119,18 @@ function resolveChannel<T extends { enabled?: boolean }>(
   };
 }
 
+function resolveContextMenuChannel(
+  value: boolean | PanoContextMenuProps | undefined,
+): ChannelMount<PanoContextMenuProps> {
+  if (value === false) {
+    return { mount: false };
+  }
+  if (value === true || value === undefined) {
+    return { mount: true, props: {} };
+  }
+  return { mount: true, props: { ...value } };
+}
+
 export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
   function PanoView(
     {
@@ -112,6 +139,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       minFov = 30,
       maxFov = 100,
       controls = true,
+      contextMenu = true,
       onViewChange,
       onPanoramaClick,
       onPanoramaDoubleClick,
@@ -128,6 +156,8 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
     const eventBus = useMemo(() => createPanoEventBus(), []);
     const { controls: hotspotAccessibilityControls, registry } =
       useHotspotAccessibilityLayer();
+    const { api: contextMenuOverlayApi, overlay: contextMenuOverlay } =
+      usePanoContextMenuOverlay();
     const fallbackViewRef = useRef<PanoViewState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -201,6 +231,63 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       [controlOptions.keyboard],
     );
 
+    const toggleFullscreen = useCallback(async () => {
+      if (typeof document === "undefined") {
+        return;
+      }
+      if (document.fullscreenElement) {
+        await document.exitFullscreen?.();
+        return;
+      }
+      await rootRef.current?.requestFullscreen?.();
+    }, []);
+
+    const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
+
+    useEffect(() => {
+      if (typeof document === "undefined") {
+        return;
+      }
+
+      const syncFullscreen = () => {
+        const fullscreenElement = document.fullscreenElement;
+        const root = rootRef.current;
+        if (!fullscreenElement || !root) {
+          setIsViewerFullscreen(false);
+          return;
+        }
+        setIsViewerFullscreen(
+          fullscreenElement === root ||
+            fullscreenElement.contains(root) ||
+            root.contains(fullscreenElement),
+        );
+      };
+
+      syncFullscreen();
+      document.addEventListener("fullscreenchange", syncFullscreen);
+      return () => {
+        document.removeEventListener("fullscreenchange", syncFullscreen);
+      };
+    }, []);
+
+    const contextMenuActions = useMemo(
+      () => ({
+        reset: () => {
+          controlsRef.current?.reset();
+        },
+        toggleFullscreen: () => {
+          void toggleFullscreen();
+        },
+        isFullscreen: isViewerFullscreen,
+      }),
+      [isViewerFullscreen, toggleFullscreen],
+    );
+
+    const contextMenuChannel = useMemo(
+      () => resolveContextMenuChannel(contextMenu),
+      [contextMenu],
+    );
+
     // Bridge deprecated controls.autoRotate / autoRotateSpeed without
     // surfacing @deprecated diagnostics on this compatibility path.
     const legacyAutoRotateOptions = controlOptions as {
@@ -232,18 +319,9 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
         stopAutoRotate: () => {
           setLegacyAutoRotate(false);
         },
-        toggleFullscreen: async () => {
-          if (typeof document === "undefined") {
-            return;
-          }
-          if (document.fullscreenElement) {
-            await document.exitFullscreen?.();
-            return;
-          }
-          await rootRef.current?.requestFullscreen?.();
-        },
+        toggleFullscreen,
       }),
-      [],
+      [toggleFullscreen],
     );
 
     const rootStyle = useMemo<CSSProperties>(
@@ -287,52 +365,65 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           <HotspotAccessibilityContext.Provider value={registry}>
             <PanoEventBusContext.Provider value={eventBus}>
               <PanoramaViewContext.Provider value={controlsRef}>
-                <PanoramaViewRuntime
-                  ref={controlsRef}
-                  eventBus={eventBus}
-                  initialView={normalizedInitialView}
-                  maxFov={normalizedMaxFov}
-                  minFov={normalizedMinFov}
-                  options={controlOptions}
-                />
-                {(onViewChange ||
-                  onPanoramaClick ||
-                  onPanoramaDoubleClick ||
-                  onPanoramaPointerMove) && (
-                  <PanoEvents
-                    onViewChange={onViewChange}
-                    onClick={onPanoramaClick}
-                    onDoubleClick={onPanoramaDoubleClick}
-                    onPointerMove={onPanoramaPointerMove}
+                <PanoContextMenuOverlayContext.Provider
+                  value={contextMenuOverlayApi}
+                >
+                  <PanoContextMenuActionsContext.Provider
+                    value={contextMenuActions}
+                  >
+                  <PanoramaViewRuntime
+                    ref={controlsRef}
+                    eventBus={eventBus}
+                    initialView={normalizedInitialView}
+                    maxFov={normalizedMaxFov}
+                    minFov={normalizedMinFov}
+                    options={controlOptions}
                   />
-                )}
-                <AutoRotate
-                  enabled={legacyAutoRotate}
-                  speed={legacyAutoRotateOptions.autoRotateSpeed}
-                />
-                {userControlsEnabled && mouseChannel.mount ? (
-                  <MouseControls
-                    {...mouseChannel.props}
-                    fovSpeed={controlOptions.fovSpeed}
+                  {(onViewChange ||
+                    onPanoramaClick ||
+                    onPanoramaDoubleClick ||
+                    onPanoramaPointerMove) && (
+                    <PanoEvents
+                      onViewChange={onViewChange}
+                      onClick={onPanoramaClick}
+                      onDoubleClick={onPanoramaDoubleClick}
+                      onPointerMove={onPanoramaPointerMove}
+                    />
+                  )}
+                  <AutoRotate
+                    enabled={legacyAutoRotate}
+                    speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
-                ) : null}
-                {userControlsEnabled && touchChannel.mount ? (
-                  <TouchControls {...touchChannel.props} />
-                ) : null}
-                {userControlsEnabled && keyboardChannel.mount ? (
-                  <KeyboardControls
-                    {...keyboardChannel.props}
-                    fovSpeed={
-                      keyboardChannel.props.fovSpeed ?? controlOptions.fovSpeed
-                    }
-                  />
-                ) : null}
-                <PanoramaEventSurface />
-                {children}
+                  {userControlsEnabled && mouseChannel.mount ? (
+                    <MouseControls
+                      {...mouseChannel.props}
+                      fovSpeed={controlOptions.fovSpeed}
+                    />
+                  ) : null}
+                  {userControlsEnabled && touchChannel.mount ? (
+                    <TouchControls {...touchChannel.props} />
+                  ) : null}
+                  {userControlsEnabled && keyboardChannel.mount ? (
+                    <KeyboardControls
+                      {...keyboardChannel.props}
+                      fovSpeed={
+                        keyboardChannel.props.fovSpeed ??
+                        controlOptions.fovSpeed
+                      }
+                    />
+                  ) : null}
+                  <PanoramaEventSurface />
+                  {contextMenuChannel.mount ? (
+                    <PanoContextMenu {...contextMenuChannel.props} />
+                  ) : null}
+                  {children}
+                  </PanoContextMenuActionsContext.Provider>
+                </PanoContextMenuOverlayContext.Provider>
               </PanoramaViewContext.Provider>
             </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
         </Canvas>
+        {contextMenuOverlay}
         {hotspotAccessibilityControls}
       </div>
     );
