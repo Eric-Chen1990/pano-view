@@ -8,6 +8,7 @@ import {
   type PanoViewHandle,
 } from "@ericchen1990/pano-view";
 import { useMemo, useRef, useState } from "react";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteHeader } from "../SiteHeader";
 
 function CopyIcon() {
@@ -30,6 +31,106 @@ function CopyIcon() {
 }
 
 type MenuMode = "default" | "append" | "presets";
+
+const MODE_SNIPPET_META: Record<MenuMode, { label: string; blurb: string }> = {
+  default: {
+    label: "Default items + appearance",
+    blurb: "Keep built-in Reset view / Fullscreen. Tune appearance only.",
+  },
+  append: {
+    label: "append custom items",
+    blurb: "Keep the defaults and append a separator plus host actions.",
+  },
+  presets: {
+    label: "Compose from presets",
+    blurb: 'Mix preset ids ("resetView", "fullscreen", "separator") with custom items.',
+  },
+};
+
+function buildContextMenuSnippet(
+  mode: MenuMode,
+  opacity: number,
+  borderRadius: number,
+): string {
+  const appearance = `{
+      background: "#161616",
+      color: "#f4f4f4",
+      border: "1px solid #2e2e2e",
+      borderRadius: ${borderRadius},
+      opacity: ${opacity.toFixed(2)},
+      itemHoverBackground: "#2a2a2a",
+      separatorColor: "#333",
+      iconSize: 16,
+    }`;
+  const copyItem = `{
+        id: "copy",
+        label: "Copy yaw / pitch",
+        icon: <CopyIcon />,
+        onSelect: ({ position }) => {
+          void navigator.clipboard.writeText(
+            \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
+          );
+        },
+      }`;
+  const lookHereItem = `{
+        id: "look-here",
+        label: "Look here",
+        image: "/hotspots/signal.svg",
+        onSelect: ({ position }) => {
+          panoRef.current?.setView({
+            yaw: position.yaw,
+            pitch: position.pitch,
+          });
+        },
+      }`;
+
+  switch (mode) {
+    case "default":
+      return `<PanoView
+  contextMenu={{
+    appearance: ${appearance},
+  }}
+  style={{ height: 540 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>`;
+    case "append":
+      return `<PanoView
+  contextMenu={{
+    appearance: ${appearance},
+    append: [
+      "separator",
+      ${copyItem},
+      ${lookHereItem},
+    ],
+  }}
+  style={{ height: 540 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>`;
+    case "presets":
+      return `<PanoView
+  contextMenu={{
+    appearance: ${appearance},
+    items: [
+      "resetView",
+      "separator",
+      ${copyItem},
+      ${lookHereItem},
+      "separator",
+      "fullscreen",
+    ],
+  }}
+  style={{ height: 540 }}
+>
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>`;
+    default: {
+      const exhaustive: never = mode;
+      throw new Error(`Unhandled menu mode: ${exhaustive}`);
+    }
+  }
+}
 
 export function ContextMenuPage() {
   const panoRef = useRef<PanoViewHandle>(null);
@@ -107,6 +208,12 @@ export function ContextMenuPage() {
     };
   }, [appearance, copyItem, lookHereItem, mode]);
 
+  const snippet = useMemo(
+    () => buildContextMenuSnippet(mode, opacity, borderRadius),
+    [borderRadius, mode, opacity],
+  );
+  const snippetMeta = MODE_SNIPPET_META[mode];
+
   return (
     <main className="app-shell">
       <SiteHeader />
@@ -183,6 +290,11 @@ export function ContextMenuPage() {
             <Sphere src="/fixtures/panorama/panos/1.jpg" />
           </PanoView>
         </div>
+        <CodeSnippet
+          blurb={snippetMeta.blurb}
+          code={snippet}
+          label={snippetMeta.label}
+        />
       </section>
     </main>
   );

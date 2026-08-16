@@ -255,6 +255,84 @@ h1 {
   border: 1px solid #365e66;
 }
 
+.code-snippet {
+  margin-top: 14px;
+  border: 1px solid #365e66;
+  background: #061416;
+}
+
+.code-snippet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #27454d;
+}
+
+.code-snippet-title {
+  color: #75cbd3;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.code-snippet-header p {
+  margin: 4px 0 0;
+  color: #9cb2b7;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.code-snippet-header button {
+  flex-shrink: 0;
+  border: 1px solid #38545b;
+  background: transparent;
+  color: #d5e5e8;
+  padding: 6px 9px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.code-snippet-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.code-snippet-lang {
+  border: 1px solid #38545b;
+  color: #75cbd3;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  padding: 5px 7px;
+  text-transform: uppercase;
+}
+
+.code-snippet-header button:hover {
+  border-color: #75cbd3;
+}
+
+.code-snippet pre {
+  margin: 0;
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px 16px 16px;
+}
+
+.code-snippet .token-line,
+.code-snippet code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
 .tool-rail,
 .inspector {
   background: rgb(3 13 16 / 0.38);
