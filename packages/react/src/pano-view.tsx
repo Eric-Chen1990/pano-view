@@ -23,6 +23,11 @@ import {
   type KeyboardControlsProps,
 } from "./keyboard-controls";
 import { MouseControls } from "./mouse-controls";
+import {
+  createPanoEventBus,
+  PanoEventBusContext,
+} from "./pano-event-bus";
+import { PanoEvents } from "./pano-events";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import {
   DEFAULT_PANORAMA_CAMERA_FAR,
@@ -120,6 +125,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaViewRuntimeHandle>(null);
+    const eventBus = useMemo(() => createPanoEventBus(), []);
     const { controls: hotspotAccessibilityControls, registry } =
       useHotspotAccessibilityLayer();
     const fallbackViewRef = useRef<PanoViewState>(DEFAULT_VIEW);
@@ -279,43 +285,52 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
           tabIndex={userControlsEnabled ? 0 : undefined}
         >
           <HotspotAccessibilityContext.Provider value={registry}>
-            <PanoramaViewContext.Provider value={controlsRef}>
-              <PanoramaViewRuntime
-                ref={controlsRef}
-                initialView={normalizedInitialView}
-                maxFov={normalizedMaxFov}
-                minFov={normalizedMinFov}
-                onViewChange={onViewChange}
-                options={controlOptions}
-              />
-              <AutoRotate
-                enabled={legacyAutoRotate}
-                speed={legacyAutoRotateOptions.autoRotateSpeed}
-              />
-              {userControlsEnabled && mouseChannel.mount ? (
-                <MouseControls
-                  {...mouseChannel.props}
-                  fovSpeed={controlOptions.fovSpeed}
+            <PanoEventBusContext.Provider value={eventBus}>
+              <PanoramaViewContext.Provider value={controlsRef}>
+                <PanoramaViewRuntime
+                  ref={controlsRef}
+                  eventBus={eventBus}
+                  initialView={normalizedInitialView}
+                  maxFov={normalizedMaxFov}
+                  minFov={normalizedMinFov}
+                  options={controlOptions}
                 />
-              ) : null}
-              {userControlsEnabled && touchChannel.mount ? (
-                <TouchControls {...touchChannel.props} />
-              ) : null}
-              {userControlsEnabled && keyboardChannel.mount ? (
-                <KeyboardControls
-                  {...keyboardChannel.props}
-                  fovSpeed={
-                    keyboardChannel.props.fovSpeed ?? controlOptions.fovSpeed
-                  }
+                {(onViewChange ||
+                  onPanoramaClick ||
+                  onPanoramaDoubleClick ||
+                  onPanoramaPointerMove) && (
+                  <PanoEvents
+                    onViewChange={onViewChange}
+                    onClick={onPanoramaClick}
+                    onDoubleClick={onPanoramaDoubleClick}
+                    onPointerMove={onPanoramaPointerMove}
+                  />
+                )}
+                <AutoRotate
+                  enabled={legacyAutoRotate}
+                  speed={legacyAutoRotateOptions.autoRotateSpeed}
                 />
-              ) : null}
-              <PanoramaEventSurface
-                onClick={onPanoramaClick}
-                onDoubleClick={onPanoramaDoubleClick}
-                onPointerMove={onPanoramaPointerMove}
-              />
-              {children}
-            </PanoramaViewContext.Provider>
+                {userControlsEnabled && mouseChannel.mount ? (
+                  <MouseControls
+                    {...mouseChannel.props}
+                    fovSpeed={controlOptions.fovSpeed}
+                  />
+                ) : null}
+                {userControlsEnabled && touchChannel.mount ? (
+                  <TouchControls {...touchChannel.props} />
+                ) : null}
+                {userControlsEnabled && keyboardChannel.mount ? (
+                  <KeyboardControls
+                    {...keyboardChannel.props}
+                    fovSpeed={
+                      keyboardChannel.props.fovSpeed ?? controlOptions.fovSpeed
+                    }
+                  />
+                ) : null}
+                <PanoramaEventSurface />
+                {children}
+              </PanoramaViewContext.Provider>
+            </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
         </Canvas>
         {hotspotAccessibilityControls}

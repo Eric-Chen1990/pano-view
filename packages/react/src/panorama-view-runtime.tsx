@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { RefObject } from "react";
 import { Euler, MathUtils, PerspectiveCamera } from "three";
+import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
   PanoViewState,
@@ -52,6 +53,11 @@ export type PanoramaViewRuntimeHandle = {
   setPointerActive: (source: "mouse" | "touch", active: boolean) => void;
   /** Whether hotspot / transition locks currently block user input. */
   isInteractionLocked: () => boolean;
+  /**
+   * True while pointer/keyboard input, post-drag inertia, or an interaction
+   * lock is active. Used by idle timers and AutoRotate pause logic.
+   */
+  isUserInteracting: () => boolean;
   applyAutoRotation: (yawDelta: number) => boolean;
   acquireInteractionLock: () => () => void;
 };
@@ -65,7 +71,7 @@ type PanoramaViewRuntimeProps = {
   minFov: number;
   maxFov: number;
   options: PanoramaControlsOptions;
-  onViewChange?: (view: PanoViewState) => void;
+  eventBus: PanoEventBus;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -104,7 +110,7 @@ export const PanoramaViewRuntime = forwardRef<
   PanoramaViewRuntimeHandle,
   PanoramaViewRuntimeProps
 >(function PanoramaViewRuntime(
-  { initialView, minFov, maxFov, options, onViewChange },
+  { initialView, minFov, maxFov, options, eventBus },
   ref,
 ) {
   const { camera } = useThree();
@@ -115,6 +121,7 @@ export const PanoramaViewRuntime = forwardRef<
   const pitchVelocityRef = useRef(0);
   const zoomVelocityRef = useRef(0);
   const dirtyRef = useRef(true);
+  const settledRef = useRef(false);
   const interactingRef = useRef(false);
   const mouseActiveRef = useRef(false);
   const touchActiveRef = useRef(false);
@@ -122,16 +129,28 @@ export const PanoramaViewRuntime = forwardRef<
   const keyboardActiveRef = useRef(false);
   const lastVelocitySampleAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
-  const onViewChangeRef = useRef(onViewChange);
+  const eventBusRef = useRef(eventBus);
   const lastEmittedViewRef = useRef<PanoViewState | null>(null);
   const eulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
   const minFovRef = useRef(minFov);
   const maxFovRef = useRef(maxFov);
 
   optionsRef.current = options;
-  onViewChangeRef.current = onViewChange;
+  eventBusRef.current = eventBus;
   minFovRef.current = minFov;
   maxFovRef.current = maxFov;
+
+  const hasInertia = () =>
+    yawVelocityRef.current !== 0 ||
+    pitchVelocityRef.current !== 0 ||
+    zoomVelocityRef.current !== 0;
+
+  const isUserInteracting = () =>
+    mouseActiveRef.current ||
+    touchActiveRef.current ||
+    keyboardActiveRef.current ||
+    interactionLockCountRef.current > 0 ||
+    hasInertia();
 
   const syncInteracting = () => {
     interactingRef.current = mouseActiveRef.current || touchActiveRef.current;
@@ -185,6 +204,11 @@ export const PanoramaViewRuntime = forwardRef<
     lastVelocitySampleAtRef.current = null;
   };
 
+  const markDirty = () => {
+    dirtyRef.current = true;
+    settledRef.current = false;
+  };
+
   const snapTargetToHardLimits = () => {
     const next = hardConstrainView(targetViewRef.current);
     if (
@@ -193,15 +217,21 @@ export const PanoramaViewRuntime = forwardRef<
       next.fov !== targetViewRef.current.fov
     ) {
       targetViewRef.current = next;
-      dirtyRef.current = true;
+      markDirty();
     }
   };
 
   const acquireInteractionLock = () => {
     interactionLockCountRef.current += 1;
     stopVelocity();
-    mouseActiveRef.current = false;
-    touchActiveRef.current = false;
+    if (mouseActiveRef.current) {
+      mouseActiveRef.current = false;
+      eventBusRef.current.emit("viewinteractionend", { source: "mouse" });
+    }
+    if (touchActiveRef.current) {
+      touchActiveRef.current = false;
+      eventBusRef.current.emit("viewinteractionend", { source: "touch" });
+    }
     syncInteracting();
 
     let released = false;
@@ -227,7 +257,7 @@ export const PanoramaViewRuntime = forwardRef<
     if (setOptions?.immediate !== false) {
       stopVelocity();
     }
-    dirtyRef.current = true;
+    markDirty();
   };
 
   const applyViewDelta = (
@@ -257,7 +287,7 @@ export const PanoramaViewRuntime = forwardRef<
       pitch: nextPitch,
       fov: nextFov,
     });
-    dirtyRef.current = true;
+    markDirty();
 
     if (applyOptions?.recordVelocity) {
       const now = performance.now();
@@ -291,15 +321,34 @@ export const PanoramaViewRuntime = forwardRef<
       reset: () => setView(initialViewRef.current),
       applyViewDelta,
       setKeyboardActive: (active: boolean) => {
+        const wasActive = keyboardActiveRef.current;
         keyboardActiveRef.current = active;
+        if (active && !wasActive) {
+          eventBusRef.current.emit("viewinteractionstart", {
+            source: "keyboard",
+          });
+        } else if (!active && wasActive) {
+          eventBusRef.current.emit("viewinteractionend", {
+            source: "keyboard",
+          });
+        }
       },
       setPointerActive: (source, active) => {
+        const wasActive =
+          source === "mouse"
+            ? mouseActiveRef.current
+            : touchActiveRef.current;
         if (source === "mouse") {
           mouseActiveRef.current = active;
         } else {
           touchActiveRef.current = active;
         }
         syncInteracting();
+        if (active && !wasActive) {
+          eventBusRef.current.emit("viewinteractionstart", { source });
+        } else if (!active && wasActive) {
+          eventBusRef.current.emit("viewinteractionend", { source });
+        }
         if (active) {
           stopVelocity();
         } else if (!mouseActiveRef.current && !touchActiveRef.current) {
@@ -308,6 +357,7 @@ export const PanoramaViewRuntime = forwardRef<
         }
       },
       isInteractionLocked: () => interactionLockCountRef.current > 0,
+      isUserInteracting,
       acquireInteractionLock,
       applyAutoRotation: (yawDelta: number) => {
         const inertiaFinished =
@@ -325,7 +375,7 @@ export const PanoramaViewRuntime = forwardRef<
         }
 
         targetViewRef.current.yaw += yawDelta;
-        dirtyRef.current = true;
+        markDirty();
         return true;
       },
     }),
@@ -353,7 +403,7 @@ export const PanoramaViewRuntime = forwardRef<
       if (Math.abs(yawVelocityRef.current) >= frictionStop) {
         targetViewRef.current.yaw += yawVelocityRef.current * deltaSeconds;
         yawVelocityRef.current *= rotationDamping;
-        dirtyRef.current = true;
+        markDirty();
       } else {
         yawVelocityRef.current = 0;
       }
@@ -361,7 +411,7 @@ export const PanoramaViewRuntime = forwardRef<
       if (Math.abs(pitchVelocityRef.current) >= frictionStop) {
         targetViewRef.current.pitch += pitchVelocityRef.current * deltaSeconds;
         pitchVelocityRef.current *= rotationDamping;
-        dirtyRef.current = true;
+        markDirty();
       } else {
         pitchVelocityRef.current = 0;
       }
@@ -369,7 +419,7 @@ export const PanoramaViewRuntime = forwardRef<
       if (Math.abs(zoomVelocityRef.current) >= frictionStop) {
         targetViewRef.current.fov += zoomVelocityRef.current * deltaSeconds;
         zoomVelocityRef.current *= zoomDamping;
-        dirtyRef.current = true;
+        markDirty();
       } else {
         zoomVelocityRef.current = 0;
       }
@@ -429,8 +479,15 @@ export const PanoramaViewRuntime = forwardRef<
     const lastEmitted = lastEmittedViewRef.current;
     if (!lastEmitted || !viewsEqual(lastEmitted, nextView)) {
       lastEmittedViewRef.current = nextView;
-      onViewChangeRef.current?.(nextView);
+      eventBusRef.current.emit("viewchange", nextView);
     }
+
+    const wasSettled = settledRef.current;
+    settledRef.current = hasSettled;
+    if (hasSettled && !wasSettled) {
+      eventBusRef.current.emit("viewsettled", nextView);
+    }
+
     dirtyRef.current = !hasSettled;
   });
 

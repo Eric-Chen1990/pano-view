@@ -309,6 +309,56 @@ export function PlacementExample() {
 is normalized to `[-180, 180)`. Pitch is clamped to `[-90, 90]`; at either
 pole, yaw is normalized to `0` because it does not identify a unique point.
 
+## Viewer-level events (`PanoEvents`)
+
+`PanoEvents` is the React counterpart to krpano's global `<events>` element.
+Render one or more instances inside `PanoView` to subscribe to viewer-level
+lifecycle and interaction callbacks. Multiple instances coexist (like named
+krpano events); each tracks its own `idleTime`. For composition inside a custom
+child, use `usePanoEvents` instead.
+
+```tsx
+import {
+  AutoRotate,
+  PanoEvents,
+  PanoView,
+  Sphere,
+} from "@ericchen1990/pano-view";
+
+<PanoView style={{ height: 560 }}>
+  <PanoEvents
+    idleTime={3000}
+    onIdle={() => console.log("idle")}
+    onIdleEnd={() => console.log("active again")}
+    onViewSettled={(view) => console.log("settled", view)}
+    onViewInteractionStart={({ source }) => console.log("drag", source)}
+    onClick={({ position }) => console.log("pano click", position)}
+    onEnterFullscreen={() => console.log("fullscreen")}
+    onAutoRotateOneRound={() => console.log("full turn")}
+  />
+  <AutoRotate enabled />
+  <Sphere src="/panoramas/room.webp" />
+</PanoView>;
+```
+
+Supported callbacks (krpano names in parentheses where applicable):
+
+- View: `onViewChange` (`onviewchange`), `onViewSettled`, `onViewInteractionStart` / `onViewInteractionEnd`
+- Pointer on the panorama shell (not hotspots): `onClick`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`
+- `onWheel` — mouse wheel only; touch pinch does not synthesize a wheel event
+- Idle: `onIdle` / `onIdleEnd` with per-instance `idleTime` (ms, default `2000`)
+- Fullscreen: `onEnterFullscreen` / `onExitFullscreen`
+- `onResize` — canvas content-box size via `ResizeObserver`
+- Auto-rotate: `onAutoRotateStart` / `onAutoRotateStop` / `onAutoRotateOneRound`
+
+`PanoView`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
+`onPanoramaPointerMove` props remain supported and share the same event bus.
+
+Resource loading and scene blending stay on their owners: use `Sphere` /
+`Tile` `onLoad` / `onError` / `onLoadProgress`, and `PanoramaScenes`
+`onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
+xml/VR/gyro/frame-render events.
+
 ## Shared hotspot contract and saved definitions
 
 Every hotspot has an `id`, optional `visible`, `interactive`, `renderOrder`,
