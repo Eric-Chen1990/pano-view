@@ -7,7 +7,7 @@ import {
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
-import { TRANSITION_PRESETS, TRANSITION_SCENES } from "../../constants";
+import { TRANSITION_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -28,7 +28,7 @@ import { SiteHeader } from "../SiteHeader";
 export function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("crossfade");
-  const [status, setStatus] = useState("Choose a scene and a KRpano-style blend.");
+  const [status, setStatus] = useState("Choose a scene and a blend.");
 
   return (
     <main className={shellClassName}>
@@ -69,8 +69,12 @@ export function SceneTransitionPage() {
               onChange={(event) => setPreset(event.currentTarget.value as SceneTransitionPreset)}
               value={preset}
             >
-              {TRANSITION_PRESETS.map((entry) => (
-                <option key={entry.value} value={entry.value}>{entry.label}</option>
+              {TRANSITION_PRESET_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.presets.map((entry) => (
+                    <option key={entry.value} value={entry.value}>{entry.label}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>

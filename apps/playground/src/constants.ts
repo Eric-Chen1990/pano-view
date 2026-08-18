@@ -37,19 +37,39 @@ export const TRANSITION_SCENES = [
   },
 ] satisfies readonly Scene[];
 
-export const TRANSITION_PRESETS: Array<{ value: SceneTransitionPreset; label: string }> = [
-  { value: "none", label: "No blend" },
-  { value: "crossfade", label: "Crossfade" },
-  { value: "zoom", label: "Zoom blend" },
-  { value: "blackout", label: "Black-out" },
-  { value: "whiteFlash", label: "White flash" },
-  { value: "slideRightToLeft", label: "Right to left" },
-  { value: "slideTopToBottom", label: "Top to bottom" },
-  { value: "slideDiagonal", label: "Diagonal slide" },
-  { value: "circleOpen", label: "Circle open" },
-  { value: "verticalOpen", label: "Vertical open" },
-  { value: "horizontalOpen", label: "Horizontal open" },
-  { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+export const TRANSITION_PRESET_GROUPS: Array<{
+  label: string;
+  presets: Array<{ value: SceneTransitionPreset; label: string }>;
+}> = [
+  {
+    label: "KRpano",
+    presets: [
+      { value: "none", label: "No blend" },
+      { value: "crossfade", label: "Crossfade" },
+      { value: "zoom", label: "Zoom blend" },
+      { value: "blackout", label: "Black-out" },
+      { value: "whiteFlash", label: "White flash" },
+      { value: "slideRightToLeft", label: "Right to left" },
+      { value: "slideTopToBottom", label: "Top to bottom" },
+      { value: "slideDiagonal", label: "Diagonal slide" },
+      { value: "circleOpen", label: "Circle open" },
+      { value: "verticalOpen", label: "Vertical open" },
+      { value: "horizontalOpen", label: "Horizontal open" },
+      { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+    ],
+  },
+  {
+    label: "Cinematic",
+    presets: [
+      { value: "pixelate", label: "Pixelate" },
+      { value: "gridWipe", label: "Grid wipe" },
+      { value: "dissolve", label: "Dissolve" },
+      { value: "shatter", label: "Shatter" },
+      { value: "particles", label: "Particles" },
+      { value: "glitch", label: "Glitch" },
+      { value: "swirl", label: "Swirl" },
+    ],
+  },
 ];
 
 export const DEMO_POLYGON: EditorPolygon = {
