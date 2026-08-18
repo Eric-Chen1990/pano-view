@@ -13,8 +13,14 @@ import { cn } from "../../cn";
 import { Metric } from "../Metric";
 import { INITIAL_VIEW } from "../../constants";
 import {
-  segmentedButtonActiveClassName,
   segmentedButtonClassName,
+  segmentedControlClassName,
+  segmentedControlOptionClassName,
+  toggleControlClassName,
+  toggleThumbClassName,
+  toggleThumbOnClassName,
+  toggleTrackClassName,
+  toggleTrackOnClassName,
 } from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
@@ -30,6 +36,34 @@ const PLACING_CURSORS = {
   default: "crosshair",
   dragging: "crosshair",
 } as const;
+
+function ToolbarSwitch({
+  checked,
+  label,
+  onClick,
+}: {
+  checked: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-checked={checked}
+      className={toggleControlClassName}
+      onClick={onClick}
+      role="switch"
+      type="button"
+    >
+      {label}
+      <span
+        aria-hidden="true"
+        className={cn(toggleTrackClassName, checked && toggleTrackOnClassName)}
+      >
+        <span className={cn(toggleThumbClassName, checked && toggleThumbOnClassName)} />
+      </span>
+    </button>
+  );
+}
 
 export function CanvasPanel() {
   const viewerRef = useRef<PanoViewerHandle>(null);
@@ -89,36 +123,58 @@ export function CanvasPanel() {
 
   return (
     <section aria-label="Panorama canvas" className="min-w-0 bg-[#071316]/80">
-      <div className="flex items-center gap-3 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
-        <div className="flex items-center gap-2" aria-label="Panorama source" role="group">
+      <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
+        <div
+          aria-label="Panorama source"
+          className={segmentedControlClassName}
+          role="radiogroup"
+        >
           <button
+            aria-checked={mode === "sphere"}
             className={cn(
-              segmentedButtonClassName,
-              mode === "sphere" && segmentedButtonActiveClassName,
+              segmentedControlOptionClassName,
+              mode === "sphere"
+                ? "bg-[#df6b42] text-white"
+                : "text-[#f5fbfc] hover:bg-[#102b31]",
             )}
             onClick={() => selectMode("sphere")}
+            role="radio"
             type="button"
           >
             Sphere
           </button>
           <button
+            aria-checked={mode === "tile"}
             className={cn(
-              segmentedButtonClassName,
-              mode === "tile" && segmentedButtonActiveClassName,
+              segmentedControlOptionClassName,
+              mode === "tile"
+                ? "bg-[#df6b42] text-white"
+                : "text-[#f5fbfc] hover:bg-[#102b31]",
             )}
             onClick={() => selectMode("tile")}
+            role="radio"
             type="button"
           >
             Cube Tile
           </button>
         </div>
-        <div className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-3" >
-          <button className={segmentedButtonClassName} onClick={toggleAutoRotate} type="button">
-            {autoRotate ? "Stop rotation" : "Auto rotate"}
-          </button>
-          <button
-            aria-pressed={gyroEnabled}
-            className={segmentedButtonClassName}
+        <div
+          aria-hidden="true"
+          className="h-6 w-px shrink-0 bg-[#3e6c73] max-[760px]:hidden"
+        />
+        <div
+          aria-label="Viewer controls"
+          className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-2"
+          role="group"
+        >
+          <ToolbarSwitch
+            checked={autoRotate}
+            label="Auto rotate"
+            onClick={toggleAutoRotate}
+          />
+          <ToolbarSwitch
+            checked={gyroEnabled}
+            label="Gyro"
             onClick={() => {
               if (gyroEnabled) {
                 setGyroEnabled(false);
@@ -134,10 +190,7 @@ export function CanvasPanel() {
                 ?.requestPermission()
                 .then((granted) => setGyroEnabled(granted));
             }}
-            type="button"
-          >
-            {gyroEnabled ? "Gyro on" : "Gyro"}
-          </button>
+          />
           <button
             className={segmentedButtonClassName}
             onClick={() => viewerRef.current?.reset()}

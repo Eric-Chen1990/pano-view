@@ -33,6 +33,25 @@ export const segmentedButtonClassName =
 export const segmentedButtonActiveClassName =
   "border-[#df6b42] bg-[#df6b42] text-white";
 
+export const segmentedControlClassName =
+  "inline-flex divide-x divide-[#3e6c73] border border-[#3e6c73]";
+
+export const segmentedControlOptionClassName =
+  "inline-flex min-h-9 items-center justify-center px-3.5 py-2 text-[0.72rem] font-medium transition";
+
+export const toggleControlClassName =
+  "inline-flex min-h-9 items-center gap-2.5 border border-[#3e6c73] bg-transparent px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
+
+export const toggleTrackClassName =
+  "relative h-[18px] w-8 shrink-0 border border-[#3e6c73] bg-[#08191d] transition-colors";
+
+export const toggleTrackOnClassName = "border-[#75cbd3] bg-[#75cbd3]";
+
+export const toggleThumbClassName =
+  "absolute top-px left-px h-3.5 w-3.5 bg-[#dbeef0] transition-transform motion-reduce:transition-none";
+
+export const toggleThumbOnClassName = "translate-x-[14px] bg-white";
+
 export const controlLabelClassName =
   "grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]";
 
