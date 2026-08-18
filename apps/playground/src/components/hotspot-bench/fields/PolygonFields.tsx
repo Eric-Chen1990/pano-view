@@ -144,6 +144,7 @@ export function PolygonFields({
       <TooltipFields
         onChange={onChange}
         tooltip={polygon.tooltip ?? {}}
+        tooltipAppearance={polygon.tooltipAppearance}
         tooltipOffset={polygon.tooltipOffset ?? 12}
         tooltipPlacement={polygon.tooltipPlacement ?? "top"}
         tooltipTrigger={polygon.tooltipTrigger ?? "always"}

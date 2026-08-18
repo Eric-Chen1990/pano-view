@@ -435,6 +435,7 @@ function SelectedHotspotFields({
       <TooltipFields
         onChange={(patch) => onUpdateHotspot(selected.id, patch)}
         tooltip={selected.tooltip ?? {}}
+        tooltipAppearance={selected.tooltipAppearance}
         tooltipOffset={selected.tooltipOffset ?? 12}
         tooltipPlacement={selected.tooltipPlacement ?? "top"}
         tooltipTrigger={selected.tooltipTrigger ?? "always"}

@@ -516,6 +516,7 @@ export function HotspotAnchor({
   tooltipTrigger = "always",
   tooltipPlacement = "top",
   tooltipOffset,
+  tooltipAppearance,
   children,
   onClick,
   onHoverChange,
@@ -866,6 +867,7 @@ export function HotspotAnchor({
       {tooltipOpen && tooltipContent ? (
         <group ref={tooltipAnchorRef}>
           <HotspotTooltip
+            appearance={tooltipAppearance}
             content={tooltipContent}
             offset={resolveHotspotTooltipOffset(tooltipOffset)}
             placement={tooltipPlacement}

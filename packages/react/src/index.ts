@@ -183,7 +183,10 @@ export {
   panoPositionToVector3,
   vector3ToPanoPosition,
 } from "./hotspot/coordinates";
-export { DEFAULT_HOTSPOT_TOOLTIP_OFFSET } from "./hotspot/hotspot-tooltip";
+export {
+  DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+  DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+} from "./hotspot/hotspot-tooltip";
 export { MAX_HOTSPOT_PITCH } from "./hotspot/types";
 export type {
   HotspotDragEvent,
@@ -194,6 +197,7 @@ export type {
   HotspotPointerEvents,
   HotspotScaleMode,
   HotspotPosition,
+  HotspotTooltipAppearance,
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,

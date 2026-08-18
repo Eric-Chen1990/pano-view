@@ -100,6 +100,7 @@ export function PolylineFields({
       <TooltipFields
         onChange={onChange}
         tooltip={polyline.tooltip ?? {}}
+        tooltipAppearance={polyline.tooltipAppearance}
         tooltipOffset={polyline.tooltipOffset ?? 12}
         tooltipPlacement={polyline.tooltipPlacement ?? "top"}
         tooltipTrigger={polyline.tooltipTrigger ?? "always"}

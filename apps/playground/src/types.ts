@@ -3,6 +3,7 @@ import type {
   HotspotMode,
   HotspotPointerEvents,
   HotspotPosition,
+  HotspotTooltipAppearance,
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
@@ -45,6 +46,7 @@ type EditorPointHotspotBase = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };
 
 export type EditorHotspot =
@@ -111,6 +113,7 @@ export type EditorPolygon = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };
 
 export type EditorPolyline = {
@@ -126,4 +129,5 @@ export type EditorPolyline = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };

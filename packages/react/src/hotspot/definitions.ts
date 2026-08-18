@@ -7,6 +7,7 @@ import type {
   HotspotPointerEvents,
   HotspotPosition,
   HotspotScaleMode,
+  HotspotTooltipAppearance,
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
@@ -28,6 +29,7 @@ export type HotspotDefinitionBase = {
   tooltipTrigger?: HotspotTooltipTrigger;
   tooltipPlacement?: HotspotTooltipPlacement;
   tooltipOffset?: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };
 
 /** Shared serializable fields for a hotspot anchored at one yaw/pitch point. */

@@ -815,6 +815,10 @@ screen bounds on that edge, so rotated graphics such as arrows are not covered.
 `tooltipOffset` is the screen-space gap in CSS pixels (default `12` /
 `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
 
+Optional `tooltipAppearance` overrides the bubble paint. Unset fields keep the
+library default theme (`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`): background, text
+color, border, corner radius, shadow, padding, and font size.
+
 ```tsx
 <ImageHotspot
   id="gallery"
@@ -824,6 +828,15 @@ screen bounds on that edge, so rotated graphics such as arrows are not covered.
   tooltip={{ text: "Courtyard gallery", image: "/hotspots/gallery-thumb.webp" }}
   tooltipPlacement="top"
   tooltipOffset={16}
+  tooltipAppearance={{
+    background: "rgba(12, 28, 36, 0.88)",
+    color: "#e7f2f5",
+    border: "1px solid rgba(56, 84, 91, 0.9)",
+    borderRadius: 10,
+    shadow: "0 10px 28px rgba(0, 0, 0, 0.42)",
+    padding: 10,
+    fontSize: 13,
+  }}
 />
 <GraphicHotspot
   id="marker"

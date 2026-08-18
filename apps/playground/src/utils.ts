@@ -115,6 +115,116 @@ export function numberValue(value: string, fallback: number): number {
   return Number.isFinite(next) ? next : fallback;
 }
 
+type RgbaColor = {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+};
+
+export function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (channel: number) =>
+    Math.min(255, Math.max(0, Math.round(channel)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function parseRgba(value: string): RgbaColor | null {
+  const match = value.trim().match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)$/i,
+  );
+  if (!match) {
+    return null;
+  }
+  return {
+    r: Number(match[1]),
+    g: Number(match[2]),
+    b: Number(match[3]),
+    a: match[4] == null ? 1 : Number(match[4]),
+  };
+}
+
+export function composeRgba(color: RgbaColor): string {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})`;
+}
+
+export function parseCssColor(value: string): RgbaColor | null {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("#")) {
+    const hex = trimmed.slice(1);
+    if (hex.length === 3) {
+      return {
+        r: Number.parseInt(hex[0]! + hex[0], 16),
+        g: Number.parseInt(hex[1]! + hex[1], 16),
+        b: Number.parseInt(hex[2]! + hex[2], 16),
+        a: 1,
+      };
+    }
+    if (hex.length === 6) {
+      return {
+        r: Number.parseInt(hex.slice(0, 2), 16),
+        g: Number.parseInt(hex.slice(2, 4), 16),
+        b: Number.parseInt(hex.slice(4, 6), 16),
+        a: 1,
+      };
+    }
+    return null;
+  }
+  return parseRgba(trimmed);
+}
+
+export function colorToHex(value: string, fallback: string): string {
+  const parsed = parseCssColor(value);
+  return parsed ? rgbToHex(parsed.r, parsed.g, parsed.b) : fallback;
+}
+
+export function parseBorder(value: string): { width: number; color: string } {
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)px\s+solid\s+(.+)$/i);
+  if (!match) {
+    return { width: 1, color: "rgba(46, 46, 46, 0.7)" };
+  }
+  return {
+    width: Number(match[1]),
+    color: match[2]!.trim(),
+  };
+}
+
+export function composeBorder(width: number, color: string): string {
+  return `${Math.max(0, width)}px solid ${color}`;
+}
+
+export function parseShadow(value: string): { blur: number; color: string; opacity: number } {
+  if (value.trim() === "none") {
+    return { blur: 0, color: "#000000", opacity: 0.35 };
+  }
+  const match = value.trim().match(
+    /^0\s+(\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px\s+(.+)$/i,
+  );
+  if (!match) {
+    return { blur: 24, color: "#000000", opacity: 0.35 };
+  }
+  const color = match[3]!.trim();
+  const parsed = parseCssColor(color);
+  return {
+    blur: Number(match[2]),
+    color: parsed ? rgbToHex(parsed.r, parsed.g, parsed.b) : "#000000",
+    opacity: parsed?.a ?? 0.35,
+  };
+}
+
+export function composeShadow(blur: number, colorHex: string, opacity: number): string {
+  if (blur <= 0) {
+    return "none";
+  }
+  const parsed = parseCssColor(colorHex);
+  if (!parsed) {
+    return `0 8px ${blur}px rgba(0, 0, 0, ${opacity})`;
+  }
+  const offset = Math.max(4, Math.round(blur / 3));
+  return `0 ${offset}px ${blur}px ${composeRgba({ ...parsed, a: opacity })}`;
+}
+
 export function withoutTrailingDuplicate(vertices: HotspotPosition[]): HotspotPosition[] {
   if (vertices.length < 2) return vertices;
   const previous = vertices[vertices.length - 2]!;

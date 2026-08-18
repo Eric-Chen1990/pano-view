@@ -69,6 +69,17 @@ export type HotspotTooltipContent = {
   imageAlt?: string;
 };
 
+/** Visual styling for a hotspot tooltip bubble. */
+export type HotspotTooltipAppearance = {
+  background?: string;
+  color?: string;
+  border?: string;
+  borderRadius?: number | string;
+  shadow?: string;
+  padding?: number | string;
+  fontSize?: number | string;
+};
+
 export type HotspotCommonProps = {
   id: string;
   position: HotspotPosition;
@@ -86,6 +97,8 @@ export type HotspotCommonProps = {
    * Defaults to 12.
    */
   tooltipOffset?: number;
+  /** Optional bubble paint overrides. Unset fields use the library default theme. */
+  tooltipAppearance?: HotspotTooltipAppearance;
   /** Angular width in degrees. Defaults to 12. */
   width?: number;
   /** Angular height in degrees. Defaults to 8. */
