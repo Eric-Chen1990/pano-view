@@ -104,7 +104,7 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. The two auto-rotation handle methods remain supported for compatibility. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
 
 Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
@@ -253,7 +253,7 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 
 ## AutoRotate
 
-Render `AutoRotate` inside `PanoViewer` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
+Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -264,7 +264,7 @@ Render `AutoRotate` inside `PanoViewer` to keep rotation configuration separate 
 
 ## Mouse, touch, and keyboard controls
 
-`PanoViewer` mounts default `MouseControls`, `TouchControls`, and `KeyboardControls` instances. Configure them through `controls` for most apps; render the components yourself only when you need to replace a channel (for example scene-switch callbacks).
+`PanoViewer` enables `MouseControls`, `TouchControls`, and `KeyboardControls` by default. Configure shared options through `controls`; render a control component only to override that channel's properties. A child instance replaces the default — you do not need to set the channel to `false` first. Set `controls.mouse` / `touch` / `keyboard` to `false` to turn a channel off.
 
 ```tsx
 <PanoViewer
@@ -285,21 +285,21 @@ Render `AutoRotate` inside `PanoViewer` to keep rotation configuration separate 
 
 ### MouseControls
 
-See the defaults above. Override through `controls.mouse` or render `<MouseControls />` when `controls.mouse={false}`.
+See the defaults above. Override through `controls.mouse` or by rendering `<MouseControls />` as a child.
 
 ### TouchControls
 
-One-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`). Override through `controls.touch` or render `<TouchControls />` when `controls.touch={false}`.
+One-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`). Override through `controls.touch` or by rendering `<TouchControls />` as a child.
 
 ### KeyboardControls
 
-Hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only. Override through `controls.keyboard` or render `<KeyboardControls />` when `controls.keyboard={false}`.
+Hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only. Override through `controls.keyboard` or by rendering `<KeyboardControls />` as a child.
 
 Shared all-mode options on `controls`: `enabled`, `invert` (drag direction for mouse/touch), `bouncingLimits`, `fovSpeed`, `frictionStop` (default `0.01`), plus existing damping / inertia.
 
 ### Overriding a control channel
 
-Set the channel to `false` and render your own component when you need callbacks or fully custom behaviour:
+Render the component with the props you need. The default instance for that channel is skipped:
 
 ```tsx
 import { useState } from "react";
@@ -315,7 +315,7 @@ export function KeyboardExample({ scenes }: { scenes: Scene[] }) {
   const [activeSceneId, setActiveSceneId] = useState(scenes[0]!.id);
 
   return (
-    <PanoViewer controls={{ keyboard: false }} style={{ height: 560 }}>
+    <PanoViewer style={{ height: 560 }}>
       <KeyboardControls
         keys={{
           left: ["ArrowLeft", "a"],
@@ -346,7 +346,7 @@ export function KeyboardExample({ scenes }: { scenes: Scene[] }) {
 
 Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
 
-Default bindings: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same override pattern works with `MouseControls` and `TouchControls` (`controls.mouse={false}` / `controls.touch={false}`).
+Default bindings: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
 
 ## Panorama coordinate events
 
@@ -542,10 +542,9 @@ stay opaque), hover/disabled colors, and icon size. For an explicit translucent
 fill without using `opacity`, you can still pass `background: "rgba(...)"`.
 
 For a fully custom DOM menu, set `contextMenu={false}` and render
-`PanoContextMenu` as a child (same override pattern as `MouseControls`). Do
-not mount both the default menu and a child `PanoContextMenu` at once. Avoid
-combining the context menu with `controls.mouse.buttons: ["right"]` — both
-claim the right mouse button.
+`PanoContextMenu` as a child. Do not mount both the default menu and a child
+`PanoContextMenu` at once. Avoid combining the context menu with
+`controls.mouse.buttons: ["right"]` — both claim the right mouse button.
 
 ## Shared hotspot contract and saved definitions
 

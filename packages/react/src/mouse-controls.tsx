@@ -1,5 +1,6 @@
 import { useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { MouseControlButton, MouseControlsOptions } from "./types";
 
@@ -34,7 +35,7 @@ function resolveButtons(
 
 /**
  * Adds mouse (and pen) drag / wheel navigation to the nearest PanoViewer.
- * PanoViewer mounts a default instance; render your own only to override.
+ * Enabled by default; render this component only to override properties.
  */
 export function MouseControls({
   enabled = true,
@@ -45,6 +46,7 @@ export function MouseControls({
   buttons,
   fovSpeed,
 }: MouseControlsProps) {
+  useClaimControlChannel("mouse");
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pointersRef = useRef(

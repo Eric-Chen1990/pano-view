@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import {
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -14,6 +15,12 @@ import type {
   ReactNode,
 } from "react";
 import { AutoRotate } from "./auto-rotate";
+import {
+  ControlClaimsContext,
+  DefaultControlChannelContext,
+  createControlClaims,
+  resetControlClaims,
+} from "./control-claims";
 import {
   HotspotAccessibilityContext,
   useHotspotAccessibilityLayer,
@@ -157,6 +164,44 @@ function PanoCursorTree({
   );
 }
 
+function DefaultControlChannels({
+  userControlsEnabled,
+  mouseChannel,
+  touchChannel,
+  keyboardChannel,
+  fovSpeed,
+}: {
+  userControlsEnabled: boolean;
+  mouseChannel: ChannelMount<MouseControlsOptions>;
+  touchChannel: ChannelMount<TouchControlsOptions>;
+  keyboardChannel: ChannelMount<KeyboardControlsProps>;
+  fovSpeed: number | undefined;
+}) {
+  const claims = useContext(ControlClaimsContext);
+  if (!claims) {
+    return null;
+  }
+
+  return (
+    <DefaultControlChannelContext.Provider value={true}>
+      {userControlsEnabled && mouseChannel.mount && claims.mouse === 0 ? (
+        <MouseControls {...mouseChannel.props} fovSpeed={fovSpeed} />
+      ) : null}
+      {userControlsEnabled && touchChannel.mount && claims.touch === 0 ? (
+        <TouchControls {...touchChannel.props} />
+      ) : null}
+      {userControlsEnabled &&
+      keyboardChannel.mount &&
+      claims.keyboard === 0 ? (
+        <KeyboardControls
+          {...keyboardChannel.props}
+          fovSpeed={keyboardChannel.props.fovSpeed ?? fovSpeed}
+        />
+      ) : null}
+    </DefaultControlChannelContext.Provider>
+  );
+}
+
 export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   function PanoViewer(
     {
@@ -209,6 +254,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       ],
     );
     fallbackViewRef.current = normalizedInitialView;
+
+    const controlClaims = useMemo(() => createControlClaims(), []);
+    resetControlClaims(controlClaims);
 
     const controlsEnabled = controls !== false;
     const controlOptions = useMemo<PanoramaControlsOptions>(
@@ -426,29 +474,20 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     enabled={legacyAutoRotate}
                     speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
-                  {userControlsEnabled && mouseChannel.mount ? (
-                    <MouseControls
-                      {...mouseChannel.props}
-                      fovSpeed={controlOptions.fovSpeed}
-                    />
-                  ) : null}
-                  {userControlsEnabled && touchChannel.mount ? (
-                    <TouchControls {...touchChannel.props} />
-                  ) : null}
-                  {userControlsEnabled && keyboardChannel.mount ? (
-                    <KeyboardControls
-                      {...keyboardChannel.props}
-                      fovSpeed={
-                        keyboardChannel.props.fovSpeed ??
-                        controlOptions.fovSpeed
-                      }
-                    />
-                  ) : null}
                   <PanoramaEventSurface />
                   {contextMenuChannel.mount ? (
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}
-                  {children}
+                  <ControlClaimsContext.Provider value={controlClaims}>
+                    {children}
+                    <DefaultControlChannels
+                      fovSpeed={controlOptions.fovSpeed}
+                      keyboardChannel={keyboardChannel}
+                      mouseChannel={mouseChannel}
+                      touchChannel={touchChannel}
+                      userControlsEnabled={userControlsEnabled}
+                    />
+                  </ControlClaimsContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
                 </PanoContextMenuOverlayContext.Provider>
               </PanoramaViewContext.Provider>

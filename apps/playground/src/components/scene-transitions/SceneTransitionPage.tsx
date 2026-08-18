@@ -54,7 +54,6 @@ export function SceneTransitionPage() {
         <div className="transition-viewer">
           <PanoViewer
             aria-label="Panorama scene transition demo"
-            controls={{ keyboard: false }}
             style={{ height: 540 }}
           >
             <KeyboardControls

@@ -111,9 +111,9 @@ export type PanoramaControlsOptions = {
    */
   zoomDamping?: number;
   /**
-   * Mouse channel. `true` / omit mounts defaults; `false` skips the default
-   * instance (render a custom MouseControls child); an object merges with
-   * defaults and supports `enabled`.
+   * Mouse channel. `true` / omit mounts defaults; `false` disables the
+   * default instance; an object merges with defaults and supports `enabled`.
+   * Rendering `<MouseControls />` as a child also replaces the default.
    */
   mouse?: boolean | MouseControlsOptions;
   /**
@@ -121,8 +121,8 @@ export type PanoramaControlsOptions = {
    */
   touch?: boolean | TouchControlsOptions;
   /**
-   * Keyboard channel. Same shape as `mouse`. Set to false when providing a
-   * custom KeyboardControls child.
+   * Keyboard channel. Same shape as `mouse`. Rendering `<KeyboardControls />`
+   * as a child replaces the default (no need to set this to false).
    */
   keyboard?: boolean | KeyboardControlsProps;
 };

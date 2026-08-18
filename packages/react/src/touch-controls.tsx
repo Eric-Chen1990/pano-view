@@ -1,5 +1,6 @@
 import { useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { TouchControlsOptions } from "./types";
 
@@ -23,7 +24,7 @@ function pointerDistance(a: PointerSample, b: PointerSample): number {
 
 /**
  * Adds touch drag and pinch-zoom navigation to the nearest PanoViewer.
- * PanoViewer mounts a default instance; render your own only to override.
+ * Enabled by default; render this component only to override properties.
  */
 export function TouchControls({
   enabled = true,
@@ -31,6 +32,7 @@ export function TouchControls({
   invert = false,
   pinchZoom = true,
 }: TouchControlsProps) {
+  useClaimControlChannel("touch");
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pointersRef = useRef(new Map<number, PointerSample>());

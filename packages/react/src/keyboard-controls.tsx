@@ -1,5 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 
 const DEFAULT_ROTATE_SPEED = 60;
@@ -132,10 +133,10 @@ export function cycleSceneId(
 }
 
 /**
- * Adds keyboard navigation to the nearest PanoViewer. PanoViewer mounts a default
- * instance; render your own to customize bindings or scene callbacks. Hold
- * movement/zoom keys for continuous motion; scene and reset bindings fire once
- * per key press.
+ * Adds keyboard navigation to the nearest PanoViewer. Enabled by default;
+ * render this component only to override properties, bindings, or scene
+ * callbacks. Hold movement/zoom keys for continuous motion; scene and reset
+ * bindings fire once per key press.
  */
 export function KeyboardControls({
   enabled = true,
@@ -148,6 +149,7 @@ export function KeyboardControls({
   onPreviousScene,
   onNextScene,
 }: KeyboardControlsProps) {
+  useClaimControlChannel("keyboard");
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pressedRef = useRef(new Set<KeyboardControlAction>());
