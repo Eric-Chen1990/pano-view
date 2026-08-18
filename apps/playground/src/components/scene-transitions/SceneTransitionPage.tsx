@@ -7,10 +7,9 @@ import {
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
-import { TRANSITION_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
+import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
-  controlInputClassName,
   controlLabelClassName,
   eyebrowClassName,
   footerClassName,
@@ -23,6 +22,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { BlendSelect } from "./BlendSelect";
 import { SiteHeader } from "../SiteHeader";
 
 export function SceneTransitionPage() {
@@ -62,22 +62,10 @@ export function SceneTransitionPage() {
               </button>
             ))}
           </div>
-          <label className={controlLabelClassName}>
+          <div className={controlLabelClassName}>
             Blend
-            <select
-              className={controlInputClassName}
-              onChange={(event) => setPreset(event.currentTarget.value as SceneTransitionPreset)}
-              value={preset}
-            >
-              {TRANSITION_PRESET_GROUPS.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.presets.map((entry) => (
-                    <option key={entry.value} value={entry.value}>{entry.label}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+            <BlendSelect onChange={setPreset} value={preset} />
+          </div>
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
