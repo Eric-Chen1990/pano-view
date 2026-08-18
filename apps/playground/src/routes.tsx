@@ -9,7 +9,6 @@ import { WebVRPage } from "./components/webvr/WebVRPage";
 export type PlaygroundRoute = {
   path: string;
   navLabel: string;
-  stageLabel: string;
   Component: ComponentType;
 };
 
@@ -20,37 +19,31 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
   {
     path: "/hotspots",
     navLabel: "Hotspot bench",
-    stageLabel: "HOTSPOT AUTHORING · STAGE 06",
     Component: HotspotBenchPage,
   },
   {
     path: "/scene-transitions",
     navLabel: "Scene transitions",
-    stageLabel: "SCENE TRANSITIONS · STAGE 06",
     Component: SceneTransitionPage,
   },
   {
     path: "/context-menu",
     navLabel: "Context menu",
-    stageLabel: "CONTEXT MENU · STAGE 07",
     Component: ContextMenuPage,
   },
   {
     path: "/video",
     navLabel: "360 video",
-    stageLabel: "360 VIDEO · STAGE 08",
     Component: VideoPage,
   },
   {
     path: "/webvr",
     navLabel: "WebVR",
-    stageLabel: "IMMERSIVE VR · STAGE 09",
     Component: WebVRPage,
   },
   {
     path: "/filters",
     navLabel: "Filters",
-    stageLabel: "PANORAMA FILTERS · STAGE 10",
     Component: FilterPage,
   },
 ];
