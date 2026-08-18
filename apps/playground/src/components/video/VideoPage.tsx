@@ -6,6 +6,19 @@ import {
   type PanoVideoVariant,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState } from "react";
+import { cn } from "../../cn";
+import {
+  controlInputClassName,
+  controlLabelClassName,
+  eyebrowClassName,
+  footerClassName,
+  pageControlsClassName,
+  pageHeadingStatusClassName,
+  pageHeadingTitleClassName,
+  pageHeadingWrapClassName,
+  pageSectionClassName,
+  shellClassName,
+} from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { SiteHeader } from "../SiteHeader";
 
@@ -122,28 +135,35 @@ export function VideoPage() {
   );
 
   return (
-    <main className="app-shell">
+    <main className={shellClassName}>
       <SiteHeader />
-      <section className="transition-bench" aria-labelledby="video-bench-title">
-        <div className="transition-bench-heading">
+      <section
+        aria-labelledby="video-bench-title"
+        className={cn(pageSectionClassName, "mt-8")}
+      >
+        <div className={pageHeadingWrapClassName}>
           <div>
-            <p className="eyebrow">360 video bench</p>
-            <h1 id="video-bench-title">Sphere-mapped playback</h1>
+            <p className={eyebrowClassName}>360 video bench</p>
+            <h1 className={pageHeadingTitleClassName} id="video-bench-title">
+              Sphere-mapped playback
+            </h1>
           </div>
-          <p>{status}</p>
+          <p className={pageHeadingStatusClassName}>{status}</p>
         </div>
-        <div className="transition-bench-controls video-bench-controls">
-          <label>
+        <div className={pageControlsClassName}>
+          <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             <input
+              className="accent-[#df6b42]"
               checked={loop}
               onChange={(event) => setLoop(event.currentTarget.checked)}
               type="checkbox"
             />
             Loop
           </label>
-          <label>
+          <label className={controlLabelClassName}>
             Captions
             <select
+              className={controlInputClassName}
               onChange={(event) =>
                 setCaptionLang(event.currentTarget.value as CaptionLang)
               }
@@ -154,9 +174,10 @@ export function VideoPage() {
               <option value="off">Off</option>
             </select>
           </label>
-          <label>
+          <label className={controlLabelClassName}>
             Caption size
             <input
+              className="accent-[#df6b42]"
               disabled={captionLang === "off"}
               max={28}
               min={12}
@@ -165,11 +186,12 @@ export function VideoPage() {
               type="range"
               value={fontSize}
             />
-            <span>{fontSize}px</span>
+            <span className="font-mono text-[0.62rem] text-[#dcecef]">{fontSize}px</span>
           </label>
-          <label>
+          <label className={controlLabelClassName}>
             Caption color
             <input
+              className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px] disabled:opacity-50"
               disabled={captionLang === "off"}
               onChange={(event) => setCaptionColor(event.currentTarget.value)}
               type="color"
@@ -177,7 +199,7 @@ export function VideoPage() {
             />
           </label>
         </div>
-        <div className="transition-viewer">
+        <div className="bg-[#020607]">
           <PanoViewer
             aria-label="360 panorama video demo"
             style={{ height: 540 }}
@@ -213,7 +235,7 @@ export function VideoPage() {
           label="PanoVideo"
         />
       </section>
-      <footer>
+      <footer className={footerClassName}>
         <span>@ericchen1990/pano-view · 360 video sphere</span>
         <span>Stage 8</span>
       </footer>

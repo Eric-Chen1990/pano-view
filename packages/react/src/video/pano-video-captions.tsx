@@ -66,7 +66,11 @@ export function PanoVideoCaptionsOverlay({
   };
 
   return (
-    <div data-pano-video-captions="" style={style}>
+    <div
+      className="pointer-events-none absolute left-1/2 z-[1] -translate-x-1/2 text-center whitespace-pre-wrap"
+      data-pano-video-captions=""
+      style={style}
+    >
       {captionText}
     </div>
   );

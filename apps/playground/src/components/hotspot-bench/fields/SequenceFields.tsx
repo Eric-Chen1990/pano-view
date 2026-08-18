@@ -1,4 +1,13 @@
 import type { EditorHotspot } from "../../../types";
+import {
+  checkboxLabelClassName,
+  fieldClassName,
+  fieldGridClassName,
+  fieldInputClassName,
+  fieldLabelClassName,
+  fieldWideClassName,
+  mediaActionClassName,
+} from "../../../ui";
 import { numberValue } from "../../../utils";
 
 export function SequenceFields({
@@ -11,32 +20,40 @@ export function SequenceFields({
   ) => void;
 }) {
   return (
-    <div className="graphic-fields">
+    <div className="grid gap-1.5">
       <button
-        className="media-action"
+        className={mediaActionClassName}
         onClick={() => onChange({ playing: !hotspot.playing })}
         type="button"
       >
         {hotspot.playing ? "Pause sequence" : "Play sequence"}
       </button>
-      <label className="field wide">
-        <span>Sprite sheet URL</span>
-        <input onChange={(event) => onChange({ src: event.currentTarget.value })} value={hotspot.src} />
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Sprite sheet URL</span>
+        <input
+          className={fieldInputClassName}
+          onChange={(event) => onChange({ src: event.currentTarget.value })}
+          value={hotspot.src}
+        />
       </label>
-      <div className="field-grid">
-        <label className="field">
-          <span>Frame count</span>
+      <div className={fieldGridClassName}>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Frame count</span>
           <input
+            className={fieldInputClassName}
             min="1"
-            onChange={(event) => onChange({ frameCount: numberValue(event.currentTarget.value, hotspot.frameCount) })}
+            onChange={(event) =>
+              onChange({ frameCount: numberValue(event.currentTarget.value, hotspot.frameCount) })
+            }
             step="1"
             type="number"
             value={hotspot.frameCount}
           />
         </label>
-        <label className="field">
-          <span>Frames per second</span>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Frames per second</span>
           <input
+            className={fieldInputClassName}
             min="0.1"
             onChange={(event) => onChange({ fps: numberValue(event.currentTarget.value, hotspot.fps) })}
             step="0.1"
@@ -45,18 +62,28 @@ export function SequenceFields({
           />
         </label>
       </div>
-      <label className="field wide">
-        <span>Frame direction</span>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Frame direction</span>
         <select
-          onChange={(event) => onChange({ frameDirection: event.currentTarget.value as "horizontal" | "vertical" })}
+          className={fieldInputClassName}
+          onChange={(event) =>
+            onChange({
+              frameDirection: event.currentTarget.value as "horizontal" | "vertical",
+            })
+          }
           value={hotspot.frameDirection}
         >
           <option value="vertical">Top to bottom</option>
           <option value="horizontal">Left to right</option>
         </select>
       </label>
-      <label className="check-field">
-        <input checked={hotspot.loop} onChange={(event) => onChange({ loop: event.currentTarget.checked })} type="checkbox" />
+      <label className={checkboxLabelClassName}>
+        <input
+          className="accent-[#df6b42]"
+          checked={hotspot.loop}
+          onChange={(event) => onChange({ loop: event.currentTarget.checked })}
+          type="checkbox"
+        />
         <span>Loop sequence</span>
       </label>
     </div>

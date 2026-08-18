@@ -14,6 +14,7 @@ import type {
   CSSProperties,
   ReactNode,
 } from "react";
+import { cn } from "./cn";
 import { AutoRotate } from "./auto-rotate";
 import {
   ControlClaimsContext,
@@ -442,6 +443,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     return (
       <div
         {...divProps}
+        className={cn("relative overflow-hidden", divProps.className)}
         ref={rootRef}
         aria-label={ariaLabel}
         style={rootStyle}
@@ -527,13 +529,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           </HotspotAccessibilityContext.Provider>
         </Canvas>
         <div
+          className="pointer-events-none absolute inset-0 z-[15]"
           data-pano-chrome-overlay=""
           ref={setOverlayNode}
           style={{
             inset: 0,
-            pointerEvents: "none",
-            position: "absolute",
-            zIndex: 15,
           }}
         >
           <PanoVideoChromeBridge

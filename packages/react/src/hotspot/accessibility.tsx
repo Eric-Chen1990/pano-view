@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type HotspotActivationEvent = KeyboardEvent | MouseEvent;
 
@@ -27,19 +27,6 @@ type HotspotAccessibilityRegistry = {
 
 export const HotspotAccessibilityContext =
   createContext<HotspotAccessibilityRegistry | null>(null);
-
-const VISUALLY_HIDDEN_STYLE: CSSProperties = {
-  border: 0,
-  clip: "rect(0 0 0 0)",
-  clipPath: "inset(50%)",
-  height: 1,
-  margin: -1,
-  overflow: "hidden",
-  padding: 0,
-  position: "absolute",
-  whiteSpace: "nowrap",
-  width: 1,
-};
 
 function warnAboutMissingLabel(id: string) {
   const nodeEnv = (
@@ -135,6 +122,7 @@ export function useHotspotAccessibilityLayer(): {
         {Array.from(entries.values()).map((entry) => (
           <button
             aria-label={entry.label}
+            className="sr-only"
             key={entry.id}
             onBlur={() => entry.onFocusChange(false)}
             onClick={(event) => entry.activate(event.nativeEvent)}
@@ -145,7 +133,6 @@ export function useHotspotAccessibilityLayer(): {
                 entry.activate(event.nativeEvent);
               }
             }}
-            style={VISUALLY_HIDDEN_STYLE}
             type="button"
           >
             {entry.label}

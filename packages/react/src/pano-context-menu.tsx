@@ -16,6 +16,7 @@ import type {
   ReactElement,
   ReactNode,
 } from "react";
+import { cn } from "./cn";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoEventBusContext } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
@@ -373,7 +374,7 @@ function DefaultContextMenuPanel({
     <div
       ref={menuRef}
       aria-label="Panorama context menu"
-      className={className}
+      className={cn("relative select-none", className)}
       onKeyDown={handleKeyDown}
       role="menu"
       style={panelStyle}
@@ -381,25 +382,20 @@ function DefaultContextMenuPanel({
     >
       <div
         aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
           background: resolved.background,
           borderRadius: resolved.borderRadius,
-          inset: 0,
           opacity: backgroundOpacity,
-          pointerEvents: "none",
-          position: "absolute",
-          zIndex: 0,
         }}
       />
-      <div style={{ position: "relative", zIndex: 1 }}>
+      <div className="relative z-[1]">
       {visibleItems.map((item, index) => {
         if (!isActionItem(item)) {
           return (
             <div
               aria-hidden
-              className={[separatorClassName, item.className]
-                .filter(Boolean)
-                .join(" ") || undefined}
+              className={cn(separatorClassName, item.className)}
               key={item.id ?? `separator-${index}`}
               role="separator"
               style={{
@@ -432,9 +428,11 @@ function DefaultContextMenuPanel({
         return (
           <button
             aria-disabled={disabled || undefined}
-            className={[itemClassName, item.className]
-              .filter(Boolean)
-              .join(" ") || undefined}
+            className={cn(
+              "flex w-full items-center gap-2 rounded text-left",
+              itemClassName,
+              item.className,
+            )}
             disabled={disabled}
             key={item.id}
             onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -450,7 +448,6 @@ function DefaultContextMenuPanel({
             }}
             role="menuitem"
             style={{
-              alignItems: "center",
               background:
                 !disabled && activeIndex === index
                   ? resolved.itemHoverBackground
@@ -459,12 +456,9 @@ function DefaultContextMenuPanel({
               borderRadius: 4,
               color: disabled ? resolved.itemDisabledColor : "inherit",
               cursor: disabled ? "default" : "pointer",
-              display: "flex",
               font: "inherit",
-              gap: 8,
               padding: resolved.itemPadding,
               textAlign: "left",
-              width: "100%",
               ...item.style,
             }}
             tabIndex={disabled ? -1 : activeIndex === index ? 0 : -1}
@@ -472,12 +466,9 @@ function DefaultContextMenuPanel({
           >
             <span
               aria-hidden
+              className="inline-flex shrink-0 items-center justify-center"
               style={{
-                alignItems: "center",
-                display: "inline-flex",
-                flexShrink: 0,
                 height: iconSize,
-                justifyContent: "center",
                 width: iconSize,
               }}
             >
@@ -533,12 +524,11 @@ function PositionedMenuShell({
 
   return (
     <div
+      className="absolute z-20"
       ref={shellRef}
       style={{
         left: offset.left,
-        position: "absolute",
         top: offset.top,
-        zIndex: 20,
       }}
     >
       {children}

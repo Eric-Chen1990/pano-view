@@ -1,3 +1,4 @@
+import { panelLabelClassName } from "../../ui";
 import { ToolButton } from "../ToolButton";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -29,8 +30,11 @@ export function ToolRail() {
   );
 
   return (
-    <aside className="tool-rail" aria-label="Hotspot tools">
-      <p className="panel-label">MODE</p>
+    <aside
+      aria-label="Hotspot tools"
+      className="min-h-full border-r border-[#27454d] bg-[#071316]/70 p-[17px] max-[760px]:grid max-[760px]:min-h-0 max-[760px]:grid-flow-col max-[760px]:auto-cols-[minmax(112px,1fr)] max-[760px]:grid-cols-[repeat(10,minmax(112px,1fr))] max-[760px]:gap-1.5 max-[760px]:overflow-x-auto max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:border-[#27454d] max-[760px]:p-2.5"
+    >
+      <p className={panelLabelClassName}>MODE</p>
       <ToolButton
         active={tool === "navigate"}
         detail="Orbit"
@@ -43,7 +47,7 @@ export function ToolRail() {
         label="Select"
         onClick={() => selectTool("select", "Select a hotspot, then drag it in the panorama.")}
       />
-      <p className="panel-label">ADD</p>
+      <p className={`mt-4 ${panelLabelClassName} max-[760px]:mt-0`}>ADD</p>
       <ToolButton
         active={tool === "image"}
         detail="Bitmap"
@@ -92,9 +96,11 @@ export function ToolRail() {
         label="Polyline"
         onClick={startPolyline}
       />
-      <div className="tool-rail-footer">
-        <span>{hotspotCount}</span>
-        <small>HOTSPOTS</small>
+      <div className="mt-5 grid gap-1 max-[760px]:hidden">
+        <span className="font-mono text-[1.1rem] text-[#dbeef0]">{hotspotCount}</span>
+        <small className="font-mono text-[0.58rem] tracking-[0.1em] text-[#739097]">
+          HOTSPOTS
+        </small>
       </div>
     </aside>
   );

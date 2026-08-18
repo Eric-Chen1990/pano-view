@@ -1,3 +1,6 @@
+import { cn } from "../cn";
+import { toolButtonActiveClassName, toolButtonClassName } from "../ui";
+
 export function ToolButton({
   active,
   label,
@@ -11,12 +14,16 @@ export function ToolButton({
 }) {
   return (
     <button
-      className={active ? "tool-button active" : "tool-button"}
+      className={cn(toolButtonClassName, active && toolButtonActiveClassName)}
       onClick={onClick}
       type="button"
     >
-      <span>{label}</span>
-      <small>{detail}</small>
+      <span className={cn("text-[0.75rem] font-semibold text-[#dbeef0]", active && "text-white")}>
+        {label}
+      </span>
+      <small className="font-mono text-[0.6rem] uppercase tracking-[0.08em] text-[#739097]">
+        {detail}
+      </small>
     </button>
   );
 }

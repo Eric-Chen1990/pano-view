@@ -8,6 +8,18 @@ import {
   type PanoViewerHandle,
 } from "@ericchen1990/pano-view";
 import { useMemo, useRef, useState } from "react";
+import { cn } from "../../cn";
+import {
+  eyebrowClassName,
+  pageControlsClassName,
+  pageHeadingStatusClassName,
+  pageHeadingTitleClassName,
+  pageHeadingWrapClassName,
+  pageSectionClassName,
+  segmentedButtonActiveClassName,
+  segmentedButtonClassName,
+  shellClassName,
+} from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { SiteHeader } from "../SiteHeader";
 
@@ -215,43 +227,58 @@ export function ContextMenuPage() {
   const snippetMeta = MODE_SNIPPET_META[mode];
 
   return (
-    <main className="app-shell">
+    <main className={shellClassName}>
       <SiteHeader />
-      <section className="transition-bench" aria-labelledby="context-menu-title">
-        <div className="transition-bench-heading">
+      <section
+        aria-labelledby="context-menu-title"
+        className={cn(pageSectionClassName, "mt-8")}
+      >
+        <div className={pageHeadingWrapClassName}>
           <div>
-            <p className="eyebrow">Context menu bench</p>
-            <h1 id="context-menu-title">Custom right-click menu</h1>
+            <p className={eyebrowClassName}>Context menu bench</p>
+            <h1 className={pageHeadingTitleClassName} id="context-menu-title">
+              Custom right-click menu
+            </h1>
           </div>
-          <p>{lastAction}</p>
+          <p className={pageHeadingStatusClassName}>{lastAction}</p>
         </div>
-        <div className="transition-bench-controls">
-          <div className="scene-buttons" role="group" aria-label="Menu mode">
+        <div className={pageControlsClassName}>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Menu mode">
             <button
-              className={mode === "default" ? "active" : ""}
+              className={cn(
+                segmentedButtonClassName,
+                mode === "default" && segmentedButtonActiveClassName,
+              )}
               onClick={() => setMode("default")}
               type="button"
             >
               Default
             </button>
             <button
-              className={mode === "append" ? "active" : ""}
+              className={cn(
+                segmentedButtonClassName,
+                mode === "append" && segmentedButtonActiveClassName,
+              )}
               onClick={() => setMode("append")}
               type="button"
             >
               Append custom
             </button>
             <button
-              className={mode === "presets" ? "active" : ""}
+              className={cn(
+                segmentedButtonClassName,
+                mode === "presets" && segmentedButtonActiveClassName,
+              )}
               onClick={() => setMode("presets")}
               type="button"
             >
               Compose presets
             </button>
           </div>
-          <label>
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             Opacity
             <input
+              className="accent-[#df6b42]"
               max={1}
               min={MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY}
               onChange={(event) => setOpacity(Number(event.currentTarget.value))}
@@ -259,11 +286,12 @@ export function ContextMenuPage() {
               type="range"
               value={opacity}
             />
-            <span>{opacity.toFixed(2)}</span>
+            <span className="font-mono text-[0.62rem] text-[#dcecef]">{opacity.toFixed(2)}</span>
           </label>
-          <label>
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             Radius
             <input
+              className="accent-[#df6b42]"
               max={20}
               min={0}
               onChange={(event) =>
@@ -273,10 +301,10 @@ export function ContextMenuPage() {
               type="range"
               value={borderRadius}
             />
-            <span>{borderRadius}px</span>
+            <span className="font-mono text-[0.62rem] text-[#dcecef]">{borderRadius}px</span>
           </label>
         </div>
-        <div className="transition-viewer">
+        <div className="bg-[#020607]">
           <PanoViewer
             ref={panoRef}
             aria-label="Panorama context menu demo"

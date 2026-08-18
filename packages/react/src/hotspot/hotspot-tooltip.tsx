@@ -12,39 +12,6 @@ const WRAPPER_STYLE: CSSProperties = {
   pointerEvents: "none",
 };
 
-const BUBBLE_STYLE: CSSProperties = {
-  background: "rgba(22, 22, 22, 0.72)",
-  border: "1px solid rgba(46, 46, 46, 0.7)",
-  borderRadius: 8,
-  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
-  boxSizing: "border-box",
-  color: "#f5fbfc",
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  padding: 8,
-  pointerEvents: "none",
-  whiteSpace: "nowrap",
-};
-
-const IMAGE_STYLE: CSSProperties = {
-  borderRadius: 4,
-  display: "block",
-  height: "auto",
-  maxHeight: TOOLTIP_IMAGE_MAX_HEIGHT,
-  maxWidth: TOOLTIP_MAX_WIDTH,
-  objectFit: "contain",
-};
-
-const TEXT_STYLE: CSSProperties = {
-  fontFamily: "system-ui, sans-serif",
-  fontSize: 12,
-  lineHeight: 1.4,
-  margin: 0,
-  overflow: "visible",
-  whiteSpace: "nowrap",
-};
-
 export function resolveHotspotTooltipContent(
   tooltip: string | HotspotTooltipContent | undefined,
 ): HotspotTooltipContent | null {
@@ -112,7 +79,6 @@ export function HotspotTooltip({
   const showImage = Boolean(content.image) && !imageFailed;
   const bubbleStyle = useMemo(
     (): CSSProperties => ({
-      ...BUBBLE_STYLE,
       transform: tooltipBubbleTransform(
         placement,
         resolveHotspotTooltipOffset(offset),
@@ -126,16 +92,24 @@ export function HotspotTooltip({
 
   return (
     <Html pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
-      <div role="tooltip" style={bubbleStyle}>
+      <div
+        className="pointer-events-none flex gap-2 whitespace-nowrap rounded-lg border border-[rgba(46,46,46,0.7)] bg-[rgba(22,22,22,0.72)] p-2 text-[#f5fbfc] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+        role="tooltip"
+        style={bubbleStyle}
+      >
         {showImage ? (
           <img
             alt={content.imageAlt ?? content.text ?? ""}
+            className="block h-auto max-h-[120px] max-w-[220px] rounded object-contain"
             onError={() => setImageFailed(true)}
             src={content.image}
-            style={IMAGE_STYLE}
           />
         ) : null}
-        {content.text ? <p style={TEXT_STYLE}>{content.text}</p> : null}
+        {content.text ? (
+          <p className="m-0 overflow-visible whitespace-nowrap text-xs leading-[1.4]">
+            {content.text}
+          </p>
+        ) : null}
       </div>
     </Html>
   );

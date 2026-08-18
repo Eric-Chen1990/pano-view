@@ -1,5 +1,12 @@
 import type { TextHotspotFontStyle } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
+import {
+  fieldClassName,
+  fieldGridClassName,
+  fieldInputClassName,
+  fieldLabelClassName,
+  fieldWideClassName,
+} from "../../../ui";
 import { numberValue } from "../../../utils";
 
 const FONT_FAMILY_PRESETS = [
@@ -34,18 +41,20 @@ export function TextFields({
   );
 
   return (
-    <div className="graphic-fields">
-      <label className="field wide">
-        <span>Text</span>
+    <div className="grid gap-1.5">
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Text</span>
         <textarea
+          className={fieldInputClassName}
           onChange={(event) => onChange({ text: event.currentTarget.value })}
           rows={3}
           value={hotspot.text}
         />
       </label>
-      <label className="field wide">
-        <span>Font family</span>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Font family</span>
         <select
+          className={fieldInputClassName}
           onChange={(event) => onChange({ fontFamily: event.currentTarget.value })}
           value={hotspot.fontFamily}
         >
@@ -59,13 +68,16 @@ export function TextFields({
           ))}
         </select>
       </label>
-      <div className="field-grid">
-        <label className="field">
-          <span>Weight</span>
+      <div className={fieldGridClassName}>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Weight</span>
           <select
-            onChange={(event) => onChange({
-              fontWeight: numberValue(event.currentTarget.value, hotspot.fontWeight),
-            })}
+            className={fieldInputClassName}
+            onChange={(event) =>
+              onChange({
+                fontWeight: numberValue(event.currentTarget.value, hotspot.fontWeight),
+              })
+            }
             value={hotspot.fontWeight}
           >
             {knownFontWeight ? null : (
@@ -78,12 +90,15 @@ export function TextFields({
             ))}
           </select>
         </label>
-        <label className="field">
-          <span>Style</span>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Style</span>
           <select
-            onChange={(event) => onChange({
-              fontStyle: event.currentTarget.value as TextHotspotFontStyle,
-            })}
+            className={fieldInputClassName}
+            onChange={(event) =>
+              onChange({
+                fontStyle: event.currentTarget.value as TextHotspotFontStyle,
+              })
+            }
             value={hotspot.fontStyle}
           >
             <option value="normal">Normal</option>
@@ -91,57 +106,84 @@ export function TextFields({
           </select>
         </label>
       </div>
-      <label className="field wide range-field">
-        <span>Font size <b>{Math.round(hotspot.fontSize)}px</b></span>
+      <label className={fieldWideClassName}>
+        <span className={`${fieldLabelClassName} flex justify-between`}>
+          Font size
+          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+            {Math.round(hotspot.fontSize)}px
+          </b>
+        </span>
         <input
+          className="accent-[#df6b42]"
           max="256"
           min="24"
-          onChange={(event) => onChange({
-            fontSize: numberValue(event.currentTarget.value, hotspot.fontSize),
-          })}
+          onChange={(event) =>
+            onChange({
+              fontSize: numberValue(event.currentTarget.value, hotspot.fontSize),
+            })
+          }
           step="1"
           type="range"
           value={hotspot.fontSize}
         />
       </label>
-      <div className="field-grid">
-        <label className="field">
-          <span>Text color</span>
+      <div className={fieldGridClassName}>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Text color</span>
           <input
+            className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ color: event.currentTarget.value })}
             type="color"
             value={hotspot.color}
           />
         </label>
-        <label className="field">
-          <span>Background</span>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Background</span>
           <input
+            className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ background: event.currentTarget.value })}
             type="color"
             value={hotspot.background}
           />
         </label>
       </div>
-      <label className="field wide range-field">
-        <span>Background opacity <b>{Math.round(hotspot.backgroundOpacity * 100)}%</b></span>
+      <label className={fieldWideClassName}>
+        <span className={`${fieldLabelClassName} flex justify-between`}>
+          Background opacity
+          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+            {Math.round(hotspot.backgroundOpacity * 100)}%
+          </b>
+        </span>
         <input
+          className="accent-[#df6b42]"
           max="1"
           min="0"
-          onChange={(event) => onChange({
-            backgroundOpacity: numberValue(event.currentTarget.value, hotspot.backgroundOpacity),
-          })}
+          onChange={(event) =>
+            onChange({
+              backgroundOpacity: numberValue(
+                event.currentTarget.value,
+                hotspot.backgroundOpacity,
+              ),
+            })
+          }
           step="0.05"
           type="range"
           value={hotspot.backgroundOpacity}
         />
       </label>
-      <div className="field-grid">
-        <label className="field">
-          <span>Align</span>
+      <div className={fieldGridClassName}>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Align</span>
           <select
-            onChange={(event) => onChange({
-              align: event.currentTarget.value as Extract<EditorHotspot, { type: "text" }>["align"],
-            })}
+            className={fieldInputClassName}
+            onChange={(event) =>
+              onChange({
+                align: event.currentTarget.value as Extract<
+                  EditorHotspot,
+                  { type: "text" }
+                >["align"],
+              })
+            }
             value={hotspot.align}
           >
             <option value="left">Left</option>
@@ -149,15 +191,18 @@ export function TextFields({
             <option value="right">Right</option>
           </select>
         </label>
-        <label className="field">
-          <span>Vertical</span>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Vertical</span>
           <select
-            onChange={(event) => onChange({
-              verticalAlign: event.currentTarget.value as Extract<
-                EditorHotspot,
-                { type: "text" }
-              >["verticalAlign"],
-            })}
+            className={fieldInputClassName}
+            onChange={(event) =>
+              onChange({
+                verticalAlign: event.currentTarget.value as Extract<
+                  EditorHotspot,
+                  { type: "text" }
+                >["verticalAlign"],
+              })
+            }
             value={hotspot.verticalAlign}
           >
             <option value="top">Top</option>
@@ -166,15 +211,18 @@ export function TextFields({
           </select>
         </label>
       </div>
-      <label className="field wide">
-        <span>Wrapping</span>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Wrapping</span>
         <select
-          onChange={(event) => onChange({
-            whiteSpace: event.currentTarget.value as Extract<
-              EditorHotspot,
-              { type: "text" }
-            >["whiteSpace"],
-          })}
+          className={fieldInputClassName}
+          onChange={(event) =>
+            onChange({
+              whiteSpace: event.currentTarget.value as Extract<
+                EditorHotspot,
+                { type: "text" }
+              >["whiteSpace"],
+            })
+          }
           value={hotspot.whiteSpace}
         >
           <option value="normal">Wrap to width</option>

@@ -8,6 +8,21 @@ import {
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import { TRANSITION_PRESETS, TRANSITION_SCENES } from "../../constants";
+import { cn } from "../../cn";
+import {
+  controlInputClassName,
+  controlLabelClassName,
+  eyebrowClassName,
+  footerClassName,
+  pageControlsClassName,
+  pageHeadingStatusClassName,
+  pageHeadingTitleClassName,
+  pageHeadingWrapClassName,
+  pageSectionClassName,
+  segmentedButtonActiveClassName,
+  segmentedButtonClassName,
+  shellClassName,
+} from "../../ui";
 import { SiteHeader } from "../SiteHeader";
 
 export function SceneTransitionPage() {
@@ -16,21 +31,29 @@ export function SceneTransitionPage() {
   const [status, setStatus] = useState("Choose a scene and a KRpano-style blend.");
 
   return (
-    <main className="app-shell">
+    <main className={shellClassName}>
       <SiteHeader />
-      <section className="transition-bench" aria-labelledby="transition-bench-title">
-        <div className="transition-bench-heading">
+      <section
+        aria-labelledby="transition-bench-title"
+        className={cn(pageSectionClassName, "mt-8")}
+      >
+        <div className={pageHeadingWrapClassName}>
           <div>
-            <p className="eyebrow">Scene transition bench</p>
-            <h1 id="transition-bench-title">GPU snapshot blending</h1>
+            <p className={eyebrowClassName}>Scene transition bench</p>
+            <h1 className={pageHeadingTitleClassName} id="transition-bench-title">
+              GPU snapshot blending
+            </h1>
           </div>
-          <p>{status}</p>
+          <p className={pageHeadingStatusClassName}>{status}</p>
         </div>
-        <div className="transition-bench-controls">
-          <div className="scene-buttons" role="group" aria-label="Target panorama scene">
+        <div className={pageControlsClassName}>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Target panorama scene">
             {TRANSITION_SCENES.map((scene) => (
               <button
-                className={activeSceneId === scene.id ? "active" : ""}
+                className={cn(
+                  segmentedButtonClassName,
+                  activeSceneId === scene.id && segmentedButtonActiveClassName,
+                )}
                 key={scene.id}
                 onClick={() => setActiveSceneId(scene.id)}
                 type="button"
@@ -39,9 +62,10 @@ export function SceneTransitionPage() {
               </button>
             ))}
           </div>
-          <label>
+          <label className={controlLabelClassName}>
             Blend
             <select
+              className={controlInputClassName}
               onChange={(event) => setPreset(event.currentTarget.value as SceneTransitionPreset)}
               value={preset}
             >
@@ -51,7 +75,7 @@ export function SceneTransitionPage() {
             </select>
           </label>
         </div>
-        <div className="transition-viewer">
+        <div className="bg-[#020607] p-0">
           <PanoViewer
             aria-label="Panorama scene transition demo"
             style={{ height: 540 }}
@@ -96,7 +120,7 @@ export function SceneTransitionPage() {
           </PanoViewer>
         </div>
       </section>
-      <footer>
+      <footer className={footerClassName}>
         <span>@ericchen1990/pano-view · panorama scene transitions</span>
         <span>Stage 6 of 6</span>
       </footer>

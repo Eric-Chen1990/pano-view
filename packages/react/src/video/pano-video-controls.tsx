@@ -135,6 +135,7 @@ function ChromeButton({
   return (
     <button
       aria-label={label}
+      className="inline-flex min-h-7 min-w-7 items-center justify-center rounded"
       disabled={disabled}
       id={id}
       onClick={onClick}
@@ -182,38 +183,29 @@ function ChromeMenu({
   return (
     <div
       aria-labelledby={labelledBy}
+      className="absolute right-0 bottom-[calc(100%+6px)] flex min-w-28 flex-col p-1"
       id={id}
       role="menu"
       style={{
         background: appearance.background,
         borderRadius: appearance.borderRadius,
-        bottom: "calc(100% + 6px)",
         boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
-        display: "flex",
-        flexDirection: "column",
-        minWidth: 112,
-        padding: 4,
         pointerEvents: "auto",
-        position: "absolute",
-        right: 0,
       }}
     >
       {items.map((item) => (
         <button
           aria-checked={item.active}
+          className="rounded px-[10px] py-1.5 text-left whitespace-nowrap"
           key={item.id}
           onClick={item.onSelect}
           role="menuitemradio"
           style={{
             background: item.active ? "rgba(255, 255, 255, 0.1)" : "transparent",
             border: "none",
-            borderRadius: 4,
             color: appearance.color,
             cursor: "pointer",
             fontSize: appearance.fontSize,
-            padding: "6px 10px",
-            textAlign: "left",
-            whiteSpace: "nowrap",
           }}
           type="button"
         >
@@ -259,31 +251,22 @@ function VerticalVolumeSlider({
 
   return (
     <div
+      className="absolute left-1/2 bottom-[calc(100%+12px)] flex min-w-11 -translate-x-1/2 flex-col items-center rounded-[14px]"
       style={{
-        alignItems: "center",
         background: "rgba(12, 12, 12, 0.92)",
         borderRadius: 14,
-        bottom: "calc(100% + 12px)",
         boxShadow: "0 10px 28px rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        flexDirection: "column",
-        left: "50%",
         minWidth: 44,
         padding: `${VOLUME_POP_PADDING_TOP}px ${VOLUME_POP_PADDING_X}px ${VOLUME_POP_PADDING_BOTTOM}px`,
         pointerEvents: "auto",
-        position: "absolute",
-        transform: "translateX(-50%)",
       }}
     >
       <span
         aria-hidden
+        className="mb-[14px] font-bold leading-none [font-variant-numeric:tabular-nums]"
         style={{
           color: appearance.color,
           fontSize: VOLUME_POP_FONT_SIZE,
-          fontVariantNumeric: "tabular-nums",
-          fontWeight: 700,
-          lineHeight: 1,
-          marginBottom: VOLUME_LABEL_TRACK_GAP,
         }}
       >
         {percentLabel}
@@ -316,12 +299,11 @@ function VerticalVolumeSlider({
           }}
           ref={trackRef}
           role="slider"
+          className="relative cursor-pointer rounded-[999px]"
           style={{
             background: "rgba(255, 255, 255, 0.14)",
             borderRadius: 999,
-            cursor: "pointer",
             height: VOLUME_SLIDER_HEIGHT,
-            position: "relative",
             width: VOLUME_TRACK_WIDTH,
           }}
           tabIndex={0}
@@ -420,6 +402,7 @@ function VolumeControl({
   return (
     <div
       data-pano-video-volume=""
+      className="relative"
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget as Node)) {
           return;
@@ -442,7 +425,6 @@ function VolumeControl({
         }
       }}
       ref={rootRef}
-      style={{ position: "relative" }}
     >
       {open ? (
         <VerticalVolumeSlider
@@ -781,7 +763,7 @@ export function PanoVideoControlsHud({
   };
 
   const rateButton = (
-    <div data-pano-video-menu="rate" style={{ position: "relative" }}>
+    <div className="relative" data-pano-video-menu="rate">
       {!compact && menu === "rate" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
@@ -790,7 +772,7 @@ export function PanoVideoControlsHud({
           toggleMenu("rate");
         }}
       >
-        <span id={`${barId}-rate-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
+        <span className="px-0.5 text-[11px]" id={`${barId}-rate-btn`}>
           {snapshot.playbackRate === 1 ? "1x" : `${snapshot.playbackRate}x`}
         </span>
       </ChromeButton>
@@ -798,7 +780,7 @@ export function PanoVideoControlsHud({
   );
 
   const variantButton = canSwitchVariant ? (
-    <div data-pano-video-menu="variant" style={{ position: "relative" }}>
+    <div className="relative" data-pano-video-menu="variant">
       {!compact && menu === "variant" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
@@ -807,7 +789,7 @@ export function PanoVideoControlsHud({
           toggleMenu("variant");
         }}
       >
-        <span id={`${barId}-variant-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
+        <span className="px-0.5 text-[11px]" id={`${barId}-variant-btn`}>
           {snapshot.variants.find((variant) => variant.id === snapshot.variantId)
             ?.label ?? "Quality"}
         </span>
@@ -816,7 +798,7 @@ export function PanoVideoControlsHud({
   ) : null;
 
   const captionsButton = showCaptionsMenu ? (
-    <div data-pano-video-menu="captions" style={{ position: "relative" }}>
+    <div className="relative" data-pano-video-menu="captions">
       {!compact && menu === "captions" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
@@ -833,7 +815,11 @@ export function PanoVideoControlsHud({
   ) : null;
 
   return (
-    <div data-pano-video-controls="" style={barStyle}>
+    <div
+      className="absolute right-2.5 bottom-2.5 left-2.5 z-[2] flex items-center gap-2 transition-opacity"
+      data-pano-video-controls=""
+      style={barStyle}
+    >
       <ChromeButton
         appearance={resolved}
         label={snapshot.playing ? "Pause" : "Play"}
@@ -848,7 +834,7 @@ export function PanoVideoControlsHud({
         )}
       </ChromeButton>
       {hideTime ? null : (
-        <span style={{ fontVariantNumeric: "tabular-nums", minWidth: 34, opacity: 0.85 }}>
+        <span className="min-w-[34px] opacity-[0.85] [font-variant-numeric:tabular-nums]">
           {formatMediaTime(snapshot.currentTime)}
         </span>
       )}
@@ -872,7 +858,7 @@ export function PanoVideoControlsHud({
         value={duration > 0 ? snapshot.currentTime : 0}
       />
       {hideTime ? null : (
-        <span style={{ minWidth: 34, opacity: 0.85 }}>
+        <span className="min-w-[34px] opacity-[0.85]">
           {formatMediaTime(duration)}
         </span>
       )}
@@ -890,7 +876,7 @@ export function PanoVideoControlsHud({
         volumeAdjustable={snapshot.volumeAdjustable}
       />
       {compact ? (
-        <div data-pano-video-menu="more" style={{ position: "relative" }}>
+        <div className="relative" data-pano-video-menu="more">
           {menu !== null ? menuNode : null}
           <ChromeButton
             appearance={resolved}

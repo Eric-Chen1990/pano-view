@@ -7,8 +7,13 @@ import {
 } from "@ericchen1990/pano-view";
 import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { cn } from "../../cn";
 import { Metric } from "../Metric";
 import { INITIAL_VIEW } from "../../constants";
+import {
+  segmentedButtonActiveClassName,
+  segmentedButtonClassName,
+} from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
   selectDrawingPath,
@@ -79,32 +84,43 @@ export function CanvasPanel() {
   );
 
   return (
-    <section className="canvas-panel" aria-label="Panorama canvas">
-      <div className="canvas-toolbar">
-        <div className="mode-switch" aria-label="Panorama source" role="group">
+    <section aria-label="Panorama canvas" className="min-w-0 bg-[#071316]/80">
+      <div className="flex items-center gap-3 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
+        <div className="flex items-center gap-2" aria-label="Panorama source" role="group">
           <button
-            className={mode === "sphere" ? "active" : ""}
+            className={cn(
+              segmentedButtonClassName,
+              mode === "sphere" && segmentedButtonActiveClassName,
+            )}
             onClick={() => selectMode("sphere")}
             type="button"
           >
             Sphere
           </button>
           <button
-            className={mode === "tile" ? "active" : ""}
+            className={cn(
+              segmentedButtonClassName,
+              mode === "tile" && segmentedButtonActiveClassName,
+            )}
             onClick={() => selectMode("tile")}
             type="button"
           >
             Cube Tile
           </button>
         </div>
-        <div className="viewer-actions">
-          <button onClick={toggleAutoRotate} type="button">
+        <div className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-3" >
+          <button className={segmentedButtonClassName} onClick={toggleAutoRotate} type="button">
             {autoRotate ? "Stop rotation" : "Auto rotate"}
           </button>
-          <button onClick={() => viewerRef.current?.reset()} type="button">
+          <button
+            className={segmentedButtonClassName}
+            onClick={() => viewerRef.current?.reset()}
+            type="button"
+          >
             Reset view
           </button>
           <button
+            className={segmentedButtonClassName}
             onClick={() => void viewerRef.current?.toggleFullscreen()}
             type="button"
           >
@@ -112,11 +128,14 @@ export function CanvasPanel() {
           </button>
         </div>
         {drawingPath ? (
-          <div className="polygon-draft-actions">
-            <span>{draftVertices.length} vertices</span>
+          <div className="ml-auto flex items-center gap-2 max-[760px]:ml-0 max-[760px]:w-full max-[760px]:flex-wrap">
+            <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-[#88a6ac]">
+              {draftVertices.length} vertices
+            </span>
             {drawingPolygon ? (
               <button
                 aria-pressed={draftPolygonFilled}
+                className={segmentedButtonClassName}
                 onClick={toggleDraftFill}
                 type="button"
               >
@@ -124,23 +143,32 @@ export function CanvasPanel() {
               </button>
             ) : null}
             <button
+              className={segmentedButtonClassName}
               disabled={draftVertices.length < (drawingPolyline ? 2 : 3)}
               onClick={finishPolygonDraft}
               type="button"
             >
               {drawingPolyline ? "Finish polyline" : "Finish polygon"}
             </button>
-            <button onClick={cancelPolygonDraft} type="button">Cancel</button>
+            <button className={segmentedButtonClassName} onClick={cancelPolygonDraft} type="button">
+              Cancel
+            </button>
           </div>
         ) : null}
       </div>
 
-      <div className={placementTool || drawingPath ? "viewer-frame placing" : "viewer-frame"}>
+      <div
+        className={cn(
+          "relative min-h-[500px] overflow-hidden bg-[#020607] max-[760px]:min-h-[440px]",
+          "h-[min(60vw,720px)] max-[760px]:h-[62vh]",
+          (placementTool || drawingPath) && "cursor-crosshair",
+        )}
+      >
         <PanoViewer
           key={mode}
           ref={viewerRef}
           aria-label={`${mode} panorama hotspot editor`}
-          className="pano-view"
+          className={cn("h-full w-full", (placementTool || drawingPath) && "cursor-crosshair")}
           controls={placementTool || drawingPath ? false : VIEWER_CONTROLS}
           cursors={placementTool || drawingPath ? PLACING_CURSORS : undefined}
           initialView={INITIAL_VIEW}
@@ -171,10 +199,18 @@ export function CanvasPanel() {
           <HotspotLayer />
         </PanoViewer>
         <div className="reticle" aria-hidden="true" />
-        <p className="canvas-status" role="status">{lastAction}</p>
+        <p
+          className="pointer-events-none absolute bottom-[15px] left-[15px] m-0 max-w-[calc(100%-30px)] border border-[rgb(117_203_211_/_0.42)] bg-[rgb(2_6_7_/_0.74)] px-[9px] py-2 font-mono text-[0.62rem] tracking-[0.04em] text-[#dbeef0] max-[760px]:text-[0.56rem]"
+          role="status"
+        >
+          {lastAction}
+        </p>
       </div>
 
-      <dl className="metrics" aria-label="Viewer state">
+      <dl
+        aria-label="Viewer state"
+        className="m-0 grid grid-cols-7 border-t border-[#27454d] max-[760px]:grid-cols-4"
+      >
         <Metric label="SOURCE" value={mode === "sphere" ? "2:1 SPHERE" : "CUBE TILE"} />
         <Metric label="YAW" value={`${view.yaw.toFixed(1)}°`} />
         <Metric label="PITCH" value={`${view.pitch.toFixed(1)}°`} />

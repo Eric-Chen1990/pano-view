@@ -130,18 +130,13 @@ export function IframeHotspot({
       >
         <iframe
           allow={allow}
+          className="block h-full w-full border-0"
           loading={loading}
           onError={(event) => onError?.(event.nativeEvent)}
           onLoad={onLoad}
           referrerPolicy={referrerPolicy}
           sandbox={sandbox}
           src={src}
-          style={{
-            border: 0,
-            display: "block",
-            height: "100%",
-            width: "100%",
-          }}
           title={iframeTitle}
         />
       </Html>

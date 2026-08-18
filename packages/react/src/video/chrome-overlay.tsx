@@ -1,5 +1,5 @@
 import { createContext, useCallback, useMemo, useState } from "react";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 
 export type PanoChromeOverlayApi = {
   overlayElement: HTMLDivElement | null;
@@ -7,13 +7,6 @@ export type PanoChromeOverlayApi = {
 
 export const PanoChromeOverlayContext =
   createContext<PanoChromeOverlayApi | null>(null);
-
-const OVERLAY_STYLE: CSSProperties = {
-  inset: 0,
-  pointerEvents: "none",
-  position: "absolute",
-  zIndex: 15,
-};
 
 /**
  * Creates a screen-space chrome overlay for PanoViewer. Provide `api`
@@ -41,9 +34,9 @@ export function usePanoChromeOverlay(): {
 
   const overlay = (
     <div
+      className="pointer-events-none absolute inset-0 z-[15]"
       data-pano-chrome-overlay=""
       ref={setOverlayNode}
-      style={OVERLAY_STYLE}
     />
   );
 

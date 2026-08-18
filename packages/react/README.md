@@ -20,6 +20,21 @@ npm install @ericchen1990/pano-view
 
 React 19, React DOM 19, Three.js, `@react-three/fiber` 9, and `@react-three/drei` 10 are peer dependencies. npm 7+ and pnpm install them automatically; they must be a single copy in the host app.
 
+Tailwind CSS v4 is now required for the built-in HTML chrome: video controls,
+captions, context menus, tooltips, and accessibility helpers render with
+Tailwind utility classes instead of a bundled stylesheet. Add a source entry in
+your app so Tailwind can scan this package:
+
+```css
+@import "tailwindcss";
+@source "../node_modules/@ericchen1990/pano-view";
+```
+
+This package does not ship a separate CSS file. If your app does not scan
+`@ericchen1990/pano-view`, those built-in overlays will render without their
+default styling. Customization still works through `className`, `style`, and
+component appearance props.
+
 ## Exported components
 
 ### Viewer

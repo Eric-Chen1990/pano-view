@@ -3,6 +3,13 @@ import type {
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
 } from "@ericchen1990/pano-view";
+import {
+  fieldClassName,
+  fieldGridClassName,
+  fieldInputClassName,
+  fieldLabelClassName,
+  fieldWideClassName,
+} from "../../../ui";
 import { numberValue } from "../../../utils";
 
 const TOOLTIP_TRIGGER_LABELS: Record<HotspotTooltipTrigger, string> = {
@@ -38,9 +45,10 @@ export function TooltipFields({
 }) {
   return (
     <>
-      <label className="field wide">
-        <span>Tooltip text</span>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Tooltip text</span>
         <input
+          className={fieldInputClassName}
           onChange={(event) =>
             onChange({
               tooltip: { text: event.currentTarget.value },
@@ -49,10 +57,11 @@ export function TooltipFields({
           value={tooltip.text ?? ""}
         />
       </label>
-      <div className="field-grid">
-        <label className="field">
-          <span>Tooltip trigger</span>
+      <div className={fieldGridClassName}>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Tooltip trigger</span>
           <select
+            className={fieldInputClassName}
             onChange={(event) =>
               onChange({
                 tooltipTrigger: event.currentTarget.value as HotspotTooltipTrigger,
@@ -60,18 +69,17 @@ export function TooltipFields({
             }
             value={tooltipTrigger}
           >
-            {(Object.keys(TOOLTIP_TRIGGER_LABELS) as HotspotTooltipTrigger[]).map(
-              (trigger) => (
-                <option key={trigger} value={trigger}>
-                  {TOOLTIP_TRIGGER_LABELS[trigger]}
-                </option>
-              ),
-            )}
+            {(Object.keys(TOOLTIP_TRIGGER_LABELS) as HotspotTooltipTrigger[]).map((trigger) => (
+              <option key={trigger} value={trigger}>
+                {TOOLTIP_TRIGGER_LABELS[trigger]}
+              </option>
+            ))}
           </select>
         </label>
-        <label className="field">
-          <span>Tooltip placement</span>
+        <label className={fieldClassName}>
+          <span className={fieldLabelClassName}>Tooltip placement</span>
           <select
+            className={fieldInputClassName}
             onChange={(event) =>
               onChange({
                 tooltipPlacement: event.currentTarget.value as HotspotTooltipPlacement,
@@ -79,19 +87,20 @@ export function TooltipFields({
             }
             value={tooltipPlacement}
           >
-            {(
-              Object.keys(TOOLTIP_PLACEMENT_LABELS) as HotspotTooltipPlacement[]
-            ).map((placement) => (
-              <option key={placement} value={placement}>
-                {TOOLTIP_PLACEMENT_LABELS[placement]}
-              </option>
-            ))}
+            {(Object.keys(TOOLTIP_PLACEMENT_LABELS) as HotspotTooltipPlacement[]).map(
+              (placement) => (
+                <option key={placement} value={placement}>
+                  {TOOLTIP_PLACEMENT_LABELS[placement]}
+                </option>
+              ),
+            )}
           </select>
         </label>
       </div>
-      <label className="field wide">
-        <span>Tooltip gap (px)</span>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Tooltip gap (px)</span>
         <input
+          className={fieldInputClassName}
           min="0"
           onChange={(event) =>
             onChange({
