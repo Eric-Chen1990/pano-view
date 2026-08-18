@@ -7,10 +7,12 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 ## krpano-compatible tile output
 
 Use this package when you want a React-native viewer around equirectangular
-images or an existing krpano cube-tile pyramid. `Tile` understands the common
-krpano-style multires directory layout by default, while keeping rendering,
-controls, hotspots, and scene transitions in your React application. It is
-compatible with that tile output format but is not affiliated with krpano.
+images or an existing krpano cube-tile pyramid. Copy the krpano `<cube>` `url`
+and `multires` attributes into `Tile`'s `urlTemplate` and `multires` props;
+krpano's on-disk naming is not the same as this package's default template, so
+omitting them loads the wrong tiles. Rendering, controls, hotspots, and scene
+transitions stay in your React application. This package is compatible with
+that tile output format but is not affiliated with krpano.
 
 ## Install
 
@@ -240,13 +242,13 @@ that are not same-origin should set `crossOrigin` (usually `"anonymous"`).
 
 ## Tile
 
-`Tile` renders six inward-facing cube faces and loads only tiles around the current view. The default layout matches krpano-style output:
+`Tile` renders six inward-facing cube faces and loads only tiles around the current view. When `urlTemplate` is omitted, paths relative to `baseUrl` use this package default:
 
 ```text
-tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp
+tiles/%s/l%l/%v/l%l_%s_%h_%v.webp
 ```
 
-Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
+which expands to `tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp`. Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
 
 ```tsx
 import { PanoViewer, Tile } from "@ericchen1990/pano-view";
@@ -263,6 +265,42 @@ export function TileExample() {
 }
 ```
 
+krpano cube-tile output does not follow that default. Read `url` and `multires`
+from the krpano [`<cube>`](https://krpano.com/docu/xml/#image.cube) element and
+pass them through as `urlTemplate` and `multires`. If either value is missing
+or does not match the files on disk, tiles resolve to the wrong face, level, or
+row/column and the panorama looks scrambled.
+
+| krpano `<cube>` | `Tile` / `TileScene` prop |
+|---|---|
+| `url` | `urlTemplate` |
+| `multires` | `multires` |
+
+krpano's documented short syntax:
+
+```xml
+<image>
+  <cube url="pano_%s_%l_%v_%h.jpg"
+        multires="512,1024,2048,4096"
+  />
+</image>
+```
+
+maps to:
+
+```tsx
+<Tile
+  baseUrl="/panoramas/room"
+  urlTemplate="pano_%s_%l_%v_%h.jpg"
+  multires="512,1024,2048,4096"
+/>
+```
+
+A MAKE PANO (MULTIRES) folder layout is often
+`tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`. That filename is `%v_%h` (row then column).
+This package's default is `%h_%v` (column then row). Copy the XML values
+instead of assuming the two conventions match.
+
 The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Use `previewFaceOrder` when an atlas uses a different order:
 
 ```tsx
@@ -278,7 +316,8 @@ The first `multires` value is the tile size. Remaining values are ascending cube
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
-Override storage conventions with either a krpano placeholder template or a resolver. Both return paths relative to `baseUrl`:
+For layouts that are not krpano XML, override the default with a placeholder
+template or a resolver. Both return paths relative to `baseUrl`:
 
 ```tsx
 <Tile
@@ -323,6 +362,7 @@ const scenes: Scene[] = [
     type: "tile",
     baseUrl: "/panoramas/terrace",
     multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
   },
 ];
 

@@ -35,6 +35,10 @@ export type TileLoadError = {
 
 export type TileProps = {
   baseUrl: string;
+  /**
+   * Tile size followed by ascending cube-face sizes (`TILESIZE,LEVELSIZE1,...`).
+   * For krpano output, copy `image.cube.multires` from the XML.
+   */
   multires: string | TileMultiresConfig;
   /** Defaults to `${baseUrl}/previews/cube-vertical.webp`. */
   previewUrl?: string | null;
@@ -44,9 +48,12 @@ export type TileProps = {
    */
   previewFaceOrder?: readonly CubeFaceCode[];
   /**
-   * Relative to `baseUrl`; supports krpano cube-tile `%s` and `%l` placeholders,
-   * horizontal `%h`/`%x`/`%u`/`%c`, vertical `%v`/`%y`/`%w`/`%r`, and index padding
-   * such as `%0h` or `%00v`.
+   * Path relative to `baseUrl`. Defaults to
+   * `tiles/%s/l%l/%v/l%l_%s_%h_%v.webp`. For krpano output, copy `<cube url>`
+   * from the XML; krpano templates often use `%v_%h` instead of this default
+   * `%h_%v`, so omitting `urlTemplate` requests the wrong files. Supports
+   * krpano cube-tile `%s` and `%l` placeholders, horizontal `%h`/`%x`/`%u`/`%c`,
+   * vertical `%v`/`%y`/`%w`/`%r`, and index padding such as `%0h` or `%00v`.
    */
   urlTemplate?: string;
   /** Returns a path relative to `baseUrl`; takes precedence over `urlTemplate`. */
