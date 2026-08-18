@@ -34,7 +34,7 @@ export function usePanoChromeOverlay(): {
 
   const overlay = (
     <div
-      className="pointer-events-none absolute inset-0 z-[15]"
+      className="pano-chrome-overlay"
       data-pano-chrome-overlay=""
       ref={setOverlayNode}
     />

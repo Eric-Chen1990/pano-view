@@ -10,10 +10,19 @@ export default defineConfig({
     host: true,
   },
   resolve: {
-    alias: {
-      "@ericchen1990/pano-view": fileURLToPath(
-        new URL("../../packages/react/src/index.ts", import.meta.url),
-      ),
-    },
+    alias: [
+      {
+        find: /^@ericchen1990\/pano-view\/styles\.css$/,
+        replacement: fileURLToPath(
+          new URL("../../packages/react/src/styles.css", import.meta.url),
+        ),
+      },
+      {
+        find: /^@ericchen1990\/pano-view$/,
+        replacement: fileURLToPath(
+          new URL("../../packages/react/src/index.ts", import.meta.url),
+        ),
+      },
+    ],
   },
 });

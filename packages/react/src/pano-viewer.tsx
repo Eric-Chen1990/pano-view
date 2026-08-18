@@ -475,7 +475,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     return (
       <div
         {...divProps}
-        className={cn("relative overflow-hidden", divProps.className)}
+        className={cn("pano-viewer", divProps.className)}
         data-pano-viewer=""
         ref={rootRef}
         aria-label={ariaLabel}
@@ -571,12 +571,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           </XR>
         </Canvas>
         <div
-          className="pointer-events-none absolute inset-0 z-15"
+          className="pano-chrome-overlay"
           data-pano-chrome-overlay=""
           ref={setOverlayNode}
-          style={{
-            inset: 0,
-          }}
         >
           <PanoVideoChromeBridge
             fullscreen={contextMenuActions}

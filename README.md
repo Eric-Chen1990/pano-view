@@ -1,5 +1,7 @@
 # Pano View
 
+**English** | [简体中文](./README.zh-CN.md)
+
 Composable React components for building single-image sphere and six-face
 multiresolution panoramic viewing experiences.
 

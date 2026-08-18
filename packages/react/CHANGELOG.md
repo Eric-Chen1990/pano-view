@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 2.2.1
+
+### Patch Changes
+
+- 7889f3d: Apply `box-sizing: border-box` to `.pano-context-menu-item` so `width: 100%` plus item padding does not overflow the menu in hosts without a global CSS reset.
+
+## 2.2.0
+
+### Minor Changes
+
+- d9c2d02: Ship built-in HTML chrome styles as `@ericchen1990/pano-view/styles.css` instead of requiring Tailwind CSS v4 and an `@source` scan of this package. Host apps should import that stylesheet once; Tailwind is no longer part of the install contract.
+
 ## 2.1.0
 
 ### Minor Changes

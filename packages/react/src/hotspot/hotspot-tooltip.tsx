@@ -130,20 +130,20 @@ export function HotspotTooltip({
   return (
     <PanoHtml pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
       <div
-        className="pointer-events-none flex gap-2 whitespace-nowrap"
+        className="pano-hotspot-tooltip"
         role="tooltip"
         style={bubbleStyle}
       >
         {showImage ? (
           <img
             alt={content.imageAlt ?? content.text ?? ""}
-            className="block h-auto max-h-[120px] max-w-[220px] rounded object-contain"
+            className="pano-hotspot-tooltip-image"
             onError={() => setImageFailed(true)}
             src={content.image}
           />
         ) : null}
         {content.text ? (
-          <p className="m-0 overflow-visible whitespace-nowrap leading-[1.4]">
+          <p className="pano-hotspot-tooltip-text">
             {content.text}
           </p>
         ) : null}

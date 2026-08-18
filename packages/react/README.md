@@ -1,5 +1,7 @@
 # @ericchen1990/pano-view
 
+**English** | [简体中文](./README.zh-CN.md)
+
 Composable React components for equirectangular and krpano-style multiresolution panorama viewers.
 
 Try the components in the [live playground](https://pano-view-playground.vercel.app/).
@@ -17,29 +19,58 @@ not affiliated with krpano.
 
 ## Install
 
+### Package
+
 ```bash
 npm install @ericchen1990/pano-view
 ```
 
-React 19, React DOM 19, Three.js, `@react-three/fiber` 9,
-`@react-three/drei` 10, and `@react-three/xr` 6 are peer dependencies. npm 7+
-and pnpm install them automatically; they must be a single copy in the host
-app.
+pnpm and Yarn work the same way (`pnpm add` / `yarn add`).
 
-Tailwind CSS v4 is now required for the built-in HTML chrome: video controls,
-captions, context menus, tooltips, and accessibility helpers render with
-Tailwind utility classes instead of a bundled stylesheet. Add a source entry in
-your app so Tailwind can scan this package:
+### Peer dependencies
 
-```css
-@import "tailwindcss";
-@source "../node_modules/@ericchen1990/pano-view";
+These packages must be installed in the **host application**, not nested under
+this library. npm 7+ and pnpm install them automatically; Yarn Classic and npm
+6 do not, so install them explicitly.
+
+| Package | Supported range |
+| --- | --- |
+| `react` | `>=19.0.0 <19.3.0` |
+| `react-dom` | `>=19.0.0 <19.3.0` |
+| `three` | `^0.185.1` |
+| `@react-three/fiber` | `^9.7.0` |
+| `@react-three/drei` | `^10.0.0` |
+| `@react-three/xr` | `^6.6.0` |
+
+Keep a **single copy** of React, Three.js, and the React Three Fiber packages
+in the host app. Duplicate `three` trees are a common cause of blank canvases
+and context errors (`R3F: Hooks can only be used within the Canvas component`).
+If that happens, check `npm ls three` / `pnpm why three` and dedupe.
+
+React 19.3 and later are outside the supported range.
+
+### Stylesheet (HTML chrome)
+
+Import the shipped stylesheet once in the host app. The WebGL panorama
+(`PanoViewer`, `Sphere`, `Tile`, 3D hotspots) renders without it. Built-in
+**HTML** overlays do not: they use prefixed `pano-*` classes for layout.
+
+Those overlays include video controls, captions, the default context menu,
+hotspot tooltips, accessibility-only chrome, and WebVR session UI.
+
+```ts
+import "@ericchen1990/pano-view/styles.css";
 ```
 
-This package does not ship a separate CSS file. If your app does not scan
-`@ericchen1990/pano-view`, those built-in overlays will render without their
-default styling. Customization still works through `className`, `style`, and
-component appearance props.
+Or from CSS:
+
+```css
+@import "@ericchen1990/pano-view/styles.css";
+```
+
+Skip this import only if you do not use those overlays, or if you restyle
+them entirely through `className`, `style`, and appearance props. Without
+the stylesheet, the overlays still mount, but they render unstyled.
 
 ## Exported components
 
@@ -94,6 +125,7 @@ Angles are public degrees. Positive yaw looks right and positive pitch looks up.
 
 ```tsx
 import { useRef } from "react";
+import "@ericchen1990/pano-view/styles.css";
 import {
   PanoViewer,
   Sphere,
@@ -1322,4 +1354,14 @@ not load.
 
 ## Next.js and SSR
 
-The distributed entry is marked as a client module. Render it below a Client Component boundary. Panorama resources are loaded in the browser; no API keys or server configuration are required.
+The distributed entry is marked as a client module. Render it below a Client
+Component boundary. Panorama resources are loaded in the browser; no API keys
+or server configuration are required.
+
+Import the stylesheet once from a Client Component or a global CSS file:
+
+```ts
+import "@ericchen1990/pano-view/styles.css";
+```
+
+See [Stylesheet (HTML chrome)](#stylesheet-html-chrome).

@@ -43,13 +43,6 @@ export function PanoVideoCaptionsOverlay({
 
   const wrapperStyle: CSSProperties = {
     bottom: snapshot.captionAppearance.bottom,
-    display: "flex",
-    justifyContent: "center",
-    left: 0,
-    pointerEvents: "none",
-    position: "absolute",
-    right: 0,
-    zIndex: 1,
   };
 
   const textStyle: CSSProperties = {
@@ -69,7 +62,7 @@ export function PanoVideoCaptionsOverlay({
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 z-1 flex justify-center"
+      className="pano-video-captions"
       data-pano-video-captions=""
       style={wrapperStyle}
     >
