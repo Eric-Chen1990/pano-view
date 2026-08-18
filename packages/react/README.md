@@ -18,7 +18,10 @@ compatible with that tile output format but is not affiliated with krpano.
 npm install @ericchen1990/pano-view
 ```
 
-React 19, React DOM 19, Three.js, `@react-three/fiber` 9, and `@react-three/drei` 10 are peer dependencies. npm 7+ and pnpm install them automatically; they must be a single copy in the host app.
+React 19, React DOM 19, Three.js, `@react-three/fiber` 9,
+`@react-three/drei` 10, and `@react-three/xr` 6 are peer dependencies. npm 7+
+and pnpm install them automatically; they must be a single copy in the host
+app.
 
 Tailwind CSS v4 is now required for the built-in HTML chrome: video controls,
 captions, context menus, tooltips, and accessibility helpers render with
@@ -52,6 +55,7 @@ component appearance props.
 - [`KeyboardControls`](#keyboardcontrols) — arrow-key look, FOV, and scene cycling
 - [`AutoRotate`](#autorotate) — automatic yaw rotation
 - [`Gyro`](#gyro) — opt-in device-orientation control
+- [`WebVR`](#webvr) — WebXR-first immersive VR with MobileVR fallback
 
 ### Events and chrome
 
@@ -425,6 +429,58 @@ and counts as viewer interaction for idle tracking. Sensor APIs generally
 require HTTPS. A cross-origin iframe must be permitted by the host page, for
 example with `allow="gyroscope; accelerometer"` and a compatible
 `Permissions-Policy` header.
+
+## WebVR
+
+`WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
+`immersive-vr` WebXR session on supported headsets. On phones without WebXR it
+uses a stereoscopic split-screen view with device orientation, and on desktop
+it can provide a mouse-driven simulated VR preview. The built-in chrome includes
+Enter VR, Exit VR, and MobileVR setup controls.
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Sphere,
+  WebVR,
+  type WebVRHandle,
+} from "@ericchen1990/pano-view";
+
+export function WebVRExample() {
+  const webVRRef = useRef<WebVRHandle>(null);
+
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <WebVR
+        ref={webVRRef}
+        chrome
+        fakeSupport
+        mobileVr
+        onEnterVR={(mode) => console.log("Entered", mode)}
+      />
+      <Sphere src="/panoramas/room.webp" />
+    </PanoViewer>
+  );
+}
+```
+
+The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
+`isEnabled()`, `getMode()`, and `requestPermission()`. Modes are `"webxr"`,
+`"mobilevr"`, and `"fake"`. `profile` accepts `"none"`, `"cardboard-v1"`,
+`"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom
+`{ fov, ipdMm, k1, k2 }` lens profile. MobileVR setup values are versioned and
+stored in the current origin's `localStorage`. In VR, a center reticle shows a
+crosshair; looking at an interactive hotspot draws a clockwise ring that fills
+over `cursorDwellMs` (default 1500), then the hotspot click handler runs. Set
+`cursorDwellMs={0}` to keep the reticle without auto-click.
+
+WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
+HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
+appropriate `xr-spatial-tracking`, `gyroscope`, and `accelerometer` permissions.
+DOM overlays such as iframe hotspots, tooltips, and video controls are not
+visible inside an immersive headset session; mesh-based hotspots remain
+interactive through the default WebXR controller rays.
 
 ## Mouse, touch, and keyboard controls
 

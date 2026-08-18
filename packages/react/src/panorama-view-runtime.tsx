@@ -1,4 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
+import { useXR } from "@react-three/xr";
 import {
   createContext,
   forwardRef,
@@ -122,7 +123,9 @@ export const PanoramaViewRuntime = forwardRef<
   { initialView, minFov, maxFov, options, eventBus },
   ref,
 ) {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const xrSession = useXR((state) => state.session);
+  const xrSessionRef = useRef(xrSession);
   const viewRef = useRef<PanoViewerState>({ ...initialView });
   const targetViewRef = useRef<PanoViewerState>({ ...initialView });
   const initialViewRef = useRef<PanoViewerState>({ ...initialView });
@@ -146,11 +149,13 @@ export const PanoramaViewRuntime = forwardRef<
   const eventBusRef = useRef(eventBus);
   const lastEmittedViewRef = useRef<PanoViewerState | null>(null);
   const eulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
+  const xrEulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
   const minFovRef = useRef(minFov);
   const maxFovRef = useRef(maxFov);
 
   optionsRef.current = options;
   eventBusRef.current = eventBus;
+  xrSessionRef.current = xrSession;
   minFovRef.current = minFov;
   maxFovRef.current = maxFov;
 
@@ -165,6 +170,7 @@ export const PanoramaViewRuntime = forwardRef<
     keyboardActiveRef.current ||
     gyroActiveRef.current ||
     interactionLockCountRef.current > 0 ||
+    xrSessionRef.current != null ||
     hasInertia();
 
   const syncInteracting = () => {
@@ -285,7 +291,10 @@ export const PanoramaViewRuntime = forwardRef<
     delta: Partial<PanoViewerState>,
     applyOptions?: ApplyViewDeltaOptions,
   ): boolean => {
-    if (interactionLockCountRef.current > 0) {
+    if (
+      interactionLockCountRef.current > 0 ||
+      xrSessionRef.current != null
+    ) {
       return false;
     }
 
@@ -452,6 +461,7 @@ export const PanoramaViewRuntime = forwardRef<
           zoomVelocityRef.current === 0;
         if (
           !Number.isFinite(yawDelta) ||
+          xrSessionRef.current != null ||
           gyroActiveRef.current ||
           interactionLockCountRef.current > 0 ||
           interactingRef.current ||
@@ -476,6 +486,27 @@ export const PanoramaViewRuntime = forwardRef<
 
   useFrame((_, deltaSeconds) => {
     if (!(camera instanceof PerspectiveCamera)) {
+      return;
+    }
+    if (xrSessionRef.current && gl.xr.isPresenting) {
+      const xrCamera = gl.xr.getCamera();
+      xrEulerRef.current.setFromQuaternion(xrCamera.quaternion, "YXZ");
+      const nextView = {
+        yaw: normalizeYaw(-MathUtils.radToDeg(xrEulerRef.current.y)),
+        pitch: clamp(
+          MathUtils.radToDeg(xrEulerRef.current.x),
+          -MAX_PITCH,
+          MAX_PITCH,
+        ),
+        fov: viewRef.current.fov,
+      };
+      viewRef.current = nextView;
+      targetViewRef.current = nextView;
+      const lastEmitted = lastEmittedViewRef.current;
+      if (!lastEmitted || !viewsEqual(lastEmitted, nextView)) {
+        lastEmittedViewRef.current = { ...nextView };
+        eventBusRef.current.emit("viewchange", { ...nextView });
+      }
       return;
     }
 

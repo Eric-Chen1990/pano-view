@@ -1,4 +1,5 @@
 import { Canvas } from "@react-three/fiber";
+import { createXRStore, XR } from "@react-three/xr";
 import {
   forwardRef,
   useCallback,
@@ -76,6 +77,13 @@ import {
   PanoVideoHostContext,
 } from "./video/host";
 import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
+import { WebVRChromeBridge } from "./webvr/chrome";
+import {
+  createWebVRHost,
+  WebVRRuntimeContext,
+} from "./webvr/host";
+import { createWebVRStereoView } from "./webvr/stereo-view";
+import { PanoramaXROrigin } from "./webvr/xr-origin";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
@@ -257,6 +265,25 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const { api: chromeOverlayApi, setOverlayNode, overlayElement } =
       usePanoChromeOverlay();
     const videoHost = useMemo(() => createPanoVideoHost(), []);
+    const webVRHost = useMemo(() => createWebVRHost(), []);
+    const stereoView = useMemo(() => createWebVRStereoView(), []);
+    const xrStore = useMemo(
+      () =>
+        createXRStore({
+          anchors: false,
+          bodyTracking: false,
+          depthSensing: false,
+          domOverlay: false,
+          emulate: false,
+          enterGrantedSession: false,
+          hitTest: false,
+          layers: false,
+          meshDetection: false,
+          offerSession: false,
+          planeDetection: false,
+        }),
+      [],
+    );
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -444,6 +471,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       <div
         {...divProps}
         className={cn("relative overflow-hidden", divProps.className)}
+        data-pano-viewer=""
         ref={rootRef}
         aria-label={ariaLabel}
         style={rootStyle}
@@ -469,6 +497,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             touchAction: userControlsEnabled ? "none" : "auto",
           }}
         >
+          <XR store={xrStore}>
+          <WebVRRuntimeContext.Provider
+            value={{ host: webVRHost, xrStore, stereoView }}
+          >
+          <PanoramaXROrigin />
           <HotspotAccessibilityContext.Provider value={registry}>
             <PanoEventBusContext.Provider value={eventBus}>
               <PanoCursorTree cursors={resolvedCursors}>
@@ -527,9 +560,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
               </PanoCursorTree>
             </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
+          </WebVRRuntimeContext.Provider>
+          </XR>
         </Canvas>
         <div
-          className="pointer-events-none absolute inset-0 z-[15]"
+          className="pointer-events-none absolute inset-0 z-15"
           data-pano-chrome-overlay=""
           ref={setOverlayNode}
           style={{
@@ -541,6 +576,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             host={videoHost}
             overlayElement={overlayElement}
           />
+          <WebVRChromeBridge host={webVRHost} />
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}

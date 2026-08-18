@@ -1,6 +1,7 @@
 import { createContext } from "react";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import type { PanoViewerState } from "./types";
+import type { WebVRMode } from "./webvr/types";
 
 export type ViewInteractionSource = "mouse" | "touch" | "keyboard";
 
@@ -44,6 +45,12 @@ export type PanoEventMap = {
   gyroenable: undefined;
   gyrodisable: undefined;
   gyrodenied: undefined;
+  vravailable: undefined;
+  vrunavailable: undefined;
+  vrenter: { mode: WebVRMode };
+  vrexit: { mode: WebVRMode };
+  vrdenied: { error?: unknown };
+  vrunknowndevice: undefined;
 };
 
 export type PanoEventType = keyof PanoEventMap;

@@ -6,6 +6,20 @@ export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
 export { Gyro } from "./gyro";
 export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
+export { WebVR } from "./webvr/webvr";
+export { DEFAULT_WEBVR_CHROME_APPEARANCE } from "./webvr/appearance";
+export { WEBVR_PROFILE_IDS, WEBVR_PROFILES } from "./webvr/profiles";
+export { DEFAULT_WEBVR_CURSOR_DWELL_MS } from "./webvr/reticle";
+export type {
+  WebVRChrome,
+  WebVRChromeAppearance,
+  WebVRHandle,
+  WebVRMode,
+  WebVRProfile,
+  WebVRProfileId,
+  WebVRProps,
+  WebVRSettings,
+} from "./webvr/types";
 export { PanoContextMenu } from "./pano-context-menu";
 export {
   composePanoContextMenuItems,

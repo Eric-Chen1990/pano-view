@@ -13,6 +13,7 @@ import {
 } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { PanoViewerState } from "./types";
+import type { WebVRMode } from "./webvr/types";
 
 const DEFAULT_IDLE_TIME_MS = 2000;
 
@@ -46,6 +47,12 @@ export type PanoEventsProps = {
   onGyroEnable?: () => void;
   onGyroDisable?: () => void;
   onGyroDenied?: () => void;
+  onVRAvailable?: () => void;
+  onVRUnavailable?: () => void;
+  onVREnter?: (mode: WebVRMode) => void;
+  onVRExit?: (mode: WebVRMode) => void;
+  onVRDenied?: (error?: unknown) => void;
+  onVRUnknownDevice?: () => void;
 };
 
 function resolveIdleTime(value: number | undefined): number {
@@ -82,6 +89,12 @@ export function usePanoEvents({
   onGyroEnable,
   onGyroDisable,
   onGyroDenied,
+  onVRAvailable,
+  onVRUnavailable,
+  onVREnter,
+  onVRExit,
+  onVRDenied,
+  onVRUnknownDevice,
 }: PanoEventsProps): void {
   const eventBus = useContext(PanoEventBusContext);
   const controlsRef = useContext(PanoramaViewContext);
@@ -116,6 +129,12 @@ export function usePanoEvents({
     onGyroEnable,
     onGyroDisable,
     onGyroDenied,
+    onVRAvailable,
+    onVRUnavailable,
+    onVREnter,
+    onVRExit,
+    onVRDenied,
+    onVRUnknownDevice,
   });
   callbacksRef.current = {
     onViewChange,
@@ -142,6 +161,12 @@ export function usePanoEvents({
     onGyroEnable,
     onGyroDisable,
     onGyroDenied,
+    onVRAvailable,
+    onVRUnavailable,
+    onVREnter,
+    onVRExit,
+    onVRDenied,
+    onVRUnknownDevice,
   };
 
   const idleElapsedRef = useRef(0);
@@ -209,6 +234,24 @@ export function usePanoEvents({
       }),
       eventBus.subscribe("gyrodenied", () => {
         callbacksRef.current.onGyroDenied?.();
+      }),
+      eventBus.subscribe("vravailable", () => {
+        callbacksRef.current.onVRAvailable?.();
+      }),
+      eventBus.subscribe("vrunavailable", () => {
+        callbacksRef.current.onVRUnavailable?.();
+      }),
+      eventBus.subscribe("vrenter", ({ mode }) => {
+        callbacksRef.current.onVREnter?.(mode);
+      }),
+      eventBus.subscribe("vrexit", ({ mode }) => {
+        callbacksRef.current.onVRExit?.(mode);
+      }),
+      eventBus.subscribe("vrdenied", ({ error }) => {
+        callbacksRef.current.onVRDenied?.(error);
+      }),
+      eventBus.subscribe("vrunknowndevice", () => {
+        callbacksRef.current.onVRUnknownDevice?.();
       }),
     ];
     return () => {

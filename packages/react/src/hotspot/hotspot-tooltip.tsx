@@ -1,6 +1,6 @@
-import { Html } from "@react-three/drei";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { PanoHtml } from "../webvr/stereo-html";
 import type { HotspotTooltipContent, HotspotTooltipPlacement } from "./types";
 
 const TOOLTIP_MAX_WIDTH = 220;
@@ -91,7 +91,7 @@ export function HotspotTooltip({
   }
 
   return (
-    <Html pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
+    <PanoHtml pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
       <div
         className="pointer-events-none flex gap-2 whitespace-nowrap rounded-lg border border-[rgba(46,46,46,0.7)] bg-[rgba(22,22,22,0.72)] p-2 text-[#f5fbfc] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
         role="tooltip"
@@ -111,6 +111,6 @@ export function HotspotTooltip({
           </p>
         ) : null}
       </div>
-    </Html>
+    </PanoHtml>
   );
 }

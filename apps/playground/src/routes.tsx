@@ -3,6 +3,7 @@ import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
+import { WebVRPage } from "./components/webvr/WebVRPage";
 
 export type PlaygroundRoute = {
   path: string;
@@ -38,6 +39,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
     navLabel: "360 video",
     stageLabel: "360 VIDEO · STAGE 08",
     Component: VideoPage,
+  },
+  {
+    path: "/webvr",
+    navLabel: "WebVR",
+    stageLabel: "IMMERSIVE VR · STAGE 09",
+    Component: WebVRPage,
   },
 ];
 
