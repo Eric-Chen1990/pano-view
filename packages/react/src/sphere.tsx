@@ -17,12 +17,12 @@ import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 export type SphereProps = {
   src: string;
   /**
-   * Optional low-resolution 2:1 equirectangular image shown while `src` loads.
+   * Low-resolution 2:1 equirectangular image shown while `src` loads.
    * Relative paths resolve against the directory of `src`. Root-absolute and
-   * `http(s)` / `blob:` / `data:` URLs are used as-is. Unlike `Tile`, there is
-   * no default preview. For krpano sphere scenes, copy `<preview url>`.
+   * `http(s)` / `blob:` / `data:` URLs are used as-is. For krpano sphere
+   * scenes, copy `<preview url>`.
    */
-  previewUrl?: string | null;
+  previewUrl: string;
   /** Horizontal image offset in degrees. */
   yawOffset?: number;
   /** Called once the first paintable texture (preview or `src`) is ready. */
@@ -116,12 +116,10 @@ export function Sphere({
 }: SphereProps) {
   const gl = useThree((state) => state.gl);
   const anisotropy = gl.capabilities.getMaxAnisotropy();
-  const resolvedPreviewUrl = useMemo(() => {
-    if (previewUrl == null) {
-      return null;
-    }
-    return resolveUrlAgainstFile(src, previewUrl);
-  }, [previewUrl, src]);
+  const resolvedPreviewUrl = useMemo(
+    () => resolveUrlAgainstFile(src, previewUrl),
+    [previewUrl, src],
+  );
   const texture = useEquirectTexture(
     src,
     anisotropy,

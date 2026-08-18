@@ -20,14 +20,26 @@ export const INITIAL_PROGRESS: TileLoadProgress = {
 export const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
 
 export const TRANSITION_SCENES = [
-  { id: "sphere-1", type: "sphere", src: "/fixtures/panorama/panos/1.jpg" },
-  { id: "sphere-2", type: "sphere", src: "/fixtures/panorama/panos/2.jpg", yawOffset: 12 },
+  {
+    id: "sphere-1",
+    type: "sphere",
+    src: "/fixtures/panorama/panos/1/sphere.webp",
+    previewUrl: "preview.webp",
+  },
+  {
+    id: "sphere-2",
+    type: "sphere",
+    src: "/fixtures/panorama/panos/2/sphere.webp",
+    previewUrl: "preview.webp",
+    yawOffset: 12,
+  },
   {
     id: "tile-3",
     type: "tile",
     baseUrl: "/fixtures/panorama/cube-tiles/3",
     multires: "512,1000,2000",
     urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    previewUrl: "previews/cube-vertical.webp",
   },
   {
     id: "tile-4",
@@ -35,6 +47,7 @@ export const TRANSITION_SCENES = [
     baseUrl: "/fixtures/panorama/cube-tiles/4",
     multires: "512,1000,2000",
     urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    previewUrl: "previews/cube-vertical.webp",
   },
 ] satisfies readonly Scene[];
 

@@ -33,7 +33,7 @@ export type SphereScene = {
   id: string;
   type: "sphere";
   src: string;
-  previewUrl?: string | null;
+  previewUrl: string;
   yawOffset?: number;
 };
 

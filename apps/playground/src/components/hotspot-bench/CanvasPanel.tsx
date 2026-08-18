@@ -269,12 +269,16 @@ export function CanvasPanel() {
             onDenied={() => setGyroEnabled(false)}
           />
           {mode === "sphere" ? (
-            <Sphere src="/fixtures/panorama/panos/1.jpg" />
+            <Sphere
+              src="/fixtures/panorama/panos/1/sphere.webp"
+              previewUrl="preview.webp"
+            />
           ) : (
             <Tile
               baseUrl="/fixtures/panorama/cube-tiles/4"
               multires="512,1000,2000"
               urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
+              previewUrl="previews/cube-vertical.webp"
               onLevelChange={setLevel}
               onLoadProgress={setProgress}
               onTileError={incrementTileErrors}

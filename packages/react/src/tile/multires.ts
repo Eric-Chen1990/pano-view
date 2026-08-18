@@ -1,7 +1,4 @@
-import {
-  resolveAssetUrl,
-  resolveRelativeAssetUrl,
-} from "../asset-url";
+import { resolveRelativeAssetUrl } from "../asset-url";
 import type {
   TileAddress,
   TileMultiresConfig,
@@ -57,7 +54,6 @@ export function parseMultires(
 }
 
 export const DEFAULT_TILE_URL_TEMPLATE = "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
-export const DEFAULT_TILE_PREVIEW_PATH = "previews/cube-vertical.webp";
 
 export function buildDefaultTileUrlTemplate(): string {
   return DEFAULT_TILE_URL_TEMPLATE;
@@ -68,16 +64,6 @@ export function resolveRelativeTileUrl(
   relativePath: string,
 ): string {
   return resolveRelativeAssetUrl(baseUrl, relativePath);
-}
-
-export function resolvePreviewUrl(
-  baseUrl: string,
-  previewUrl: string | null | undefined,
-): string | null {
-  if (previewUrl === null) {
-    return null;
-  }
-  return resolveAssetUrl(baseUrl, previewUrl ?? DEFAULT_TILE_PREVIEW_PATH);
 }
 
 export function resolveTemplateUrl(
