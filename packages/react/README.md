@@ -810,10 +810,11 @@ xml/VR/frame-render events.
 
 ## PanoContextMenu
 
-`PanoViewer` mounts a default context menu that replaces the browser menu on
-right-click. Default items: **Reset view** and **Enter fullscreen** / **Exit
-fullscreen** (label and icon follow the current fullscreen state), with a
-separator between them.
+`PanoViewer` always suppresses the browser's native context menu on the
+viewer (canvas, chrome, and other overlays). It also mounts a default
+context menu on right-click. Default items: **Reset view** and **Enter
+fullscreen** / **Exit fullscreen** (label and icon follow the current
+fullscreen state), with a separator between them.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -821,7 +822,8 @@ separator between them.
 </PanoViewer>
 ```
 
-Disable the default menu (restore the browser menu, or mount your own):
+Disable the default menu (the native browser menu stays suppressed; mount
+your own `PanoContextMenu` if you still want a custom menu):
 
 ```tsx
 <PanoViewer contextMenu={false}>

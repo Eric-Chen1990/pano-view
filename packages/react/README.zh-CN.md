@@ -678,7 +678,7 @@ import {
 
 ## PanoContextMenu
 
-`PanoViewer` 挂载默认右键菜单，右键时替换浏览器菜单。默认项：**Reset view** 与 **Enter fullscreen** / **Exit fullscreen**（文案与图标随全屏状态变化），中间有分隔线。
+`PanoViewer` 会始终屏蔽浏览器原生右键菜单（画布、chrome 及其他 overlay 均生效），并挂载默认右键菜单。默认项：**Reset view** 与 **Enter fullscreen** / **Exit fullscreen**（文案与图标随全屏状态变化），中间有分隔线。
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -686,7 +686,7 @@ import {
 </PanoViewer>
 ```
 
-关闭默认菜单（恢复浏览器菜单，或挂载自定义菜单）：
+关闭默认菜单（浏览器原生菜单仍会被屏蔽；若仍需自定义菜单，请自行挂载 `PanoContextMenu`）：
 
 ```tsx
 <PanoViewer contextMenu={false}>
