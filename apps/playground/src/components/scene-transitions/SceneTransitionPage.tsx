@@ -27,7 +27,7 @@ import { SiteHeader } from "../SiteHeader";
 
 export function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
-  const [preset, setPreset] = useState<SceneTransitionPreset>("crossfade");
+  const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
 
   return (
@@ -41,7 +41,7 @@ export function SceneTransitionPage() {
           <div>
             <p className={eyebrowClassName}>Scene transition bench</p>
             <h1 className={pageHeadingTitleClassName} id="transition-bench-title">
-              GPU snapshot blending
+              Blend between scenes
             </h1>
           </div>
           <p className={pageHeadingStatusClassName}>{status}</p>

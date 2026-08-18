@@ -24,9 +24,9 @@ export function HotspotBenchPage() {
             className="m-0 text-[clamp(3rem,7vw,6rem)] leading-[0.92] font-black tracking-tight text-[#f5fbfc]"
             id="page-title"
           >
-            Place it
+            Place hotspots
             <br />
-            where it lives.
+            on the panorama
           </h1>
         </div>
         <p className="m-0 max-w-[36rem] text-[0.95rem] leading-7 text-[#9ab1b7]">

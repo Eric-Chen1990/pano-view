@@ -145,7 +145,7 @@ export function VideoPage() {
           <div>
             <p className={eyebrowClassName}>360 video bench</p>
             <h1 className={pageHeadingTitleClassName} id="video-bench-title">
-              Sphere-mapped playback
+              Play a 360 video
             </h1>
           </div>
           <p className={pageHeadingStatusClassName}>{status}</p>
