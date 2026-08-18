@@ -222,6 +222,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
             }
           }}
           stroke={polygon.stroke}
+          strokeDashSize={polygon.strokeDashSize}
+          strokeGapSize={polygon.strokeGapSize}
           strokeOpacity={polygon.strokeOpacity}
           strokeWidth={polygon.strokeWidth}
           tooltip={polygon.tooltip}
@@ -255,6 +257,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
           }}
           onVerticesChange={({ vertices }) => updatePolyline(polyline.id, { vertices })}
           stroke={polyline.stroke}
+          strokeDashSize={polyline.strokeDashSize}
+          strokeGapSize={polyline.strokeGapSize}
           strokeOpacity={polyline.strokeOpacity}
           strokeWidth={polyline.strokeWidth}
           tooltip={polyline.tooltip}

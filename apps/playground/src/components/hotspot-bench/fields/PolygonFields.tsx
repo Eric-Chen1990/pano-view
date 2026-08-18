@@ -10,6 +10,7 @@ import {
   fieldWideClassName,
 } from "../../../ui";
 import { formatPosition, numberValue } from "../../../utils";
+import { StrokeDashFields } from "./StrokeDashFields";
 import { TooltipFields } from "./TooltipFields";
 
 export function PolygonFields({
@@ -108,6 +109,11 @@ export function PolygonFields({
           value={polygon.strokeOpacity}
         />
       </label>
+      <StrokeDashFields
+        onChange={onChange}
+        strokeDashSize={polygon.strokeDashSize}
+        strokeGapSize={polygon.strokeGapSize}
+      />
       <label className={`${checkboxLabelClassName} col-span-full`}>
         <input
           className="accent-[#df6b42]"

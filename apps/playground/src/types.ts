@@ -107,6 +107,8 @@ export type EditorPolygon = {
   stroke: string;
   strokeWidth: number;
   strokeOpacity: number;
+  strokeDashSize: number;
+  strokeGapSize: number;
   visible: boolean;
   pointerEvents: HotspotPointerEvents;
   tooltip: HotspotTooltipContent;
@@ -123,6 +125,8 @@ export type EditorPolyline = {
   stroke: string;
   strokeWidth: number;
   strokeOpacity: number;
+  strokeDashSize: number;
+  strokeGapSize: number;
   visible: boolean;
   pointerEvents: HotspotPointerEvents;
   tooltip: HotspotTooltipContent;

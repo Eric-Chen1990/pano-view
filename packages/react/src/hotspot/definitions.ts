@@ -105,6 +105,8 @@ export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
+  strokeDashSize?: number;
+  strokeGapSize?: number;
 };
 
 /** An open path. This extends the original point and polygon hotspot categories. */
@@ -114,6 +116,8 @@ export type PolylineHotspotDefinition = HotspotDefinitionBase & {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
+  strokeDashSize?: number;
+  strokeGapSize?: number;
 };
 
 export type PointHotspotDefinition =

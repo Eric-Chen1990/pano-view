@@ -1019,6 +1019,8 @@ import { PolygonHotspot } from "@ericchen1990/pano-view";
   stroke="#f5fbfc"
   strokeWidth={2}
   strokeOpacity={0.8}
+  strokeDashSize={8}
+  strokeGapSize={4}
   draggable
   onVerticesChange={({ vertices }) => setZoneVertices(vertices)}
   onInvalid={(issues) => console.error(issues)}
@@ -1026,9 +1028,11 @@ import { PolygonHotspot } from "@ericchen1990/pano-view";
 ```
 
 `strokeWidth` is a screen-space CSS pixel value, so it remains visually
-consistent across FOV changes. Dragging moves all vertices together while
-keeping yaw normalized and pitch clamped. Individual vertex editing is provided
-by the authoring workflow, not the runtime hotspot component.
+consistent across FOV changes. `strokeDashSize` and `strokeGapSize` use the
+same CSS-pixel units; omit them or set `strokeDashSize` to `0` for a solid
+stroke. Dragging moves all vertices together while keeping yaw normalized and
+pitch clamped. Individual vertex editing is provided by the authoring
+workflow, not the runtime hotspot component.
 
 Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
 share the same spherical edge sampling, so there is no intentional seam
@@ -1037,7 +1041,8 @@ between them.
 ## PolylineHotspot
 
 `PolylineHotspot` is an open path of at least two yaw/pitch vertices. It uses
-the same CSS-pixel `strokeWidth`, visibility, semantic interaction, controlled
+the same CSS-pixel `strokeWidth`, optional dashed stroke (`strokeDashSize` /
+`strokeGapSize`), visibility, semantic interaction, controlled
 whole-path drag, and vertex-change callback as `PolygonHotspot`, but it never
 connects the final point to the first and has no fill.
 
@@ -1051,6 +1056,8 @@ import { PolylineHotspot } from "@ericchen1990/pano-view";
   stroke="#75cbd3"
   strokeWidth={2}
   strokeOpacity={0.9}
+  strokeDashSize={8}
+  strokeGapSize={4}
   draggable
   onVerticesChange={({ vertices }) => setRouteVertices(vertices)}
 />;

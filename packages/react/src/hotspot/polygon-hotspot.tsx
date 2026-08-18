@@ -73,6 +73,10 @@ export type PolygonHotspotProps = Omit<
   strokeWidth?: number;
   /** Opacity of the polygon boundary, from 0 to 1. Defaults to 1. */
   strokeOpacity?: number;
+  /** Dash length in CSS pixels. Omit or 0 for a solid stroke. */
+  strokeDashSize?: number;
+  /** Gap length in CSS pixels. Defaults to `strokeDashSize` when dashed. */
+  strokeGapSize?: number;
   onVerticesChange?: (event: PolygonVerticesChangeEvent) => void;
   onDragStart?: (event: PolygonVerticesChangeEvent) => void;
   onDragEnd?: (event: PolygonVerticesChangeEvent) => void;
@@ -394,6 +398,8 @@ export function PolygonHotspot({
   stroke = "#f5fbfc",
   strokeWidth = 2,
   strokeOpacity = 1,
+  strokeDashSize,
+  strokeGapSize,
   interactive = true,
   renderOrder = 10,
   draggable = false,
@@ -456,6 +462,8 @@ export function PolygonHotspot({
       focusContent={
         <HotspotStrokeLine
           color="#75cbd3"
+          dashSize={strokeDashSize}
+          gapSize={strokeGapSize}
           lineWidth={strokeWidth + 2}
           opacity={1}
           points={strokePoints}
@@ -483,6 +491,8 @@ export function PolygonHotspot({
       </mesh>
       <HotspotStrokeLine
         color={stroke}
+        dashSize={strokeDashSize}
+        gapSize={strokeGapSize}
         lineWidth={strokeWidth}
         opacity={resolvedStrokeOpacity}
         points={strokePoints}

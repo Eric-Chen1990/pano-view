@@ -59,6 +59,10 @@ export type PolylineHotspotProps = Omit<
   /** Screen-space line width in CSS pixels. Defaults to 2. */
   strokeWidth?: number;
   strokeOpacity?: number;
+  /** Dash length in CSS pixels. Omit or 0 for a solid stroke. */
+  strokeDashSize?: number;
+  /** Gap length in CSS pixels. Defaults to `strokeDashSize` when dashed. */
+  strokeGapSize?: number;
   onVerticesChange?: (event: PolylineVerticesChangeEvent) => void;
   onDragStart?: (event: PolylineVerticesChangeEvent) => void;
   onDragEnd?: (event: PolylineVerticesChangeEvent) => void;
@@ -197,6 +201,8 @@ export function PolylineHotspot({
   stroke = "#f5fbfc",
   strokeWidth = 2,
   strokeOpacity = 1,
+  strokeDashSize,
+  strokeGapSize,
   renderOrder = 10,
   draggable = false,
   onVerticesChange,
@@ -251,6 +257,8 @@ export function PolylineHotspot({
       focusContent={
         <HotspotStrokeLine
           color="#75cbd3"
+          dashSize={strokeDashSize}
+          gapSize={strokeGapSize}
           lineWidth={strokeWidth + 2}
           opacity={1}
           points={linePoints}
@@ -269,6 +277,8 @@ export function PolylineHotspot({
     >
       <HotspotStrokeLine
         color={stroke}
+        dashSize={strokeDashSize}
+        gapSize={strokeGapSize}
         lineWidth={strokeWidth}
         opacity={opacity}
         points={linePoints}

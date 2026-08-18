@@ -67,6 +67,8 @@ export const DEMO_POLYGON: EditorPolygon = {
   stroke: "#f5fbfc",
   strokeWidth: 2,
   strokeOpacity: 0.88,
+  strokeDashSize: 0,
+  strokeGapSize: 0,
   visible: true,
   pointerEvents: "auto",
   tooltip: { text: "Courtyard canopy" },

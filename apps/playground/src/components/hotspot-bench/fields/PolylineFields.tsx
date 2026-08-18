@@ -9,6 +9,7 @@ import {
   fieldWideClassName,
 } from "../../../ui";
 import { formatPosition, numberValue } from "../../../utils";
+import { StrokeDashFields } from "./StrokeDashFields";
 import { TooltipFields } from "./TooltipFields";
 
 export function PolylineFields({
@@ -75,6 +76,11 @@ export function PolylineFields({
           value={polyline.strokeOpacity}
         />
       </label>
+      <StrokeDashFields
+        onChange={onChange}
+        strokeDashSize={polyline.strokeDashSize}
+        strokeGapSize={polyline.strokeGapSize}
+      />
       <label className={`${checkboxLabelClassName} col-span-full`}>
         <input
           className="accent-[#df6b42]"
