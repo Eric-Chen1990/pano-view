@@ -1,7 +1,17 @@
 import type {
   GraphicDefinition,
   HotspotMode,
+  HotspotPointerEvents,
   HotspotPosition,
+  HotspotTooltipAppearance,
+  HotspotTooltipContent,
+  HotspotTooltipPlacement,
+  HotspotTooltipTrigger,
+  IframePointerPolicy,
+  TextHotspotAlign,
+  TextHotspotFontStyle,
+  TextHotspotVerticalAlign,
+  TextHotspotWhiteSpace,
 } from "@ericchen1990/pano-view";
 
 export type ViewerMode = "sphere" | "tile";
@@ -13,84 +23,80 @@ export type EditorTool =
   | "graphic"
   | "sequence"
   | "video"
+  | "text"
+  | "iframe"
   | "polygon"
   | "polyline";
 
+type EditorPointHotspotBase = {
+  id: string;
+  label: string;
+  position: HotspotPosition;
+  width: number;
+  height: number;
+  rotation: number;
+  scale: number;
+  mode: HotspotMode;
+  distance: number;
+  scaleMode: "fov" | "fixed";
+  opacity: number;
+  visible: boolean;
+  pointerEvents: HotspotPointerEvents;
+  tooltip: HotspotTooltipContent;
+  tooltipTrigger: HotspotTooltipTrigger;
+  tooltipPlacement: HotspotTooltipPlacement;
+  tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
+};
+
 export type EditorHotspot =
-  | {
-      id: string;
+  | (EditorPointHotspotBase & {
       type: "image";
-      label: string;
-      position: HotspotPosition;
-      width: number;
-      height: number;
-      rotation: number;
-      scale: number;
-      mode: HotspotMode;
-      distance: number;
-      scaleMode: "fov" | "fixed";
-      opacity: number;
-      visible: boolean;
       src: string;
-    }
-  | {
-      id: string;
+    })
+  | (EditorPointHotspotBase & {
       type: "graphic";
-      label: string;
-      position: HotspotPosition;
-      width: number;
-      height: number;
-      rotation: number;
-      scale: number;
-      mode: HotspotMode;
-      distance: number;
-      scaleMode: "fov" | "fixed";
-      opacity: number;
-      visible: boolean;
       graphic: GraphicDefinition;
-    }
-  | {
-      id: string;
+    })
+  | (EditorPointHotspotBase & {
       type: "sequence";
-      label: string;
-      position: HotspotPosition;
-      width: number;
-      height: number;
-      rotation: number;
-      scale: number;
-      mode: HotspotMode;
-      distance: number;
-      scaleMode: "fov" | "fixed";
-      opacity: number;
-      visible: boolean;
       src: string;
       frameCount: number;
       frameDirection: "horizontal" | "vertical";
       playing: boolean;
       fps: number;
       loop: boolean;
-    }
-  | {
-      id: string;
+    })
+  | (EditorPointHotspotBase & {
       type: "video";
-      label: string;
-      position: HotspotPosition;
-      width: number;
-      height: number;
-      rotation: number;
-      scale: number;
-      mode: HotspotMode;
-      distance: number;
-      scaleMode: "fov" | "fixed";
-      opacity: number;
-      visible: boolean;
       src: string;
       poster: string;
       playing: boolean;
       loop: boolean;
       muted: boolean;
       volume: number;
-    };
+    })
+  | (EditorPointHotspotBase & {
+      type: "text";
+      text: string;
+      fontFamily: string;
+      fontSize: number;
+      fontWeight: number;
+      fontStyle: TextHotspotFontStyle;
+      color: string;
+      background: string;
+      backgroundOpacity: number;
+      align: TextHotspotAlign;
+      verticalAlign: TextHotspotVerticalAlign;
+      whiteSpace: TextHotspotWhiteSpace;
+    })
+  | (EditorPointHotspotBase & {
+      type: "iframe";
+      src: string;
+      title: string;
+      sandbox: string;
+      pointerPolicy: IframePointerPolicy;
+    });
 
 export type EditorPolygon = {
   id: string;
@@ -101,7 +107,15 @@ export type EditorPolygon = {
   stroke: string;
   strokeWidth: number;
   strokeOpacity: number;
+  strokeDashSize: number;
+  strokeGapSize: number;
   visible: boolean;
+  pointerEvents: HotspotPointerEvents;
+  tooltip: HotspotTooltipContent;
+  tooltipTrigger: HotspotTooltipTrigger;
+  tooltipPlacement: HotspotTooltipPlacement;
+  tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };
 
 export type EditorPolyline = {
@@ -111,5 +125,13 @@ export type EditorPolyline = {
   stroke: string;
   strokeWidth: number;
   strokeOpacity: number;
+  strokeDashSize: number;
+  strokeGapSize: number;
   visible: boolean;
+  pointerEvents: HotspotPointerEvents;
+  tooltip: HotspotTooltipContent;
+  tooltipTrigger: HotspotTooltipTrigger;
+  tooltipPlacement: HotspotTooltipPlacement;
+  tooltipOffset: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };

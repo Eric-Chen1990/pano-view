@@ -3,7 +3,7 @@ import {
   validatePolygonVertices,
   type GraphicDefinition,
   type HotspotPosition,
-  type PanoViewState,
+  type PanoViewerState,
   type TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import { create } from "zustand";
@@ -26,6 +26,7 @@ import {
   cloneDemoPolylines,
   createGraphic,
   createId,
+  defaultEditorTooltip,
   formatPosition,
   polygonIssueSummary,
   withoutTrailingDuplicate,
@@ -38,11 +39,17 @@ export type SequencePatch = Partial<
 export type VideoPatch = Partial<
   Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">
 >;
+export type TextPatch = Partial<
+  Omit<Extract<EditorHotspot, { type: "text" }>, "id" | "type">
+>;
+export type IframePatch = Partial<
+  Omit<Extract<EditorHotspot, { type: "iframe" }>, "id" | "type">
+>;
 
 type HotspotBenchState = {
   mode: ViewerMode;
   tool: EditorTool;
-  view: PanoViewState;
+  view: PanoViewerState;
   level: number;
   progress: TileLoadProgress;
   autoRotate: boolean;
@@ -57,7 +64,7 @@ type HotspotBenchState = {
 };
 
 type HotspotBenchActions = {
-  setView: (view: PanoViewState) => void;
+  setView: (view: PanoViewerState) => void;
   setLevel: (level: number) => void;
   setProgress: (progress: TileLoadProgress) => void;
   toggleAutoRotate: () => void;
@@ -74,6 +81,8 @@ type HotspotBenchActions = {
   updateImageSource: (id: string, src: string) => void;
   updateSequence: (id: string, patch: SequencePatch) => void;
   updateVideo: (id: string, patch: VideoPatch) => void;
+  updateText: (id: string, patch: TextPatch) => void;
+  updateIframe: (id: string, patch: IframePatch) => void;
   updatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
   updatePolyline: (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => void;
   cancelPolygonDraft: () => void;
@@ -90,7 +99,9 @@ function isPlacementTool(tool: EditorTool): boolean {
     tool === "image" ||
     tool === "graphic" ||
     tool === "sequence" ||
-    tool === "video"
+    tool === "video" ||
+    tool === "text" ||
+    tool === "iframe"
   );
 }
 
@@ -221,6 +232,24 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       ),
     })),
 
+  updateText: (id, patch) =>
+    set((state) => ({
+      hotspots: state.hotspots.map((hotspot) =>
+        hotspot.id === id && hotspot.type === "text"
+          ? { ...hotspot, ...patch }
+          : hotspot,
+      ),
+    })),
+
+  updateIframe: (id, patch) =>
+    set((state) => ({
+      hotspots: state.hotspots.map((hotspot) =>
+        hotspot.id === id && hotspot.type === "iframe"
+          ? { ...hotspot, ...patch }
+          : hotspot,
+      ),
+    })),
+
   updatePolygon: (id, patch) =>
     set((state) => ({
       polygons: state.polygons.map((polygon) =>
@@ -256,7 +285,11 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         stroke: "#f5fbfc",
         strokeWidth: 2,
         strokeOpacity: 0.88,
+        strokeDashSize: 0,
+        strokeGapSize: 0,
         visible: true,
+        pointerEvents: "auto",
+        ...defaultEditorTooltip("Drawn polyline"),
       };
       set((state) => ({
         polylines: [...state.polylines, polyline],
@@ -285,7 +318,11 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       stroke: "#f5fbfc",
       strokeWidth: 2,
       strokeOpacity: 0.88,
+      strokeDashSize: 0,
+      strokeGapSize: 0,
       visible: true,
+      pointerEvents: "auto",
+      ...defaultEditorTooltip("Drawn polygon"),
     };
     set((state) => ({
       polygons: [...state.polygons, polygon],
@@ -321,7 +358,9 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fov",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: "/fixtures/hotspots/gallery-card.svg",
+        ...defaultEditorTooltip("Open image hotspot"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -346,7 +385,9 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fixed",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         graphic: createGraphic("circle"),
+        ...defaultEditorTooltip("Explore graphic hotspot"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -371,12 +412,14 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fixed",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: SEQUENCE_SPRITE,
         frameCount: 4,
         frameDirection: "vertical",
         playing: true,
         fps: 12,
         loop: true,
+        ...defaultEditorTooltip("Play sequence marker"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -401,18 +444,87 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fov",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: "/fixtures/hotspots/loop.webm",
         poster: "/fixtures/hotspots/gallery-card.svg",
         playing: false,
         loop: true,
         muted: true,
         volume: 1,
+        ...defaultEditorTooltip("Play video window"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
         lastAction: `Video placed at ${formatPosition(position)}.`,
+      }));
+      return;
+    }
+    if (tool === "text") {
+      const hotspot: EditorHotspot = {
+        id: createId("text"),
+        type: "text",
+        label: "Read courtyard caption",
+        position: normalizedPosition,
+        width: 16,
+        height: 6,
+        rotation: 0,
+        scale: 1,
+        mode: "billboard",
+        distance: 10,
+        scaleMode: "fixed",
+        opacity: 1,
+        visible: true,
+        pointerEvents: "auto",
+        text: "Courtyard overlook",
+        fontFamily: "system-ui, sans-serif",
+        fontSize: 96,
+        fontWeight: 600,
+        fontStyle: "normal",
+        color: "#f8fafc",
+        background: "#111827",
+        backgroundOpacity: 0.72,
+        align: "center",
+        verticalAlign: "middle",
+        whiteSpace: "normal",
+        ...defaultEditorTooltip("Read courtyard caption"),
+      };
+      set((state) => ({
+        hotspots: [...state.hotspots, hotspot],
+        selectedId: hotspot.id,
+        tool: "select",
+        lastAction: `Text placed at ${formatPosition(position)}.`,
+      }));
+      return;
+    }
+    if (tool === "iframe") {
+      const hotspot: EditorHotspot = {
+        id: createId("iframe"),
+        type: "iframe",
+        label: "Open visitor guide",
+        position: normalizedPosition,
+        width: 18,
+        height: 12,
+        rotation: 0,
+        scale: 1,
+        mode: "billboard",
+        distance: 10,
+        scaleMode: "fov",
+        opacity: 1,
+        visible: true,
+        pointerEvents: "auto",
+        src: "/fixtures/hotspots/embed.html",
+        title: "Visitor guide",
+        sandbox: "allow-scripts allow-popups allow-forms",
+        pointerPolicy: "hotspot",
+        ...defaultEditorTooltip("Open visitor guide"),
+      };
+      set((state) => ({
+        hotspots: [...state.hotspots, hotspot],
+        selectedId: hotspot.id,
+        tool: "select",
+        lastAction: `Iframe placed at ${formatPosition(position)}.`,
       }));
     }
   },

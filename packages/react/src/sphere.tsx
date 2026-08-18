@@ -10,6 +10,7 @@ import {
   Texture,
   TextureLoader,
 } from "three";
+import { PanoBasicMaterial } from "./pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 
 export type SphereProps = {
@@ -91,7 +92,7 @@ export function Sphere({
       visible={visible}
     >
       <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
-      <meshBasicMaterial
+      <PanoBasicMaterial
         map={texture}
         side={BackSide}
         toneMapped={false}

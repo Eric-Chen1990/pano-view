@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 export const MAX_HOTSPOT_PITCH = 90;
 
 export type HotspotPosition = {
@@ -32,9 +34,71 @@ export type HotspotDragEvent = HotspotInteractionEvent & {
   startPosition: HotspotPosition;
 };
 
+/** When a hotspot tooltip is shown. Defaults to `"always"`. */
+export type HotspotTooltipTrigger = "always" | "hover" | "click";
+
+/**
+ * Pointer hit-testing for a hotspot. `"none"` ignores mouse, touch, and pen
+ * so events pass through to the panorama. Defaults to `"auto"`.
+ */
+export type HotspotPointerEvents = "auto" | "none";
+
+export function acceptsHotspotPointerEvents(
+  interactive: boolean,
+  pointerEvents: HotspotPointerEvents,
+): boolean {
+  switch (pointerEvents) {
+    case "auto":
+      return interactive;
+    case "none":
+      return false;
+    default: {
+      const exhaustive: never = pointerEvents;
+      return exhaustive;
+    }
+  }
+}
+
+/** Where the tooltip sits relative to the hotspot. Defaults to `"top"`. */
+export type HotspotTooltipPlacement = "top" | "bottom" | "left" | "right";
+
+/** Plain-text and/or image content for a hotspot tooltip. */
+export type HotspotTooltipContent = {
+  text?: string;
+  image?: string;
+  imageAlt?: string;
+};
+
+/** Visual styling for a hotspot tooltip bubble. */
+export type HotspotTooltipAppearance = {
+  background?: string;
+  color?: string;
+  border?: string;
+  borderRadius?: number | string;
+  shadow?: string;
+  padding?: number | string;
+  fontSize?: number | string;
+};
+
 export type HotspotCommonProps = {
   id: string;
   position: HotspotPosition;
+  /**
+   * Tooltip shown at the hotspot anchor. A string is treated as `{ text }`.
+   * Defaults to always visible when content is present.
+   */
+  tooltip?: string | HotspotTooltipContent;
+  /** Defaults to `"always"`. `"hover"` and `"click"` require `interactive` and `pointerEvents` other than `"none"`. */
+  tooltipTrigger?: HotspotTooltipTrigger;
+  /** Screen direction for the tooltip. Defaults to `"top"`. */
+  tooltipPlacement?: HotspotTooltipPlacement;
+  /**
+   * Screen-space gap in CSS pixels between the hotspot edge and the tooltip.
+   * Defaults to 12.
+   */
+  tooltipOffset?: number;
+  /** Optional bubble paint overrides. Unset fields use the library default theme. */
+  tooltipAppearance?: HotspotTooltipAppearance;
   /** Angular width in degrees. Defaults to 12. */
   width?: number;
   /** Angular height in degrees. Defaults to 8. */
@@ -59,6 +123,17 @@ export type HotspotCommonProps = {
   visible?: boolean;
   /** Whether the hotspot accepts pointer and keyboard interaction. Defaults to true. */
   interactive?: boolean;
+  /**
+   * Pointer hit-testing. `"none"` ignores mouse, touch, and pen so events
+   * pass through to the panorama. Defaults to `"auto"`.
+   * `interactive={false}` also disables pointer hits.
+   */
+  pointerEvents?: HotspotPointerEvents;
+  /**
+   * Canvas cursor while this hotspot is hovered. Defaults to the viewer's
+   * `cursors.hotspot` value (`"pointer"`).
+   */
+  cursor?: CSSProperties["cursor"];
   draggable?: boolean;
   /** Required for keyboard-accessible clickable hotspots. */
   ariaLabel?: string;

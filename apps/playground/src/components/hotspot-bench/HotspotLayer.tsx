@@ -1,9 +1,11 @@
 import {
   GraphicHotspot,
+  IframeHotspot,
   ImageHotspot,
   PolygonHotspot,
   PolylineHotspot,
   SequenceHotspot,
+  TextHotspot,
   VideoHotspot,
   validatePolygonVertices,
   type HotspotPosition,
@@ -76,6 +78,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           mode: hotspot.mode,
           distance: hotspot.distance,
           interactive: !drawingPath,
+          pointerEvents: hotspot.pointerEvents,
           position: hotspot.position,
           rotation: hotspot.rotation,
           scale: hotspot.scale,
@@ -83,6 +86,11 @@ export const HotspotLayer = memo(function HotspotLayer() {
           visible: hotspot.visible,
           width: hotspot.width,
           height: hotspot.height,
+          tooltip: hotspot.tooltip,
+          tooltipTrigger: hotspot.tooltipTrigger,
+          tooltipPlacement: hotspot.tooltipPlacement,
+          tooltipOffset: hotspot.tooltipOffset,
+          tooltipAppearance: hotspot.tooltipAppearance,
           onClick: () => {
             selectItem(hotspot.id);
             if (hotspot.type === "sequence") {
@@ -132,19 +140,54 @@ export const HotspotLayer = memo(function HotspotLayer() {
             />
           );
         }
-        return (
-          <VideoHotspot
-            key={hotspot.id}
-            {...sharedProps}
-            loop={hotspot.loop}
-            muted={hotspot.muted}
-            onEnded={() => updateVideo(hotspot.id, { playing: false })}
-            playing={hotspot.playing}
-            poster={hotspot.poster}
-            src={hotspot.src}
-            volume={hotspot.volume}
-          />
-        );
+        if (hotspot.type === "video") {
+          return (
+            <VideoHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              loop={hotspot.loop}
+              muted={hotspot.muted}
+              onEnded={() => updateVideo(hotspot.id, { playing: false })}
+              playing={hotspot.playing}
+              poster={hotspot.poster}
+              src={hotspot.src}
+              volume={hotspot.volume}
+            />
+          );
+        }
+        if (hotspot.type === "text") {
+          return (
+            <TextHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              align={hotspot.align}
+              background={hotspot.background}
+              backgroundOpacity={hotspot.backgroundOpacity}
+              color={hotspot.color}
+              fontFamily={hotspot.fontFamily}
+              fontSize={hotspot.fontSize}
+              fontStyle={hotspot.fontStyle}
+              fontWeight={hotspot.fontWeight}
+              text={hotspot.text}
+              verticalAlign={hotspot.verticalAlign}
+              whiteSpace={hotspot.whiteSpace}
+            />
+          );
+        }
+        if (hotspot.type === "iframe") {
+          return (
+            <IframeHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              pointerPolicy={hotspot.pointerPolicy}
+              sandbox={hotspot.sandbox}
+              src={hotspot.src}
+              title={hotspot.title}
+            />
+          );
+        }
+        const exhaustive: never = hotspot;
+        throw new Error(`Unhandled hotspot type: ${exhaustive}`);
       })}
       {polygons.map((polygon) => (
         <PolygonHotspot
@@ -155,6 +198,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           fillOpacity={polygon.fillOpacity}
           id={polygon.id}
           interactive={!drawingPath}
+          pointerEvents={polygon.pointerEvents}
           onClick={() => {
             selectItem(polygon.id);
             setLastAction(`${polygon.label} selected.`);
@@ -178,8 +222,15 @@ export const HotspotLayer = memo(function HotspotLayer() {
             }
           }}
           stroke={polygon.stroke}
+          strokeDashSize={polygon.strokeDashSize}
+          strokeGapSize={polygon.strokeGapSize}
           strokeOpacity={polygon.strokeOpacity}
           strokeWidth={polygon.strokeWidth}
+          tooltip={polygon.tooltip}
+          tooltipAppearance={polygon.tooltipAppearance}
+          tooltipOffset={polygon.tooltipOffset}
+          tooltipPlacement={polygon.tooltipPlacement}
+          tooltipTrigger={polygon.tooltipTrigger}
           vertices={polygon.vertices}
           visible={polygon.visible}
         />
@@ -191,6 +242,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           draggable={tool === "select"}
           id={polyline.id}
           interactive={!drawingPath}
+          pointerEvents={polyline.pointerEvents}
           onClick={() => {
             selectItem(polyline.id);
             setLastAction(`${polyline.label} selected.`);
@@ -205,8 +257,15 @@ export const HotspotLayer = memo(function HotspotLayer() {
           }}
           onVerticesChange={({ vertices }) => updatePolyline(polyline.id, { vertices })}
           stroke={polyline.stroke}
+          strokeDashSize={polyline.strokeDashSize}
+          strokeGapSize={polyline.strokeGapSize}
           strokeOpacity={polyline.strokeOpacity}
           strokeWidth={polyline.strokeWidth}
+          tooltip={polyline.tooltip}
+          tooltipAppearance={polyline.tooltipAppearance}
+          tooltipOffset={polyline.tooltipOffset}
+          tooltipPlacement={polyline.tooltipPlacement}
+          tooltipTrigger={polyline.tooltipTrigger}
           vertices={polyline.vertices}
           visible={polyline.visible}
         />
@@ -245,7 +304,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#df6b42",
             strokeWidth: 14,
           }}
-          height={2.2}
+          height={1.5}
+          width={1.5}
           id={`${selectedPolygon.id}-vertex-${index}`}
           onDragEnd={({ position }) => {
             const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
@@ -270,8 +330,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           }}
           mode="billboard"
           position={vertex}
-          scaleMode="fixed"
-          width={2.2}
+          scaleMode="fixed"       
         />
       )) : null}
       {selectedPolyline && tool === "select" ? selectedPolyline.vertices.map((vertex, index) => (
@@ -286,7 +345,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#df6b42",
             strokeWidth: 14,
           }}
-          height={2.2}
+          height={1.1}
           id={`${selectedPolyline.id}-vertex-${index}`}
           onDragEnd={({ position }) => {
             const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
@@ -305,7 +364,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           mode="billboard"
           position={vertex}
           scaleMode="fixed"
-          width={2.2}
+          width={1.1}
         />
       )) : null}
       {drawingPath ? draftVertices.map((vertex, index) => (
@@ -319,13 +378,13 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#071316",
             strokeWidth: 12,
           }}
-          height={1.8}
+          height={0.9}
           id={`polygon-draft-vertex-${index}`}
           interactive={false}
           mode="billboard"
           position={vertex}
           scaleMode="fixed"
-          width={1.8}
+          width={0.9}
         />
       )) : null}
     </>

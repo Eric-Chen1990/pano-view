@@ -1,7 +1,9 @@
 import { Canvas } from "@react-three/fiber";
+import { createXRStore, XR } from "@react-three/xr";
 import {
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -13,7 +15,20 @@ import type {
   CSSProperties,
   ReactNode,
 } from "react";
+import { cn } from "./cn";
 import { AutoRotate } from "./auto-rotate";
+import {
+  ControlClaimsContext,
+  DefaultControlChannelContext,
+  createControlClaims,
+  resetControlClaims,
+} from "./control-claims";
+import {
+  exitElementFullscreen,
+  getFullscreenElement,
+  requestElementFullscreen,
+  subscribeFullscreenChange,
+} from "./fullscreen";
 import {
   HotspotAccessibilityContext,
   useHotspotAccessibilityLayer,
@@ -25,6 +40,10 @@ import {
 } from "./keyboard-controls";
 import { MouseControls } from "./mouse-controls";
 import {
+  createPanoFilterHost,
+  PanoFilterHostContext,
+} from "./pano-filter/host";
+import {
   PanoContextMenu,
   PanoContextMenuActionsContext,
   PanoContextMenuOverlayContext,
@@ -35,6 +54,11 @@ import {
   createPanoEventBus,
   PanoEventBusContext,
 } from "./pano-event-bus";
+import {
+  PanoCursorController,
+  resolvePanoCursors,
+  type PanoCursors,
+} from "./pano-cursor";
 import { PanoEvents } from "./pano-events";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import {
@@ -48,15 +72,31 @@ import {
 } from "./panorama-view-runtime";
 import { clampPanoPitch } from "./hotspot/coordinates";
 import { TouchControls } from "./touch-controls";
+import {
+  PanoChromeOverlayContext,
+  usePanoChromeOverlay,
+} from "./video/chrome-overlay";
+import {
+  createPanoVideoHost,
+  PanoVideoHostContext,
+} from "./video/host";
+import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
+import { WebVRChromeBridge } from "./webvr/chrome";
+import {
+  createWebVRHost,
+  WebVRRuntimeContext,
+} from "./webvr/host";
+import { createWebVRStereoView } from "./webvr/stereo-view";
+import { PanoramaXROrigin } from "./webvr/xr-origin";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
-  PanoViewHandle,
-  PanoViewState,
+  PanoViewerHandle,
+  PanoViewerState,
   TouchControlsOptions,
 } from "./types";
 
-const DEFAULT_VIEW: PanoViewState = {
+const DEFAULT_VIEW: PanoViewerState = {
   yaw: 0,
   pitch: 0,
   fov: 75,
@@ -71,15 +111,21 @@ const DEFAULT_CANVAS_STYLE: CSSProperties = {
   width: "100%",
 };
 
-export type PanoViewProps = Omit<
+export type PanoViewerProps = Omit<
   ComponentPropsWithoutRef<"div">,
   "children" | "onChange" | "contextMenu"
 > & {
   children?: ReactNode;
-  initialView?: Partial<PanoViewState>;
+  initialView?: Partial<PanoViewerState>;
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
+  /**
+   * Canvas cursor. `true` / omit uses grab / grabbing / pointer / move;
+   * `false` leaves the canvas cursor unchanged; an object merges with the
+   * defaults (`default`, `dragging`, `hotspot`, `hotspotDragging`).
+   */
+  cursors?: boolean | PanoCursors;
   /**
    * Default context menu. `true` / omit mounts Reset view + Fullscreen;
    * `false` skips the default instance; an object merges appearance and
@@ -87,7 +133,7 @@ export type PanoViewProps = Omit<
    * `append` to keep the defaults and add entries.
    */
   contextMenu?: boolean | PanoContextMenuProps;
-  onViewChange?: (view: PanoViewState) => void;
+  onViewChange?: (view: PanoViewerState) => void;
   onPanoramaClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaDoubleClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaPointerMove?: (event: PanoramaPointerEvent) => void;
@@ -131,14 +177,76 @@ function resolveContextMenuChannel(
   return { mount: true, props: { ...value } };
 }
 
-export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
-  function PanoView(
+function PanoCursorTree({
+  cursors,
+  children,
+}: {
+  cursors: ReturnType<typeof resolvePanoCursors>;
+  children: ReactNode;
+}) {
+  if (!cursors) {
+    return children;
+  }
+  return (
+    <PanoCursorController cursors={cursors}>{children}</PanoCursorController>
+  );
+}
+
+function PanoVideoHostReset() {
+  const host = useContext(PanoVideoHostContext);
+  if (host) {
+    host.controlClaims = 0;
+  }
+  return null;
+}
+
+function DefaultControlChannels({
+  userControlsEnabled,
+  mouseChannel,
+  touchChannel,
+  keyboardChannel,
+  fovSpeed,
+}: {
+  userControlsEnabled: boolean;
+  mouseChannel: ChannelMount<MouseControlsOptions>;
+  touchChannel: ChannelMount<TouchControlsOptions>;
+  keyboardChannel: ChannelMount<KeyboardControlsProps>;
+  fovSpeed: number | undefined;
+}) {
+  const claims = useContext(ControlClaimsContext);
+  if (!claims) {
+    return null;
+  }
+
+  return (
+    <DefaultControlChannelContext.Provider value={true}>
+      {userControlsEnabled && mouseChannel.mount && claims.mouse === 0 ? (
+        <MouseControls {...mouseChannel.props} fovSpeed={fovSpeed} />
+      ) : null}
+      {userControlsEnabled && touchChannel.mount && claims.touch === 0 ? (
+        <TouchControls {...touchChannel.props} />
+      ) : null}
+      {userControlsEnabled &&
+      keyboardChannel.mount &&
+      claims.keyboard === 0 ? (
+        <KeyboardControls
+          {...keyboardChannel.props}
+          fovSpeed={keyboardChannel.props.fovSpeed ?? fovSpeed}
+        />
+      ) : null}
+    </DefaultControlChannelContext.Provider>
+  );
+}
+
+export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
+  function PanoViewer(
     {
       children,
       initialView,
       minFov = 30,
       maxFov = 100,
       controls = true,
+      cursors,
       contextMenu = true,
       onViewChange,
       onPanoramaClick,
@@ -158,13 +266,36 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       useHotspotAccessibilityLayer();
     const { api: contextMenuOverlayApi, overlay: contextMenuOverlay } =
       usePanoContextMenuOverlay();
-    const fallbackViewRef = useRef<PanoViewState>(DEFAULT_VIEW);
+    const { api: chromeOverlayApi, setOverlayNode, overlayElement } =
+      usePanoChromeOverlay();
+    const videoHost = useMemo(() => createPanoVideoHost(), []);
+    const filterHost = useMemo(() => createPanoFilterHost(), []);
+    const webVRHost = useMemo(() => createWebVRHost(), []);
+    const stereoView = useMemo(() => createWebVRStereoView(), []);
+    const xrStore = useMemo(
+      () =>
+        createXRStore({
+          anchors: false,
+          bodyTracking: false,
+          depthSensing: false,
+          domOverlay: false,
+          emulate: false,
+          enterGrantedSession: false,
+          hitTest: false,
+          layers: false,
+          meshDetection: false,
+          offerSession: false,
+          planeDetection: false,
+        }),
+      [],
+    );
+    const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
       179,
       Math.max(maxFov, normalizedMinFov + 1),
     );
-    const normalizedInitialView = useMemo<PanoViewState>(
+    const normalizedInitialView = useMemo<PanoViewerState>(
       () => ({
         yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
         pitch: clampPanoPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),
@@ -182,6 +313,9 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       ],
     );
     fallbackViewRef.current = normalizedInitialView;
+
+    const controlClaims = useMemo(() => createControlClaims(), []);
+    resetControlClaims(controlClaims);
 
     const controlsEnabled = controls !== false;
     const controlOptions = useMemo<PanoramaControlsOptions>(
@@ -235,11 +369,15 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       if (typeof document === "undefined") {
         return;
       }
-      if (document.fullscreenElement) {
-        await document.exitFullscreen?.();
+      if (getFullscreenElement()) {
+        await exitElementFullscreen();
         return;
       }
-      await rootRef.current?.requestFullscreen?.();
+      const root = rootRef.current;
+      if (!root) {
+        return;
+      }
+      await requestElementFullscreen(root);
     }, []);
 
     const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
@@ -250,7 +388,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       }
 
       const syncFullscreen = () => {
-        const fullscreenElement = document.fullscreenElement;
+        const fullscreenElement = getFullscreenElement();
         const root = rootRef.current;
         if (!fullscreenElement || !root) {
           setIsViewerFullscreen(false);
@@ -264,10 +402,7 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       };
 
       syncFullscreen();
-      document.addEventListener("fullscreenchange", syncFullscreen);
-      return () => {
-        document.removeEventListener("fullscreenchange", syncFullscreen);
-      };
+      return subscribeFullscreenChange(syncFullscreen);
     }, []);
 
     const contextMenuActions = useMemo(
@@ -286,6 +421,10 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
     const contextMenuChannel = useMemo(
       () => resolveContextMenuChannel(contextMenu),
       [contextMenu],
+    );
+    const resolvedCursors = useMemo(
+      () => resolvePanoCursors(cursors),
+      [cursors],
     );
 
     // Bridge deprecated controls.autoRotate / autoRotateSpeed without
@@ -336,6 +475,8 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
     return (
       <div
         {...divProps}
+        className={cn("relative overflow-hidden", divProps.className)}
+        data-pano-viewer=""
         ref={rootRef}
         aria-label={ariaLabel}
         style={rootStyle}
@@ -360,17 +501,26 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
             ...DEFAULT_CANVAS_STYLE,
             touchAction: userControlsEnabled ? "none" : "auto",
           }}
-          tabIndex={userControlsEnabled ? 0 : undefined}
         >
+          <XR store={xrStore}>
+          <WebVRRuntimeContext.Provider
+            value={{ host: webVRHost, xrStore, stereoView }}
+          >
+          <PanoramaXROrigin />
           <HotspotAccessibilityContext.Provider value={registry}>
             <PanoEventBusContext.Provider value={eventBus}>
+              <PanoCursorTree cursors={resolvedCursors}>
               <PanoramaViewContext.Provider value={controlsRef}>
                 <PanoContextMenuOverlayContext.Provider
                   value={contextMenuOverlayApi}
                 >
+                  <PanoChromeOverlayContext.Provider value={chromeOverlayApi}>
+                  <PanoVideoHostContext.Provider value={videoHost}>
+                  <PanoFilterHostContext.Provider value={filterHost}>
                   <PanoContextMenuActionsContext.Provider
                     value={contextMenuActions}
                   >
+                  <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={controlsRef}
                     eventBus={eventBus}
@@ -394,35 +544,47 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
                     enabled={legacyAutoRotate}
                     speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
-                  {userControlsEnabled && mouseChannel.mount ? (
-                    <MouseControls
-                      {...mouseChannel.props}
-                      fovSpeed={controlOptions.fovSpeed}
-                    />
-                  ) : null}
-                  {userControlsEnabled && touchChannel.mount ? (
-                    <TouchControls {...touchChannel.props} />
-                  ) : null}
-                  {userControlsEnabled && keyboardChannel.mount ? (
-                    <KeyboardControls
-                      {...keyboardChannel.props}
-                      fovSpeed={
-                        keyboardChannel.props.fovSpeed ??
-                        controlOptions.fovSpeed
-                      }
-                    />
-                  ) : null}
                   <PanoramaEventSurface />
                   {contextMenuChannel.mount ? (
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}
-                  {children}
+                  <ControlClaimsContext.Provider value={controlClaims}>
+                    {children}
+                    <DefaultControlChannels
+                      fovSpeed={controlOptions.fovSpeed}
+                      keyboardChannel={keyboardChannel}
+                      mouseChannel={mouseChannel}
+                      touchChannel={touchChannel}
+                      userControlsEnabled={userControlsEnabled}
+                    />
+                  </ControlClaimsContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
+                  </PanoFilterHostContext.Provider>
+                  </PanoVideoHostContext.Provider>
+                  </PanoChromeOverlayContext.Provider>
                 </PanoContextMenuOverlayContext.Provider>
               </PanoramaViewContext.Provider>
+              </PanoCursorTree>
             </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
+          </WebVRRuntimeContext.Provider>
+          </XR>
         </Canvas>
+        <div
+          className="pointer-events-none absolute inset-0 z-15"
+          data-pano-chrome-overlay=""
+          ref={setOverlayNode}
+          style={{
+            inset: 0,
+          }}
+        >
+          <PanoVideoChromeBridge
+            fullscreen={contextMenuActions}
+            host={videoHost}
+            overlayElement={overlayElement}
+          />
+          <WebVRChromeBridge host={webVRHost} />
+        </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
       </div>

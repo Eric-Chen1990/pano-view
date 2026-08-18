@@ -1,22 +1,33 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type { ReactNode } from "react";
 import {
+  Box3,
+  Camera,
   EdgesGeometry,
   MathUtils,
   Matrix4,
   Object3D,
+  Plane,
   PlaneGeometry,
   PerspectiveCamera,
   Quaternion,
+  Ray,
   Vector3,
 } from "three";
+import { PanoEventBusContext } from "../pano-event-bus";
+import {
+  hotspotCursorClaimId,
+  usePanoCursor,
+} from "../pano-cursor";
 import { PanoramaViewContext } from "../panorama-view-runtime";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { useHotspotAccessibility } from "./accessibility";
@@ -25,11 +36,20 @@ import {
   panoPositionToVector3,
   vector3ToPanoPosition,
 } from "./coordinates";
-import type {
-  HotspotCommonProps,
-  HotspotInteractionEvent,
-  HotspotMode,
-  HotspotPosition,
+import {
+  HotspotTooltip,
+  resolveHotspotTooltipContent,
+  resolveHotspotTooltipOffset,
+} from "./hotspot-tooltip";
+import {
+  acceptsHotspotPointerEvents,
+  type HotspotCommonProps,
+  type HotspotInteractionEvent,
+  type HotspotMode,
+  type HotspotPosition,
+  type HotspotScaleMode,
+  type HotspotTooltipPlacement,
+  type HotspotTooltipTrigger,
 } from "./types";
 
 const DEFAULT_FLOATING_DISTANCE = 10;
@@ -41,6 +61,32 @@ const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
 const LOCAL_FORWARD = new Vector3(0, 0, 1);
+const TOOLTIP_WORLD_BOX = new Box3();
+const TOOLTIP_LOCAL_BOX = new Box3();
+const TOOLTIP_CORNER = new Vector3();
+const TOOLTIP_INVERSE = new Matrix4();
+const TOOLTIP_WORLD_CORNER = new Vector3();
+const TOOLTIP_PROJECTED = new Vector3();
+const TOOLTIP_RAY_ORIGIN = new Vector3();
+const TOOLTIP_RAY_FAR = new Vector3();
+const TOOLTIP_RAY_DIRECTION = new Vector3();
+const TOOLTIP_RAY = new Ray();
+const TOOLTIP_PLANE = new Plane();
+const TOOLTIP_INTERSECTION = new Vector3();
+const TOOLTIP_PLANE_NORMAL = new Vector3();
+const TOOLTIP_PLANE_POINT = new Vector3();
+
+type TooltipLocalBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
+
+type ViewportSize = {
+  width: number;
+  height: number;
+};
 const HOTSPOT_MODE_RENDERING: Record<
   HotspotMode,
   { orientation: "billboard" | "surface"; placement: "surface" | "floating" }
@@ -94,6 +140,36 @@ function resolveDistance(
     return DEFAULT_FLOATING_DISTANCE;
   }
   return MathUtils.clamp(Math.abs(distance!), 0.1, maximumDistance);
+}
+
+function applyHotspotTransform(
+  group: Object3D,
+  camera: Camera,
+  orientation: "billboard" | "surface",
+  surfaceQuaternion: Quaternion,
+  rotation: number,
+  scaleMode: HotspotScaleMode,
+  referenceFov: number,
+  useAngularScale: boolean,
+  worldWidth: number,
+  worldHeight: number,
+) {
+  if (orientation === "billboard") {
+    group.quaternion.copy(camera.quaternion);
+  } else {
+    group.quaternion.copy(surfaceQuaternion);
+  }
+  group.rotateOnAxis(LOCAL_FORWARD, MathUtils.degToRad(-rotation));
+  const scaleFactor =
+    scaleMode === "fixed" && camera instanceof PerspectiveCamera
+      ? fixedScaleFactor(camera.fov, referenceFov)
+      : 1;
+  group.scale.set(
+    (useAngularScale ? worldWidth : 1) * scaleFactor,
+    (useAngularScale ? worldHeight : 1) * scaleFactor,
+    1,
+  );
+  group.updateMatrixWorld();
 }
 
 function maximumHotspotDistance(width: number, height: number): number {
@@ -157,6 +233,262 @@ function angularDistance(a: HotspotPosition, b: HotspotPosition): number {
   return MathUtils.radToDeg(aVector.angleTo(bVector));
 }
 
+function isTooltipOpen(
+  trigger: HotspotTooltipTrigger,
+  hovered: boolean,
+  focused: boolean,
+  pinned: boolean,
+): boolean {
+  switch (trigger) {
+    case "always":
+      return true;
+    case "hover":
+      return hovered || focused;
+    case "click":
+      return pinned;
+    default: {
+      const exhaustive: never = trigger;
+      return exhaustive;
+    }
+  }
+}
+
+function setTooltipAnchorOnLocalBox(
+  anchor: Object3D,
+  placement: HotspotTooltipPlacement,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+) {
+  switch (placement) {
+    case "top":
+      anchor.position.set((minX + maxX) / 2, maxY, 0);
+      return;
+    case "bottom":
+      anchor.position.set((minX + maxX) / 2, minY, 0);
+      return;
+    case "left":
+      anchor.position.set(minX, (minY + maxY) / 2, 0);
+      return;
+    case "right":
+      anchor.position.set(maxX, (minY + maxY) / 2, 0);
+      return;
+    default: {
+      const exhaustive: never = placement;
+      return exhaustive;
+    }
+  }
+}
+
+function resolveTooltipLocalBounds(
+  group: Object3D,
+  anchor: Object3D,
+  useAngularScale: boolean,
+): TooltipLocalBounds | null {
+  if (useAngularScale) {
+    return { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 };
+  }
+  group.updateMatrixWorld(true);
+  TOOLTIP_WORLD_BOX.makeEmpty();
+  for (const child of group.children) {
+    if (child === anchor) {
+      continue;
+    }
+    TOOLTIP_WORLD_BOX.expandByObject(child);
+  }
+  if (TOOLTIP_WORLD_BOX.isEmpty()) {
+    return { minX: -0.5, maxX: 0.5, minY: -0.5, maxY: 0.5 };
+  }
+  TOOLTIP_INVERSE.copy(group.matrixWorld).invert();
+  TOOLTIP_LOCAL_BOX.makeEmpty();
+  for (let x = 0; x <= 1; x += 1) {
+    for (let y = 0; y <= 1; y += 1) {
+      for (let z = 0; z <= 1; z += 1) {
+        TOOLTIP_CORNER.set(
+          x === 0 ? TOOLTIP_WORLD_BOX.min.x : TOOLTIP_WORLD_BOX.max.x,
+          y === 0 ? TOOLTIP_WORLD_BOX.min.y : TOOLTIP_WORLD_BOX.max.y,
+          z === 0 ? TOOLTIP_WORLD_BOX.min.z : TOOLTIP_WORLD_BOX.max.z,
+        ).applyMatrix4(TOOLTIP_INVERSE);
+        TOOLTIP_LOCAL_BOX.expandByPoint(TOOLTIP_CORNER);
+      }
+    }
+  }
+  return {
+    minX: TOOLTIP_LOCAL_BOX.min.x,
+    maxX: TOOLTIP_LOCAL_BOX.max.x,
+    minY: TOOLTIP_LOCAL_BOX.min.y,
+    maxY: TOOLTIP_LOCAL_BOX.max.y,
+  };
+}
+
+function projectLocalPointToScreen(
+  localPoint: Vector3,
+  group: Object3D,
+  camera: Camera,
+  viewport: ViewportSize,
+): { x: number; y: number } | null {
+  TOOLTIP_WORLD_CORNER.copy(localPoint).applyMatrix4(group.matrixWorld);
+  TOOLTIP_PROJECTED.copy(TOOLTIP_WORLD_CORNER).project(camera);
+  if (TOOLTIP_PROJECTED.z > 1) {
+    return null;
+  }
+  return {
+    x: (TOOLTIP_PROJECTED.x * 0.5 + 0.5) * viewport.width,
+    y: (-TOOLTIP_PROJECTED.y * 0.5 + 0.5) * viewport.height,
+  };
+}
+
+function screenEdgeMidpoint(
+  placement: HotspotTooltipPlacement,
+  minScreenX: number,
+  maxScreenX: number,
+  minScreenY: number,
+  maxScreenY: number,
+): { x: number; y: number } {
+  switch (placement) {
+    case "top":
+      return { x: (minScreenX + maxScreenX) / 2, y: minScreenY };
+    case "bottom":
+      return { x: (minScreenX + maxScreenX) / 2, y: maxScreenY };
+    case "left":
+      return { x: minScreenX, y: (minScreenY + maxScreenY) / 2 };
+    case "right":
+      return { x: maxScreenX, y: (minScreenY + maxScreenY) / 2 };
+    default: {
+      const exhaustive: never = placement;
+      return exhaustive;
+    }
+  }
+}
+
+function unprojectScreenPointToLocalPlane(
+  screenX: number,
+  screenY: number,
+  group: Object3D,
+  camera: Camera,
+  viewport: ViewportSize,
+  target: Vector3,
+): boolean {
+  const ndcX = (screenX / viewport.width) * 2 - 1;
+  const ndcY = -(screenY / viewport.height) * 2 + 1;
+  TOOLTIP_RAY_ORIGIN.set(ndcX, ndcY, -1).unproject(camera);
+  TOOLTIP_RAY_FAR.set(ndcX, ndcY, 1).unproject(camera);
+  TOOLTIP_RAY_DIRECTION.copy(TOOLTIP_RAY_FAR).sub(TOOLTIP_RAY_ORIGIN).normalize();
+  TOOLTIP_RAY.set(TOOLTIP_RAY_ORIGIN, TOOLTIP_RAY_DIRECTION);
+  TOOLTIP_PLANE_POINT.set(0, 0, 0).applyMatrix4(group.matrixWorld);
+  TOOLTIP_PLANE_NORMAL.set(0, 0, 1).transformDirection(group.matrixWorld);
+  TOOLTIP_PLANE.setFromNormalAndCoplanarPoint(
+    TOOLTIP_PLANE_NORMAL,
+    TOOLTIP_PLANE_POINT,
+  );
+  const hit = TOOLTIP_RAY.intersectPlane(TOOLTIP_PLANE, TOOLTIP_INTERSECTION);
+  if (!hit) {
+    return false;
+  }
+  target.copy(hit).applyMatrix4(TOOLTIP_INVERSE.copy(group.matrixWorld).invert());
+  return true;
+}
+
+function setTooltipAnchorFromScreenBounds(
+  anchor: Object3D,
+  group: Object3D,
+  placement: HotspotTooltipPlacement,
+  bounds: TooltipLocalBounds,
+  camera: Camera,
+  viewport: ViewportSize,
+): boolean {
+  const corners = [
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.minX, y: bounds.maxY },
+    { x: bounds.maxX, y: bounds.maxY },
+  ];
+  let minScreenX = Number.POSITIVE_INFINITY;
+  let maxScreenX = Number.NEGATIVE_INFINITY;
+  let minScreenY = Number.POSITIVE_INFINITY;
+  let maxScreenY = Number.NEGATIVE_INFINITY;
+  let hasProjection = false;
+  for (const corner of corners) {
+    TOOLTIP_CORNER.set(corner.x, corner.y, 0);
+    const projected = projectLocalPointToScreen(
+      TOOLTIP_CORNER,
+      group,
+      camera,
+      viewport,
+    );
+    if (!projected) {
+      continue;
+    }
+    hasProjection = true;
+    minScreenX = Math.min(minScreenX, projected.x);
+    maxScreenX = Math.max(maxScreenX, projected.x);
+    minScreenY = Math.min(minScreenY, projected.y);
+    maxScreenY = Math.max(maxScreenY, projected.y);
+  }
+  if (!hasProjection) {
+    return false;
+  }
+  const edge = screenEdgeMidpoint(
+    placement,
+    minScreenX,
+    maxScreenX,
+    minScreenY,
+    maxScreenY,
+  );
+  if (
+    !unprojectScreenPointToLocalPlane(
+      edge.x,
+      edge.y,
+      group,
+      camera,
+      viewport,
+      anchor.position,
+    )
+  ) {
+    return false;
+  }
+  anchor.position.z = 0;
+  return true;
+}
+
+function updateTooltipAnchor(
+  anchor: Object3D,
+  group: Object3D,
+  placement: HotspotTooltipPlacement,
+  useAngularScale: boolean,
+  camera: Camera,
+  viewport: ViewportSize,
+) {
+  group.updateMatrixWorld(true);
+  const bounds = resolveTooltipLocalBounds(group, anchor, useAngularScale);
+  if (
+    bounds &&
+    setTooltipAnchorFromScreenBounds(
+      anchor,
+      group,
+      placement,
+      bounds,
+      camera,
+      viewport,
+    )
+  ) {
+    return;
+  }
+  if (bounds) {
+    setTooltipAnchorOnLocalBox(
+      anchor,
+      placement,
+      bounds.minX,
+      bounds.maxX,
+      bounds.minY,
+      bounds.maxY,
+    );
+    return;
+  }
+  setTooltipAnchorOnLocalBox(anchor, placement, -0.5, 0.5, -0.5, 0.5);
+}
+
 /** Internal spatial and interaction primitive shared by concrete hotspots. */
 export function HotspotAnchor({
   id,
@@ -177,7 +509,14 @@ export function HotspotAnchor({
   visible = true,
   draggable = false,
   interactive = true,
+  pointerEvents = "auto",
+  cursor,
   ariaLabel,
+  tooltip,
+  tooltipTrigger = "always",
+  tooltipPlacement = "top",
+  tooltipOffset,
+  tooltipAppearance,
   children,
   onClick,
   onHoverChange,
@@ -186,9 +525,20 @@ export function HotspotAnchor({
   onDragEnd,
 }: HotspotAnchorProps) {
   const controlsRef = useContext(PanoramaViewContext);
+  const eventBus = useContext(PanoEventBusContext);
+  const cursorApi = usePanoCursor();
+  const { camera, size } = useThree();
   const groupRef = useRef<Object3D>(null);
+  const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
+  const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const tooltipContent = useMemo(
+    () => resolveHotspotTooltipContent(tooltip),
+    [tooltip],
+  );
   const normalizedPosition = normalizePanoPosition(position);
   const rendering =
     internalOrientation && internalPlacement
@@ -220,12 +570,19 @@ export function HotspotAnchor({
     planeGeometry.dispose();
     return geometry;
   }, []);
+  const acceptsPointer = acceptsHotspotPointerEvents(interactive, pointerEvents);
+  const canActivateFromKeyboard = Boolean(
+    visible && interactive && (onClick || tooltipTrigger === "click"),
+  );
   const focused = useHotspotAccessibility({
     id,
     ariaLabel,
-    onActivate: visible && interactive && onClick
+    onActivate: canActivateFromKeyboard
       ? (event) => {
-          onClick({
+          if (tooltipTrigger === "click") {
+            setPinned((current) => !current);
+          }
+          onClick?.({
             id,
             position: normalizedPosition,
             source: "keyboard",
@@ -234,6 +591,11 @@ export function HotspotAnchor({
         }
       : undefined,
   });
+  const tooltipOpen =
+    visible &&
+    tooltipContent !== null &&
+    isTooltipOpen(tooltipTrigger, hovered, focused, pinned);
+  const cursorClaimId = hotspotCursorClaimId(id);
 
   useEffect(
     () => () => {
@@ -243,31 +605,138 @@ export function HotspotAnchor({
     [],
   );
 
-  useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
-
-  useFrame(({ camera }) => {
-    if (!groupRef.current) {
+  useEffect(() => {
+    if (!cursorApi) {
       return;
     }
-    if (orientation === "billboard") {
-      groupRef.current.quaternion.copy(camera.quaternion);
-    } else {
-      groupRef.current.quaternion.copy(surfaceQuaternion);
+    if (acceptsPointer && visible && dragging) {
+      cursorApi.claim(cursorClaimId, "hotspotDragging");
+      return;
     }
-    groupRef.current.rotateOnAxis(
-      LOCAL_FORWARD,
-      MathUtils.degToRad(-rotation),
+    if (acceptsPointer && visible && hovered) {
+      cursorApi.claim(cursorClaimId, "hotspot", cursor);
+      return;
+    }
+    cursorApi.release(cursorClaimId);
+  }, [
+    acceptsPointer,
+    cursor,
+    cursorApi,
+    cursorClaimId,
+    dragging,
+    hovered,
+    visible,
+  ]);
+
+  useEffect(
+    () => () => {
+      cursorApi?.release(cursorClaimId);
+    },
+    [cursorApi, cursorClaimId],
+  );
+
+  useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
+
+  useEffect(() => {
+    if (tooltipTrigger !== "click") {
+      setPinned(false);
+      return;
+    }
+    return eventBus?.subscribe("click", () => {
+      setPinned(false);
+    });
+  }, [eventBus, tooltipTrigger]);
+
+  useEffect(() => {
+    if (tooltipTrigger !== "hover") {
+      setHovered(false);
+    }
+  }, [tooltipTrigger]);
+
+  useEffect(() => {
+    if (acceptsPointer) {
+      return;
+    }
+    setHovered(false);
+    const dragState = dragStateRef.current;
+    if (!dragState) {
+      return;
+    }
+    dragState.releaseInteractionLock();
+    dragStateRef.current = null;
+    setDragging(false);
+  }, [acceptsPointer]);
+
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+    applyHotspotTransform(
+      group,
+      camera,
+      orientation,
+      surfaceQuaternion,
+      rotation,
+      scaleMode,
+      referenceFov,
+      useAngularScale,
+      worldWidth,
+      worldHeight,
     );
-    const scaleFactor =
-      scaleMode === "fixed" && camera instanceof PerspectiveCamera
-        ? fixedScaleFactor(camera.fov, referenceFov)
-        : 1;
-    groupRef.current.scale.set(
-      (useAngularScale ? worldWidth : 1) * scaleFactor,
-      (useAngularScale ? worldHeight : 1) * scaleFactor,
-      1,
+    if (tooltipOpen && tooltipAnchorRef.current) {
+      updateTooltipAnchor(
+        tooltipAnchorRef.current,
+        group,
+        tooltipPlacement,
+        useAngularScale,
+        camera,
+        size,
+      );
+    }
+  }, [
+    camera,
+    orientation,
+    referenceFov,
+    rotation,
+    scaleMode,
+    size,
+    surfaceQuaternion,
+    tooltipOpen,
+    tooltipPlacement,
+    useAngularScale,
+    worldHeight,
+    worldWidth,
+  ]);
+
+  useFrame((state) => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+    applyHotspotTransform(
+      group,
+      state.camera,
+      orientation,
+      surfaceQuaternion,
+      rotation,
+      scaleMode,
+      referenceFov,
+      useAngularScale,
+      worldWidth,
+      worldHeight,
     );
-  });
+    if (tooltipOpen && tooltipAnchorRef.current) {
+      updateTooltipAnchor(
+        tooltipAnchorRef.current,
+        group,
+        tooltipPlacement,
+        useAngularScale,
+        state.camera,
+        state.size,
+      );
+    }
+  }, -1);
 
   const stopPointerEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
     event.stopPropagation();
@@ -299,6 +768,10 @@ export function HotspotAnchor({
     suppressNextClickRef.current = dragState.moved;
     dragState.releaseInteractionLock();
     dragStateRef.current = null;
+    setDragging(false);
+    if (emitDragEnd) {
+      setHovered(true);
+    }
   };
 
   return (
@@ -308,16 +781,19 @@ export function HotspotAnchor({
       renderOrder={renderOrder}
       scale={[worldWidth, worldHeight, 1]}
       visible={visible}
-      onClick={interactive ? (event) => {
+      onClick={acceptsPointer ? (event) => {
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
+          if (tooltipTrigger === "click") {
+            setPinned((current) => !current);
+          }
           onClick?.(makeInteractionEvent(id, normalizedPosition, event));
         }
         suppressNextClickRef.current = false;
       } : undefined}
-      onLostPointerCapture={interactive ? (event) => releasePointer(event, false) : undefined}
-      onPointerCancel={interactive ? (event) => releasePointer(event, false) : undefined}
-      onPointerDown={interactive ? (event) => {
+      onLostPointerCapture={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
+      onPointerCancel={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
+      onPointerDown={acceptsPointer ? (event) => {
         stopPointerEvent(event);
         if (!draggable || dragStateRef.current) {
           return;
@@ -333,13 +809,15 @@ export function HotspotAnchor({
           releaseInteractionLock,
           moved: false,
         };
+        setHovered(false);
+        setDragging(true);
         onDragStart?.({
           ...makeInteractionEvent(id, startPosition, event),
           source: "pointer",
           startPosition,
         });
       } : undefined}
-      onPointerMove={interactive ? (event) => {
+      onPointerMove={acceptsPointer ? (event) => {
         const dragState = dragStateRef.current;
         if (!dragState || dragState.pointerId !== event.pointerId) {
           return;
@@ -355,23 +833,25 @@ export function HotspotAnchor({
           startPosition: dragState.startPosition,
         });
       } : undefined}
-      onPointerOut={interactive ? (event) => {
+      onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          setHovered(false);
           onHoverChange?.(
             false,
             makeInteractionEvent(id, normalizedPosition, event),
           );
         }
       } : undefined}
-      onPointerOver={interactive ? (event) => {
+      onPointerOver={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          setHovered(true);
           onHoverChange?.(
             true,
             makeInteractionEvent(id, normalizedPosition, event),
           );
         }
       } : undefined}
-      onPointerUp={interactive ? (event) => releasePointer(event, true) : undefined}
+      onPointerUp={acceptsPointer ? (event) => releasePointer(event, true) : undefined}
     >
       {focused ? (focusContent ?? (
         <lineSegments
@@ -384,6 +864,16 @@ export function HotspotAnchor({
         </lineSegments>
       )) : null}
       {children}
+      {tooltipOpen && tooltipContent ? (
+        <group ref={tooltipAnchorRef}>
+          <HotspotTooltip
+            appearance={tooltipAppearance}
+            content={tooltipContent}
+            offset={resolveHotspotTooltipOffset(tooltipOffset)}
+            placement={tooltipPlacement}
+          />
+        </group>
+      ) : null}
     </group>
   );
 }

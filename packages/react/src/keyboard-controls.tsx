@@ -1,5 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef } from "react";
+import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 
 const DEFAULT_ROTATE_SPEED = 60;
@@ -40,7 +41,7 @@ export type KeyboardControlsProps = {
   invert?: boolean;
   /**
    * Maximum FOV change rate in degrees per second. When omitted, no extra
-   * rate cap is applied. Usually supplied by PanoView from `controls.fovSpeed`.
+   * rate cap is applied. Usually supplied by PanoViewer from `controls.fovSpeed`.
    */
   fovSpeed?: number;
   /** Called once when the previous-scene binding is pressed. */
@@ -50,10 +51,10 @@ export type KeyboardControlsProps = {
 };
 
 const DEFAULT_KEYS: Record<KeyboardControlAction, readonly string[]> = {
-  left: ["ArrowLeft"],
-  right: ["ArrowRight"],
-  up: ["ArrowUp"],
-  down: ["ArrowDown"],
+  left: ["ArrowLeft", "a", "KeyA"],
+  right: ["ArrowRight", "d", "KeyD"],
+  up: ["ArrowUp", "w", "KeyW"],
+  down: ["ArrowDown", "s", "KeyS"],
   zoomIn: ["+", "="],
   zoomOut: ["-", "_"],
   previousScene: ["[", "PageUp"],
@@ -132,10 +133,11 @@ export function cycleSceneId(
 }
 
 /**
- * Adds keyboard navigation to the nearest PanoView. PanoView mounts a default
- * instance; render your own to customize bindings or scene callbacks. Hold
- * movement/zoom keys for continuous motion; scene and reset bindings fire once
- * per key press.
+ * Adds keyboard navigation to the nearest PanoViewer. Enabled by default;
+ * render this component only to override properties, bindings, or scene
+ * callbacks. Hold movement/zoom keys for continuous motion; scene and reset
+ * bindings fire once per key press. Click the viewer to focus it before
+ * keys are received.
  */
 export function KeyboardControls({
   enabled = true,
@@ -148,6 +150,7 @@ export function KeyboardControls({
   onPreviousScene,
   onNextScene,
 }: KeyboardControlsProps) {
+  useClaimControlChannel("keyboard");
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pressedRef = useRef(new Set<KeyboardControlAction>());
@@ -159,7 +162,7 @@ export function KeyboardControls({
   const keyMap = useMemo(() => resolveKeyMap(keys), [keys]);
 
   if (!controlsRef) {
-    throw new Error("<KeyboardControls> must be rendered inside <PanoView>.");
+    throw new Error("<KeyboardControls> must be rendered inside <PanoViewer>.");
   }
 
   invertRef.current = invert;
@@ -175,6 +178,12 @@ export function KeyboardControls({
       controlsRef.current?.setKeyboardActive(false);
       return;
     }
+
+    // Canvas extra props land on the R3F wrapper, not gl.domElement, and
+    // pointerdown preventDefault blocks the default focus — make the canvas
+    // focusable and focus it ourselves so keydown can reach these listeners.
+    const previousTabIndex = element.getAttribute("tabindex");
+    element.tabIndex = 0;
 
     const syncKeyboardActive = () => {
       let continuous = false;
@@ -252,16 +261,29 @@ export function KeyboardControls({
       clearPressed();
     };
 
+    const onPointerDown = () => {
+      if (document.activeElement !== element) {
+        element.focus({ preventScroll: true });
+      }
+    };
+
+    element.addEventListener("pointerdown", onPointerDown);
     element.addEventListener("keydown", onKeyDown);
     element.addEventListener("keyup", onKeyUp);
     element.addEventListener("blur", onBlur);
     window.addEventListener("blur", onBlur);
 
     return () => {
+      element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("keydown", onKeyDown);
       element.removeEventListener("keyup", onKeyUp);
       element.removeEventListener("blur", onBlur);
       window.removeEventListener("blur", onBlur);
+      if (previousTabIndex === null) {
+        element.removeAttribute("tabindex");
+      } else {
+        element.setAttribute("tabindex", previousTabIndex);
+      }
       clearPressed();
     };
   }, [controlsRef, enabled, gl, keyMap]);
@@ -326,7 +348,10 @@ export function KeyboardControls({
     }
 
     if (yaw !== 0 || pitch !== 0 || fov !== 0) {
-      controls.applyViewDelta({ yaw, pitch, fov });
+      controls.applyViewDelta(
+        { yaw, pitch, fov },
+        { source: "keyboard" },
+      );
     }
   });
 

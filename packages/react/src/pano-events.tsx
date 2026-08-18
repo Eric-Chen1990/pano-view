@@ -1,5 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import {
+  getFullscreenElement,
+  subscribeFullscreenChange,
+} from "./fullscreen";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import {
   PanoEventBusContext,
@@ -8,7 +12,8 @@ import {
   type ViewInteractionEvent,
 } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
-import type { PanoViewState } from "./types";
+import type { PanoViewerState } from "./types";
+import type { WebVRMode } from "./webvr/types";
 
 const DEFAULT_IDLE_TIME_MS = 2000;
 
@@ -18,8 +23,8 @@ export type PanoEventsProps = {
    * Each PanoEvents instance tracks idle independently.
    */
   idleTime?: number;
-  onViewChange?: (view: PanoViewState) => void;
-  onViewSettled?: (view: PanoViewState) => void;
+  onViewChange?: (view: PanoViewerState) => void;
+  onViewSettled?: (view: PanoViewerState) => void;
   onViewInteractionStart?: (event: ViewInteractionEvent) => void;
   onViewInteractionEnd?: (event: ViewInteractionEvent) => void;
   onClick?: (event: PanoramaPointerEvent) => void;
@@ -37,6 +42,17 @@ export type PanoEventsProps = {
   onAutoRotateStart?: () => void;
   onAutoRotateStop?: () => void;
   onAutoRotateOneRound?: () => void;
+  onGyroAvailable?: () => void;
+  onGyroUnavailable?: () => void;
+  onGyroEnable?: () => void;
+  onGyroDisable?: () => void;
+  onGyroDenied?: () => void;
+  onVRAvailable?: () => void;
+  onVRUnavailable?: () => void;
+  onVREnter?: (mode: WebVRMode) => void;
+  onVRExit?: (mode: WebVRMode) => void;
+  onVRDenied?: (error?: unknown) => void;
+  onVRUnknownDevice?: () => void;
 };
 
 function resolveIdleTime(value: number | undefined): number {
@@ -44,7 +60,7 @@ function resolveIdleTime(value: number | undefined): number {
 }
 
 /**
- * Subscribes to viewer-level panorama events. Must run inside PanoView.
+ * Subscribes to viewer-level panorama events. Must run inside PanoViewer.
  * Prefer the {@link PanoEvents} component for declarative usage.
  */
 export function usePanoEvents({
@@ -68,13 +84,24 @@ export function usePanoEvents({
   onAutoRotateStart,
   onAutoRotateStop,
   onAutoRotateOneRound,
+  onGyroAvailable,
+  onGyroUnavailable,
+  onGyroEnable,
+  onGyroDisable,
+  onGyroDenied,
+  onVRAvailable,
+  onVRUnavailable,
+  onVREnter,
+  onVRExit,
+  onVRDenied,
+  onVRUnknownDevice,
 }: PanoEventsProps): void {
   const eventBus = useContext(PanoEventBusContext);
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
 
   if (!eventBus || !controlsRef) {
-    throw new Error("usePanoEvents must be used inside <PanoView>.");
+    throw new Error("usePanoEvents must be used inside <PanoViewer>.");
   }
 
   const callbacksRef = useRef({
@@ -97,6 +124,17 @@ export function usePanoEvents({
     onAutoRotateStart,
     onAutoRotateStop,
     onAutoRotateOneRound,
+    onGyroAvailable,
+    onGyroUnavailable,
+    onGyroEnable,
+    onGyroDisable,
+    onGyroDenied,
+    onVRAvailable,
+    onVRUnavailable,
+    onVREnter,
+    onVRExit,
+    onVRDenied,
+    onVRUnknownDevice,
   });
   callbacksRef.current = {
     onViewChange,
@@ -118,6 +156,17 @@ export function usePanoEvents({
     onAutoRotateStart,
     onAutoRotateStop,
     onAutoRotateOneRound,
+    onGyroAvailable,
+    onGyroUnavailable,
+    onGyroEnable,
+    onGyroDisable,
+    onGyroDenied,
+    onVRAvailable,
+    onVRUnavailable,
+    onVREnter,
+    onVRExit,
+    onVRDenied,
+    onVRUnknownDevice,
   };
 
   const idleElapsedRef = useRef(0);
@@ -171,6 +220,39 @@ export function usePanoEvents({
       eventBus.subscribe("autorotateoneround", () => {
         callbacksRef.current.onAutoRotateOneRound?.();
       }),
+      eventBus.subscribe("gyroavailable", () => {
+        callbacksRef.current.onGyroAvailable?.();
+      }),
+      eventBus.subscribe("gyrounavailable", () => {
+        callbacksRef.current.onGyroUnavailable?.();
+      }),
+      eventBus.subscribe("gyroenable", () => {
+        callbacksRef.current.onGyroEnable?.();
+      }),
+      eventBus.subscribe("gyrodisable", () => {
+        callbacksRef.current.onGyroDisable?.();
+      }),
+      eventBus.subscribe("gyrodenied", () => {
+        callbacksRef.current.onGyroDenied?.();
+      }),
+      eventBus.subscribe("vravailable", () => {
+        callbacksRef.current.onVRAvailable?.();
+      }),
+      eventBus.subscribe("vrunavailable", () => {
+        callbacksRef.current.onVRUnavailable?.();
+      }),
+      eventBus.subscribe("vrenter", ({ mode }) => {
+        callbacksRef.current.onVREnter?.(mode);
+      }),
+      eventBus.subscribe("vrexit", ({ mode }) => {
+        callbacksRef.current.onVRExit?.(mode);
+      }),
+      eventBus.subscribe("vrdenied", ({ error }) => {
+        callbacksRef.current.onVRDenied?.(error);
+      }),
+      eventBus.subscribe("vrunknowndevice", () => {
+        callbacksRef.current.onVRUnknownDevice?.();
+      }),
     ];
     return () => {
       for (const unsubscribe of unsubscribers) {
@@ -203,7 +285,7 @@ export function usePanoEvents({
     const wasFullscreenRef = { current: false };
 
     const isViewerFullscreen = () => {
-      const fullscreenElement = document.fullscreenElement;
+      const fullscreenElement = getFullscreenElement();
       if (!fullscreenElement) {
         return false;
       }
@@ -227,10 +309,7 @@ export function usePanoEvents({
     };
 
     wasFullscreenRef.current = isViewerFullscreen();
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
+    return subscribeFullscreenChange(handleFullscreenChange);
   }, [gl]);
 
   useEffect(() => {
@@ -276,7 +355,7 @@ export function usePanoEvents({
 }
 
 /**
- * Declarative viewer-level event listeners for the nearest PanoView.
+ * Declarative viewer-level event listeners for the nearest PanoViewer.
  * Multiple instances may coexist; each tracks its own idle timer.
  */
 export function PanoEvents(props: PanoEventsProps) {

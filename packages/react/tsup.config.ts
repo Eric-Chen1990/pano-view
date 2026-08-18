@@ -8,7 +8,9 @@ export default defineConfig({
   dts: true,
   entry: ["src/index.ts"],
   external: [
+    "@react-three/drei",
     "@react-three/fiber",
+    "@react-three/xr",
     "react",
     "react-dom",
     "three",

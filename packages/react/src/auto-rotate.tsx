@@ -33,8 +33,8 @@ function resolveAcceleration(value: number | undefined): number {
 }
 
 /**
- * Adds automatic rotation to the nearest PanoView. Render one instance as a
- * child of PanoView, alongside its panorama source.
+ * Adds automatic rotation to the nearest PanoViewer. Render one instance as a
+ * child of PanoViewer, alongside its panorama source.
  */
 export function AutoRotate({
   enabled = true,
@@ -50,7 +50,7 @@ export function AutoRotate({
   const yawAccumulatedRef = useRef(0);
 
   if (!controlsRef) {
-    throw new Error("<AutoRotate> must be rendered inside <PanoView>.");
+    throw new Error("<AutoRotate> must be rendered inside <PanoViewer>.");
   }
 
   useEffect(() => {

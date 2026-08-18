@@ -1,5 +1,58 @@
 # @ericchen1990/pano-view
 
+## 2.0.0
+
+### Major Changes
+
+- 6319343: Move the built-in HTML chrome to Tailwind CSS utility classes. Host apps must
+  install Tailwind CSS v4 and add an `@source` entry that scans
+  `@ericchen1990/pano-view`; otherwise video controls, captions, context menus,
+  tooltips, and accessibility-only chrome render without their default styling.
+
+### Minor Changes
+
+- c7a0b9f: Add a WebXR-first WebVR component with MobileVR and simulated desktop fallbacks, built-in session chrome, headset calibration, and VR lifecycle events.
+- 92508b4: Add an opt-in Gyro component for device-orientation panorama control, including relative and compass modes, touch offsets, sensor permission handling, and gyro lifecycle events.
+- cd8e9be: Add cinematic scene-transition presets on top of the existing GPU snapshot overlay, including directional grid wipes, hex dissolve, clock wipe, ripple, zoom blur, film burn, shatter, particles, and glitch.
+- d28ee13: Add hotspot `pointerEvents` (`"auto"` | `"none"`) so a hotspot can ignore mouse, touch, and pen hits while remaining visible.
+- 6640f55: Add hotspot `tooltipAppearance` so tooltip bubbles can customize background, text color, border, corner radius, shadow, padding, and font size. Defaults match the existing built-in theme.
+- 72b1a7a: Add a PanoFilter component that applies color and artistic looks to Sphere, Tile, and PanoVideo sources without tinting hotspots.
+- 475d9b2: Add PanoVideo for equirectangular 360 playback on the panorama sphere, with overlay controls (including resolution switching) and configurable WebVTT captions.
+- d043f79: Add `strokeDashSize` and `strokeGapSize` to polygon and polyline hotspots so outlines can use a custom dashed stroke in CSS pixels.
+- 3cdba78: Change TextHotspot `fontSize` from a 0–1 texture-height fraction to canvas pixels (default 96). Existing values such as `0.18` must be updated to pixel sizes.
+- bcd969c: Align video control popovers with the volume slider spacing and add caption menu settings for subtitle size and background opacity.
+
+### Patch Changes
+
+- a05cd19: Add WASD to the default KeyboardControls look bindings alongside the arrow keys.
+- a0bab64: Focus the WebGL canvas on pointer down so KeyboardControls receive key events after clicking the viewer.
+- b018d0e: Fix hotspot tooltip overlapping rotated graphics by anchoring tooltips to the hotspot's projected screen bounds.
+- 8ab6f5c: Fix simulated WebVR pointer lock so mouse look actually engages after fullscreen, and keep fallback VR sessions awake across tab visibility changes.
+
+## 1.0.0
+
+### Major Changes
+
+- 80d39ba: Rename public viewer components and related types:
+
+  - `PanoView` → `PanoViewer`
+  - `PanoramaScenes` → `Scenes`
+  - `PanoViewProps` / `PanoViewHandle` / `PanoViewState` / `SetPanoViewOptions` → `PanoViewer*`
+  - `PanoramaScene` / `PanoramaScenesProps` / `PanoramaTransition*` → `Scene` / `ScenesProps` / `SceneTransition*`
+
+  No compatibility aliases are provided.
+
+### Minor Changes
+
+- 8f11ad0: Render MouseControls, TouchControls, or KeyboardControls as a PanoViewer child to override that channel's properties without first setting the channel to false. AutoRotate remains off until explicitly mounted.
+- 107f1d8: Add hotspot tooltips with text and/or image content. The default trigger keeps the bubble visible; hover and click-to-pin are optional. Placement (`top` / `bottom` / `left` / `right`) and pixel offset from the hotspot edge are configurable.
+- 546bf3d: Add a canvas cursor for panorama drag and hotspot hover, with viewer-level `cursors` overrides and a per-hotspot `cursor` prop.
+- 0ec0f59: Add `TextHotspot` and `IframeHotspot` point types, including serializable `HotspotDefinition` variants. `@react-three/drei` is a new peer dependency used to project iframe content. Hosts with exhaustive switches over `HotspotDefinition` need to handle `text` and `iframe`.
+
+### Patch Changes
+
+- 33e3c7b: Stop point-hotspot planes from occluding other hotspots through empty texels. Transparent pixels no longer write depth or capture pointer hits, so graphic/image/text/sequence shapes no longer clip polygons behind their rectangular bounds.
+
 ## 0.2.0
 
 ### Minor Changes

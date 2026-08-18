@@ -10,19 +10,15 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import {
-  DoubleSide,
   LinearSRGBColorSpace,
   LinearFilter,
-  Mesh,
-  PlaneGeometry,
-  PerspectiveCamera,
-  ShaderMaterial,
-  Texture,
-  Vector2,
-  Vector3,
   WebGLRenderTarget,
 } from "three";
 import { PanoramaViewContext } from "./panorama-view-runtime";
+import type { Snapshot } from "./scene-transitions/overlay-utils";
+import { resolveTransition } from "./scene-transitions/presets";
+import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
+import { TransitionOverlay } from "./scene-transitions/transition-overlay";
 import { Sphere } from "./sphere";
 import {
   TileTextureManagerProvider,
@@ -31,36 +27,16 @@ import {
 import { Tile } from "./tile/tile";
 import type { TileProps } from "./tile/types";
 
-export type PanoramaTransitionPreset =
-  | "none"
-  | "crossfade"
-  | "zoom"
-  | "blackout"
-  | "whiteFlash"
-  | "slideRightToLeft"
-  | "slideTopToBottom"
-  | "slideDiagonal"
-  | "circleOpen"
-  | "verticalOpen"
-  | "horizontalOpen"
-  | "ellipticZoomOpen";
+export type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
 
-export type PanoramaTransition =
-  | PanoramaTransitionPreset
-  | {
-      preset: PanoramaTransitionPreset;
-      /** Overrides the KRpano-compatible default duration in seconds. */
-      duration?: number;
-    };
-
-export type SpherePanoramaScene = {
+export type SphereScene = {
   id: string;
   type: "sphere";
   src: string;
   yawOffset?: number;
 };
 
-export type TilePanoramaScene = Omit<
+export type TileScene = Omit<
   TileProps,
   | "loadMode"
   | "visible"
@@ -74,27 +50,27 @@ export type TilePanoramaScene = Omit<
   type: "tile";
 };
 
-export type PanoramaScene = SpherePanoramaScene | TilePanoramaScene;
+export type Scene = SphereScene | TileScene;
 
-export type PanoramaTransitionEndEvent = {
+export type SceneTransitionEndEvent = {
   previousSceneId: string;
   sceneId: string;
-  preset: PanoramaTransitionPreset;
+  preset: SceneTransitionPreset;
 };
 
-export type PanoramaTransitionErrorEvent = {
+export type SceneTransitionErrorEvent = {
   sceneId: string;
   error: unknown;
 };
 
-export type PanoramaScenesProps = {
-  scenes: readonly PanoramaScene[];
+export type ScenesProps = {
+  scenes: readonly Scene[];
   activeSceneId: string;
-  transition?: PanoramaTransition;
+  transition?: SceneTransition;
   /** Rendered only after a scene has finished transitioning in. */
-  renderHotspots?: (scene: PanoramaScene) => ReactNode;
-  onTransitionEnd?: (event: PanoramaTransitionEndEvent) => void;
-  onTransitionError?: (event: PanoramaTransitionErrorEvent) => void;
+  renderHotspots?: (scene: Scene) => ReactNode;
+  onTransitionEnd?: (event: SceneTransitionEndEvent) => void;
+  onTransitionError?: (event: SceneTransitionErrorEvent) => void;
   /** Viewer-wide budget shared by every tile scene. Defaults to 128 MiB. */
   maxTextureMemoryMb?: number;
   /** Viewer-wide tile request limit. Defaults to 4. */
@@ -103,63 +79,7 @@ export type PanoramaScenesProps = {
   snapshotMaxPixels?: number;
 };
 
-type TransitionDefinition = {
-  preset: PanoramaTransitionPreset;
-  duration: number;
-};
-
-type Snapshot = {
-  texture: Texture;
-  dispose: () => void;
-};
-
 type Phase = "idle" | "preloading" | "capturing" | "recapturing" | "transitioning";
-
-const TRANSITION_DEFAULTS: Record<PanoramaTransitionPreset, {
-  duration: number;
-  krpanoBlend: string;
-}> = {
-  none: { duration: 0, krpanoBlend: "NOBLEND" },
-  crossfade: { duration: 1, krpanoBlend: "BLEND(1.0, easeInCubic)" },
-  zoom: { duration: 2, krpanoBlend: "ZOOMBLEND(2.0, 2.0, easeInOutSine)" },
-  blackout: { duration: 2, krpanoBlend: "COLORBLEND(2.0, 0x000000, easeOutSine)" },
-  whiteFlash: { duration: 1, krpanoBlend: "LIGHTBLEND(1.0, 0xFFFFFF, 2.0, linear)" },
-  slideRightToLeft: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 0.0, 0.2, linear)" },
-  slideTopToBottom: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 90.0, 0.01, linear)" },
-  slideDiagonal: { duration: 1, krpanoBlend: "SLIDEBLEND(1.0, 135.0, 0.4, linear)" },
-  circleOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, 0.0, 0.2, 0.0, linear)" },
-  verticalOpen: { duration: 0.7, krpanoBlend: "OPENBLEND(0.7, 1.0, 0.1, 0.0, linear)" },
-  horizontalOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -1.0, 0.3, 0.0, linear)" },
-  ellipticZoomOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -0.5, 0.3, 0.8, linear)" },
-};
-
-const EFFECT_INDEX: Record<PanoramaTransitionPreset, number> = {
-  none: 0,
-  crossfade: 1,
-  zoom: 2,
-  blackout: 3,
-  whiteFlash: 4,
-  slideRightToLeft: 5,
-  slideTopToBottom: 6,
-  slideDiagonal: 7,
-  circleOpen: 8,
-  verticalOpen: 9,
-  horizontalOpen: 10,
-  ellipticZoomOpen: 11,
-};
-
-function resolveTransition(transition: PanoramaTransition | undefined): TransitionDefinition {
-  const preset = typeof transition === "string" ? transition : transition?.preset ?? "crossfade";
-  return {
-    preset,
-    duration: Math.max(
-      0,
-      transition && typeof transition === "object" && Number.isFinite(transition.duration)
-        ? transition.duration!
-        : TRANSITION_DEFAULTS[preset].duration,
-    ),
-  };
-}
 
 function SceneSource({
   scene,
@@ -168,7 +88,7 @@ function SceneSource({
   onReady,
   onError,
 }: {
-  scene: PanoramaScene | null;
+  scene: Scene | null;
   visible: boolean;
   baseOnly: boolean;
   onReady: () => void;
@@ -178,28 +98,35 @@ function SceneSource({
     return null;
   }
 
-  if (scene.type === "sphere") {
-    return (
-      <Sphere
-        src={scene.src}
-        yawOffset={scene.yawOffset}
-        visible={visible}
-        onLoad={onReady}
-        onError={onError}
-      />
-    );
+  switch (scene.type) {
+    case "sphere":
+      return (
+        <Sphere
+          src={scene.src}
+          yawOffset={scene.yawOffset}
+          visible={visible}
+          onLoad={onReady}
+          onError={onError}
+        />
+      );
+    case "tile": {
+      const { id: _id, type: _type, ...tileProps } = scene;
+      return (
+        <Tile
+          {...tileProps}
+          visible={visible}
+          loadMode={baseOnly ? "base" : "full"}
+          onReady={onReady}
+          onPreviewError={onError}
+        />
+      );
+    }
+    default: {
+      const exhaustive: never = scene;
+      void exhaustive;
+      return null;
+    }
   }
-
-  const { id: _id, type: _type, ...tileProps } = scene;
-  return (
-    <Tile
-      {...tileProps}
-      visible={visible}
-      loadMode={baseOnly ? "base" : "full"}
-      onReady={onReady}
-      onPreviewError={onError}
-    />
-  );
 }
 
 function SnapshotCapture({
@@ -271,152 +198,7 @@ function SnapshotCapture({
   return null;
 }
 
-function SnapshotOverlay({
-  snapshot,
-  transition,
-  running,
-  runId,
-  onFinish,
-}: {
-  snapshot: Snapshot;
-  transition: TransitionDefinition;
-  running: boolean;
-  runId: number;
-  onFinish: () => void;
-}) {
-  const { camera, size } = useThree();
-  const meshRef = useRef<Mesh>(null);
-  const startRef = useRef<number | null>(null);
-  const finishedRef = useRef(false);
-  const directionRef = useRef(new Vector3());
-  const material = useMemo(
-    () =>
-      new ShaderMaterial({
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        side: DoubleSide,
-        uniforms: {
-          map: { value: snapshot.texture },
-          progress: { value: 0 },
-          effect: { value: EFFECT_INDEX[transition.preset] },
-        },
-        vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D map;
-          uniform float progress;
-          uniform float effect;
-          varying vec2 vUv;
-
-          float easeInCubic(float t) { return t * t * t; }
-          float easeOutSine(float t) { return sin(t * 1.57079632679); }
-          float easeInOutSine(float t) { return -(cos(3.14159265359 * t) - 1.0) * 0.5; }
-
-          void main() {
-            float t = clamp(progress, 0.0, 1.0);
-            vec2 uv = vUv;
-            vec4 old = texture2D(map, uv);
-            float alpha = 1.0;
-
-            if (effect == 1.0) {
-              alpha = 1.0 - easeInCubic(t);
-            } else if (effect == 2.0) {
-              float eased = easeInOutSine(t);
-              // ZOOMBLEND(2.0, 2.0, easeInOutSine): reach 2x zoom.
-              uv = 0.5 + (vUv - 0.5) / mix(1.0, 2.0, eased);
-              old = texture2D(map, uv);
-              alpha = 1.0 - eased;
-            } else if (effect == 3.0) {
-              // COLORBLEND(2.0, 0x000000, easeOutSine).
-              float blackout = easeOutSine(min(1.0, t * 2.0));
-              float reveal = easeOutSine(max(0.0, (t - 0.5) * 2.0));
-              old.rgb = mix(old.rgb, vec3(0.0), blackout);
-              alpha = 1.0 - reveal;
-            } else if (effect == 4.0) {
-              // LIGHTBLEND(1.0, 0xFFFFFF, 2.0, linear).
-              float flash = min(1.0, 2.0 * sin(t * 3.14159265359));
-              old.rgb = mix(old.rgb, vec3(1.0), flash);
-              alpha = 1.0 - t;
-            } else if (effect >= 5.0 && effect <= 7.0) {
-              vec2 direction = effect == 5.0 ? vec2(1.0, 0.0) : (effect == 6.0 ? vec2(0.0, 1.0) : normalize(vec2(-1.0, 1.0)));
-              float coordinate = dot(vUv - 0.5, direction) + 0.5;
-              float softness = effect == 5.0 ? 0.2 : (effect == 6.0 ? 0.01 : 0.4);
-              alpha = smoothstep(t - softness, t + softness, coordinate);
-            } else if (effect >= 8.0) {
-              vec2 point = vUv - 0.5;
-              vec2 scale = effect == 9.0 ? vec2(4.0, 1.0) : (effect == 10.0 ? vec2(1.0, 4.0) : vec2(1.35, 0.8));
-              float distanceFromCenter = length(point * scale);
-              float edge = effect == 8.0 ? 0.2 : (effect == 9.0 ? 0.1 : 0.3);
-              float radius = t * (effect == 9.0 ? 1.1 : 1.45);
-              alpha = smoothstep(radius, radius + edge, distanceFromCenter);
-              if (effect == 11.0) {
-                // OPENBLEND(1.0, -0.5, 0.3, 0.8, linear).
-                old = texture2D(map, 0.5 + point / (1.0 + 0.8 * t));
-              }
-            }
-            gl_FragColor = vec4(old.rgb, old.a * alpha);
-            // The snapshot is linear. Encode it for the drawing buffer so it
-            // matches the newly rendered panorama beneath this overlay.
-            #include <colorspace_fragment>
-          }
-        `,
-      }),
-    [snapshot.texture, transition.preset],
-  );
-
-  useEffect(() => () => material.dispose(), [material]);
-  useEffect(() => {
-    startRef.current = null;
-    finishedRef.current = false;
-    material.uniforms.progress.value = 0;
-  }, [material, runId]);
-
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh || !(camera as { isPerspectiveCamera?: boolean }).isPerspectiveCamera) {
-      return;
-    }
-    const perspectiveCamera = camera as PerspectiveCamera;
-    const distance = Math.max(perspectiveCamera.near * 1.1, 0.11);
-    camera.getWorldDirection(directionRef.current);
-    mesh.position.copy(camera.position).addScaledVector(directionRef.current, distance);
-    mesh.quaternion.copy(camera.quaternion);
-    const height = 2 * distance * Math.tan((perspectiveCamera.fov * Math.PI) / 360);
-    mesh.scale.set(height * perspectiveCamera.aspect, height, 1);
-
-    if (!running || finishedRef.current) {
-      return;
-    }
-    if (startRef.current === null) {
-      startRef.current = state.clock.elapsedTime;
-    }
-    const progress = transition.duration === 0
-      ? 1
-      : Math.min(1, (state.clock.elapsedTime - startRef.current) / transition.duration);
-    material.uniforms.progress.value = progress;
-    if (progress === 1) {
-      finishedRef.current = true;
-      onFinish();
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} renderOrder={10_000} frustumCulled={false}>
-      <primitive attach="geometry" object={FULLSCREEN_PLANE} />
-      <primitive attach="material" object={material} />
-    </mesh>
-  );
-}
-
-const FULLSCREEN_PLANE = new PlaneGeometry(1, 1);
-
-function PanoramaScenesController({
+function ScenesController({
   scenes,
   activeSceneId,
   transition: transitionInput,
@@ -424,7 +206,7 @@ function PanoramaScenesController({
   onTransitionEnd,
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
-}: Omit<PanoramaScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
+}: Omit<ScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
   const controlsRef = useContext(PanoramaViewContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
@@ -436,7 +218,7 @@ function PanoramaScenesController({
     [scenes],
   );
   const initialScene = sceneMap.get(activeSceneId) ?? null;
-  const [slots, setSlots] = useState<[PanoramaScene | null, PanoramaScene | null]>([
+  const [slots, setSlots] = useState<[Scene | null, Scene | null]>([
     initialScene,
     null,
   ]);
@@ -454,7 +236,7 @@ function PanoramaScenesController({
   const slotsRef = useRef(slots);
   const phaseRef = useRef(phase);
   const liveSlotRef = useRef(liveSlot);
-  const transitionFromRef = useRef<PanoramaScene | null>(initialScene);
+  const transitionFromRef = useRef<Scene | null>(initialScene);
   slotsRef.current = slots;
   phaseRef.current = phase;
   liveSlotRef.current = liveSlot;
@@ -468,11 +250,11 @@ function PanoramaScenesController({
     onTransitionError?.({ sceneId, error });
   }, [onTransitionError]);
 
-  const startPreload = useCallback((scene: PanoramaScene) => {
+  const startPreload = useCallback((scene: Scene) => {
     const nextSlot = 1 - liveSlotRef.current;
     requestedSceneIdRef.current = scene.id;
     setSlots((current) => {
-      const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
       next[nextSlot] = scene;
       return next;
     });
@@ -518,7 +300,7 @@ function PanoramaScenesController({
       const previousScene = slotsRef.current[liveSlotRef.current];
       const nextScene = slotsRef.current[slot];
       setSlots((current) => {
-        const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+        const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
         next[liveSlotRef.current] = null;
         return next;
       });
@@ -555,7 +337,7 @@ function PanoramaScenesController({
 
     const sourceSlot = liveSlotRef.current;
     setSlots((current) => {
-      const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
       next[sourceSlot] = null;
       return next;
     });
@@ -656,7 +438,7 @@ function PanoramaScenesController({
         );
       })}
       {snapshotVisible ? (
-        <SnapshotOverlay
+        <TransitionOverlay
           snapshot={snapshot}
           transition={transition}
           running={phase === "transitioning"}
@@ -669,17 +451,17 @@ function PanoramaScenesController({
   );
 }
 
-export function PanoramaScenes({
+export function Scenes({
   maxTextureMemoryMb,
   maxConcurrentTileLoads,
   ...props
-}: PanoramaScenesProps) {
+}: ScenesProps) {
   return (
     <TileTextureManagerProvider
       maxTextureMemoryMb={maxTextureMemoryMb}
       maxConcurrentLoads={maxConcurrentTileLoads}
     >
-      <PanoramaScenesController {...props} />
+      <ScenesController {...props} />
     </TileTextureManagerProvider>
   );
 }

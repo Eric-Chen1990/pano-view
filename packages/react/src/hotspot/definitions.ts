@@ -1,8 +1,16 @@
+import type { CSSProperties } from "react";
 import type { GraphicDefinition } from "./graphic-hotspot";
+import type { IframePointerPolicy } from "./iframe-hotspot";
+import type { TextHotspotStyle } from "./text-hotspot";
 import type {
   HotspotMode,
+  HotspotPointerEvents,
   HotspotPosition,
   HotspotScaleMode,
+  HotspotTooltipAppearance,
+  HotspotTooltipContent,
+  HotspotTooltipPlacement,
+  HotspotTooltipTrigger,
 } from "./types";
 
 /** Shared serializable fields for every saved hotspot definition. */
@@ -12,7 +20,16 @@ export type HotspotDefinitionBase = {
   label?: string;
   visible?: boolean;
   interactive?: boolean;
+  /** Pointer hit-testing. `"none"` ignores mouse, touch, and pen. */
+  pointerEvents?: HotspotPointerEvents;
+  /** Canvas cursor while this hotspot is hovered. */
+  cursor?: CSSProperties["cursor"];
   renderOrder?: number;
+  tooltip?: string | HotspotTooltipContent;
+  tooltipTrigger?: HotspotTooltipTrigger;
+  tooltipPlacement?: HotspotTooltipPlacement;
+  tooltipOffset?: number;
+  tooltipAppearance?: HotspotTooltipAppearance;
 };
 
 /** Shared serializable fields for a hotspot anchored at one yaw/pitch point. */
@@ -62,6 +79,24 @@ export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };
 
+export type TextHotspotDefinition = PointHotspotDefinitionBase &
+  TextHotspotStyle & {
+    type: "text";
+    text: string;
+  };
+
+export type IframeHotspotDefinition = PointHotspotDefinitionBase & {
+  type: "iframe";
+  src: string;
+  title?: string;
+  sandbox?: string;
+  allow?: string;
+  referrerPolicy?: string;
+  loading?: "eager" | "lazy";
+  pointerPolicy?: IframePointerPolicy;
+  background?: string;
+};
+
 export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   type: "polygon";
   vertices: HotspotPosition[];
@@ -70,22 +105,28 @@ export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
+  strokeDashSize?: number;
+  strokeGapSize?: number;
 };
 
-/** An open path. This extends the original five hotspot categories. */
+/** An open path. This extends the original point and polygon hotspot categories. */
 export type PolylineHotspotDefinition = HotspotDefinitionBase & {
   type: "polyline";
   vertices: HotspotPosition[];
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
+  strokeDashSize?: number;
+  strokeGapSize?: number;
 };
 
 export type PointHotspotDefinition =
   | ImageHotspotDefinition
   | GraphicHotspotDefinition
   | SequenceHotspotDefinition
-  | VideoHotspotDefinition;
+  | VideoHotspotDefinition
+  | TextHotspotDefinition
+  | IframeHotspotDefinition;
 
 /** A serializable, discriminated hotspot collection item. */
 export type HotspotDefinition =

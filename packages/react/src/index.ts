@@ -1,7 +1,29 @@
-export { PanoView } from "./pano-view";
-export type { PanoViewProps } from "./pano-view";
+export { PanoViewer } from "./pano-viewer";
+export type { PanoViewerProps } from "./pano-viewer";
+export { DEFAULT_PANO_CURSORS } from "./pano-cursor";
+export type { PanoCursor, PanoCursors } from "./pano-cursor";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { PanoFilter } from "./pano-filter/pano-filter";
+export type { PanoFilterProps } from "./pano-filter/pano-filter";
+export { PANO_FILTER_PRESETS } from "./pano-filter/presets";
+export type { PanoFilterPreset } from "./pano-filter/presets";
+export { Gyro } from "./gyro";
+export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
+export { WebVR } from "./webvr/webvr";
+export { DEFAULT_WEBVR_CHROME_APPEARANCE } from "./webvr/appearance";
+export { WEBVR_PROFILE_IDS, WEBVR_PROFILES } from "./webvr/profiles";
+export { DEFAULT_WEBVR_CURSOR_DWELL_MS } from "./webvr/reticle";
+export type {
+  WebVRChrome,
+  WebVRChromeAppearance,
+  WebVRHandle,
+  WebVRMode,
+  WebVRProfile,
+  WebVRProfileId,
+  WebVRProps,
+  WebVRSettings,
+} from "./webvr/types";
 export { PanoContextMenu } from "./pano-context-menu";
 export {
   composePanoContextMenuItems,
@@ -48,17 +70,36 @@ export { TouchControls } from "./touch-controls";
 export type { TouchControlsProps } from "./touch-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
-export { PanoramaScenes } from "./panorama-scenes";
+export { PanoVideo } from "./video/pano-video";
+export type { PanoVideoProps } from "./video/pano-video";
+export { PanoVideoControls } from "./video/pano-video-controls";
+export type { PanoVideoControlsProps } from "./video/pano-video-controls";
+export { DEFAULT_PANO_VIDEO_PLAYBACK_RATES } from "./video/format";
+export { DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE } from "./video/pano-video-captions";
+export { DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE } from "./video/pano-video-controls";
 export type {
-  PanoramaScene,
-  PanoramaScenesProps,
-  PanoramaTransition,
-  PanoramaTransitionEndEvent,
-  PanoramaTransitionErrorEvent,
-  PanoramaTransitionPreset,
-  SpherePanoramaScene,
-  TilePanoramaScene,
-} from "./panorama-scenes";
+  PanoVideoCaptionAppearance,
+  PanoVideoControlsAppearance,
+  PanoVideoController,
+  PanoVideoErrorEvent,
+  PanoVideoErrorSource,
+  PanoVideoPlaybackSnapshot,
+  PanoVideoSource,
+  PanoVideoTrack,
+  PanoVideoTrackKind,
+  PanoVideoVariant,
+} from "./video/types";
+export { Scenes } from "./scenes";
+export type {
+  Scene,
+  ScenesProps,
+  SceneTransition,
+  SceneTransitionEndEvent,
+  SceneTransitionErrorEvent,
+  SceneTransitionPreset,
+  SphereScene,
+  TileScene,
+} from "./scenes";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
 export { PolygonHotspot } from "./hotspot/polygon-hotspot";
@@ -107,6 +148,20 @@ export type {
   VideoHotspotProps,
   VideoPlaybackState,
 } from "./hotspot/video-hotspot";
+export { TextHotspot } from "./hotspot/text-hotspot";
+export type {
+  TextHotspotAlign,
+  TextHotspotFontStyle,
+  TextHotspotProps,
+  TextHotspotStyle,
+  TextHotspotVerticalAlign,
+  TextHotspotWhiteSpace,
+} from "./hotspot/text-hotspot";
+export { IframeHotspot } from "./hotspot/iframe-hotspot";
+export type {
+  IframeHotspotProps,
+  IframePointerPolicy,
+} from "./hotspot/iframe-hotspot";
 export { Tile } from "./tile/tile";
 export type {
   CubeFaceCode,
@@ -120,9 +175,9 @@ export type {
   MouseControlButton,
   MouseControlsOptions,
   PanoramaControlsOptions,
-  PanoViewHandle,
-  PanoViewState,
-  SetPanoViewOptions,
+  PanoViewerHandle,
+  PanoViewerState,
+  SetPanoViewerOptions,
   TouchControlsOptions,
 } from "./types";
 export {
@@ -132,6 +187,10 @@ export {
   panoPositionToVector3,
   vector3ToPanoPosition,
 } from "./hotspot/coordinates";
+export {
+  DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+  DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+} from "./hotspot/hotspot-tooltip";
 export { MAX_HOTSPOT_PITCH } from "./hotspot/types";
 export type {
   HotspotDragEvent,
@@ -139,19 +198,26 @@ export type {
   HotspotInteractionEvent,
   HotspotCommonProps,
   HotspotMode,
+  HotspotPointerEvents,
   HotspotScaleMode,
   HotspotPosition,
+  HotspotTooltipAppearance,
+  HotspotTooltipContent,
+  HotspotTooltipPlacement,
+  HotspotTooltipTrigger,
   PanoramaPointerEvent,
 } from "./hotspot/types";
 export type {
   GraphicHotspotDefinition,
   HotspotDefinition,
   HotspotDefinitionBase,
+  IframeHotspotDefinition,
   ImageHotspotDefinition,
   PointHotspotDefinition,
   PointHotspotDefinitionBase,
   PolygonHotspotDefinition,
   PolylineHotspotDefinition,
   SequenceHotspotDefinition,
+  TextHotspotDefinition,
   VideoHotspotDefinition,
 } from "./hotspot/definitions";

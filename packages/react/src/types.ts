@@ -1,6 +1,6 @@
 import type { KeyboardControlsProps } from "./keyboard-controls";
 
-export type PanoViewState = {
+export type PanoViewerState = {
   /** Horizontal look angle in degrees. Positive values look right. */
   yaw: number;
   /** Vertical look angle in degrees. Positive values look up. */
@@ -9,16 +9,16 @@ export type PanoViewState = {
   fov: number;
 };
 
-export type SetPanoViewOptions = {
+export type SetPanoViewerOptions = {
   /** Apply the new view immediately instead of preserving current inertia. */
   immediate?: boolean;
 };
 
-export type PanoViewHandle = {
-  getView: () => PanoViewState;
+export type PanoViewerHandle = {
+  getView: () => PanoViewerState;
   setView: (
-    view: Partial<PanoViewState>,
-    options?: SetPanoViewOptions,
+    view: Partial<PanoViewerState>,
+    options?: SetPanoViewerOptions,
   ) => void;
   reset: () => void;
   /** @deprecated Control an AutoRotate component's enabled prop instead. */
@@ -61,12 +61,12 @@ export type TouchControlsOptions = {
 export type PanoramaControlsOptions = {
   /**
    * Master switch for user view controls. Defaults to true. Setting
-   * `controls={false}` on PanoView still disables all user input.
+   * `controls={false}` on PanoViewer still disables all user input.
    */
   enabled?: boolean;
   /** Enables drag and zoom inertia. Defaults to true. */
   inertia?: boolean;
-  /** @deprecated Render <AutoRotate enabled /> inside PanoView instead. */
+  /** @deprecated Render <AutoRotate enabled /> inside PanoViewer instead. */
   autoRotate?: boolean;
   /** @deprecated Use AutoRotate's speed prop instead. */
   autoRotateSpeed?: number;
@@ -111,9 +111,9 @@ export type PanoramaControlsOptions = {
    */
   zoomDamping?: number;
   /**
-   * Mouse channel. `true` / omit mounts defaults; `false` skips the default
-   * instance (render a custom MouseControls child); an object merges with
-   * defaults and supports `enabled`.
+   * Mouse channel. `true` / omit mounts defaults; `false` disables the
+   * default instance; an object merges with defaults and supports `enabled`.
+   * Rendering `<MouseControls />` as a child also replaces the default.
    */
   mouse?: boolean | MouseControlsOptions;
   /**
@@ -121,8 +121,8 @@ export type PanoramaControlsOptions = {
    */
   touch?: boolean | TouchControlsOptions;
   /**
-   * Keyboard channel. Same shape as `mouse`. Set to false when providing a
-   * custom KeyboardControls child.
+   * Keyboard channel. Same shape as `mouse`. Rendering `<KeyboardControls />`
+   * as a child replaces the default (no need to set this to false).
    */
   keyboard?: boolean | KeyboardControlsProps;
 };

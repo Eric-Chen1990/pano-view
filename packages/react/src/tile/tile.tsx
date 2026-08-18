@@ -19,6 +19,7 @@ import {
   TextureLoader,
   Vector3,
 } from "three";
+import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   CUBE_FACES,
   CUBE_RADIUS,
@@ -167,7 +168,7 @@ function PreviewFace({
       renderOrder={-100}
       rotation={transform.rotation}
     >
-      <meshBasicMaterial
+      <PanoBasicMaterial
         depthTest={false}
         depthWrite={false}
         map={texture}
@@ -262,7 +263,7 @@ const TileMesh = memo(function TileMesh({
         renderOrder={renderOrder}
         scale={[layout.width, layout.height, 1]}
       >
-        <meshBasicMaterial
+        <PanoBasicMaterial
           depthTest={false}
           depthWrite={false}
           map={snapshot.texture}

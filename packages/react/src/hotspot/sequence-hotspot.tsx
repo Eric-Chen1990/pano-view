@@ -2,7 +2,6 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import {
   ClampToEdgeWrapping,
-  DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   SRGBColorSpace,
@@ -10,6 +9,7 @@ import {
   TextureLoader,
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
+import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
 
 const DEFAULT_SEQUENCE_FPS = 12;
@@ -52,13 +52,6 @@ export type SequenceHotspotProps = HotspotCommonProps & {
   onEnded?: () => void;
   onError?: (event: SequenceHotspotErrorEvent) => void;
 };
-
-function clampOpacity(opacity: number | undefined): number {
-  if (!Number.isFinite(opacity)) {
-    return 1;
-  }
-  return Math.max(0, Math.min(opacity!, 1));
-}
 
 function resolveFps(value: number | undefined): number {
   return Number.isFinite(value) && value! > 0 ? value! : DEFAULT_SEQUENCE_FPS;
@@ -252,16 +245,7 @@ export function SequenceHotspot({
 
   return (
     <HotspotAnchor {...anchorProps} id={id} height={height} width={width}>
-      <mesh>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={texture}
-          opacity={texture ? clampOpacity(opacity) : 0}
-          side={DoubleSide}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
+      <HotspotPlane map={texture} opacity={opacity} />
     </HotspotAnchor>
   );
 }

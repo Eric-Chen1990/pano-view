@@ -1,12 +1,13 @@
 import type {
-  PanoramaScene,
-  PanoramaTransitionPreset,
-  PanoViewState,
+  Scene,
+  SceneTransitionPreset,
+  PanoFilterPreset,
+  PanoViewerState,
   TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import type { EditorHotspot, EditorPolygon } from "./types";
 
-export const INITIAL_VIEW: PanoViewState = { yaw: 0, pitch: 0, fov: 75 };
+export const INITIAL_VIEW: PanoViewerState = { yaw: 0, pitch: 0, fov: 75 };
 
 export const INITIAL_PROGRESS: TileLoadProgress = {
   requested: 0,
@@ -35,21 +36,86 @@ export const TRANSITION_SCENES = [
     multires: "512,1000,2000",
     urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
   },
-] satisfies readonly PanoramaScene[];
+] satisfies readonly Scene[];
 
-export const TRANSITION_PRESETS: Array<{ value: PanoramaTransitionPreset; label: string }> = [
-  { value: "none", label: "No blend" },
-  { value: "crossfade", label: "Crossfade" },
-  { value: "zoom", label: "Zoom blend" },
-  { value: "blackout", label: "Black-out" },
-  { value: "whiteFlash", label: "White flash" },
-  { value: "slideRightToLeft", label: "Right to left" },
-  { value: "slideTopToBottom", label: "Top to bottom" },
-  { value: "slideDiagonal", label: "Diagonal slide" },
-  { value: "circleOpen", label: "Circle open" },
-  { value: "verticalOpen", label: "Vertical open" },
-  { value: "horizontalOpen", label: "Horizontal open" },
-  { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+export const TRANSITION_PRESET_GROUPS: Array<{
+  label?: string;
+  presets: Array<{ value: SceneTransitionPreset; label: string }>;
+}> = [
+  {
+    presets: [{ value: "none", label: "No blend" }],
+  },
+  {
+    label: "Cinematic",
+    presets: [
+      { value: "dissolve", label: "Dissolve" },
+      { value: "shatter", label: "Shatter" },
+      { value: "particles", label: "Particles" },
+      { value: "glitch", label: "Glitch" },
+      { value: "swirl", label: "Swirl" },
+      { value: "clockWipe", label: "Clock wipe" },
+      { value: "ripple", label: "Ripple" },
+      { value: "zoomBlur", label: "Zoom blur" },
+      { value: "filmBurn", label: "Film burn" },
+    ],
+  },
+  {
+    label: "Grid",
+    presets: [
+      { value: "pixelate", label: "Pixelate" },
+      { value: "gridWipe", label: "Grid wipe" },
+      { value: "gridWipeUp", label: "Grid up" },
+      { value: "gridWipeRight", label: "Grid right" },
+      { value: "gridWipeDiagonal", label: "Grid diagonal" },
+      { value: "gridWipeCenter", label: "Grid center" },
+      { value: "gridWipeChecker", label: "Grid checker" },
+      { value: "hexDissolve", label: "Hex dissolve" },
+    ],
+  },
+  {
+    label: "KRpano style",
+    presets: [
+      { value: "crossfade", label: "Crossfade" },
+      { value: "zoom", label: "Zoom blend" },
+      { value: "blackout", label: "Black-out" },
+      { value: "whiteFlash", label: "White flash" },
+      { value: "slideRightToLeft", label: "Right to left" },
+      { value: "slideTopToBottom", label: "Top to bottom" },
+      { value: "slideDiagonal", label: "Diagonal slide" },
+      { value: "circleOpen", label: "Circle open" },
+      { value: "verticalOpen", label: "Vertical open" },
+      { value: "horizontalOpen", label: "Horizontal open" },
+      { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+    ],
+  },
+];
+
+export const FILTER_PRESET_GROUPS: Array<{
+  label: string;
+  presets: Array<{ value: PanoFilterPreset; label: string }>;
+}> = [
+  {
+    label: "Tone",
+    presets: [
+      { value: "none", label: "None" },
+      { value: "grayscale", label: "Grayscale" },
+      { value: "sepia", label: "Sepia" },
+      { value: "vintage", label: "Vintage" },
+      { value: "cool", label: "Cool" },
+      { value: "warm", label: "Warm" },
+    ],
+  },
+  {
+    label: "Artistic",
+    presets: [
+      { value: "pencil", label: "Pencil" },
+      { value: "coloredPencil", label: "Colored pencil" },
+      { value: "crayon", label: "Crayon" },
+      { value: "watercolor", label: "Watercolor" },
+      { value: "cartoon", label: "Cartoon" },
+      { value: "crosshatch", label: "Crosshatch" },
+    ],
+  },
 ];
 
 export const DEMO_POLYGON: EditorPolygon = {
@@ -67,7 +133,14 @@ export const DEMO_POLYGON: EditorPolygon = {
   stroke: "#f5fbfc",
   strokeWidth: 2,
   strokeOpacity: 0.88,
+  strokeDashSize: 0,
+  strokeGapSize: 0,
   visible: true,
+  pointerEvents: "auto",
+  tooltip: { text: "Courtyard canopy" },
+  tooltipTrigger: "always",
+  tooltipPlacement: "top",
+  tooltipOffset: 12,
 };
 
 export const DEMO_HOTSPOTS: EditorHotspot[] = [
@@ -85,7 +158,12 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     scaleMode: "fov",
     opacity: 1,
     visible: true,
+    pointerEvents: "auto",
     src: "/fixtures/hotspots/gallery-card.svg",
+    tooltip: { text: "Courtyard gallery" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "signal-marker",
@@ -101,6 +179,7 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     scaleMode: "fixed",
     opacity: 1,
     visible: true,
+    pointerEvents: "auto",
     graphic: {
       kind: "ring",
       fill: "#df6b42",
@@ -108,6 +187,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
       strokeWidth: 10,
       innerRadius: 0.66,
     },
+    tooltip: { text: "Signal point" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "sequence-marker",
@@ -123,12 +206,17 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     scaleMode: "fixed",
     opacity: 1,
     visible: true,
+    pointerEvents: "auto",
     src: SEQUENCE_SPRITE,
     frameCount: 4,
     frameDirection: "vertical",
     playing: true,
     fps: 3,
     loop: true,
+    tooltip: { text: "Animated sequence" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "video-window",
@@ -144,11 +232,71 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     scaleMode: "fov",
     opacity: 1,
     visible: true,
+    pointerEvents: "auto",
     src: "/fixtures/hotspots/loop.webm",
     poster: "/fixtures/hotspots/gallery-card.svg",
     playing: false,
     loop: true,
     muted: true,
     volume: 1,
+    tooltip: { text: "Video window" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
+  },
+  {
+    id: "courtyard-caption",
+    type: "text",
+    label: "Read courtyard caption",
+    position: { yaw: 0, pitch: -16 },
+    width: 16,
+    height: 6,
+    rotation: 0,
+    scale: 1,
+    mode: "billboard",
+    distance: 10,
+    scaleMode: "fixed",
+    opacity: 1,
+    visible: true,
+    pointerEvents: "auto",
+    text: "Courtyard overlook",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: 96,
+    fontWeight: 600,
+    fontStyle: "normal",
+    color: "#f8fafc",
+    background: "#111827",
+    backgroundOpacity: 0.72,
+    align: "center",
+    verticalAlign: "middle",
+    whiteSpace: "normal",
+    tooltip: { text: "Courtyard overlook" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
+  },
+  {
+    id: "visitor-guide",
+    type: "iframe",
+    label: "Open visitor guide",
+    position: { yaw: -62, pitch: 4 },
+    width: 18,
+    height: 12,
+    rotation: 0,
+    scale: 1,
+    mode: "billboard",
+    distance: 10,
+    scaleMode: "fov",
+    opacity: 1,
+    visible: true,
+    pointerEvents: "auto",
+    src: "/fixtures/hotspots/embed.html",
+    title: "Visitor guide",
+    sandbox: "allow-scripts allow-popups allow-forms",
+    pointerPolicy: "hotspot",
+    tooltip: { text: "Visitor guide" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
 ];

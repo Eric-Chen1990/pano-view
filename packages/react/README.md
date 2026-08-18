@@ -15,32 +15,230 @@ compatible with that tile output format but is not affiliated with krpano.
 ## Install
 
 ```bash
-npm install @ericchen1990/pano-view react react-dom three @react-three/fiber
+npm install @ericchen1990/pano-view
 ```
 
-React 19, React DOM 19, `@react-three/fiber` 9, and Three.js are peer dependencies.
+React 19, React DOM 19, Three.js, `@react-three/fiber` 9,
+`@react-three/drei` 10, and `@react-three/xr` 6 are peer dependencies. npm 7+
+and pnpm install them automatically; they must be a single copy in the host
+app.
 
-## Sphere panorama
+Tailwind CSS v4 is now required for the built-in HTML chrome: video controls,
+captions, context menus, tooltips, and accessibility helpers render with
+Tailwind utility classes instead of a bundled stylesheet. Add a source entry in
+your app so Tailwind can scan this package:
 
-`PanoView` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
+```css
+@import "tailwindcss";
+@source "../node_modules/@ericchen1990/pano-view";
+```
+
+This package does not ship a separate CSS file. If your app does not scan
+`@ericchen1990/pano-view`, those built-in overlays will render without their
+default styling. Customization still works through `className`, `style`, and
+component appearance props.
+
+## Exported components
+
+### Viewer
+
+- [`PanoViewer`](#panoviewer) — canvas shell, camera, default controls, and imperative view API
+- [`Sphere`](#sphere) — single 2:1 equirectangular image
+- [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
+- [`Tile`](#tile) — krpano-style multires cube tiles
+- [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
+
+### Controls
+
+- [`MouseControls`](#mousecontrols) — drag look and wheel zoom
+- [`TouchControls`](#touchcontrols) — one-finger drag and pinch zoom
+- [`KeyboardControls`](#keyboardcontrols) — arrow-key look, FOV, and scene cycling
+- [`AutoRotate`](#autorotate) — automatic yaw rotation
+- [`Gyro`](#gyro) — opt-in device-orientation control
+- [`WebVR`](#webvr) — WebXR-first immersive VR with MobileVR fallback
+
+### Events and chrome
+
+- [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
+- [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
+- [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
+
+### Hotspots
+
+- [`ImageHotspot`](#imagehotspot) — image texture at a spherical position
+- [`GraphicHotspot`](#graphichotspot) — built-in shapes or SVG at a position
+- [`SequenceHotspot`](#sequencehotspot) — sprite-sheet animation
+- [`VideoHotspot`](#videohotspot) — HTML video texture
+- [`TextHotspot`](#texthotspot) — rasterized plain text at a position
+- [`IframeHotspot`](#iframehotspot) — embedded document overlay at a position
+- [`PolygonHotspot`](#polygonhotspot) — closed spherical area
+- [`PolylineHotspot`](#polylinehotspot) — open spherical path
+
+### Hooks and helpers
+
+- `usePanoEvents` — subscribe to viewer events inside a custom child ([`PanoEvents`](#panoevents))
+- Coordinate helpers — `normalizePanoPosition`, `normalizePanoYaw`, `clampPanoPitch`, `panoPositionToVector3`, `vector3ToPanoPosition` ([Panorama coordinate events](#panorama-coordinate-events))
+- `cycleSceneId` — wrap previous/next scene ids ([`KeyboardControls`](#keyboardcontrols))
+- Context menu helpers — `createPanoContextMenuPresets`, `composePanoContextMenuItems`, and related APIs ([`PanoContextMenu`](#panocontextmenu))
+- Polygon / polyline validation — `validatePolygonVertices`, `validatePolylineVertices`, `unwrapPolygonVertices`
+
+## PanoViewer
+
+`PanoViewer` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
+
+Angles are public degrees. Positive yaw looks right and positive pitch looks up.
 
 ```tsx
-"use client";
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Sphere,
+  AutoRotate,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
 
-import { PanoView, Sphere } from "@ericchen1990/pano-view";
+export function ControlledExample() {
+  const ref = useRef<PanoViewerHandle>(null);
 
-export function SphereExample() {
   return (
-    <PanoView style={{ width: "100%", height: 560 }}>
-      <Sphere src="/panoramas/room.webp" />
-    </PanoView>
+    <>
+      <button onClick={() => ref.current?.setView({ yaw: 90, fov: 55 })}>
+        Look right
+      </button>
+      <PanoViewer
+        ref={ref}
+        controls={{
+          inertia: true,
+          rotateDamping: 14,
+          zoomDamping: 16,
+        }}
+        initialView={{ yaw: 0, pitch: 0, fov: 75 }}
+        minFov={30}
+        maxFov={100}
+        onViewChange={(view) => console.log(view)}
+        style={{ height: 560 }}
+      >
+        <AutoRotate enabled speed={18} acceleration={18} startDelay={1_000} />
+        <Sphere src="/panoramas/room.webp" />
+      </PanoViewer>
+    </>
   );
 }
 ```
 
+The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. The two auto-rotation handle methods remain supported for compatibility. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
+
+Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
+
+The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the mouse, `pointer` over an interactive hotspot, and `move` while dragging a hotspot. Override those values with `cursors` (`default`, `dragging`, `hotspot`, `hotspotDragging`), or pass `cursors={false}` to leave the canvas cursor unchanged. A hotspot may set `cursor` to replace the hover cursor for that hotspot only.
+
+```tsx
+<PanoViewer
+  cursors={{ default: "grab", dragging: "grabbing", hotspot: "pointer" }}
+  style={{ height: 560 }}
+>
+  <ImageHotspot
+    id="door"
+    cursor="zoom-in"
+    position={{ yaw: 24, pitch: -6 }}
+    src="/hotspots/door.webp"
+  />
+</PanoViewer>
+```
+
+## Sphere
+
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
 
-## Cube Tile panorama
+```tsx
+"use client";
+
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function SphereExample() {
+  return (
+    <PanoViewer style={{ width: "100%", height: 560 }}>
+      <Sphere src="/panoramas/room.webp" />
+    </PanoViewer>
+  );
+}
+```
+
+## PanoVideo
+
+`PanoVideo` maps a 2:1 equirectangular video onto the same inward sphere as
+`Sphere`. Pass one `src`, or `variants` with multiple files per quality so the
+browser can pick mp4 / webm and the control bar can switch resolution. Changing
+quality keeps the current time and play/pause state.
+
+A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
+volume, speed, resolution, captions, and fullscreen. Volume is a hover (or tap)
+vertical slider when the browser allows `HTMLMediaElement.volume`; iOS Safari
+only exposes mute. The speed menu lists rates the current element accepts. The
+captions menu also includes a settings panel for subtitle font size and
+background opacity. When the viewer is narrow, speed, quality, and captions
+move into a More menu.
+Pass `controls={false}` to hide it, an appearance object to restyle the default
+instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
+instance.
+
+Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
+rendered as a HUD overlay. `captions={false}` hides the overlay and the language
+menu; an object merges with the default appearance (`color`, `background`,
+`fontSize`, `fontFamily`, `textShadow`, `padding`, `borderRadius`, `maxWidth`,
+`bottom`). Those values act as the initial caption appearance; viewers can still
+adjust subtitle size and background from the default control-bar menu at
+runtime.
+
+```tsx
+"use client";
+
+import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+
+export function VideoExample() {
+  return (
+    <PanoViewer style={{ width: "100%", height: 560 }}>
+      <PanoVideo
+        defaultVariantId="1024"
+        variants={[
+          {
+            id: "1024",
+            label: "1024p",
+            poster: "/video/1024-poster.jpg",
+            sources: [
+              { src: "/video/1024.mp4", type: "video/mp4" },
+              { src: "/video/1024.webm", type: "video/webm" },
+            ],
+          },
+          {
+            id: "1920",
+            label: "1920p",
+            poster: "/video/1920-poster.jpg",
+            sources: [
+              { src: "/video/1920.mp4", type: "video/mp4" },
+              { src: "/video/1920.webm", type: "video/webm" },
+            ],
+          },
+        ]}
+        tracks={[
+          { src: "/video/en.vtt", srcLang: "en", label: "English", default: true },
+          { src: "/video/zh.vtt", srcLang: "zh", label: "中文" },
+        ]}
+        captions={{ fontSize: 16, color: "#fff" }}
+        muted
+      />
+    </PanoViewer>
+  );
+}
+```
+
+`muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
+rules. Unmuted playback still needs a user gesture; `onPlaybackStateChange`
+receives `"blocked"` when `play()` is rejected. Remote videos and VTT files
+that are not same-origin should set `crossOrigin` (usually `"anonymous"`).
+
+## Tile
 
 `Tile` renders six inward-facing cube faces and loads only tiles around the current view. The default layout matches krpano-style output:
 
@@ -51,16 +249,16 @@ tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp
 Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
 
 ```tsx
-import { PanoView, Tile } from "@ericchen1990/pano-view";
+import { PanoViewer, Tile } from "@ericchen1990/pano-view";
 
 export function TileExample() {
   return (
-    <PanoView style={{ width: "100%", height: 560 }}>
+    <PanoViewer style={{ width: "100%", height: 560 }}>
       <Tile
         baseUrl="https://cdn.example.com/panoramas/room"
         multires="512,500,1000,2000"
       />
-    </PanoView>
+    </PanoViewer>
   );
 }
 ```
@@ -103,9 +301,9 @@ horizontal index and `%00v` produces a three-digit vertical index. The stereo
 `%t` and frame `%f` placeholders are not applicable to `Tile`, which represents
 a single non-stereo cube panorama.
 
-## Scene transitions
+## Scenes
 
-`PanoramaScenes` switches controlled sphere and cube-tile scenes with GPU-only
+`Scenes` switches controlled sphere and cube-tile scenes with GPU-only
 snapshot blending. The target scene loads its sphere image or tile preview first;
 once ready, the current framebuffer becomes a temporary GPU texture, its source
 textures are released, and the target scene blends in. This avoids holding two
@@ -113,12 +311,12 @@ high-resolution tile scenes in WebGL memory at once.
 
 ```tsx
 import {
-  PanoramaScenes,
-  PanoView,
-  type PanoramaScene,
+  Scenes,
+  PanoViewer,
+  type Scene,
 } from "@ericchen1990/pano-view";
 
-const scenes: PanoramaScene[] = [
+const scenes: Scene[] = [
   { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp" },
   {
     id: "terrace",
@@ -128,77 +326,222 @@ const scenes: PanoramaScene[] = [
   },
 ];
 
-<PanoView style={{ height: 560 }}>
-  <PanoramaScenes
+<PanoViewer style={{ height: 560 }}>
+  <Scenes
     scenes={scenes}
     activeSceneId={activeSceneId}
     transition="ellipticZoomOpen"
     renderHotspots={(scene) => <SceneHotspots sceneId={scene.id} />}
     onTransitionError={({ sceneId }) => console.warn("Could not load", sceneId)}
   />
-</PanoView>;
+</PanoViewer>;
 ```
 
-Available presets are `none`, `crossfade`, `zoom`, `blackout`, `whiteFlash`,
-`slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`, `circleOpen`,
-`verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`. Pass
-`{ preset: "crossfade", duration: 0.6 }` to override a preset duration.
+Available KRpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
+`whiteFlash`, `slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`,
+`circleOpen`, `verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`.
+Grid presets are `pixelate`, `gridWipe`, `gridWipeUp`, `gridWipeRight`,
+`gridWipeDiagonal`, `gridWipeCenter`, `gridWipeChecker`, and `hexDissolve`.
+Cinematic presets are `dissolve`, `shatter`, `particles`, `glitch`, `swirl`,
+`clockWipe`, `ripple`, `zoomBlur`, and `filmBurn`. All of them still blend a
+GPU framebuffer snapshot over the incoming panorama; they do not mix two full
+360 textures. Pass `{ preset: "crossfade", duration: 0.6 }` to override a
+preset duration.
 
 While a transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
 is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
-apply to the whole `PanoramaScenes` viewer rather than to each tile scene.
+apply to the whole `Scenes` viewer rather than to each tile scene.
 
-## Controls and imperative API
+## PanoFilter
 
-Angles are public degrees. Positive yaw looks right and positive pitch looks up.
+Render `PanoFilter` inside `PanoViewer` to color-grade or stylize the panorama
+source (`Sphere`, `Tile`, and `PanoVideo`). The filter runs on those materials
+only: 3D hotspots, tooltips, video chrome, and iframe overlays keep their
+original color. WebXR / MobileVR inherit the same look because the panorama
+shader itself is patched.
+
+`intensity` mixes the filtered result with the original image (`0`–`1`,
+default `1`). Omit the component, pass `preset="none"`, or set `enabled={false}`
+to leave the source unfiltered.
 
 ```tsx
-import { useRef } from "react";
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter preset="pencil" intensity={0.85} />
+  <Sphere src="/panoramas/room.webp" />
+  <ImageHotspot
+    id="door"
+    position={{ yaw: 24, pitch: -6 }}
+    src="/hotspots/door.webp"
+  />
+</PanoViewer>
+```
+
+| Preset | Look |
+|---|---|
+| `none` | Identity (no filter) |
+| `grayscale` | Rec.709 black and white |
+| `sepia` | Warm brown antique print |
+| `vintage` | Faded film with grain |
+| `cool` / `warm` | Blue or amber temperature shift |
+| `pencil` | Graphite sketch on paper |
+| `coloredPencil` | Tinted pencil lines |
+| `crayon` | Posterized wax strokes |
+| `watercolor` | Soft pigment on paper |
+| `cartoon` | Cel shading with outlines |
+| `crosshatch` | Luminance hatching |
+
+Built-in artistic looks use screen-space edges and world-space grain so cube
+tiles do not show filter seams. Scene-transition snapshots capture the filtered
+panorama when a filter is active.
+
+## AutoRotate
+
+Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
+  <Sphere src="/panoramas/room.webp" />
+</PanoViewer>
+```
+
+## Gyro
+
+`Gyro` is an opt-in device-orientation control and is disabled by default.
+Render it inside `PanoViewer` and control its `enabled` prop. Relative mode
+(the default) treats the view at activation time as the starting direction.
+Set `absolute` to follow compass-oriented headings and use `north` to identify
+the panorama yaw that points North.
+
+```tsx
+import { useRef, useState } from "react";
 import {
-  PanoView,
+  Gyro,
+  PanoViewer,
   Sphere,
-  AutoRotate,
-  type PanoViewHandle,
+  type GyroHandle,
 } from "@ericchen1990/pano-view";
 
-export function ControlledExample() {
-  const ref = useRef<PanoViewHandle>(null);
+export function GyroExample() {
+  const gyroRef = useRef<GyroHandle>(null);
+  const [enabled, setEnabled] = useState(false);
+
+  const toggle = async () => {
+    if (enabled) {
+      setEnabled(false);
+      return;
+    }
+    // iOS requires this call to run directly inside a user gesture.
+    setEnabled((await gyroRef.current?.requestPermission()) ?? false);
+  };
 
   return (
     <>
-      <button onClick={() => ref.current?.setView({ yaw: 90, fov: 55 })}>
-        Look right
+      <button onClick={() => void toggle()}>
+        {enabled ? "Disable gyro" : "Enable gyro"}
       </button>
-      <PanoView
-        ref={ref}
-        controls={{
-          inertia: true,
-          rotateDamping: 14,
-          zoomDamping: 16,
-        }}
-        initialView={{ yaw: 0, pitch: 0, fov: 75 }}
-        minFov={30}
-        maxFov={100}
-        onViewChange={(view) => console.log(view)}
-        style={{ height: 560 }}
-      >
-        <AutoRotate enabled speed={18} acceleration={18} startDelay={1_000} />
+      <PanoViewer style={{ height: 560 }}>
+        <Gyro
+          ref={gyroRef}
+          enabled={enabled}
+          camroll
+          friction={0}
+          softstart={0.5}
+          touchMode="full"
+          onDenied={() => setEnabled(false)}
+        />
         <Sphere src="/panoramas/room.webp" />
-      </PanoView>
+      </PanoViewer>
     </>
   );
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. The two auto-rotation handle methods remain supported for compatibility; prefer rendering `AutoRotate` for new code. A default context menu (Reset view / Enter fullscreen) is also mounted — see [Context menu](#context-menu).
+`camroll` (default `true`) levels the camera from device roll. `friction`
+accepts `0` to `0.99`; higher values smooth more strongly but add latency.
+`softstart` is the activation blend duration in seconds (default `0.5`).
+`desktopSupport` defaults to `false` because desktop browsers can expose the
+API without a physical sensor.
+
+`touchMode` controls how touch drag combines with device movement:
+
+- `off` ignores touch yaw/pitch while leaving pinch FOV available.
+- `horizontaloffset` adds only a horizontal offset.
+- `full` adds horizontal and vertical offsets; the vertical offset returns
+  toward the physical orientation as the device moves.
+- `disablegyro` disables the active gyro session on the next touch.
+
+The `GyroHandle` exposes `resetSensor(yaw?, pitch?)`, `isAvailable()`,
+`isEnabled()`, and `requestPermission()`. Gyro activity pauses `AutoRotate`
+and counts as viewer interaction for idle tracking. Sensor APIs generally
+require HTTPS. A cross-origin iframe must be permitted by the host page, for
+example with `allow="gyroscope; accelerometer"` and a compatible
+`Permissions-Policy` header.
+
+## WebVR
+
+`WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
+`immersive-vr` WebXR session on supported headsets. On phones without WebXR it
+uses a stereoscopic split-screen view with device orientation, and on desktop
+it can provide a mouse-driven simulated VR preview. The built-in chrome includes
+Enter VR, Exit VR, and MobileVR setup controls.
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Sphere,
+  WebVR,
+  type WebVRHandle,
+} from "@ericchen1990/pano-view";
+
+export function WebVRExample() {
+  const webVRRef = useRef<WebVRHandle>(null);
+
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <WebVR
+        ref={webVRRef}
+        chrome
+        fakeSupport
+        mobileVr
+        onEnterVR={(mode) => console.log("Entered", mode)}
+      />
+      <Sphere src="/panoramas/room.webp" />
+    </PanoViewer>
+  );
+}
+```
+
+The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
+`isEnabled()`, `getMode()`, and `requestPermission()`. Modes are `"webxr"`,
+`"mobilevr"`, and `"fake"`. `profile` accepts `"none"`, `"cardboard-v1"`,
+`"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom
+`{ fov, ipdMm, k1, k2 }` lens profile. MobileVR setup values are versioned and
+stored in the current origin's `localStorage`. In VR, a center reticle shows a
+crosshair; looking at an interactive hotspot draws a clockwise ring that fills
+over `cursorDwellMs` (default 1500), then the hotspot click handler runs. Set
+`cursorDwellMs={0}` to keep the reticle without auto-click. Simulated desktop
+VR (`fake` mode) requests pointer lock by default (`mousePointerLock`) so the
+cursor hides and mouse movement looks around; click the view again if the
+browser releases the lock. Fallback sessions keep the screen awake
+(`wakelock`) with the Screen Wake Lock API, or a looping hidden video on
+browsers that lack it.
+
+WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
+HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
+appropriate `xr-spatial-tracking`, `gyroscope`, and `accelerometer` permissions.
+DOM overlays such as iframe hotspots, tooltips, and video controls are not
+visible inside an immersive headset session; mesh-based hotspots remain
+interactive through the default WebXR controller rays.
 
 ## Mouse, touch, and keyboard controls
 
-`PanoView` mounts default `MouseControls`, `TouchControls`, and `KeyboardControls` instances. Configure them through `controls` for most apps; render the components yourself only when you need to replace a channel (for example scene-switch callbacks).
+`PanoViewer` enables `MouseControls`, `TouchControls`, and `KeyboardControls` by default. Configure shared options through `controls`; render a control component only to override that channel's properties. A child instance replaces the default — you do not need to set the channel to `false` first. Set `controls.mouse` / `touch` / `keyboard` to `false` to turn a channel off.
 
 ```tsx
-<PanoView
+<PanoViewer
   controls={{
     invert: false,
     bouncingLimits: false,
@@ -209,36 +552,44 @@ The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRo
   style={{ height: 560 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 **Mouse** (pointer types `mouse` / `pen`): drag look and optional wheel zoom. Defaults: `rotateSpeed` `0.35`, `zoomSpeed` `0.08`, `wheel` `true`, `buttons` `["left"]`.
 
-**Touch**: one-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`).
+### MouseControls
 
-**Keyboard**: hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only.
+See the defaults above. Override through `controls.mouse` or by rendering `<MouseControls />` as a child.
+
+### TouchControls
+
+One-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`). Override through `controls.touch` or by rendering `<TouchControls />` as a child.
+
+### KeyboardControls
+
+Hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only. Override through `controls.keyboard` or by rendering `<KeyboardControls />` as a child.
 
 Shared all-mode options on `controls`: `enabled`, `invert` (drag direction for mouse/touch), `bouncingLimits`, `fovSpeed`, `frictionStop` (default `0.01`), plus existing damping / inertia.
 
 ### Overriding a control channel
 
-Set the channel to `false` and render your own component when you need callbacks or fully custom behaviour:
+Render the component with the props you need. The default instance for that channel is skipped:
 
 ```tsx
 import { useState } from "react";
 import {
   KeyboardControls,
-  PanoramaScenes,
-  PanoView,
+  Scenes,
+  PanoViewer,
   cycleSceneId,
-  type PanoramaScene,
+  type Scene,
 } from "@ericchen1990/pano-view";
 
-export function KeyboardExample({ scenes }: { scenes: PanoramaScene[] }) {
+export function KeyboardExample({ scenes }: { scenes: Scene[] }) {
   const [activeSceneId, setActiveSceneId] = useState(scenes[0]!.id);
 
   return (
-    <PanoView controls={{ keyboard: false }} style={{ height: 560 }}>
+    <PanoViewer style={{ height: 560 }}>
       <KeyboardControls
         keys={{
           left: ["ArrowLeft", "a"],
@@ -261,15 +612,15 @@ export function KeyboardExample({ scenes }: { scenes: PanoramaScene[] }) {
           if (next) setActiveSceneId(next);
         }}
       />
-      <PanoramaScenes scenes={scenes} activeSceneId={activeSceneId} />
-    </PanoView>
+      <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+    </PanoViewer>
   );
 }
 ```
 
 Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
 
-Default bindings: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same override pattern works with `MouseControls` and `TouchControls` (`controls.mouse={false}` / `controls.touch={false}`).
+Default bindings: arrows and WASD for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
 
 ## Panorama coordinate events
 
@@ -279,7 +630,7 @@ convention as the camera: positive yaw looks right and positive pitch looks up.
 
 ```tsx
 import {
-  PanoView,
+  PanoViewer,
   Sphere,
   panoPositionToVector3,
   type HotspotPosition,
@@ -292,14 +643,14 @@ export function PlacementExample() {
   };
 
   return (
-    <PanoView
+    <PanoViewer
       onPanoramaClick={({ position }) => place(position)}
       onPanoramaDoubleClick={({ position }) => console.log("double", position)}
       onPanoramaPointerMove={({ position }) => console.log("move", position)}
       style={{ height: 560 }}
     >
       <Sphere src="/panoramas/room.webp" />
-    </PanoView>
+    </PanoViewer>
   );
 }
 ```
@@ -309,23 +660,25 @@ export function PlacementExample() {
 is normalized to `[-180, 180)`. Pitch is clamped to `[-90, 90]`; at either
 pole, yaw is normalized to `0` because it does not identify a unique point.
 
-## Viewer-level events (`PanoEvents`)
+## PanoEvents
 
 `PanoEvents` is the React counterpart to krpano's global `<events>` element.
-Render one or more instances inside `PanoView` to subscribe to viewer-level
+Render one or more instances inside `PanoViewer` to subscribe to viewer-level
 lifecycle and interaction callbacks. Multiple instances coexist (like named
 krpano events); each tracks its own `idleTime`. For composition inside a custom
 child, use `usePanoEvents` instead.
+
+### usePanoEvents
 
 ```tsx
 import {
   AutoRotate,
   PanoEvents,
-  PanoView,
+  PanoViewer,
   Sphere,
 } from "@ericchen1990/pano-view";
 
-<PanoView style={{ height: 560 }}>
+<PanoViewer style={{ height: 560 }}>
   <PanoEvents
     idleTime={3000}
     onIdle={() => console.log("idle")}
@@ -338,7 +691,7 @@ import {
   />
   <AutoRotate enabled />
   <Sphere src="/panoramas/room.webp" />
-</PanoView>;
+</PanoViewer>;
 ```
 
 Supported callbacks (krpano names in parentheses where applicable):
@@ -350,42 +703,44 @@ Supported callbacks (krpano names in parentheses where applicable):
 - Fullscreen: `onEnterFullscreen` / `onExitFullscreen`
 - `onResize` — canvas content-box size via `ResizeObserver`
 - Auto-rotate: `onAutoRotateStart` / `onAutoRotateStop` / `onAutoRotateOneRound`
+- Gyro: `onGyroAvailable` / `onGyroUnavailable` / `onGyroEnable` /
+  `onGyroDisable` / `onGyroDenied`
 
-`PanoView`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
+`PanoViewer`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
 `onPanoramaPointerMove` props remain supported and share the same event bus.
 
 Resource loading and scene blending stay on their owners: use `Sphere` /
-`Tile` `onLoad` / `onError` / `onLoadProgress`, and `PanoramaScenes`
+`Tile` `onLoad` / `onError` / `onLoadProgress`, and `Scenes`
 `onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
-xml/VR/gyro/frame-render events.
+xml/VR/frame-render events.
 
-## Context menu
+## PanoContextMenu
 
-`PanoView` mounts a default context menu that replaces the browser menu on
+`PanoViewer` mounts a default context menu that replaces the browser menu on
 right-click. Default items: **Reset view** and **Enter fullscreen** / **Exit
 fullscreen** (label and icon follow the current fullscreen state), with a
 separator between them.
 
 ```tsx
-<PanoView style={{ height: 560 }}>
+<PanoViewer style={{ height: 560 }}>
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 Disable the default menu (restore the browser menu, or mount your own):
 
 ```tsx
-<PanoView contextMenu={false}>
+<PanoViewer contextMenu={false}>
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 Tune appearance while keeping the default items:
 
 ```tsx
-<PanoView contextMenu={{ appearance: { opacity: 0.92, borderRadius: 8 } }}>
+<PanoViewer contextMenu={{ appearance: { opacity: 0.92, borderRadius: 8 } }}>
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 ### Adding items without rebuilding defaults
@@ -394,7 +749,7 @@ Use `append` or `prepend` to keep the built-in Reset / Fullscreen entries and
 only add your own:
 
 ```tsx
-<PanoView
+<PanoViewer
   contextMenu={{
     append: [
       "separator",
@@ -412,7 +767,7 @@ only add your own:
   style={{ height: 560 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 ### Built-in presets
@@ -425,7 +780,7 @@ reimplementing fullscreen enter/exit state:
 - `"separator"` — a horizontal rule
 
 ```tsx
-<PanoView
+<PanoViewer
   contextMenu={{
     items: [
       "resetView",
@@ -446,7 +801,7 @@ reimplementing fullscreen enter/exit state:
   style={{ height: 560 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>
+</PanoViewer>
 ```
 
 Override presentation on a preset with `{ preset: "fullscreen", label: "…" }`.
@@ -463,18 +818,30 @@ stay opaque), hover/disabled colors, and icon size. For an explicit translucent
 fill without using `opacity`, you can still pass `background: "rgba(...)"`.
 
 For a fully custom DOM menu, set `contextMenu={false}` and render
-`PanoContextMenu` as a child (same override pattern as `MouseControls`). Do
-not mount both the default menu and a child `PanoContextMenu` at once. Avoid
-combining the context menu with `controls.mouse.buttons: ["right"]` — both
-claim the right mouse button.
+`PanoContextMenu` as a child. Do not mount both the default menu and a child
+`PanoContextMenu` at once. Avoid combining the context menu with
+`controls.mouse.buttons: ["right"]` — both claim the right mouse button.
 
 ## Shared hotspot contract and saved definitions
 
-Every hotspot has an `id`, optional `visible`, `interactive`, `renderOrder`,
-and semantic interaction callbacks. Point hotspots additionally use a
-controlled `position`, angular `width`/`height`, hotspot mode, and the zoom
-options described below. `interactive={false}` keeps a hotspot visible while
-letting a drawing tool receive the panorama pointer events beneath it.
+Every hotspot has an `id`, optional `visible`, `interactive`, `pointerEvents`,
+`renderOrder`, and semantic interaction callbacks. Point hotspots additionally
+use a controlled `position`, angular `width`/`height`, hotspot mode, and the
+zoom options described below. `interactive={false}` keeps a hotspot visible
+while letting a drawing tool receive the panorama pointer events beneath it.
+`pointerEvents="none"` ignores mouse, touch, and pen so those events pass
+through to the panorama even when the hotspot stays keyboard-interactive.
+Interactive hotspots set the canvas cursor to `pointer` while hovered, or to
+the hotspot's `cursor` prop when that is set.
+
+```tsx
+<TextHotspot
+  id="caption"
+  pointerEvents="none"
+  position={{ yaw: 12, pitch: -8 }}
+  text="Decorative label"
+/>
+```
 
 `onClick` and `onHoverChange` receive a position and input source (`"pointer"`
 or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
@@ -482,9 +849,59 @@ or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
 back to its state. Polygon and polyline hotspots report the corresponding
 controlled `vertices` through `onVerticesChange`.
 
+Every hotspot can show a DOM tooltip at its anchor. Pass a string or
+`{ text?, image?, imageAlt? }` as `tooltip`. The default `tooltipTrigger` is
+`"always"`: if content is present and the hotspot is visible, the bubble stays
+on screen. Clicking the hotspot does not toggle it. Optional
+`tooltipTrigger="hover"` shows the bubble on pointer hover or keyboard focus;
+`"click"` pins it until the hotspot is clicked again or the empty panorama is
+clicked. Hover and click triggers need `interactive` and `pointerEvents`
+other than `"none"`.
+
+`tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
+These are screen directions: the bubble sits outside the hotspot's projected
+screen bounds on that edge, so rotated graphics such as arrows are not covered.
+`tooltipOffset` is the screen-space gap in CSS pixels (default `12` /
+`DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
+
+Optional `tooltipAppearance` overrides the bubble paint. Unset fields keep the
+library default theme (`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`): background, text
+color, border, corner radius, shadow, padding, and font size.
+
+```tsx
+<ImageHotspot
+  id="gallery"
+  ariaLabel="Open gallery"
+  position={{ yaw: 28, pitch: -4 }}
+  src="/hotspots/gallery.webp"
+  tooltip={{ text: "Courtyard gallery", image: "/hotspots/gallery-thumb.webp" }}
+  tooltipPlacement="top"
+  tooltipOffset={16}
+  tooltipAppearance={{
+    background: "rgba(12, 28, 36, 0.88)",
+    color: "#e7f2f5",
+    border: "1px solid rgba(56, 84, 91, 0.9)",
+    borderRadius: 10,
+    shadow: "0 10px 28px rgba(0, 0, 0, 0.42)",
+    padding: 10,
+    fontSize: 13,
+  }}
+/>
+<GraphicHotspot
+  id="marker"
+  ariaLabel="Signal"
+  position={{ yaw: -18, pitch: 9 }}
+  graphic={{ kind: "ring" }}
+  tooltip="Hover for details"
+  tooltipTrigger="hover"
+  tooltipPlacement="right"
+/>
+```
+
 For persistence or a host-owned editor, use the exported discriminated
-`HotspotDefinition` union. It contains the original five categories plus the
-open `polyline` extension:
+`HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
+exhaustive switches; handle `text` and `iframe` alongside the existing point
+and path categories:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -494,6 +911,8 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
+  { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
   { type: "polyline", id: "route", vertices: [{ yaw: -8, pitch: 1 }, { yaw: 4, pitch: 8 }] },
 ];
@@ -503,15 +922,15 @@ Definitions intentionally contain data only. Render them with a switch in the
 host, where application-specific click actions, controlled media state, and
 error reporting belong.
 
-## Image and graphic hotspots
+## ImageHotspot
 
 `ImageHotspot` renders an image at a controlled spherical position. Dimensions
 are angular degrees, so they remain independent of the canvas resolution.
 
 ```tsx
-import { ImageHotspot, PanoView, Sphere } from "@ericchen1990/pano-view";
+import { ImageHotspot, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 
-<PanoView style={{ height: 560 }}>
+<PanoViewer style={{ height: 560 }}>
   <Sphere src="/panoramas/room.webp" />
   <ImageHotspot
     id="gallery"
@@ -523,8 +942,17 @@ import { ImageHotspot, PanoView, Sphere } from "@ericchen1990/pano-view";
     src="/hotspots/gallery.webp"
     onClick={({ position }) => console.log("gallery", position)}
   />
-</PanoView>;
+</PanoViewer>;
 ```
+
+Set `draggable` and update the controlled position from `onPositionChange` to
+move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoViewer creates
+an internal semantic control for Tab, Enter, and Space activation, with a
+visible WebGL focus outline.
+
+`ImageHotspot` calls `onLoad(texture)` and `onError(error)`.
+
+## GraphicHotspot
 
 `GraphicHotspot` accepts built-in `circle`, `triangle`, `diamond`, `star`,
 `arrow`, `rectangle`, and `ring` graphics, an SVG URL, or safe SVG path data
@@ -577,13 +1005,8 @@ property to orient them in another direction.
 square corners and `0.5` produces the maximum rounded corners. This replaces
 the previous Canvas-texture pixel interpretation.
 
-Set `draggable` and update the controlled position from `onPositionChange` to
-move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoView creates
-an internal semantic control for Tab, Enter, and Space activation, with a
-visible WebGL focus outline.
-
-`ImageHotspot` calls `onLoad(texture)` and `onError(error)`. `GraphicHotspot`
-uses the same callbacks. Built-in paths are rasterized locally; only an SVG URL
+`GraphicHotspot` uses the same `onLoad(texture)` and `onError(error)` callbacks
+as `ImageHotspot`. Built-in paths are rasterized locally; only an SVG URL
 or SVG `path` data plus an explicit `viewBox` is accepted, never arbitrary SVG
 markup.
 
@@ -621,7 +1044,7 @@ placement properties:
 />
 ```
 
-## Polygon hotspots
+## PolygonHotspot
 
 `PolygonHotspot` renders a local spherical area from three or more controlled
 yaw/pitch vertices. Concave polygons and the `-180°/180°` seam are supported.
@@ -645,6 +1068,8 @@ import { PolygonHotspot } from "@ericchen1990/pano-view";
   stroke="#f5fbfc"
   strokeWidth={2}
   strokeOpacity={0.8}
+  strokeDashSize={8}
+  strokeGapSize={4}
   draggable
   onVerticesChange={({ vertices }) => setZoneVertices(vertices)}
   onInvalid={(issues) => console.error(issues)}
@@ -652,18 +1077,21 @@ import { PolygonHotspot } from "@ericchen1990/pano-view";
 ```
 
 `strokeWidth` is a screen-space CSS pixel value, so it remains visually
-consistent across FOV changes. Dragging moves all vertices together while
-keeping yaw normalized and pitch clamped. Individual vertex editing is provided
-by the authoring workflow, not the runtime hotspot component.
+consistent across FOV changes. `strokeDashSize` and `strokeGapSize` use the
+same CSS-pixel units; omit them or set `strokeDashSize` to `0` for a solid
+stroke. Dragging moves all vertices together while keeping yaw normalized and
+pitch clamped. Individual vertex editing is provided by the authoring
+workflow, not the runtime hotspot component.
 
 Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
 share the same spherical edge sampling, so there is no intentional seam
 between them.
 
-## Polyline hotspots
+## PolylineHotspot
 
 `PolylineHotspot` is an open path of at least two yaw/pitch vertices. It uses
-the same CSS-pixel `strokeWidth`, visibility, semantic interaction, controlled
+the same CSS-pixel `strokeWidth`, optional dashed stroke (`strokeDashSize` /
+`strokeGapSize`), visibility, semantic interaction, controlled
 whole-path drag, and vertex-change callback as `PolygonHotspot`, but it never
 connects the final point to the first and has no fill.
 
@@ -677,6 +1105,8 @@ import { PolylineHotspot } from "@ericchen1990/pano-view";
   stroke="#75cbd3"
   strokeWidth={2}
   strokeOpacity={0.9}
+  strokeDashSize={8}
+  strokeGapSize={4}
   draggable
   onVerticesChange={({ vertices }) => setRouteVertices(vertices)}
 />;
@@ -684,7 +1114,7 @@ import { PolylineHotspot } from "@ericchen1990/pano-view";
 
 `onInvalid` reports the only invalid runtime shape: fewer than two vertices.
 
-## Sequence and video hotspots
+## SequenceHotspot
 
 `SequenceHotspot` animates a sprite sheet: one image containing equally sized
 frames in a vertical or horizontal strip. This matches the common krpano
@@ -711,6 +1141,12 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
   onError={({ error }) => console.error(error)}
 />;
 ```
+
+Sequence loading uses `onLoadProgress` and `onError`. The component does not
+change `playing` by itself: update that prop in response to your UI, click
+handler, `onEnded`, or playback error.
+
+## VideoHotspot
 
 `VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
 prop is likewise controlled: toggle it from your click handler or application
@@ -745,24 +1181,82 @@ Browsers can reject unmuted or otherwise non-gesture playback. In that case
 the browser error; retain control of `playing` in the host and offer an
 explicit user action.
 
-Sequence loading uses `onLoadProgress` and `onError`; video reports media and
-poster failures through `onError`. Neither component changes `playing` by
-itself: update that prop in response to your UI, click handler, `onEnded`, or
-playback error. This keeps source changes, unmounts, and React StrictMode
-lifecycles deterministic.
+Video reports media and poster failures through `onError`. Like
+`SequenceHotspot`, it does not change `playing` by itself. This keeps source
+changes, unmounts, and React StrictMode lifecycles deterministic.
 
-## Automatic rotation
+## TextHotspot
 
-Render `AutoRotate` inside `PanoView` to keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
+`TextHotspot` rasterizes plain text onto a canvas texture. It does not accept
+HTML or Markdown. `\n` is a hard line break; `whiteSpace="normal"` (default)
+wraps words to the hotspot's angular width. Dimensions stay in degrees like
+the other point hotspots. Typography uses the same names as CSS
+(`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`) but is painted onto the
+canvas, not applied as DOM style. `fontSize` is canvas pixels (default 96) and
+does not scale with panel height. `fontWeight` defaults to `600` and
+`fontStyle` to `"normal"`. `padding` and `borderRadius` remain fractions of
+the texture's shorter side, so they still follow `width` / `height`.
 
 ```tsx
-<PanoView style={{ height: 560 }}>
-  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
-  <Sphere src="/panoramas/room.webp" />
-</PanoView>
+import { TextHotspot } from "@ericchen1990/pano-view";
+
+<TextHotspot
+  id="caption"
+  ariaLabel="Courtyard overlook"
+  position={{ yaw: 0, pitch: -16 }}
+  width={16}
+  height={6}
+  mode="billboard"
+  scaleMode="fixed"
+  text={"Courtyard overlook\nNorth terrace"}
+  fontFamily="system-ui, sans-serif"
+  fontSize={96}
+  fontWeight={600}
+  fontStyle="normal"
+  align="center"
+  verticalAlign="middle"
+  color="#f8fafc"
+  background="#111827"
+  backgroundOpacity={0.72}
+/>;
 ```
 
-Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
+Load a custom `fontFamily` on the page before the hotspot paints. The hotspot
+waits on `document.fonts.load` when that API exists, then draws with whatever
+faces the document has. `onLoad(texture)` and `onError(error)` match
+`ImageHotspot`.
+
+## IframeHotspot
+
+`IframeHotspot` places an embedded document with `@react-three/drei` `Html`
+`transform`, so it follows the same hotspot mode, rotation, and zoom scaling
+as a texture plane. The iframe is a DOM overlay and is not occluded by the
+panorama shell. There is no `srcdoc` prop.
+
+```tsx
+import { IframeHotspot } from "@ericchen1990/pano-view";
+
+<IframeHotspot
+  id="guide"
+  ariaLabel="Open visitor guide"
+  position={{ yaw: -62, pitch: 4 }}
+  width={18}
+  height={12}
+  mode="billboard"
+  src="/hotspots/embed.html"
+  pointerPolicy="hotspot"
+/>;
+```
+
+`pointerPolicy="hotspot"` (default) sets the iframe to `pointer-events: none`
+so clicks and drags hit the WebGL plane. `"content"` makes the page
+interactive and blocks dragging through the iframe. A hotspot
+`pointerEvents="none"` also forces the iframe overlay not to capture pointer
+events. `sandbox` defaults to
+`allow-scripts allow-popups allow-forms` without `allow-same-origin`.
+`referrerPolicy` defaults to `strict-origin-when-cross-origin`. Prefer a
+same-origin document; many third-party sites send `X-Frame-Options` and will
+not load.
 
 ## Next.js and SSR
 

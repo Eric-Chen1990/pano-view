@@ -1,5 +1,6 @@
 import { useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { MouseControlButton, MouseControlsOptions } from "./types";
 
@@ -15,7 +16,7 @@ const BUTTON_FLAG: Record<MouseControlButton, number> = {
 export type MouseControlsProps = MouseControlsOptions & {
   /**
    * Maximum FOV change rate in degrees per second for wheel zoom. When
-   * omitted, no extra rate cap is applied. Usually supplied by PanoView from
+   * omitted, no extra rate cap is applied. Usually supplied by PanoViewer from
    * `controls.fovSpeed`.
    */
   fovSpeed?: number;
@@ -33,8 +34,8 @@ function resolveButtons(
 }
 
 /**
- * Adds mouse (and pen) drag / wheel navigation to the nearest PanoView.
- * PanoView mounts a default instance; render your own only to override.
+ * Adds mouse (and pen) drag / wheel navigation to the nearest PanoViewer.
+ * Enabled by default; render this component only to override properties.
  */
 export function MouseControls({
   enabled = true,
@@ -45,6 +46,7 @@ export function MouseControls({
   buttons,
   fovSpeed,
 }: MouseControlsProps) {
+  useClaimControlChannel("mouse");
   const controlsRef = useContext(PanoramaViewContext);
   const { gl } = useThree();
   const pointersRef = useRef(
@@ -59,7 +61,7 @@ export function MouseControls({
   });
 
   if (!controlsRef) {
-    throw new Error("<MouseControls> must be rendered inside <PanoView>.");
+    throw new Error("<MouseControls> must be rendered inside <PanoViewer>.");
   }
 
   optionsRef.current = {
@@ -155,7 +157,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { yaw: deltaYaw, pitch: deltaPitch },
-        { recordVelocity: true },
+        { recordVelocity: true, source: "mouse" },
       );
     };
 
@@ -192,7 +194,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { fov: delta },
-        { recordVelocity: true },
+        { recordVelocity: true, source: "mouse" },
       );
     };
 

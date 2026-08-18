@@ -2,7 +2,6 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import {
   ClampToEdgeWrapping,
-  DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   SRGBColorSpace,
@@ -11,6 +10,7 @@ import {
   VideoTexture,
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
+import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
 
 export type VideoPlaybackState = "playing" | "paused" | "ended" | "blocked";
@@ -42,13 +42,6 @@ type VideoResource = {
   texture: VideoTexture;
   ready: boolean;
 };
-
-function clampOpacity(opacity: number | undefined): number {
-  if (!Number.isFinite(opacity)) {
-    return 1;
-  }
-  return Math.max(0, Math.min(opacity!, 1));
-}
 
 function clampVolume(volume: number | undefined): number {
   if (!Number.isFinite(volume)) {
@@ -297,16 +290,7 @@ export function VideoHotspot({
 
   return (
     <HotspotAnchor {...anchorProps} id={id} height={height} width={width}>
-      <mesh>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={activeTexture}
-          opacity={activeTexture ? clampOpacity(opacity) : 0}
-          side={DoubleSide}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
+      <HotspotPlane map={activeTexture} opacity={opacity} />
     </HotspotAnchor>
   );
 }
