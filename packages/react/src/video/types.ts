@@ -72,6 +72,7 @@ export type PanoVideoPlaybackSnapshot = {
   trackId: string | null;
   tracks: readonly PanoVideoTrack[];
   captionText: string;
+  captionAppearance: Required<PanoVideoCaptionAppearance>;
   captionsEnabled: boolean;
   playbackRates: readonly number[];
   playbackState: VideoPlaybackState;
@@ -90,4 +91,7 @@ export type PanoVideoController = {
   setPlaybackRate: (rate: number) => void;
   setVariantId: (id: string) => void;
   setTrackId: (id: string | null) => void;
+  setCaptionAppearance: (
+    appearance: Partial<PanoVideoCaptionAppearance>,
+  ) => void;
 };

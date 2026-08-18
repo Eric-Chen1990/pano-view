@@ -17,7 +17,7 @@ export const DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE: Required<PanoVideoCaptionApp
     lineHeight: 1.35,
   };
 
-function resolveAppearance(
+export function resolvePanoVideoCaptionAppearance(
   appearance: PanoVideoCaptionAppearance | undefined,
 ): Required<PanoVideoCaptionAppearance> {
   return {
@@ -27,51 +27,53 @@ function resolveAppearance(
 }
 
 export function PanoVideoCaptionsOverlay({
-  appearance,
   controller,
 }: {
-  appearance?: PanoVideoCaptionAppearance;
   controller: PanoVideoController;
 }) {
-  const captionText = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     controller.subscribe,
-    () => controller.getSnapshot().captionText,
-    () => controller.getSnapshot().captionText,
+    controller.getSnapshot,
+    controller.getSnapshot,
   );
 
-  if (!captionText) {
+  if (!snapshot.captionText) {
     return null;
   }
 
-  const resolved = resolveAppearance(appearance);
-  const style: CSSProperties = {
-    background: resolved.background,
-    borderRadius: resolved.borderRadius,
-    bottom: resolved.bottom,
-    color: resolved.color,
-    fontFamily: resolved.fontFamily,
-    fontSize: resolved.fontSize,
-    fontWeight: resolved.fontWeight,
-    left: "50%",
-    lineHeight: resolved.lineHeight,
-    maxWidth: resolved.maxWidth,
-    padding: resolved.padding,
+  const wrapperStyle: CSSProperties = {
+    bottom: snapshot.captionAppearance.bottom,
+    display: "flex",
+    justifyContent: "center",
+    left: 0,
     pointerEvents: "none",
     position: "absolute",
-    textAlign: "center",
-    textShadow: resolved.textShadow,
-    transform: "translateX(-50%)",
-    whiteSpace: "pre-wrap",
+    right: 0,
     zIndex: 1,
+  };
+
+  const textStyle: CSSProperties = {
+    background: snapshot.captionAppearance.background,
+    borderRadius: snapshot.captionAppearance.borderRadius,
+    color: snapshot.captionAppearance.color,
+    fontFamily: snapshot.captionAppearance.fontFamily,
+    fontSize: snapshot.captionAppearance.fontSize,
+    fontWeight: snapshot.captionAppearance.fontWeight,
+    lineHeight: snapshot.captionAppearance.lineHeight,
+    maxWidth: snapshot.captionAppearance.maxWidth,
+    padding: snapshot.captionAppearance.padding,
+    textAlign: "center",
+    textShadow: snapshot.captionAppearance.textShadow,
+    whiteSpace: "pre-wrap",
   };
 
   return (
     <div
-      className="pointer-events-none absolute left-1/2 z-[1] -translate-x-1/2 text-center whitespace-pre-wrap"
+      className="pointer-events-none absolute inset-x-0 z-1 flex justify-center"
       data-pano-video-captions=""
-      style={style}
+      style={wrapperStyle}
     >
-      {captionText}
+      <div style={textStyle}>{snapshot.captionText}</div>
     </div>
   );
 }

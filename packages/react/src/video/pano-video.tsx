@@ -22,7 +22,11 @@ import {
 import type { VideoPlaybackState } from "../hotspot/video-hotspot";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { PanoChromeOverlayContext } from "./chrome-overlay";
-import { PanoVideoCaptions } from "./pano-video-captions";
+import {
+  DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE,
+  PanoVideoCaptions,
+  resolvePanoVideoCaptionAppearance,
+} from "./pano-video-captions";
 import {
   clampVolume,
   cueText,
@@ -115,6 +119,7 @@ function createEmptySnapshot(): PanoVideoPlaybackSnapshot {
     trackId: null,
     tracks: [],
     captionText: "",
+    captionAppearance: DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE,
     captionsEnabled: true,
     playbackRates: EMPTY_RATES,
     playbackState: "paused",
@@ -318,6 +323,13 @@ export function PanoVideo({
   );
   const tracks = tracksProp ?? EMPTY_TRACKS;
   const captionsEnabled = captions !== false;
+  const captionAppearance = useMemo(
+    () =>
+      resolvePanoVideoCaptionAppearance(
+        typeof captions === "object" ? captions : undefined,
+      ),
+    [captions],
+  );
   const [variantId, setVariantId] = useState(() =>
     resolvePanoVideoVariantId(variants, defaultVariantId),
   );
@@ -328,6 +340,9 @@ export function PanoVideo({
   const autoPlayRef = useRef(autoPlay);
   autoPlayRef.current = autoPlay;
   const blockedRef = useRef(false);
+  const captionAppearanceOverrideRef = useRef<Partial<PanoVideoCaptionAppearance>>(
+    {},
+  );
   const mediaCapabilitiesRef = useRef({
     volumeAdjustable: true,
     playbackRates: [...DEFAULT_PANO_VIDEO_PLAYBACK_RATES] as readonly number[],
@@ -335,7 +350,10 @@ export function PanoVideo({
   const storeRef = useRef<Store | null>(null);
   if (!storeRef.current) {
     storeRef.current = {
-      snapshot: createEmptySnapshot(),
+      snapshot: {
+        ...createEmptySnapshot(),
+        captionAppearance,
+      },
       listeners: new Set(),
     };
   }
@@ -348,6 +366,9 @@ export function PanoVideo({
     setPlaybackRate: (_rate: number) => {},
     setVariantId: (_id: string) => {},
     setTrackId: (_id: string | null) => {},
+    setCaptionAppearance: (
+      _appearance: Partial<PanoVideoCaptionAppearance>,
+    ) => {},
   });
   const onLoadRef = useRef(onLoad);
   const onErrorRef = useRef(onError);
@@ -443,6 +464,10 @@ export function PanoVideo({
       const playbackState = video
         ? playbackStateFromVideo(video, blockedRef.current)
         : "paused";
+      const nextCaptionAppearance = {
+        ...captionAppearance,
+        ...captionAppearanceOverrideRef.current,
+      };
       const next: PanoVideoPlaybackSnapshot = {
         ...store.snapshot,
         ready,
@@ -460,6 +485,7 @@ export function PanoVideo({
         trackId,
         tracks,
         captionsEnabled,
+        captionAppearance: nextCaptionAppearance,
         playbackRates: mediaCapabilitiesRef.current.playbackRates,
         playbackState,
         ...patch,
@@ -479,6 +505,7 @@ export function PanoVideo({
       tracks,
       variants,
       volume,
+      captionAppearance,
     ],
   );
 
@@ -528,6 +555,9 @@ export function PanoVideo({
       setTrackId: (id) => {
         actionsRef.current.setTrackId(id);
       },
+      setCaptionAppearance: (appearancePatch) => {
+        actionsRef.current.setCaptionAppearance(appearancePatch);
+      },
     }),
     [],
   );
@@ -537,14 +567,14 @@ export function PanoVideo({
       return;
     }
     host.controls = controls;
-    host.captions = captions;
+    host.captions = captionsEnabled;
     host.controller = controller;
     notifyPanoVideoHost(host);
     return () => {
       host.controller = null;
       notifyPanoVideoHost(host);
     };
-  }, [captions, controller, controls, host, variants.length]);
+  }, [captionsEnabled, controller, controls, host, variants.length]);
 
   useLayoutEffect(() => {
     if (!resource) {
@@ -706,6 +736,13 @@ export function PanoVideo({
           onTrackChangeRef.current?.(id);
           return id;
         });
+      },
+      setCaptionAppearance: (appearancePatch) => {
+        captionAppearanceOverrideRef.current = {
+          ...captionAppearanceOverrideRef.current,
+          ...appearancePatch,
+        };
+        emitSnapshot();
       },
     };
   }, [emitSnapshot, resource]);

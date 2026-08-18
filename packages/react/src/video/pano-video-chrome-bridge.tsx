@@ -45,12 +45,7 @@ export function PanoVideoChromeBridge({
         />
       ) : null}
       {host.captions !== false && host.controller ? (
-        <PanoVideoCaptionsOverlay
-          appearance={
-            typeof host.captions === "object" ? host.captions : undefined
-          }
-          controller={host.controller}
-        />
+        <PanoVideoCaptionsOverlay controller={host.controller} />
       ) : null}
     </>
   );

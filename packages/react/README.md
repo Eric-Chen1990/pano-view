@@ -169,8 +169,10 @@ quality keeps the current time and play/pause state.
 A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
 volume, speed, resolution, captions, and fullscreen. Volume is a hover (or tap)
 vertical slider when the browser allows `HTMLMediaElement.volume`; iOS Safari
-only exposes mute. The speed menu lists rates the current element accepts.
-When the viewer is narrow, speed, quality, and captions move into a More menu.
+only exposes mute. The speed menu lists rates the current element accepts. The
+captions menu also includes a settings panel for subtitle font size and
+background opacity. When the viewer is narrow, speed, quality, and captions
+move into a More menu.
 Pass `controls={false}` to hide it, an appearance object to restyle the default
 instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
 instance.
@@ -179,7 +181,9 @@ Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
 rendered as a HUD overlay. `captions={false}` hides the overlay and the language
 menu; an object merges with the default appearance (`color`, `background`,
 `fontSize`, `fontFamily`, `textShadow`, `padding`, `borderRadius`, `maxWidth`,
-`bottom`).
+`bottom`). Those values act as the initial caption appearance; viewers can still
+adjust subtitle size and background from the default control-bar menu at
+runtime.
 
 ```tsx
 "use client";

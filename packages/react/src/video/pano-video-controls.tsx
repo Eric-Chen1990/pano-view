@@ -42,6 +42,7 @@ const NARROW_CONTROLS_WIDTH = 420;
 const VOLUME_SLIDER_HEIGHT = 84;
 const VOLUME_TRACK_WIDTH = 6;
 const VOLUME_THUMB_SIZE = 14;
+const CHROME_POPOVER_GAP = 12;
 const VOLUME_POP_PADDING_X = 10;
 const VOLUME_POP_FONT_SIZE = 11;
 const VOLUME_POP_PADDING_TOP = 16;
@@ -50,12 +51,32 @@ const VOLUME_LABEL_TRACK_GAP = 14;
 const VOLUME_STEP = 0.05;
 const VOLUME_TRACK_GRADIENT =
   "linear-gradient(to top, #22c55e 0%, #14b8a6 52%, #7dd3fc 100%)";
+const CAPTION_SIZE_OPTIONS = [
+  { id: "sm", label: "Small", value: 12 },
+  { id: "md", label: "Medium", value: 16 },
+  { id: "lg", label: "Large", value: 20 },
+  { id: "xl", label: "Extra large", value: 24 },
+] as const;
+const CAPTION_BACKGROUND_OPTIONS = [
+  { id: "none", label: "None", value: "rgba(0, 0, 0, 0)" },
+  { id: "dim", label: "Dim", value: "rgba(0, 0, 0, 0.35)" },
+  { id: "default", label: "Default", value: "rgba(0, 0, 0, 0.55)" },
+  { id: "solid", label: "Solid", value: "rgba(0, 0, 0, 0.85)" },
+] as const;
 
 function formatVolumePercent(volume: number): string {
   return `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`;
 }
 
 type MenuId = "rate" | "variant" | "captions" | "more";
+type CaptionsPanel = "tracks" | "settings";
+
+type ChromeMenuItem = {
+  id: string;
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+};
 
 export type PanoVideoControlsProps = {
   appearance?: PanoVideoControlsAppearance;
@@ -173,46 +194,243 @@ function ChromeMenu({
   appearance: Required<PanoVideoControlsAppearance>;
   id: string;
   labelledBy: string;
-  items: readonly {
-    id: string;
-    label: string;
-    active: boolean;
-    onSelect: () => void;
-  }[];
+  items: readonly ChromeMenuItem[];
+}) {
+  return (
+    <ChromeMenuSurface
+      appearance={appearance}
+      id={id}
+      labelledBy={labelledBy}
+      role="menu"
+    >
+      {items.map((item) => (
+        <ChromeMenuRadioItem
+          active={item.active}
+          appearance={appearance}
+          key={item.id}
+          label={item.label}
+          onClick={item.onSelect}
+        />
+      ))}
+    </ChromeMenuSurface>
+  );
+}
+
+function ChromeMenuSurface({
+  appearance,
+  children,
+  id,
+  labelledBy,
+  role,
+}: {
+  appearance: Required<PanoVideoControlsAppearance>;
+  children: ReactNode;
+  id: string;
+  labelledBy: string;
+  role: "menu" | "dialog";
 }) {
   return (
     <div
       aria-labelledby={labelledBy}
-      className="absolute right-0 bottom-[calc(100%+6px)] flex min-w-28 flex-col p-1"
+      className="absolute right-0 flex min-w-28 flex-col p-1"
       id={id}
-      role="menu"
+      role={role}
       style={{
         background: appearance.background,
+        bottom: `calc(100% + ${CHROME_POPOVER_GAP}px)`,
         borderRadius: appearance.borderRadius,
         boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
         pointerEvents: "auto",
       }}
     >
-      {items.map((item) => (
-        <button
-          aria-checked={item.active}
-          className="rounded px-[10px] py-1.5 text-left whitespace-nowrap"
-          key={item.id}
-          onClick={item.onSelect}
-          role="menuitemradio"
-          style={{
-            background: item.active ? "rgba(255, 255, 255, 0.1)" : "transparent",
-            border: "none",
-            color: appearance.color,
-            cursor: "pointer",
-            fontSize: appearance.fontSize,
-          }}
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
+      {children}
     </div>
+  );
+}
+
+function ChromeMenuRadioItem({
+  active,
+  appearance,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  appearance: Required<PanoVideoControlsAppearance>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-checked={active}
+      className="rounded px-2.5 py-1.5 text-left whitespace-nowrap"
+      onClick={onClick}
+      role="menuitemradio"
+      style={{
+        background: active ? "rgba(255, 255, 255, 0.1)" : "transparent",
+        border: "none",
+        color: appearance.color,
+        cursor: "pointer",
+        fontSize: appearance.fontSize,
+      }}
+      type="button"
+    >
+      {label}
+    </button>
+  );
+}
+
+function ChromeMenuActionItem({
+  appearance,
+  label,
+  onClick,
+  secondary,
+}: {
+  appearance: Required<PanoVideoControlsAppearance>;
+  label: string;
+  onClick: () => void;
+  secondary?: ReactNode;
+}) {
+  return (
+    <button
+      className="flex items-center justify-between gap-3 rounded px-2.5 py-1.5 text-left whitespace-nowrap"
+      onClick={onClick}
+      role="menuitem"
+      style={{
+        background: "transparent",
+        border: "none",
+        color: appearance.color,
+        cursor: "pointer",
+        fontSize: appearance.fontSize,
+      }}
+      type="button"
+    >
+      <span>{label}</span>
+      {secondary}
+    </button>
+  );
+}
+
+function ChromeMenuSectionLabel({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="px-2.5 pt-2 pb-1 uppercase opacity-70"
+      style={{ fontSize: 10, letterSpacing: "0.08em" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ChromeMenuDivider() {
+  return <div className="my-1 h-px bg-white/10" />;
+}
+
+function CaptionsMenu({
+  appearance,
+  id,
+  labelledBy,
+  onOpenSettings,
+  onSelectTrack,
+  onSetCaptionAppearance,
+  onShowTracks,
+  panel,
+  snapshot,
+}: {
+  appearance: Required<PanoVideoControlsAppearance>;
+  id: string;
+  labelledBy: string;
+  onOpenSettings: () => void;
+  onSelectTrack: (trackId: string | null) => void;
+  onSetCaptionAppearance: (appearance: {
+    background?: string;
+    fontSize?: number;
+  }) => void;
+  onShowTracks: () => void;
+  panel: CaptionsPanel;
+  snapshot: ReturnType<PanoVideoController["getSnapshot"]>;
+}) {
+  return (
+    <ChromeMenuSurface
+      appearance={appearance}
+      id={id}
+      labelledBy={labelledBy}
+      role="menu"
+    >
+      {panel === "tracks" ? (
+        <>
+          <div className="flex max-h-48 flex-col overflow-y-auto">
+            <ChromeMenuRadioItem
+              active={snapshot.trackId === null}
+              appearance={appearance}
+              label="Off"
+              onClick={() => {
+                onSelectTrack(null);
+              }}
+            />
+            {snapshot.tracks.map((track) => {
+              const trackItemId = panoVideoTrackId(track);
+              return (
+                <ChromeMenuRadioItem
+                  active={snapshot.trackId === trackItemId}
+                  appearance={appearance}
+                  key={trackItemId}
+                  label={track.label}
+                  onClick={() => {
+                    onSelectTrack(trackItemId);
+                  }}
+                />
+              );
+            })}
+          </div>
+          <ChromeMenuDivider />
+          <ChromeMenuActionItem
+            appearance={appearance}
+            label="Settings"
+            onClick={onOpenSettings}
+            secondary={<span aria-hidden>›</span>}
+          />
+        </>
+      ) : (
+        <>
+          <ChromeMenuActionItem
+            appearance={appearance}
+            label="Back"
+            onClick={onShowTracks}
+            secondary={<span aria-hidden>‹</span>}
+          />
+          <ChromeMenuDivider />
+          <ChromeMenuSectionLabel>Font size</ChromeMenuSectionLabel>
+          {CAPTION_SIZE_OPTIONS.map((option) => (
+            <ChromeMenuRadioItem
+              active={Number(snapshot.captionAppearance.fontSize) === option.value}
+              appearance={appearance}
+              key={option.id}
+              label={option.label}
+              onClick={() => {
+                onSetCaptionAppearance({ fontSize: option.value });
+              }}
+            />
+          ))}
+          <ChromeMenuDivider />
+          <ChromeMenuSectionLabel>Background</ChromeMenuSectionLabel>
+          {CAPTION_BACKGROUND_OPTIONS.map((option) => (
+            <ChromeMenuRadioItem
+              active={snapshot.captionAppearance.background === option.value}
+              appearance={appearance}
+              key={option.id}
+              label={option.label}
+              onClick={() => {
+                onSetCaptionAppearance({ background: option.value });
+              }}
+            />
+          ))}
+        </>
+      )}
+    </ChromeMenuSurface>
   );
 }
 
@@ -251,9 +469,10 @@ function VerticalVolumeSlider({
 
   return (
     <div
-      className="absolute left-1/2 bottom-[calc(100%+12px)] flex min-w-11 -translate-x-1/2 flex-col items-center rounded-[14px]"
+      className="absolute left-1/2 flex min-w-11 -translate-x-1/2 flex-col items-center rounded-[14px]"
       style={{
         background: "rgba(12, 12, 12, 0.92)",
+        bottom: `calc(100% + ${CHROME_POPOVER_GAP}px)`,
         borderRadius: 14,
         boxShadow: "0 10px 28px rgba(0, 0, 0, 0.5)",
         minWidth: 44,
@@ -263,7 +482,7 @@ function VerticalVolumeSlider({
     >
       <span
         aria-hidden
-        className="mb-[14px] font-bold leading-none [font-variant-numeric:tabular-nums]"
+        className="mb-3.5 font-bold leading-none [font-variant-numeric:tabular-nums]"
         style={{
           color: appearance.color,
           fontSize: VOLUME_POP_FONT_SIZE,
@@ -474,6 +693,7 @@ export function PanoVideoControlsHud({
     controller.getSnapshot,
   );
   const [menu, setMenu] = useState<MenuId | null>(null);
+  const [captionsPanel, setCaptionsPanel] = useState<CaptionsPanel>("tracks");
   const [visible, setVisible] = useState(true);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [overlayWidth, setOverlayWidth] = useState(
@@ -605,10 +825,14 @@ export function PanoVideoControlsHud({
 
   const closeMenu = () => {
     setMenu(null);
+    setCaptionsPanel("tracks");
   };
 
   const toggleMenu = (id: MenuId) => {
     setMenu((current) => (current === id ? null : id));
+    if (id === "captions") {
+      setCaptionsPanel("tracks");
+    }
     setVisible(true);
   };
 
@@ -660,33 +884,24 @@ export function PanoVideoControlsHud({
       break;
     case "captions":
       menuNode = (
-        <ChromeMenu
+        <CaptionsMenu
           appearance={resolved}
           id={captionsMenuId}
-          items={[
-            {
-              id: "off",
-              label: "Off",
-              active: snapshot.trackId === null,
-              onSelect: () => {
-                controller.setTrackId(null);
-                closeMenu();
-              },
-            },
-            ...snapshot.tracks.map((track) => {
-              const id = panoVideoTrackId(track);
-              return {
-                id,
-                label: track.label,
-                active: snapshot.trackId === id,
-                onSelect: () => {
-                  controller.setTrackId(id);
-                  closeMenu();
-                },
-              };
-            }),
-          ]}
           labelledBy={captionsLabelledBy}
+          onOpenSettings={() => {
+            setCaptionsPanel("settings");
+          }}
+          onSelectTrack={(id) => {
+            controller.setTrackId(id);
+          }}
+          onSetCaptionAppearance={(appearancePatch) => {
+            controller.setCaptionAppearance(appearancePatch);
+          }}
+          onShowTracks={() => {
+            setCaptionsPanel("tracks");
+          }}
+          panel={captionsPanel}
+          snapshot={snapshot}
         />
       );
       break;
@@ -816,7 +1031,7 @@ export function PanoVideoControlsHud({
 
   return (
     <div
-      className="absolute right-2.5 bottom-2.5 left-2.5 z-[2] flex items-center gap-2 transition-opacity"
+      className="absolute right-2.5 bottom-2.5 left-2.5 z-2 flex items-center gap-2 transition-opacity"
       data-pano-video-controls=""
       style={barStyle}
     >
@@ -834,7 +1049,7 @@ export function PanoVideoControlsHud({
         )}
       </ChromeButton>
       {hideTime ? null : (
-        <span className="min-w-[34px] opacity-[0.85] [font-variant-numeric:tabular-nums]">
+        <span className="min-w-8.5 opacity-[0.85] [font-variant-numeric:tabular-nums]">
           {formatMediaTime(snapshot.currentTime)}
         </span>
       )}
@@ -858,7 +1073,7 @@ export function PanoVideoControlsHud({
         value={duration > 0 ? snapshot.currentTime : 0}
       />
       {hideTime ? null : (
-        <span className="min-w-[34px] opacity-[0.85]">
+        <span className="min-w-8.5 opacity-[0.85]">
           {formatMediaTime(duration)}
         </span>
       )}
