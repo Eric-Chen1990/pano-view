@@ -297,7 +297,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#df6b42",
             strokeWidth: 14,
           }}
-          height={2.2}
+          height={1.5}
+          width={1.5}
           id={`${selectedPolygon.id}-vertex-${index}`}
           onDragEnd={({ position }) => {
             const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
@@ -322,8 +323,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           }}
           mode="billboard"
           position={vertex}
-          scaleMode="fixed"
-          width={2.2}
+          scaleMode="fixed"       
         />
       )) : null}
       {selectedPolyline && tool === "select" ? selectedPolyline.vertices.map((vertex, index) => (
@@ -338,7 +338,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#df6b42",
             strokeWidth: 14,
           }}
-          height={2.2}
+          height={1.1}
           id={`${selectedPolyline.id}-vertex-${index}`}
           onDragEnd={({ position }) => {
             const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
@@ -357,7 +357,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           mode="billboard"
           position={vertex}
           scaleMode="fixed"
-          width={2.2}
+          width={1.1}
         />
       )) : null}
       {drawingPath ? draftVertices.map((vertex, index) => (
@@ -371,13 +371,13 @@ export const HotspotLayer = memo(function HotspotLayer() {
             stroke: "#071316",
             strokeWidth: 12,
           }}
-          height={1.8}
+          height={0.9}
           id={`polygon-draft-vertex-${index}`}
           interactive={false}
           mode="billboard"
           position={vertex}
           scaleMode="fixed"
-          width={1.8}
+          width={0.9}
         />
       )) : null}
     </>
