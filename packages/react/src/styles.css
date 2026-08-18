@@ -96,6 +96,7 @@
 
 .pano-context-menu-item {
   align-items: center;
+  box-sizing: border-box;
   display: flex;
   gap: 0.5rem;
   text-align: left;
