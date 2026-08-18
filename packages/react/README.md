@@ -154,6 +154,12 @@ The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the
 
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
 
+Optional `previewUrl` shows a low-resolution 2:1 image while `src` loads.
+Relative paths resolve against the directory of `src`; root-absolute and
+`http(s)` URLs are used as-is. There is no default preview. For krpano sphere
+scenes, copy [`<preview url>`](https://krpano.com/docu/xml/#preview) into
+`previewUrl`. That preview must be equirectangular, not a cube strip.
+
 ```tsx
 "use client";
 
@@ -162,7 +168,10 @@ import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
 export function SphereExample() {
   return (
     <PanoViewer style={{ width: "100%", height: 560 }}>
-      <Sphere src="/panoramas/room.webp" />
+      <Sphere
+        src="/panoramas/room.webp"
+        previewUrl="preview.jpg"
+      />
     </PanoViewer>
   );
 }
@@ -280,6 +289,8 @@ the wrong face, level, or row/column and the panorama looks scrambled.
 | `<preview url>` | `previewUrl` |
 | `<preview striporder>` | `previewFaceOrder` |
 
+`Sphere` uses the same `<preview url>` → `previewUrl` mapping; that file must be a 2:1 equirectangular image, not a cube strip.
+
 krpano's documented short syntax:
 
 ```xml
@@ -350,7 +361,8 @@ a single non-stereo cube panorama.
 ## Scenes
 
 `Scenes` switches controlled sphere and cube-tile scenes with GPU-only
-snapshot blending. The target scene loads its sphere image or tile preview first;
+snapshot blending. The target scene loads its sphere preview (or the full
+sphere image if none is set) or tile preview first;
 once ready, the current framebuffer becomes a temporary GPU texture, its source
 textures are released, and the target scene blends in. This avoids holding two
 high-resolution tile scenes in WebGL memory at once.
@@ -363,7 +375,7 @@ import {
 } from "@ericchen1990/pano-view";
 
 const scenes: Scene[] = [
-  { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp" },
+  { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp", previewUrl: "preview.jpg" },
   {
     id: "terrace",
     type: "tile",

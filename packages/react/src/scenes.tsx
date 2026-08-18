@@ -33,6 +33,7 @@ export type SphereScene = {
   id: string;
   type: "sphere";
   src: string;
+  previewUrl?: string | null;
   yawOffset?: number;
 };
 
@@ -103,9 +104,10 @@ function SceneSource({
       return (
         <Sphere
           src={scene.src}
+          previewUrl={scene.previewUrl}
           yawOffset={scene.yawOffset}
           visible={visible}
-          onLoad={onReady}
+          onReady={onReady}
           onError={onError}
         />
       );

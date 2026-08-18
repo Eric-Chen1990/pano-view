@@ -1,3 +1,7 @@
+import {
+  resolveAssetUrl,
+  resolveRelativeAssetUrl,
+} from "../asset-url";
 import type {
   TileAddress,
   TileMultiresConfig,
@@ -63,23 +67,7 @@ export function resolveRelativeTileUrl(
   baseUrl: string,
   relativePath: string,
 ): string {
-  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
-  const normalizedPath = relativePath.replace(/^\/+/, "");
-  return normalizedBaseUrl
-    ? `${normalizedBaseUrl}/${normalizedPath}`
-    : normalizedPath;
-}
-
-function isAbsoluteAssetUrl(url: string): boolean {
-  return (
-    url.startsWith("/") ||
-    url.startsWith("//") ||
-    /^[a-z][a-z0-9+.-]*:/i.test(url)
-  );
-}
-
-export function resolveAssetUrl(baseUrl: string, path: string): string {
-  return isAbsoluteAssetUrl(path) ? path : resolveRelativeTileUrl(baseUrl, path);
+  return resolveRelativeAssetUrl(baseUrl, relativePath);
 }
 
 export function resolvePreviewUrl(
