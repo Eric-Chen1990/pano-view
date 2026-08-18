@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@source "../../../packages/react/src";
 
 @theme {
   --color-canvas: #071316;

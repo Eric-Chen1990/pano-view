@@ -19,10 +19,13 @@
     "url": "https://github.com/Eric-Chen1990/pano-view/issues"
   },
   "homepage": "https://github.com/Eric-Chen1990/pano-view#readme",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "files": [
     "dist",
     "README.md",
+    "README.zh-CN.md",
     "LICENSE"
   ],
   "main": "./dist/index.cjs",
@@ -33,7 +36,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./styles.css": "./dist/styles.css"
   },
   "dependencies": {
     "@types/three": "^0.185.0"
@@ -47,7 +51,7 @@
     "three": "^0.185.1"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node -e \"require('node:fs').copyFileSync('src/styles.css', 'dist/styles.css')\"",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

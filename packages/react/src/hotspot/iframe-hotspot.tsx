@@ -130,7 +130,7 @@ export function IframeHotspot({
       >
         <iframe
           allow={allow}
-          className="block h-full w-full border-0"
+          className="pano-iframe-hotspot"
           loading={loading}
           onError={(event) => onError?.(event.nativeEvent)}
           onLoad={onLoad}

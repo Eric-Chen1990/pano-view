@@ -122,7 +122,7 @@ export function useHotspotAccessibilityLayer(): {
         {Array.from(entries.values()).map((entry) => (
           <button
             aria-label={entry.label}
-            className="sr-only"
+            className="pano-sr-only"
             key={entry.id}
             onBlur={() => entry.onFocusChange(false)}
             onClick={(event) => entry.activate(event.nativeEvent)}

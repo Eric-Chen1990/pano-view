@@ -364,9 +364,6 @@ function DefaultContextMenuPanel({
     fontSize: resolved.fontSize,
     minWidth: resolved.minWidth,
     padding: resolved.padding,
-    pointerEvents: "auto",
-    position: "relative",
-    userSelect: "none",
     ...style,
   };
 
@@ -374,7 +371,7 @@ function DefaultContextMenuPanel({
     <div
       ref={menuRef}
       aria-label="Panorama context menu"
-      className={cn("relative select-none", className)}
+      className={cn("pano-context-menu", className)}
       onKeyDown={handleKeyDown}
       role="menu"
       style={panelStyle}
@@ -382,14 +379,14 @@ function DefaultContextMenuPanel({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-0"
+        className="pano-context-menu-backdrop"
         style={{
           background: resolved.background,
           borderRadius: resolved.borderRadius,
           opacity: backgroundOpacity,
         }}
       />
-      <div className="relative z-[1]">
+      <div className="pano-context-menu-items">
       {visibleItems.map((item, index) => {
         if (!isActionItem(item)) {
           return (
@@ -429,7 +426,7 @@ function DefaultContextMenuPanel({
           <button
             aria-disabled={disabled || undefined}
             className={cn(
-              "flex w-full items-center gap-2 rounded text-left",
+              "pano-context-menu-item",
               itemClassName,
               item.className,
             )}
@@ -466,7 +463,7 @@ function DefaultContextMenuPanel({
           >
             <span
               aria-hidden
-              className="inline-flex shrink-0 items-center justify-center"
+              className="pano-context-menu-item-icon"
               style={{
                 height: iconSize,
                 width: iconSize,
@@ -524,7 +521,7 @@ function PositionedMenuShell({
 
   return (
     <div
-      className="absolute z-20"
+      className="pano-context-menu-shell"
       ref={shellRef}
       style={{
         left: offset.left,

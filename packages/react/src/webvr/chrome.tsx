@@ -29,7 +29,7 @@ function ChromeButton({
 }) {
   return (
     <button
-      className="pointer-events-auto border border-white/20 px-3 py-2 font-semibold shadow-lg backdrop-blur-sm"
+      className="pano-webvr-button"
       onClick={onClick}
       style={{
         background: appearance.background,
@@ -73,19 +73,19 @@ function SetupPanel({
   return (
     <div
       aria-label="Mobile VR setup"
-      className="pointer-events-auto absolute top-1/2 left-1/2 w-[min(22rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 border border-white/20 p-5 text-center shadow-2xl backdrop-blur-md"
+      className="pano-webvr-setup"
       role="dialog"
       style={panelStyle}
     >
-      <h2 className="m-0 mb-5 text-2xl font-extrabold">
+      <h2 className="pano-webvr-setup-title">
         {appearance.setupTitle ?? "MobileVR Setup"}
       </h2>
-      <label className="mb-5 block font-semibold">
+      <label className="pano-webvr-setup-field">
         Screen size (inch)
-        <div className="mt-2 flex items-center justify-center gap-3">
+        <div className="pano-webvr-setup-row">
           <button
             aria-label="Decrease screen size"
-            className="text-2xl"
+            className="pano-webvr-setup-stepper"
             onClick={() =>
               setScreensize(
                 settings.screensize === "auto"
@@ -97,14 +97,14 @@ function SetupPanel({
           >
             ‹
           </button>
-          <strong className="min-w-16 text-xl">
+          <strong className="pano-webvr-setup-value">
             {settings.screensize === "auto"
               ? "Auto"
               : settings.screensize.toFixed(1)}
           </strong>
           <button
             aria-label="Increase screen size"
-            className="text-2xl"
+            className="pano-webvr-setup-stepper"
             onClick={() =>
               setScreensize(
                 settings.screensize === "auto"
@@ -118,23 +118,23 @@ function SetupPanel({
           </button>
         </div>
       </label>
-      <fieldset className="m-0 mb-5 border-0 p-0">
-        <legend className="mb-2 font-semibold">VR headset preset</legend>
-        <div className="mt-2 flex items-center justify-center gap-3">
+      <fieldset className="pano-webvr-setup-fieldset">
+        <legend className="pano-webvr-setup-legend">VR headset preset</legend>
+        <div className="pano-webvr-setup-row">
           <button
             aria-label="Previous headset preset"
-            className="text-2xl"
+            className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(-1)}
             type="button"
           >
             ‹
           </button>
-          <strong className="min-w-32 text-xl">
+          <strong className="pano-webvr-setup-value-wide">
             {WEBVR_PROFILES[settings.profileId].label}
           </strong>
           <button
             aria-label="Next headset preset"
-            className="text-2xl"
+            className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(1)}
             type="button"
           >
@@ -166,9 +166,9 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+      <div className="pano-webvr-toolbar">
         {mode ? (
-          <div className="flex gap-2">
+          <div className="pano-webvr-toolbar-actions">
             {mode !== "webxr" ? (
               <ChromeButton
                 appearance={appearance}
@@ -195,7 +195,7 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
       </div>
       {mode === "fake" ? (
         <p
-          className="pointer-events-none absolute inset-x-0 bottom-5 m-0 text-center text-xs font-semibold text-white drop-shadow"
+          className="pano-webvr-hint"
           style={{ color: appearance.color }}
         >
           Simulated VR Mode · Click the view to lock the mouse, then move to

@@ -1,0 +1,339 @@
+/* Built-in HTML chrome. Import as `@ericchen1990/pano-view/styles.css`. */
+
+.pano-viewer,
+.pano-chrome-overlay,
+.pano-context-menu,
+.pano-webvr-button,
+.pano-webvr-setup,
+.pano-video-controls,
+.pano-video-chrome-button,
+.pano-video-chrome-menu,
+.pano-video-volume-popover {
+  box-sizing: border-box;
+}
+
+.pano-viewer {
+  overflow: hidden;
+  position: relative;
+}
+
+.pano-chrome-overlay {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 15;
+}
+
+.pano-sr-only {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.pano-hotspot-tooltip {
+  display: flex;
+  gap: 0.5rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pano-hotspot-tooltip-image {
+  border-radius: 0.25rem;
+  display: block;
+  height: auto;
+  max-height: 120px;
+  max-width: 220px;
+  object-fit: contain;
+}
+
+.pano-hotspot-tooltip-text {
+  line-height: 1.4;
+  margin: 0;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.pano-iframe-hotspot {
+  border: 0;
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.pano-video-captions {
+  display: flex;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  z-index: 1;
+}
+
+.pano-context-menu {
+  pointer-events: auto;
+  position: relative;
+  user-select: none;
+}
+
+.pano-context-menu-backdrop {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.pano-context-menu-items {
+  position: relative;
+  z-index: 1;
+}
+
+.pano-context-menu-item {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+
+.pano-context-menu-item-icon {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.pano-context-menu-shell {
+  position: absolute;
+  z-index: 20;
+}
+
+.pano-webvr-button {
+  backdrop-filter: blur(4px);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  pointer-events: auto;
+}
+
+.pano-webvr-setup {
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  left: 50%;
+  padding: 1.25rem;
+  pointer-events: auto;
+  position: absolute;
+  text-align: center;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(22rem, calc(100% - 2rem));
+}
+
+.pano-webvr-setup-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 1.25rem;
+}
+
+.pano-webvr-setup-field {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+}
+
+.pano-webvr-setup-row {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.pano-webvr-setup-stepper {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.5rem;
+  padding: 0;
+}
+
+.pano-webvr-setup-value {
+  font-size: 1.25rem;
+  min-width: 4rem;
+}
+
+.pano-webvr-setup-value-wide {
+  font-size: 1.25rem;
+  min-width: 8rem;
+}
+
+.pano-webvr-setup-fieldset {
+  border: 0;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.pano-webvr-setup-legend {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.pano-webvr-toolbar {
+  display: flex;
+  inset-inline: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+  top: 1rem;
+}
+
+.pano-webvr-toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pano-webvr-hint {
+  bottom: 1.25rem;
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.06))
+    drop-shadow(0 1px 2px rgb(0 0 0 / 0.1));
+  font-size: 0.75rem;
+  font-weight: 600;
+  inset-inline: 0;
+  margin: 0;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+}
+
+.pano-video-chrome-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-width: 28px;
+  padding: 4px;
+}
+
+.pano-video-chrome-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.pano-video-chrome-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+  padding: 0.25rem;
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+}
+
+.pano-video-chrome-menu-item,
+.pano-video-chrome-menu-action {
+  background: transparent;
+  border: 0;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pano-video-chrome-menu-action {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.pano-video-chrome-menu-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  padding: 0.5rem 0.625rem 0.25rem;
+  text-transform: uppercase;
+}
+
+.pano-video-chrome-menu-divider {
+  background: rgb(255 255 255 / 0.1);
+  height: 1px;
+  margin: 0.25rem 0;
+}
+
+.pano-video-chrome-menu-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.pano-video-volume {
+  position: relative;
+}
+
+.pano-video-volume-popover {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  left: 50%;
+  min-width: 2.75rem;
+  pointer-events: auto;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.pano-video-volume-percent {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.875rem;
+}
+
+.pano-video-volume-track {
+  border-radius: 999px;
+  cursor: pointer;
+  position: relative;
+}
+
+.pano-video-menu {
+  position: relative;
+}
+
+.pano-video-chrome-label {
+  font-size: 11px;
+  padding: 0 0.125rem;
+}
+
+.pano-video-controls {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  pointer-events: auto;
+  position: absolute;
+  transition: opacity 160ms ease;
+  z-index: 2;
+}
+
+.pano-video-time {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.125rem;
+  opacity: 0.85;
+}
