@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
+import { FilterPage } from "./components/filters/FilterPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
@@ -45,6 +46,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
     navLabel: "WebVR",
     stageLabel: "IMMERSIVE VR · STAGE 09",
     Component: WebVRPage,
+  },
+  {
+    path: "/filters",
+    navLabel: "Filters",
+    stageLabel: "PANORAMA FILTERS · STAGE 10",
+    Component: FilterPage,
   },
 ];
 

@@ -40,6 +40,10 @@ import {
 } from "./keyboard-controls";
 import { MouseControls } from "./mouse-controls";
 import {
+  createPanoFilterHost,
+  PanoFilterHostContext,
+} from "./pano-filter/host";
+import {
   PanoContextMenu,
   PanoContextMenuActionsContext,
   PanoContextMenuOverlayContext,
@@ -265,6 +269,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const { api: chromeOverlayApi, setOverlayNode, overlayElement } =
       usePanoChromeOverlay();
     const videoHost = useMemo(() => createPanoVideoHost(), []);
+    const filterHost = useMemo(() => createPanoFilterHost(), []);
     const webVRHost = useMemo(() => createWebVRHost(), []);
     const stereoView = useMemo(() => createWebVRStereoView(), []);
     const xrStore = useMemo(
@@ -511,6 +516,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                 >
                   <PanoChromeOverlayContext.Provider value={chromeOverlayApi}>
                   <PanoVideoHostContext.Provider value={videoHost}>
+                  <PanoFilterHostContext.Provider value={filterHost}>
                   <PanoContextMenuActionsContext.Provider
                     value={contextMenuActions}
                   >
@@ -553,6 +559,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     />
                   </ControlClaimsContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
+                  </PanoFilterHostContext.Provider>
                   </PanoVideoHostContext.Provider>
                   </PanoChromeOverlayContext.Provider>
                 </PanoContextMenuOverlayContext.Provider>

@@ -47,6 +47,7 @@ component appearance props.
 - [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
 - [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
 
 ### Controls
 
@@ -351,6 +352,48 @@ While a transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
 is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
 apply to the whole `Scenes` viewer rather than to each tile scene.
+
+## PanoFilter
+
+Render `PanoFilter` inside `PanoViewer` to color-grade or stylize the panorama
+source (`Sphere`, `Tile`, and `PanoVideo`). The filter runs on those materials
+only: 3D hotspots, tooltips, video chrome, and iframe overlays keep their
+original color. WebXR / MobileVR inherit the same look because the panorama
+shader itself is patched.
+
+`intensity` mixes the filtered result with the original image (`0`–`1`,
+default `1`). Omit the component, pass `preset="none"`, or set `enabled={false}`
+to leave the source unfiltered.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter preset="pencil" intensity={0.85} />
+  <Sphere src="/panoramas/room.webp" />
+  <ImageHotspot
+    id="door"
+    position={{ yaw: 24, pitch: -6 }}
+    src="/hotspots/door.webp"
+  />
+</PanoViewer>
+```
+
+| Preset | Look |
+|---|---|
+| `none` | Identity (no filter) |
+| `grayscale` | Rec.709 black and white |
+| `sepia` | Warm brown antique print |
+| `vintage` | Faded film with grain |
+| `cool` / `warm` | Blue or amber temperature shift |
+| `pencil` | Graphite sketch on paper |
+| `coloredPencil` | Tinted pencil lines |
+| `crayon` | Posterized wax strokes |
+| `watercolor` | Soft pigment on paper |
+| `cartoon` | Cel shading with outlines |
+| `crosshatch` | Luminance hatching |
+
+Built-in artistic looks use screen-space edges and world-space grain so cube
+tiles do not show filter seams. Scene-transition snapshots capture the filtered
+panorama when a filter is active.
 
 ## AutoRotate
 

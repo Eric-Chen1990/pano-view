@@ -20,6 +20,7 @@ import {
   VideoTexture,
 } from "three";
 import type { VideoPlaybackState } from "../hotspot/video-hotspot";
+import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { PanoChromeOverlayContext } from "./chrome-overlay";
 import {
@@ -871,7 +872,7 @@ export function PanoVideo({
           visible={visible}
         >
           <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
-          <meshBasicMaterial
+          <PanoBasicMaterial
             map={activeTexture}
             side={BackSide}
             toneMapped={false}

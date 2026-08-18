@@ -1,6 +1,7 @@
 import type {
   Scene,
   SceneTransitionPreset,
+  PanoFilterPreset,
   PanoViewerState,
   TileLoadProgress,
 } from "@ericchen1990/pano-view";
@@ -85,6 +86,34 @@ export const TRANSITION_PRESET_GROUPS: Array<{
       { value: "verticalOpen", label: "Vertical open" },
       { value: "horizontalOpen", label: "Horizontal open" },
       { value: "ellipticZoomOpen", label: "Elliptic + zoom" },
+    ],
+  },
+];
+
+export const FILTER_PRESET_GROUPS: Array<{
+  label: string;
+  presets: Array<{ value: PanoFilterPreset; label: string }>;
+}> = [
+  {
+    label: "Tone",
+    presets: [
+      { value: "none", label: "None" },
+      { value: "grayscale", label: "Grayscale" },
+      { value: "sepia", label: "Sepia" },
+      { value: "vintage", label: "Vintage" },
+      { value: "cool", label: "Cool" },
+      { value: "warm", label: "Warm" },
+    ],
+  },
+  {
+    label: "Artistic",
+    presets: [
+      { value: "pencil", label: "Pencil" },
+      { value: "coloredPencil", label: "Colored pencil" },
+      { value: "crayon", label: "Crayon" },
+      { value: "watercolor", label: "Watercolor" },
+      { value: "cartoon", label: "Cartoon" },
+      { value: "crosshatch", label: "Crosshatch" },
     ],
   },
 ];
