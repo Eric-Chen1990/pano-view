@@ -880,8 +880,12 @@ changes, unmounts, and React StrictMode lifecycles deterministic.
 `TextHotspot` rasterizes plain text onto a canvas texture. It does not accept
 HTML or Markdown. `\n` is a hard line break; `whiteSpace="normal"` (default)
 wraps words to the hotspot's angular width. Dimensions stay in degrees like
-the other point hotspots. `fontSize`, `padding`, and `borderRadius` are
-fractions of the texture, so they scale with `width` / `height`.
+the other point hotspots. Typography uses the same names as CSS
+(`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`) but is painted onto the
+canvas, not applied as DOM style. `fontSize` is canvas pixels (default 96) and
+does not scale with panel height. `fontWeight` defaults to `600` and
+`fontStyle` to `"normal"`. `padding` and `borderRadius` remain fractions of
+the texture's shorter side, so they still follow `width` / `height`.
 
 ```tsx
 import { TextHotspot } from "@ericchen1990/pano-view";
@@ -895,18 +899,22 @@ import { TextHotspot } from "@ericchen1990/pano-view";
   mode="billboard"
   scaleMode="fixed"
   text={"Courtyard overlook\nNorth terrace"}
+  fontFamily="system-ui, sans-serif"
+  fontSize={96}
+  fontWeight={600}
+  fontStyle="normal"
   align="center"
   verticalAlign="middle"
-  fontSize={0.18}
   color="#f8fafc"
   background="#111827"
   backgroundOpacity={0.72}
 />;
 ```
 
-Load a custom `fontFamily` on the page before the hotspot paints; canvas text
-uses whatever faces the document already has. `onLoad(texture)` and
-`onError(error)` match `ImageHotspot`.
+Load a custom `fontFamily` on the page before the hotspot paints. The hotspot
+waits on `document.fonts.load` when that API exists, then draws with whatever
+faces the document has. `onLoad(texture)` and `onError(error)` match
+`ImageHotspot`.
 
 ## IframeHotspot
 

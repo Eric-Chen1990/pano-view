@@ -1,5 +1,21 @@
+import type { TextHotspotFontStyle } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
 import { numberValue } from "../../../utils";
+
+const FONT_FAMILY_PRESETS = [
+  { label: "System UI", value: "system-ui, sans-serif" },
+  { label: "Inter", value: "Inter, ui-sans-serif, system-ui, sans-serif" },
+  { label: "Georgia", value: 'Georgia, "Times New Roman", serif' },
+  { label: "Monospace", value: "ui-monospace, SFMono-Regular, Consolas, monospace" },
+  { label: "Chinese Gothic", value: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif' },
+] as const;
+
+const FONT_WEIGHT_PRESETS = [
+  { label: "Regular", value: 400 },
+  { label: "Medium", value: 500 },
+  { label: "Semibold", value: 600 },
+  { label: "Bold", value: 700 },
+] as const;
 
 export function TextFields({
   hotspot,
@@ -10,6 +26,13 @@ export function TextFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "text" }>, "id" | "type">>,
   ) => void;
 }) {
+  const knownFontFamily = FONT_FAMILY_PRESETS.some(
+    (preset) => preset.value === hotspot.fontFamily,
+  );
+  const knownFontWeight = FONT_WEIGHT_PRESETS.some(
+    (preset) => preset.value === hotspot.fontWeight,
+  );
+
   return (
     <div className="graphic-fields">
       <label className="field wide">
@@ -20,15 +43,63 @@ export function TextFields({
           value={hotspot.text}
         />
       </label>
+      <label className="field wide">
+        <span>Font family</span>
+        <select
+          onChange={(event) => onChange({ fontFamily: event.currentTarget.value })}
+          value={hotspot.fontFamily}
+        >
+          {knownFontFamily ? null : (
+            <option value={hotspot.fontFamily}>{hotspot.fontFamily}</option>
+          )}
+          {FONT_FAMILY_PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="field-grid">
+        <label className="field">
+          <span>Weight</span>
+          <select
+            onChange={(event) => onChange({
+              fontWeight: numberValue(event.currentTarget.value, hotspot.fontWeight),
+            })}
+            value={hotspot.fontWeight}
+          >
+            {knownFontWeight ? null : (
+              <option value={hotspot.fontWeight}>{hotspot.fontWeight}</option>
+            )}
+            {FONT_WEIGHT_PRESETS.map((preset) => (
+              <option key={preset.value} value={preset.value}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Style</span>
+          <select
+            onChange={(event) => onChange({
+              fontStyle: event.currentTarget.value as TextHotspotFontStyle,
+            })}
+            value={hotspot.fontStyle}
+          >
+            <option value="normal">Normal</option>
+            <option value="italic">Italic</option>
+          </select>
+        </label>
+      </div>
       <label className="field wide range-field">
-        <span>Font size <b>{Math.round(hotspot.fontSize * 100)}%</b></span>
+        <span>Font size <b>{Math.round(hotspot.fontSize)}px</b></span>
         <input
-          max="0.4"
-          min="0.06"
+          max="256"
+          min="24"
           onChange={(event) => onChange({
             fontSize: numberValue(event.currentTarget.value, hotspot.fontSize),
           })}
-          step="0.01"
+          step="1"
           type="range"
           value={hotspot.fontSize}
         />

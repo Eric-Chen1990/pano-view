@@ -13,6 +13,7 @@ import type { HotspotCommonProps } from "./types";
 
 const TEXT_TEXTURE_LONG_SIDE = 1024;
 const DEFAULT_FONT_FAMILY = "system-ui, sans-serif";
+const DEFAULT_FONT_SIZE = 96;
 const DEFAULT_COLOR = "#f8fafc";
 const DEFAULT_BACKGROUND = "#111827";
 
@@ -24,9 +25,11 @@ export type TextHotspotFontStyle = "normal" | "italic";
 /** Serializable typography and panel paint for a text hotspot. */
 export type TextHotspotStyle = {
   fontFamily?: string;
-  /** Fraction of the texture height. Defaults to 0.18. */
+  /** Canvas pixels. Defaults to 96. */
   fontSize?: number;
+  /** CSS font-weight. Defaults to 600. */
   fontWeight?: number | string;
+  /** CSS font-style. Defaults to `"normal"`. */
   fontStyle?: TextHotspotFontStyle;
   color?: string;
   /** CSS color. An empty string skips the panel fill. */
@@ -60,6 +63,42 @@ function clamp01(value: number | undefined, fallback: number): number {
 
 function resolvePositive(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! > 0 ? value! : fallback;
+}
+
+function cssFontFamily(family: string): string {
+  return family
+    .split(",")
+    .map((part) => {
+      const face = part.trim().replace(/^["']|["']$/g, "");
+      if (!face) {
+        return "";
+      }
+      if (/^[a-zA-Z-]+$/.test(face)) {
+        return face;
+      }
+      return `"${face.replace(/"/g, '\\"')}"`;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
+function resolveTextFont(style: TextHotspotStyle): {
+  font: string;
+  fontSize: number;
+} {
+  const fontSize = Math.max(
+    1,
+    resolvePositive(style.fontSize, DEFAULT_FONT_SIZE),
+  );
+  const fontFamily = cssFontFamily(
+    style.fontFamily?.trim() || DEFAULT_FONT_FAMILY,
+  );
+  const fontWeight = style.fontWeight ?? 600;
+  const fontStyle = style.fontStyle ?? "normal";
+  return {
+    font: `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`,
+    fontSize,
+  };
 }
 
 function resolveCornerRadius(value: number | undefined): number {
@@ -188,13 +227,10 @@ function drawTextHotspot(
 ) {
   const shortSide = Math.min(canvasWidth, canvasHeight);
   const padding = clamp01(style.padding, 0.08) * shortSide;
-  const fontSize = Math.max(1, clamp01(style.fontSize, 0.18) * canvasHeight);
+  const { font, fontSize } = resolveTextFont(style);
   const lineHeight = resolvePositive(style.lineHeight, 1.25) * fontSize;
   const align = style.align ?? "center";
   const verticalAlign = style.verticalAlign ?? "middle";
-  const fontFamily = style.fontFamily?.trim() || DEFAULT_FONT_FAMILY;
-  const fontWeight = style.fontWeight ?? 600;
-  const fontStyle = style.fontStyle ?? "normal";
   const contentWidth = Math.max(1, canvasWidth - padding * 2);
   const contentHeight = Math.max(1, canvasHeight - padding * 2);
 
@@ -216,7 +252,7 @@ function drawTextHotspot(
     context.restore();
   }
 
-  context.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+  context.font = font;
   context.textAlign = align;
   context.textBaseline = "top";
   const lines = wrapText(
@@ -306,17 +342,36 @@ function useTextTexture(
   onErrorRef.current = onError;
 
   useEffect(() => {
+    let cancelled = false;
     let nextTexture: CanvasTexture | null = null;
-    try {
-      nextTexture = createTextTexture(text, width, height, style);
-      setTexture(nextTexture);
-      onLoadRef.current?.(nextTexture);
-    } catch (error) {
-      setTexture(null);
-      onErrorRef.current?.(error);
-    }
+
+    const run = async () => {
+      try {
+        const { font } = resolveTextFont(style);
+        try {
+          await document.fonts?.load(font);
+        } catch {
+          // Paint with the fallback face if the requested family is unavailable.
+        }
+        if (cancelled) {
+          return;
+        }
+        nextTexture = createTextTexture(text, width, height, style);
+        setTexture(nextTexture);
+        onLoadRef.current?.(nextTexture);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        setTexture(null);
+        onErrorRef.current?.(error);
+      }
+    };
+
+    void run();
 
     return () => {
+      cancelled = true;
       nextTexture?.dispose();
     };
   }, [

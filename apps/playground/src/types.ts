@@ -7,6 +7,7 @@ import type {
   HotspotTooltipTrigger,
   IframePointerPolicy,
   TextHotspotAlign,
+  TextHotspotFontStyle,
   TextHotspotVerticalAlign,
   TextHotspotWhiteSpace,
 } from "@ericchen1990/pano-view";
@@ -74,7 +75,10 @@ export type EditorHotspot =
   | (EditorPointHotspotBase & {
       type: "text";
       text: string;
+      fontFamily: string;
       fontSize: number;
+      fontWeight: number;
+      fontStyle: TextHotspotFontStyle;
       color: string;
       background: string;
       backgroundOpacity: number;
