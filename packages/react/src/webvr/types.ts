@@ -54,9 +54,16 @@ export type WebVRProps = {
    * Defaults to 1500. Set to 0 to disable auto-click.
    */
   cursorDwellMs?: number;
-  /** Keep the display awake while a fallback session is active. Defaults to true. */
+  /**
+   * Keep the display awake while MobileVR or simulated VR is active.
+   * Uses the Screen Wake Lock API when available, otherwise a looping
+   * hidden video. Defaults to true.
+   */
   wakelock?: boolean;
-  /** Request pointer lock in simulated desktop VR. Defaults to true. */
+  /**
+   * Lock the mouse in simulated desktop VR so movement looks around with
+   * no visible cursor. Click the view to re-lock after Escape. Defaults to true.
+   */
   mousePointerLock?: boolean;
   onAvailable?: () => void;
   onUnavailable?: () => void;

@@ -34,12 +34,13 @@ export const DEFAULT_PANO_CURSORS: Required<PanoCursors> = {
 
 const PANO_DRAG_CLAIM_ID = "pano-cursor:dragging";
 
-type PanoCursorLayer = "dragging" | "hotspot" | "hotspotDragging";
+type PanoCursorLayer = "dragging" | "hotspot" | "hotspotDragging" | "hidden";
 
 const LAYER_PRIORITY: Record<PanoCursorLayer, number> = {
   dragging: 1,
   hotspot: 2,
   hotspotDragging: 3,
+  hidden: 4,
 };
 
 type CursorClaim = {
@@ -74,6 +75,8 @@ function resolveClaimCursor(
       return claim.cursor ?? cursors.hotspot;
     case "hotspotDragging":
       return claim.cursor ?? cursors.hotspotDragging;
+    case "hidden":
+      return "none";
     default: {
       const exhaustive: never = claim.layer;
       return exhaustive;

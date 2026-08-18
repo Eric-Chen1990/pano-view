@@ -38,7 +38,16 @@ import type {
   WebVRProps,
   WebVRSettings,
 } from "./types";
-import { useWebVRWakeLock } from "./wakelock";
+import {
+  exitWebVRPointerLock,
+  requestWebVRPointerLock,
+  useWebVRPointerLock,
+} from "./pointerlock";
+import {
+  acquireWebVRWakeLock,
+  releaseWebVRWakeLock,
+  useWebVRWakeLock,
+} from "./wakelock";
 
 function initializeSettings(
   screensize: WebVRProps["screensize"],
@@ -160,9 +169,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       if (previousMode === "fake") {
         controlsRef.current?.setGyroActive(false);
       }
-      if (document.pointerLockElement === gl.domElement) {
-        document.exitPointerLock();
-      }
+      exitWebVRPointerLock(gl.domElement);
       eventBus.emit("vrexit", { mode: previousMode });
       callbacksRef.current.onExitVR?.(previousMode);
     },
@@ -207,11 +214,18 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       capabilities.sensor &&
       (capabilities.mobile || desktopSupport);
     if (canUseMobileVR) {
+      if (wakelock) {
+        void acquireWebVRWakeLock();
+      }
       void requestElementFullscreen(getViewerElement(gl.domElement)).catch(
         () => {},
       );
       const granted = await requestPermission();
       if (!granted) {
+        releaseWebVRWakeLock();
+        if (getFullscreenElement()) {
+          void exitElementFullscreen();
+        }
         reportDenied();
         return false;
       }
@@ -223,11 +237,16 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     }
 
     if (fakeSupport) {
-      void requestElementFullscreen(getViewerElement(gl.domElement)).catch(
-        () => {},
-      );
+      if (wakelock) {
+        void acquireWebVRWakeLock();
+      }
+      try {
+        await requestElementFullscreen(getViewerElement(gl.domElement));
+      } catch {
+        // Fullscreen is best-effort; pointer lock can still use the click.
+      }
       if (mousePointerLock) {
-        gl.domElement.requestPointerLock?.();
+        void requestWebVRPointerLock(gl.domElement);
       }
       activate("fake");
       return true;
@@ -249,6 +268,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     reportUnknownDevice,
     requestPermission,
     settings.screensize,
+    wakelock,
     xrStore,
   ]);
 
@@ -368,6 +388,9 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       ) {
         return;
       }
+      if (event.movementX === 0 && event.movementY === 0) {
+        return;
+      }
       controlsRef.current?.applyViewDelta(
         {
           pitch: -event.movementY * 0.1,
@@ -395,6 +418,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     [controlsRef],
   );
 
+  useWebVRPointerLock(
+    mousePointerLock && mode === "fake",
+    gl.domElement,
+  );
   useWebVRWakeLock(
     wakelock && (mode === "mobilevr" || mode === "fake"),
   );

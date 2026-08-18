@@ -473,7 +473,12 @@ The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
 stored in the current origin's `localStorage`. In VR, a center reticle shows a
 crosshair; looking at an interactive hotspot draws a clockwise ring that fills
 over `cursorDwellMs` (default 1500), then the hotspot click handler runs. Set
-`cursorDwellMs={0}` to keep the reticle without auto-click.
+`cursorDwellMs={0}` to keep the reticle without auto-click. Simulated desktop
+VR (`fake` mode) requests pointer lock by default (`mousePointerLock`) so the
+cursor hides and mouse movement looks around; click the view again if the
+browser releases the lock. Fallback sessions keep the screen awake
+(`wakelock`) with the Screen Wake Lock API, or a looping hidden video on
+browsers that lack it.
 
 WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
 HTTPS and may require an explicit iOS permission prompt. Embedded viewers need

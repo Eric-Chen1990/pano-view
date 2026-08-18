@@ -198,7 +198,8 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
           className="pointer-events-none absolute inset-x-0 bottom-5 m-0 text-center text-xs font-semibold text-white drop-shadow"
           style={{ color: appearance.color }}
         >
-          Simulated VR Mode · Use a VR headset or mobile device for real VR.
+          Simulated VR Mode · Click the view to lock the mouse, then move to
+          look around. Use a headset or phone for real VR.
         </p>
       ) : null}
       {setupOpen ? (
