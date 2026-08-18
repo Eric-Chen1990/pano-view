@@ -1,11 +1,13 @@
 import {
   AutoRotate,
+  Gyro,
   PanoViewer,
   Sphere,
   Tile,
   type PanoViewerHandle,
+  type GyroHandle,
 } from "@ericchen1990/pano-view";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../cn";
 import { Metric } from "../Metric";
@@ -31,6 +33,8 @@ const PLACING_CURSORS = {
 
 export function CanvasPanel() {
   const viewerRef = useRef<PanoViewerHandle>(null);
+  const gyroRef = useRef<GyroHandle>(null);
+  const [gyroEnabled, setGyroEnabled] = useState(false);
   const {
     mode,
     view,
@@ -113,6 +117,28 @@ export function CanvasPanel() {
             {autoRotate ? "Stop rotation" : "Auto rotate"}
           </button>
           <button
+            aria-pressed={gyroEnabled}
+            className={segmentedButtonClassName}
+            onClick={() => {
+              if (gyroEnabled) {
+                setGyroEnabled(false);
+                return;
+              }
+              if (!window.isSecureContext) {
+                window.alert(
+                  "Gyro requires HTTPS. Open this playground over a secure connection and try again.",
+                );
+                return;
+              }
+              void gyroRef.current
+                ?.requestPermission()
+                .then((granted) => setGyroEnabled(granted));
+            }}
+            type="button"
+          >
+            {gyroEnabled ? "Gyro on" : "Gyro"}
+          </button>
+          <button
             className={segmentedButtonClassName}
             onClick={() => viewerRef.current?.reset()}
             type="button"
@@ -183,6 +209,11 @@ export function CanvasPanel() {
             speed={18}
             acceleration={18}
             startDelay={1_000}
+          />
+          <Gyro
+            ref={gyroRef}
+            enabled={gyroEnabled && !placementTool && !drawingPath}
+            onDenied={() => setGyroEnabled(false)}
           />
           {mode === "sphere" ? (
             <Sphere src="/fixtures/panorama/panos/1.jpg" />

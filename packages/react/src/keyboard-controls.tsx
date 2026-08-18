@@ -348,7 +348,10 @@ export function KeyboardControls({
     }
 
     if (yaw !== 0 || pitch !== 0 || fov !== 0) {
-      controls.applyViewDelta({ yaw, pitch, fov });
+      controls.applyViewDelta(
+        { yaw, pitch, fov },
+        { source: "keyboard" },
+      );
     }
   });
 

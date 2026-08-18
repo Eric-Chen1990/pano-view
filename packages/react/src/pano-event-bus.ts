@@ -39,6 +39,11 @@ export type PanoEventMap = {
   autorotatestart: undefined;
   autorotatestop: undefined;
   autorotateoneround: undefined;
+  gyroavailable: undefined;
+  gyrounavailable: undefined;
+  gyroenable: undefined;
+  gyrodisable: undefined;
+  gyrodenied: undefined;
 };
 
 export type PanoEventType = keyof PanoEventMap;

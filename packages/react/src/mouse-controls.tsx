@@ -157,7 +157,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { yaw: deltaYaw, pitch: deltaPitch },
-        { recordVelocity: true },
+        { recordVelocity: true, source: "mouse" },
       );
     };
 
@@ -194,7 +194,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { fov: delta },
-        { recordVelocity: true },
+        { recordVelocity: true, source: "mouse" },
       );
     };
 

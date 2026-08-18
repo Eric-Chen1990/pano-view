@@ -51,6 +51,7 @@ component appearance props.
 - [`TouchControls`](#touchcontrols) — one-finger drag and pinch zoom
 - [`KeyboardControls`](#keyboardcontrols) — arrow-key look, FOV, and scene cycling
 - [`AutoRotate`](#autorotate) — automatic yaw rotation
+- [`Gyro`](#gyro) — opt-in device-orientation control
 
 ### Events and chrome
 
@@ -352,6 +353,79 @@ Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enab
 </PanoViewer>
 ```
 
+## Gyro
+
+`Gyro` is an opt-in device-orientation control and is disabled by default.
+Render it inside `PanoViewer` and control its `enabled` prop. Relative mode
+(the default) treats the view at activation time as the starting direction.
+Set `absolute` to follow compass-oriented headings and use `north` to identify
+the panorama yaw that points North.
+
+```tsx
+import { useRef, useState } from "react";
+import {
+  Gyro,
+  PanoViewer,
+  Sphere,
+  type GyroHandle,
+} from "@ericchen1990/pano-view";
+
+export function GyroExample() {
+  const gyroRef = useRef<GyroHandle>(null);
+  const [enabled, setEnabled] = useState(false);
+
+  const toggle = async () => {
+    if (enabled) {
+      setEnabled(false);
+      return;
+    }
+    // iOS requires this call to run directly inside a user gesture.
+    setEnabled((await gyroRef.current?.requestPermission()) ?? false);
+  };
+
+  return (
+    <>
+      <button onClick={() => void toggle()}>
+        {enabled ? "Disable gyro" : "Enable gyro"}
+      </button>
+      <PanoViewer style={{ height: 560 }}>
+        <Gyro
+          ref={gyroRef}
+          enabled={enabled}
+          camroll
+          friction={0}
+          softstart={0.5}
+          touchMode="full"
+          onDenied={() => setEnabled(false)}
+        />
+        <Sphere src="/panoramas/room.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+`camroll` (default `true`) levels the camera from device roll. `friction`
+accepts `0` to `0.99`; higher values smooth more strongly but add latency.
+`softstart` is the activation blend duration in seconds (default `0.5`).
+`desktopSupport` defaults to `false` because desktop browsers can expose the
+API without a physical sensor.
+
+`touchMode` controls how touch drag combines with device movement:
+
+- `off` ignores touch yaw/pitch while leaving pinch FOV available.
+- `horizontaloffset` adds only a horizontal offset.
+- `full` adds horizontal and vertical offsets; the vertical offset returns
+  toward the physical orientation as the device moves.
+- `disablegyro` disables the active gyro session on the next touch.
+
+The `GyroHandle` exposes `resetSensor(yaw?, pitch?)`, `isAvailable()`,
+`isEnabled()`, and `requestPermission()`. Gyro activity pauses `AutoRotate`
+and counts as viewer interaction for idle tracking. Sensor APIs generally
+require HTTPS. A cross-origin iframe must be permitted by the host page, for
+example with `allow="gyroscope; accelerometer"` and a compatible
+`Permissions-Policy` header.
+
 ## Mouse, touch, and keyboard controls
 
 `PanoViewer` enables `MouseControls`, `TouchControls`, and `KeyboardControls` by default. Configure shared options through `controls`; render a control component only to override that channel's properties. A child instance replaces the default — you do not need to set the channel to `false` first. Set `controls.mouse` / `touch` / `keyboard` to `false` to turn a channel off.
@@ -519,6 +593,8 @@ Supported callbacks (krpano names in parentheses where applicable):
 - Fullscreen: `onEnterFullscreen` / `onExitFullscreen`
 - `onResize` — canvas content-box size via `ResizeObserver`
 - Auto-rotate: `onAutoRotateStart` / `onAutoRotateStop` / `onAutoRotateOneRound`
+- Gyro: `onGyroAvailable` / `onGyroUnavailable` / `onGyroEnable` /
+  `onGyroDisable` / `onGyroDenied`
 
 `PanoViewer`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
 `onPanoramaPointerMove` props remain supported and share the same event bus.
@@ -526,7 +602,7 @@ Supported callbacks (krpano names in parentheses where applicable):
 Resource loading and scene blending stay on their owners: use `Sphere` /
 `Tile` `onLoad` / `onError` / `onLoadProgress`, and `Scenes`
 `onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
-xml/VR/gyro/frame-render events.
+xml/VR/frame-render events.
 
 ## PanoContextMenu
 

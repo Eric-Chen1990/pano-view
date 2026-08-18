@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { RefObject } from "react";
 import { Euler, MathUtils, PerspectiveCamera } from "three";
+import type { GyroPose, GyroTouchMode } from "./gyro-types";
 import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
@@ -28,6 +29,8 @@ const VIEW_SETTLE_EPSILON = 0.001;
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
   recordVelocity?: boolean;
+  /** Input channel applying the delta. */
+  source?: "mouse" | "touch" | "keyboard";
 };
 
 export type PanoramaViewRuntimeHandle = {
@@ -58,6 +61,12 @@ export type PanoramaViewRuntimeHandle = {
    * lock is active. Used by idle timers and AutoRotate pause logic.
    */
   isUserInteracting: () => boolean;
+  /** Enables or disables device-orientation control. */
+  setGyroActive: (active: boolean) => void;
+  /** Updates the latest device-orientation pose. */
+  setGyroPose: (pose: GyroPose) => void;
+  /** Configures how pointer deltas combine with the gyro pose. */
+  setGyroTouchMode: (mode: GyroTouchMode) => void;
   applyAutoRotation: (yawDelta: number) => boolean;
   acquireInteractionLock: () => () => void;
 };
@@ -127,6 +136,11 @@ export const PanoramaViewRuntime = forwardRef<
   const touchActiveRef = useRef(false);
   const interactionLockCountRef = useRef(0);
   const keyboardActiveRef = useRef(false);
+  const gyroActiveRef = useRef(false);
+  const gyroPoseRef = useRef<GyroPose>({ yaw: 0, pitch: 0, roll: 0 });
+  const gyroOffsetRef = useRef({ yaw: 0, pitch: 0 });
+  const gyroTouchModeRef = useRef<GyroTouchMode>("full");
+  const cameraRollRef = useRef(0);
   const lastVelocitySampleAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
   const eventBusRef = useRef(eventBus);
@@ -149,6 +163,7 @@ export const PanoramaViewRuntime = forwardRef<
     mouseActiveRef.current ||
     touchActiveRef.current ||
     keyboardActiveRef.current ||
+    gyroActiveRef.current ||
     interactionLockCountRef.current > 0 ||
     hasInertia();
 
@@ -252,6 +267,12 @@ export const PanoramaViewRuntime = forwardRef<
     setOptions?: SetPanoViewerOptions,
   ) => {
     const nextView = hardConstrainView(view);
+    if (gyroActiveRef.current) {
+      gyroOffsetRef.current = {
+        yaw: shortestYawDelta(gyroPoseRef.current.yaw, nextView.yaw),
+        pitch: nextView.pitch - gyroPoseRef.current.pitch,
+      };
+    }
     targetViewRef.current = nextView;
     viewRef.current = nextView;
     if (setOptions?.immediate !== false) {
@@ -269,12 +290,21 @@ export const PanoramaViewRuntime = forwardRef<
     }
 
     const current = targetViewRef.current;
+    const gyroMode = gyroTouchModeRef.current;
+    const gyroControlsView = gyroActiveRef.current;
+    const appliesTouchMode =
+      gyroControlsView && applyOptions?.source === "touch";
+    const acceptsYaw =
+      !appliesTouchMode ||
+      gyroMode === "horizontaloffset" ||
+      gyroMode === "full";
+    const acceptsPitch = !appliesTouchMode || gyroMode === "full";
     const nextYaw =
-      delta.yaw !== undefined && Number.isFinite(delta.yaw)
+      acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)
         ? current.yaw + delta.yaw
         : current.yaw;
     const nextPitch =
-      delta.pitch !== undefined && Number.isFinite(delta.pitch)
+      acceptsPitch && delta.pitch !== undefined && Number.isFinite(delta.pitch)
         ? current.pitch + delta.pitch
         : current.pitch;
     const nextFov =
@@ -287,9 +317,21 @@ export const PanoramaViewRuntime = forwardRef<
       pitch: nextPitch,
       fov: nextFov,
     });
+    if (gyroControlsView) {
+      if (acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)) {
+        gyroOffsetRef.current.yaw += delta.yaw;
+      }
+      if (
+        acceptsPitch &&
+        delta.pitch !== undefined &&
+        Number.isFinite(delta.pitch)
+      ) {
+        gyroOffsetRef.current.pitch += delta.pitch;
+      }
+    }
     markDirty();
 
-    if (applyOptions?.recordVelocity) {
+    if (applyOptions?.recordVelocity && !gyroControlsView) {
       const now = performance.now();
       const previousAt = lastVelocitySampleAtRef.current;
       const elapsed =
@@ -358,6 +400,50 @@ export const PanoramaViewRuntime = forwardRef<
       },
       isInteractionLocked: () => interactionLockCountRef.current > 0,
       isUserInteracting,
+      setGyroActive: (active: boolean) => {
+        gyroActiveRef.current = active;
+        gyroOffsetRef.current = { yaw: 0, pitch: 0 };
+        stopVelocity();
+        if (!active) {
+          cameraRollRef.current = 0;
+          dirtyRef.current = true;
+        }
+      },
+      setGyroPose: (pose: GyroPose) => {
+        if (
+          !gyroActiveRef.current ||
+          interactionLockCountRef.current > 0 ||
+          !Number.isFinite(pose.yaw) ||
+          !Number.isFinite(pose.pitch) ||
+          !Number.isFinite(pose.roll)
+        ) {
+          return;
+        }
+
+        const previous = gyroPoseRef.current;
+        const viewMovement =
+          Math.abs(shortestYawDelta(previous.yaw, pose.yaw)) +
+          Math.abs(previous.pitch - pose.pitch);
+        const movement =
+          viewMovement + Math.abs(previous.roll - pose.roll);
+        if (movement < 0.0001) {
+          return;
+        }
+        gyroPoseRef.current = { ...pose };
+        targetViewRef.current = hardConstrainView({
+          yaw: pose.yaw + gyroOffsetRef.current.yaw,
+          pitch: pose.pitch + gyroOffsetRef.current.pitch,
+        });
+        cameraRollRef.current = pose.roll;
+        if (viewMovement >= 0.0001) {
+          markDirty();
+        } else {
+          dirtyRef.current = true;
+        }
+      },
+      setGyroTouchMode: (mode: GyroTouchMode) => {
+        gyroTouchModeRef.current = mode;
+      },
       acquireInteractionLock,
       applyAutoRotation: (yawDelta: number) => {
         const inertiaFinished =
@@ -366,6 +452,7 @@ export const PanoramaViewRuntime = forwardRef<
           zoomVelocityRef.current === 0;
         if (
           !Number.isFinite(yawDelta) ||
+          gyroActiveRef.current ||
           interactionLockCountRef.current > 0 ||
           interactingRef.current ||
           keyboardActiveRef.current ||
@@ -394,7 +481,7 @@ export const PanoramaViewRuntime = forwardRef<
 
     const frictionStop = resolveFrictionStop(optionsRef.current.frictionStop);
     const inertiaEnabled = optionsRef.current.inertia !== false;
-    if (!interactingRef.current && inertiaEnabled) {
+    if (!interactingRef.current && !gyroActiveRef.current && inertiaEnabled) {
       const rotationDamping = Math.exp(
         -INERTIA_ROTATION_DAMPING * deltaSeconds,
       );
@@ -467,7 +554,7 @@ export const PanoramaViewRuntime = forwardRef<
     eulerRef.current.set(
       MathUtils.degToRad(viewRef.current.pitch),
       MathUtils.degToRad(-viewRef.current.yaw),
-      0,
+      MathUtils.degToRad(cameraRollRef.current),
       "YXZ",
     );
     camera.quaternion.setFromEuler(eulerRef.current);

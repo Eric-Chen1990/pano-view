@@ -4,6 +4,8 @@ export { DEFAULT_PANO_CURSORS } from "./pano-cursor";
 export type { PanoCursor, PanoCursors } from "./pano-cursor";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { Gyro } from "./gyro";
+export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
 export { PanoContextMenu } from "./pano-context-menu";
 export {
   composePanoContextMenuItems,

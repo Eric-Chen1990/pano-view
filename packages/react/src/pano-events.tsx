@@ -41,6 +41,11 @@ export type PanoEventsProps = {
   onAutoRotateStart?: () => void;
   onAutoRotateStop?: () => void;
   onAutoRotateOneRound?: () => void;
+  onGyroAvailable?: () => void;
+  onGyroUnavailable?: () => void;
+  onGyroEnable?: () => void;
+  onGyroDisable?: () => void;
+  onGyroDenied?: () => void;
 };
 
 function resolveIdleTime(value: number | undefined): number {
@@ -72,6 +77,11 @@ export function usePanoEvents({
   onAutoRotateStart,
   onAutoRotateStop,
   onAutoRotateOneRound,
+  onGyroAvailable,
+  onGyroUnavailable,
+  onGyroEnable,
+  onGyroDisable,
+  onGyroDenied,
 }: PanoEventsProps): void {
   const eventBus = useContext(PanoEventBusContext);
   const controlsRef = useContext(PanoramaViewContext);
@@ -101,6 +111,11 @@ export function usePanoEvents({
     onAutoRotateStart,
     onAutoRotateStop,
     onAutoRotateOneRound,
+    onGyroAvailable,
+    onGyroUnavailable,
+    onGyroEnable,
+    onGyroDisable,
+    onGyroDenied,
   });
   callbacksRef.current = {
     onViewChange,
@@ -122,6 +137,11 @@ export function usePanoEvents({
     onAutoRotateStart,
     onAutoRotateStop,
     onAutoRotateOneRound,
+    onGyroAvailable,
+    onGyroUnavailable,
+    onGyroEnable,
+    onGyroDisable,
+    onGyroDenied,
   };
 
   const idleElapsedRef = useRef(0);
@@ -174,6 +194,21 @@ export function usePanoEvents({
       }),
       eventBus.subscribe("autorotateoneround", () => {
         callbacksRef.current.onAutoRotateOneRound?.();
+      }),
+      eventBus.subscribe("gyroavailable", () => {
+        callbacksRef.current.onGyroAvailable?.();
+      }),
+      eventBus.subscribe("gyrounavailable", () => {
+        callbacksRef.current.onGyroUnavailable?.();
+      }),
+      eventBus.subscribe("gyroenable", () => {
+        callbacksRef.current.onGyroEnable?.();
+      }),
+      eventBus.subscribe("gyrodisable", () => {
+        callbacksRef.current.onGyroDisable?.();
+      }),
+      eventBus.subscribe("gyrodenied", () => {
+        callbacksRef.current.onGyroDenied?.();
       }),
     ];
     return () => {
