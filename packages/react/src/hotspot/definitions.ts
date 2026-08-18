@@ -1,4 +1,6 @@
 import type { GraphicDefinition } from "./graphic-hotspot";
+import type { IframePointerPolicy } from "./iframe-hotspot";
+import type { TextHotspotStyle } from "./text-hotspot";
 import type {
   HotspotMode,
   HotspotPosition,
@@ -62,6 +64,24 @@ export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };
 
+export type TextHotspotDefinition = PointHotspotDefinitionBase &
+  TextHotspotStyle & {
+    type: "text";
+    text: string;
+  };
+
+export type IframeHotspotDefinition = PointHotspotDefinitionBase & {
+  type: "iframe";
+  src: string;
+  title?: string;
+  sandbox?: string;
+  allow?: string;
+  referrerPolicy?: string;
+  loading?: "eager" | "lazy";
+  pointerPolicy?: IframePointerPolicy;
+  background?: string;
+};
+
 export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   type: "polygon";
   vertices: HotspotPosition[];
@@ -72,7 +92,7 @@ export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   strokeOpacity?: number;
 };
 
-/** An open path. This extends the original five hotspot categories. */
+/** An open path. This extends the original point and polygon hotspot categories. */
 export type PolylineHotspotDefinition = HotspotDefinitionBase & {
   type: "polyline";
   vertices: HotspotPosition[];
@@ -85,7 +105,9 @@ export type PointHotspotDefinition =
   | ImageHotspotDefinition
   | GraphicHotspotDefinition
   | SequenceHotspotDefinition
-  | VideoHotspotDefinition;
+  | VideoHotspotDefinition
+  | TextHotspotDefinition
+  | IframeHotspotDefinition;
 
 /** A serializable, discriminated hotspot collection item. */
 export type HotspotDefinition =

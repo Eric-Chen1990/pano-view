@@ -2,12 +2,14 @@ import { validatePolygonVertices, type GraphicDefinition, type HotspotMode } fro
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { EditorHotspot } from "../../types";
-import { formatPosition, numberValue, polygonIssueSummary } from "../../utils";
+import { formatPosition, hotspotTypeCode, numberValue, polygonIssueSummary } from "../../utils";
 import { GraphicFields } from "./fields/GraphicFields";
+import { IframeFields } from "./fields/IframeFields";
 import { PolygonDraftFields } from "./fields/PolygonDraftFields";
 import { PolygonFields } from "./fields/PolygonFields";
 import { PolylineFields } from "./fields/PolylineFields";
 import { SequenceFields } from "./fields/SequenceFields";
+import { TextFields } from "./fields/TextFields";
 import { VideoFields } from "./fields/VideoFields";
 import {
   selectDrawingPath,
@@ -19,6 +21,8 @@ import {
   useHotspotBenchStore,
   type HotspotPatch,
   type SequencePatch,
+  type TextPatch,
+  type IframePatch,
   type VideoPatch,
 } from "./store";
 
@@ -40,6 +44,8 @@ export function Inspector() {
     updateImageSource,
     updateSequence,
     updateVideo,
+    updateText,
+    updateIframe,
     updatePolygon,
     updatePolyline,
     deleteSelected,
@@ -63,6 +69,8 @@ export function Inspector() {
       updateImageSource: state.updateImageSource,
       updateSequence: state.updateSequence,
       updateVideo: state.updateVideo,
+      updateText: state.updateText,
+      updateIframe: state.updateIframe,
       updatePolygon: state.updatePolygon,
       updatePolyline: state.updatePolyline,
       deleteSelected: state.deleteSelected,
@@ -102,6 +110,8 @@ export function Inspector() {
           onUpdateImageSource={updateImageSource}
           onUpdateSequence={updateSequence}
           onUpdateVideo={updateVideo}
+          onUpdateText={updateText}
+          onUpdateIframe={updateIframe}
           onDelete={deleteSelected}
         />
       ) : selectedPolygon ? (
@@ -138,7 +148,7 @@ export function Inspector() {
             onClick={() => selectItem(hotspot.id, `${hotspot.label} selected.`)}
             type="button"
           >
-            <span>{({ image: "IMG", graphic: "GFX", sequence: "SEQ", video: "VID" })[hotspot.type]}</span>
+            <span>{hotspotTypeCode(hotspot.type)}</span>
             <b>{hotspot.label}</b>
             <small>{formatPosition(hotspot.position)}</small>
           </button>
@@ -185,6 +195,8 @@ function SelectedHotspotFields({
   onUpdateImageSource,
   onUpdateSequence,
   onUpdateVideo,
+  onUpdateText,
+  onUpdateIframe,
   onDelete,
 }: {
   selected: EditorHotspot;
@@ -193,6 +205,8 @@ function SelectedHotspotFields({
   onUpdateImageSource: (id: string, src: string) => void;
   onUpdateSequence: (id: string, patch: SequencePatch) => void;
   onUpdateVideo: (id: string, patch: VideoPatch) => void;
+  onUpdateText: (id: string, patch: TextPatch) => void;
+  onUpdateIframe: (id: string, patch: IframePatch) => void;
   onDelete: () => void;
 }) {
   return (
@@ -352,11 +366,26 @@ function SelectedHotspotFields({
           hotspot={selected}
           onChange={(patch) => onUpdateSequence(selected.id, patch)}
         />
-      ) : (
+      ) : selected.type === "video" ? (
         <VideoFields
           hotspot={selected}
           onChange={(patch) => onUpdateVideo(selected.id, patch)}
         />
+      ) : selected.type === "text" ? (
+        <TextFields
+          hotspot={selected}
+          onChange={(patch) => onUpdateText(selected.id, patch)}
+        />
+      ) : selected.type === "iframe" ? (
+        <IframeFields
+          hotspot={selected}
+          onChange={(patch) => onUpdateIframe(selected.id, patch)}
+        />
+      ) : (
+        (() => {
+          const exhaustive: never = selected;
+          return exhaustive;
+        })()
       )}
 
       <button className="delete-button" onClick={onDelete} type="button">

@@ -3,8 +3,8 @@
 - **Hotspot**: a rendered, optional interactive object placed in a panorama.
   Its collection, persistence, and business action are owned by the host.
 - **Point Hotspot**: a hotspot anchored by exactly one `HotspotPosition`
-  (`yaw` and `pitch`). Image, graphic, sequence, and video hotspots are point
-  hotspots.
+  (`yaw` and `pitch`). Image, graphic, sequence, video, text, and iframe
+  hotspots are point hotspots.
 - **Image Hotspot**: a point hotspot whose visual content is a URL texture.
 - **Graphic Hotspot**: a point hotspot rendered from a built-in shape, SVG URL,
   or safe SVG path data and viewBox.
@@ -13,6 +13,10 @@
   URLs.
 - **Video Hotspot**: a point hotspot whose visual content is an HTML video
   element exposed as a Three.js video texture.
+- **Text Hotspot**: a point hotspot whose visual content is plain text
+  rasterized to a canvas texture. It does not accept HTML.
+- **Iframe Hotspot**: a point hotspot whose visual content is an embedded
+  document, projected with a DOM overlay that follows the hotspot anchor.
 - **Polygon Hotspot**: a closed, simple local spherical area defined by at
   least three vertices. It can have fill and/or an outline. Valid polygons do
   not self-intersect, contain a pole, or span more than one hemisphere.

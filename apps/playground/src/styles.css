@@ -100,6 +100,8 @@ footer,
 .wordmark span,
 .eyebrow,
 .type-chip.image,
+.type-chip.text,
+.type-chip.iframe,
 .type-chip.polygon,
 .type-chip.polyline {
   color: #df6b42;
@@ -888,7 +890,7 @@ footer {
     display: grid;
     grid-auto-columns: minmax(112px, 1fr);
     grid-auto-flow: column;
-    grid-template-columns: repeat(8, minmax(112px, 1fr));
+    grid-template-columns: repeat(10, minmax(112px, 1fr));
     gap: 6px;
     min-height: 0;
     overflow-x: auto;

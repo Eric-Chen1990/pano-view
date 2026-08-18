@@ -1,9 +1,11 @@
 import {
   GraphicHotspot,
+  IframeHotspot,
   ImageHotspot,
   PolygonHotspot,
   PolylineHotspot,
   SequenceHotspot,
+  TextHotspot,
   VideoHotspot,
   validatePolygonVertices,
   type HotspotPosition,
@@ -132,19 +134,51 @@ export const HotspotLayer = memo(function HotspotLayer() {
             />
           );
         }
-        return (
-          <VideoHotspot
-            key={hotspot.id}
-            {...sharedProps}
-            loop={hotspot.loop}
-            muted={hotspot.muted}
-            onEnded={() => updateVideo(hotspot.id, { playing: false })}
-            playing={hotspot.playing}
-            poster={hotspot.poster}
-            src={hotspot.src}
-            volume={hotspot.volume}
-          />
-        );
+        if (hotspot.type === "video") {
+          return (
+            <VideoHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              loop={hotspot.loop}
+              muted={hotspot.muted}
+              onEnded={() => updateVideo(hotspot.id, { playing: false })}
+              playing={hotspot.playing}
+              poster={hotspot.poster}
+              src={hotspot.src}
+              volume={hotspot.volume}
+            />
+          );
+        }
+        if (hotspot.type === "text") {
+          return (
+            <TextHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              align={hotspot.align}
+              background={hotspot.background}
+              backgroundOpacity={hotspot.backgroundOpacity}
+              color={hotspot.color}
+              fontSize={hotspot.fontSize}
+              text={hotspot.text}
+              verticalAlign={hotspot.verticalAlign}
+              whiteSpace={hotspot.whiteSpace}
+            />
+          );
+        }
+        if (hotspot.type === "iframe") {
+          return (
+            <IframeHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              pointerPolicy={hotspot.pointerPolicy}
+              sandbox={hotspot.sandbox}
+              src={hotspot.src}
+              title={hotspot.title}
+            />
+          );
+        }
+        const exhaustive: never = hotspot;
+        throw new Error(`Unhandled hotspot type: ${exhaustive}`);
       })}
       {polygons.map((polygon) => (
         <PolygonHotspot

@@ -2,6 +2,10 @@ import type {
   GraphicDefinition,
   HotspotMode,
   HotspotPosition,
+  IframePointerPolicy,
+  TextHotspotAlign,
+  TextHotspotVerticalAlign,
+  TextHotspotWhiteSpace,
 } from "@ericchen1990/pano-view";
 
 export type ViewerMode = "sphere" | "tile";
@@ -13,6 +17,8 @@ export type EditorTool =
   | "graphic"
   | "sequence"
   | "video"
+  | "text"
+  | "iframe"
   | "polygon"
   | "polyline";
 
@@ -90,6 +96,48 @@ export type EditorHotspot =
       loop: boolean;
       muted: boolean;
       volume: number;
+    }
+  | {
+      id: string;
+      type: "text";
+      label: string;
+      position: HotspotPosition;
+      width: number;
+      height: number;
+      rotation: number;
+      scale: number;
+      mode: HotspotMode;
+      distance: number;
+      scaleMode: "fov" | "fixed";
+      opacity: number;
+      visible: boolean;
+      text: string;
+      fontSize: number;
+      color: string;
+      background: string;
+      backgroundOpacity: number;
+      align: TextHotspotAlign;
+      verticalAlign: TextHotspotVerticalAlign;
+      whiteSpace: TextHotspotWhiteSpace;
+    }
+  | {
+      id: string;
+      type: "iframe";
+      label: string;
+      position: HotspotPosition;
+      width: number;
+      height: number;
+      rotation: number;
+      scale: number;
+      mode: HotspotMode;
+      distance: number;
+      scaleMode: "fov" | "fixed";
+      opacity: number;
+      visible: boolean;
+      src: string;
+      title: string;
+      sandbox: string;
+      pointerPolicy: IframePointerPolicy;
     };
 
 export type EditorPolygon = {

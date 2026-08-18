@@ -107,6 +107,20 @@ export type {
   VideoHotspotProps,
   VideoPlaybackState,
 } from "./hotspot/video-hotspot";
+export { TextHotspot } from "./hotspot/text-hotspot";
+export type {
+  TextHotspotAlign,
+  TextHotspotFontStyle,
+  TextHotspotProps,
+  TextHotspotStyle,
+  TextHotspotVerticalAlign,
+  TextHotspotWhiteSpace,
+} from "./hotspot/text-hotspot";
+export { IframeHotspot } from "./hotspot/iframe-hotspot";
+export type {
+  IframeHotspotProps,
+  IframePointerPolicy,
+} from "./hotspot/iframe-hotspot";
 export { Tile } from "./tile/tile";
 export type {
   CubeFaceCode,
@@ -147,11 +161,13 @@ export type {
   GraphicHotspotDefinition,
   HotspotDefinition,
   HotspotDefinitionBase,
+  IframeHotspotDefinition,
   ImageHotspotDefinition,
   PointHotspotDefinition,
   PointHotspotDefinitionBase,
   PolygonHotspotDefinition,
   PolylineHotspotDefinition,
   SequenceHotspotDefinition,
+  TextHotspotDefinition,
   VideoHotspotDefinition,
 } from "./hotspot/definitions";

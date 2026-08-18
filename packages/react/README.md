@@ -15,10 +15,10 @@ compatible with that tile output format but is not affiliated with krpano.
 ## Install
 
 ```bash
-npm install @ericchen1990/pano-view react react-dom three @react-three/fiber
+npm install @ericchen1990/pano-view react react-dom three @react-three/fiber @react-three/drei
 ```
 
-React 19, React DOM 19, `@react-three/fiber` 9, and Three.js are peer dependencies.
+React 19, React DOM 19, `@react-three/fiber` 9, `@react-three/drei` 10, and Three.js are peer dependencies.
 
 ## Exported components
 
@@ -47,6 +47,8 @@ React 19, React DOM 19, `@react-three/fiber` 9, and Three.js are peer dependenci
 - [`GraphicHotspot`](#graphichotspot) — built-in shapes or SVG at a position
 - [`SequenceHotspot`](#sequencehotspot) — sprite-sheet animation
 - [`VideoHotspot`](#videohotspot) — HTML video texture
+- [`TextHotspot`](#texthotspot) — rasterized plain text at a position
+- [`IframeHotspot`](#iframehotspot) — embedded document overlay at a position
 - [`PolygonHotspot`](#polygonhotspot) — closed spherical area
 - [`PolylineHotspot`](#polylinehotspot) — open spherical path
 
@@ -544,8 +546,9 @@ back to its state. Polygon and polyline hotspots report the corresponding
 controlled `vertices` through `onVerticesChange`.
 
 For persistence or a host-owned editor, use the exported discriminated
-`HotspotDefinition` union. It contains the original five categories plus the
-open `polyline` extension:
+`HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
+exhaustive switches; handle `text` and `iframe` alongside the existing point
+and path categories:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -555,6 +558,8 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
+  { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
   { type: "polyline", id: "route", vertices: [{ yaw: -8, pitch: 1 }, { yaw: 4, pitch: 8 }] },
 ];
@@ -819,6 +824,69 @@ explicit user action.
 Video reports media and poster failures through `onError`. Like
 `SequenceHotspot`, it does not change `playing` by itself. This keeps source
 changes, unmounts, and React StrictMode lifecycles deterministic.
+
+## TextHotspot
+
+`TextHotspot` rasterizes plain text onto a canvas texture. It does not accept
+HTML or Markdown. `\n` is a hard line break; `whiteSpace="normal"` (default)
+wraps words to the hotspot's angular width. Dimensions stay in degrees like
+the other point hotspots. `fontSize`, `padding`, and `borderRadius` are
+fractions of the texture, so they scale with `width` / `height`.
+
+```tsx
+import { TextHotspot } from "@ericchen1990/pano-view";
+
+<TextHotspot
+  id="caption"
+  ariaLabel="Courtyard overlook"
+  position={{ yaw: 0, pitch: -16 }}
+  width={16}
+  height={6}
+  mode="billboard"
+  scaleMode="fixed"
+  text={"Courtyard overlook\nNorth terrace"}
+  align="center"
+  verticalAlign="middle"
+  fontSize={0.18}
+  color="#f8fafc"
+  background="#111827"
+  backgroundOpacity={0.72}
+/>;
+```
+
+Load a custom `fontFamily` on the page before the hotspot paints; canvas text
+uses whatever faces the document already has. `onLoad(texture)` and
+`onError(error)` match `ImageHotspot`.
+
+## IframeHotspot
+
+`IframeHotspot` places an embedded document with `@react-three/drei` `Html`
+`transform`, so it follows the same hotspot mode, rotation, and zoom scaling
+as a texture plane. The iframe is a DOM overlay and is not occluded by the
+panorama shell. There is no `srcdoc` prop.
+
+```tsx
+import { IframeHotspot } from "@ericchen1990/pano-view";
+
+<IframeHotspot
+  id="guide"
+  ariaLabel="Open visitor guide"
+  position={{ yaw: -62, pitch: 4 }}
+  width={18}
+  height={12}
+  mode="billboard"
+  src="/hotspots/embed.html"
+  pointerPolicy="hotspot"
+/>;
+```
+
+`pointerPolicy="hotspot"` (default) sets the iframe to `pointer-events: none`
+so clicks and drags hit the WebGL plane. `"content"` makes the page
+interactive and blocks dragging through the iframe. `sandbox` defaults to
+`allow-scripts allow-popups allow-forms` without `allow-same-origin`.
+`referrerPolicy` defaults to `strict-origin-when-cross-origin`. Prefer a
+same-origin document; many third-party sites send `X-Frame-Options` and will
+not load.
 
 ## Next.js and SSR
 

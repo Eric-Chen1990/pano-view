@@ -29,6 +29,27 @@ export function createId(type: EditorHotspot["type"]): string {
   return `${type}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+export function hotspotTypeCode(type: EditorHotspot["type"]): string {
+  switch (type) {
+    case "image":
+      return "IMG";
+    case "graphic":
+      return "GFX";
+    case "sequence":
+      return "SEQ";
+    case "video":
+      return "VID";
+    case "text":
+      return "TXT";
+    case "iframe":
+      return "FRM";
+    default: {
+      const exhaustive: never = type;
+      return exhaustive;
+    }
+  }
+}
+
 export function createGraphic(
   kind: "circle" | "triangle" | "diamond" | "star" | "arrow" | "rectangle" | "ring" | "svg",
 ): GraphicDefinition {

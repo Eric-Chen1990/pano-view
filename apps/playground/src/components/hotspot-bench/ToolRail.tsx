@@ -69,6 +69,18 @@ export function ToolRail() {
         onClick={() => selectTool("video", "Click the panorama to place a video hotspot.")}
       />
       <ToolButton
+        active={tool === "text"}
+        detail="Caption"
+        label="Text"
+        onClick={() => selectTool("text", "Click the panorama to place a text hotspot.")}
+      />
+      <ToolButton
+        active={tool === "iframe"}
+        detail="Embed"
+        label="Iframe"
+        onClick={() => selectTool("iframe", "Click the panorama to place an iframe hotspot.")}
+      />
+      <ToolButton
         active={drawingPolygon}
         detail="Draw + edit"
         label="Polygon"
