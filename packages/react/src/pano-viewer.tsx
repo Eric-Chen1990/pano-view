@@ -439,7 +439,6 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             ...DEFAULT_CANVAS_STYLE,
             touchAction: userControlsEnabled ? "none" : "auto",
           }}
-          tabIndex={userControlsEnabled ? 0 : undefined}
         >
           <HotspotAccessibilityContext.Provider value={registry}>
             <PanoEventBusContext.Provider value={eventBus}>
