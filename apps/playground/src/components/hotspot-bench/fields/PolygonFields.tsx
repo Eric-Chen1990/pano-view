@@ -1,5 +1,6 @@
 import type { EditorPolygon } from "../../../types";
 import { formatPosition, numberValue } from "../../../utils";
+import { TooltipFields } from "./TooltipFields";
 
 export function PolygonFields({
   polygon,
@@ -78,6 +79,13 @@ export function PolygonFields({
         />
         <span>Visible in panorama</span>
       </label>
+      <TooltipFields
+        onChange={onChange}
+        tooltip={polygon.tooltip ?? {}}
+        tooltipOffset={polygon.tooltipOffset ?? 12}
+        tooltipPlacement={polygon.tooltipPlacement ?? "top"}
+        tooltipTrigger={polygon.tooltipTrigger ?? "always"}
+      />
       <div className="polygon-vertices" aria-label="Polygon vertices">
         {polygon.vertices.map((vertex, index) => (
           <span key={`${polygon.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>

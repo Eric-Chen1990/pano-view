@@ -1,5 +1,6 @@
 import type { EditorPolyline } from "../../../types";
 import { formatPosition, numberValue } from "../../../utils";
+import { TooltipFields } from "./TooltipFields";
 
 export function PolylineFields({
   polyline,
@@ -51,6 +52,13 @@ export function PolylineFields({
         />
         <span>Visible in panorama</span>
       </label>
+      <TooltipFields
+        onChange={onChange}
+        tooltip={polyline.tooltip ?? {}}
+        tooltipOffset={polyline.tooltipOffset ?? 12}
+        tooltipPlacement={polyline.tooltipPlacement ?? "top"}
+        tooltipTrigger={polyline.tooltipTrigger ?? "always"}
+      />
       <div className="polygon-vertices" aria-label="Polyline vertices">
         {polyline.vertices.map((vertex, index) => (
           <span key={`${polyline.id}-position-${index}`}>V{index + 1} · {formatPosition(vertex)}</span>

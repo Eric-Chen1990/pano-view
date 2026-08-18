@@ -545,6 +545,39 @@ or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
 back to its state. Polygon and polyline hotspots report the corresponding
 controlled `vertices` through `onVerticesChange`.
 
+Every hotspot can show a DOM tooltip at its anchor. Pass a string or
+`{ text?, image?, imageAlt? }` as `tooltip`. The default `tooltipTrigger` is
+`"always"`: if content is present and the hotspot is visible, the bubble stays
+on screen. Clicking the hotspot does not toggle it. Optional
+`tooltipTrigger="hover"` shows the bubble on pointer hover or keyboard focus;
+`"click"` pins it until the hotspot is clicked again or the empty panorama is
+clicked. Hover and click triggers need `interactive`.
+
+`tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
+The bubble sits outside that edge of the hotspot. `tooltipOffset` is the
+screen-space gap in CSS pixels (default `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
+
+```tsx
+<ImageHotspot
+  id="gallery"
+  ariaLabel="Open gallery"
+  position={{ yaw: 28, pitch: -4 }}
+  src="/hotspots/gallery.webp"
+  tooltip={{ text: "Courtyard gallery", image: "/hotspots/gallery-thumb.webp" }}
+  tooltipPlacement="top"
+  tooltipOffset={16}
+/>
+<GraphicHotspot
+  id="marker"
+  ariaLabel="Signal"
+  position={{ yaw: -18, pitch: 9 }}
+  graphic={{ kind: "ring" }}
+  tooltip="Hover for details"
+  tooltipTrigger="hover"
+  tooltipPlacement="right"
+/>
+```
+
 For persistence or a host-owned editor, use the exported discriminated
 `HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
 exhaustive switches; handle `text` and `iframe` alongside the existing point

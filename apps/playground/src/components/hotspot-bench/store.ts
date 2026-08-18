@@ -26,6 +26,7 @@ import {
   cloneDemoPolylines,
   createGraphic,
   createId,
+  defaultEditorTooltip,
   formatPosition,
   polygonIssueSummary,
   withoutTrailingDuplicate,
@@ -285,6 +286,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         strokeWidth: 2,
         strokeOpacity: 0.88,
         visible: true,
+        ...defaultEditorTooltip("Drawn polyline"),
       };
       set((state) => ({
         polylines: [...state.polylines, polyline],
@@ -314,6 +316,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       strokeWidth: 2,
       strokeOpacity: 0.88,
       visible: true,
+      ...defaultEditorTooltip("Drawn polygon"),
     };
     set((state) => ({
       polygons: [...state.polygons, polygon],
@@ -350,6 +353,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         opacity: 1,
         visible: true,
         src: "/fixtures/hotspots/gallery-card.svg",
+        ...defaultEditorTooltip("Open image hotspot"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -375,6 +379,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         opacity: 1,
         visible: true,
         graphic: createGraphic("circle"),
+        ...defaultEditorTooltip("Explore graphic hotspot"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -405,6 +410,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         playing: true,
         fps: 12,
         loop: true,
+        ...defaultEditorTooltip("Play sequence marker"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -435,6 +441,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         loop: true,
         muted: true,
         volume: 1,
+        ...defaultEditorTooltip("Play video window"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -467,6 +474,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         align: "center",
         verticalAlign: "middle",
         whiteSpace: "normal",
+        ...defaultEditorTooltip("Read courtyard caption"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],
@@ -495,6 +503,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         title: "Visitor guide",
         sandbox: "allow-scripts allow-popups allow-forms",
         pointerPolicy: "hotspot",
+        ...defaultEditorTooltip("Open visitor guide"),
       };
       set((state) => ({
         hotspots: [...state.hotspots, hotspot],

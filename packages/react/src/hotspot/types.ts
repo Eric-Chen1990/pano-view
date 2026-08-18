@@ -32,9 +32,36 @@ export type HotspotDragEvent = HotspotInteractionEvent & {
   startPosition: HotspotPosition;
 };
 
+/** When a hotspot tooltip is shown. Defaults to `"always"`. */
+export type HotspotTooltipTrigger = "always" | "hover" | "click";
+
+/** Where the tooltip sits relative to the hotspot. Defaults to `"top"`. */
+export type HotspotTooltipPlacement = "top" | "bottom" | "left" | "right";
+
+/** Plain-text and/or image content for a hotspot tooltip. */
+export type HotspotTooltipContent = {
+  text?: string;
+  image?: string;
+  imageAlt?: string;
+};
+
 export type HotspotCommonProps = {
   id: string;
   position: HotspotPosition;
+  /**
+   * Tooltip shown at the hotspot anchor. A string is treated as `{ text }`.
+   * Defaults to always visible when content is present.
+   */
+  tooltip?: string | HotspotTooltipContent;
+  /** Defaults to `"always"`. `"hover"` and `"click"` require `interactive`. */
+  tooltipTrigger?: HotspotTooltipTrigger;
+  /** Defaults to `"top"`. */
+  tooltipPlacement?: HotspotTooltipPlacement;
+  /**
+   * Screen-space gap in CSS pixels between the hotspot edge and the tooltip.
+   * Defaults to 12.
+   */
+  tooltipOffset?: number;
   /** Angular width in degrees. Defaults to 12. */
   width?: number;
   /** Angular height in degrees. Defaults to 8. */

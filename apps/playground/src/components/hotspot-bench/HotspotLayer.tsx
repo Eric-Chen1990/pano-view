@@ -85,6 +85,10 @@ export const HotspotLayer = memo(function HotspotLayer() {
           visible: hotspot.visible,
           width: hotspot.width,
           height: hotspot.height,
+          tooltip: hotspot.tooltip,
+          tooltipTrigger: hotspot.tooltipTrigger,
+          tooltipPlacement: hotspot.tooltipPlacement,
+          tooltipOffset: hotspot.tooltipOffset,
           onClick: () => {
             selectItem(hotspot.id);
             if (hotspot.type === "sequence") {
@@ -214,6 +218,10 @@ export const HotspotLayer = memo(function HotspotLayer() {
           stroke={polygon.stroke}
           strokeOpacity={polygon.strokeOpacity}
           strokeWidth={polygon.strokeWidth}
+          tooltip={polygon.tooltip}
+          tooltipOffset={polygon.tooltipOffset}
+          tooltipPlacement={polygon.tooltipPlacement}
+          tooltipTrigger={polygon.tooltipTrigger}
           vertices={polygon.vertices}
           visible={polygon.visible}
         />
@@ -241,6 +249,10 @@ export const HotspotLayer = memo(function HotspotLayer() {
           stroke={polyline.stroke}
           strokeOpacity={polyline.strokeOpacity}
           strokeWidth={polyline.strokeWidth}
+          tooltip={polyline.tooltip}
+          tooltipOffset={polyline.tooltipOffset}
+          tooltipPlacement={polyline.tooltipPlacement}
+          tooltipTrigger={polyline.tooltipTrigger}
           vertices={polyline.vertices}
           visible={polyline.visible}
         />

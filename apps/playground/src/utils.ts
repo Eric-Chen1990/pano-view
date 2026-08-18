@@ -1,7 +1,11 @@
-import type {
-  GraphicDefinition,
-  HotspotPosition,
-  PolygonValidationIssue,
+import {
+  DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+  type GraphicDefinition,
+  type HotspotPosition,
+  type HotspotTooltipContent,
+  type HotspotTooltipPlacement,
+  type HotspotTooltipTrigger,
+  type PolygonValidationIssue,
 } from "@ericchen1990/pano-view";
 import { DEMO_HOTSPOTS, DEMO_POLYGON } from "./constants";
 import type { EditorHotspot, EditorPolygon, EditorPolyline } from "./types";
@@ -10,6 +14,7 @@ export function cloneDemoHotspots(): EditorHotspot[] {
   return DEMO_HOTSPOTS.map((hotspot) => ({
     ...hotspot,
     position: { ...hotspot.position },
+    tooltip: { ...hotspot.tooltip },
     ...(hotspot.type === "graphic" ? { graphic: { ...hotspot.graphic } } : {}),
   }));
 }
@@ -17,6 +22,7 @@ export function cloneDemoHotspots(): EditorHotspot[] {
 export function cloneDemoPolygons(): EditorPolygon[] {
   return [{
     ...DEMO_POLYGON,
+    tooltip: { ...DEMO_POLYGON.tooltip },
     vertices: DEMO_POLYGON.vertices.map((vertex) => ({ ...vertex })),
   }];
 }
@@ -27,6 +33,20 @@ export function cloneDemoPolylines(): EditorPolyline[] {
 
 export function createId(type: EditorHotspot["type"]): string {
   return `${type}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+export function defaultEditorTooltip(label: string): {
+  tooltip: HotspotTooltipContent;
+  tooltipTrigger: HotspotTooltipTrigger;
+  tooltipPlacement: HotspotTooltipPlacement;
+  tooltipOffset: number;
+} {
+  return {
+    tooltip: { text: label },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+  };
 }
 
 export function hotspotTypeCode(type: EditorHotspot["type"]): string {

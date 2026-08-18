@@ -23,6 +23,10 @@
 - **Polyline Hotspot**: an open spherical path defined by at least two
   vertices. It has an outline only and never reconnects its final vertex to
   its first.
+- **Hotspot Tooltip**: a screen-space DOM bubble at the hotspot edge. It can
+  show plain text, an image, or both. Placement is top/bottom/left/right with
+  a configurable pixel gap. It is not `TextHotspot` (a canvas texture) and not
+  `IframeHotspot` (an embedded document).
 - **Hotspot Anchor**: the shared internal placement and orientation mechanism
   for point hotspot visuals and interaction.
 - **Surface placement**: positioned immediately inside the panorama shell.

@@ -5,9 +5,11 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import type { ReactNode } from "react";
 import {
+  Box3,
   EdgesGeometry,
   MathUtils,
   Matrix4,
@@ -17,6 +19,7 @@ import {
   Quaternion,
   Vector3,
 } from "three";
+import { PanoEventBusContext } from "../pano-event-bus";
 import { PanoramaViewContext } from "../panorama-view-runtime";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { useHotspotAccessibility } from "./accessibility";
@@ -25,11 +28,18 @@ import {
   panoPositionToVector3,
   vector3ToPanoPosition,
 } from "./coordinates";
+import {
+  HotspotTooltip,
+  resolveHotspotTooltipContent,
+  resolveHotspotTooltipOffset,
+} from "./hotspot-tooltip";
 import type {
   HotspotCommonProps,
   HotspotInteractionEvent,
   HotspotMode,
   HotspotPosition,
+  HotspotTooltipPlacement,
+  HotspotTooltipTrigger,
 } from "./types";
 
 const DEFAULT_FLOATING_DISTANCE = 10;
@@ -41,6 +51,10 @@ const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
 const LOCAL_FORWARD = new Vector3(0, 0, 1);
+const TOOLTIP_WORLD_BOX = new Box3();
+const TOOLTIP_LOCAL_BOX = new Box3();
+const TOOLTIP_CORNER = new Vector3();
+const TOOLTIP_INVERSE = new Matrix4();
 const HOTSPOT_MODE_RENDERING: Record<
   HotspotMode,
   { orientation: "billboard" | "surface"; placement: "surface" | "floating" }
@@ -157,6 +171,124 @@ function angularDistance(a: HotspotPosition, b: HotspotPosition): number {
   return MathUtils.radToDeg(aVector.angleTo(bVector));
 }
 
+function isTooltipOpen(
+  trigger: HotspotTooltipTrigger,
+  hovered: boolean,
+  focused: boolean,
+  pinned: boolean,
+): boolean {
+  switch (trigger) {
+    case "always":
+      return true;
+    case "hover":
+      return hovered || focused;
+    case "click":
+      return pinned;
+    default: {
+      const exhaustive: never = trigger;
+      return exhaustive;
+    }
+  }
+}
+
+function setTooltipAnchorOnUnitPlane(
+  anchor: Object3D,
+  placement: HotspotTooltipPlacement,
+) {
+  switch (placement) {
+    case "top":
+      anchor.position.set(0, 0.5, 0);
+      return;
+    case "bottom":
+      anchor.position.set(0, -0.5, 0);
+      return;
+    case "left":
+      anchor.position.set(-0.5, 0, 0);
+      return;
+    case "right":
+      anchor.position.set(0.5, 0, 0);
+      return;
+    default: {
+      const exhaustive: never = placement;
+      return exhaustive;
+    }
+  }
+}
+
+function setTooltipAnchorOnLocalBox(
+  anchor: Object3D,
+  placement: HotspotTooltipPlacement,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+) {
+  switch (placement) {
+    case "top":
+      anchor.position.set((minX + maxX) / 2, maxY, 0);
+      return;
+    case "bottom":
+      anchor.position.set((minX + maxX) / 2, minY, 0);
+      return;
+    case "left":
+      anchor.position.set(minX, (minY + maxY) / 2, 0);
+      return;
+    case "right":
+      anchor.position.set(maxX, (minY + maxY) / 2, 0);
+      return;
+    default: {
+      const exhaustive: never = placement;
+      return exhaustive;
+    }
+  }
+}
+
+function updateTooltipAnchor(
+  anchor: Object3D,
+  group: Object3D,
+  placement: HotspotTooltipPlacement,
+  useAngularScale: boolean,
+) {
+  if (useAngularScale) {
+    setTooltipAnchorOnUnitPlane(anchor, placement);
+    return;
+  }
+  group.updateMatrixWorld(true);
+  TOOLTIP_WORLD_BOX.makeEmpty();
+  for (const child of group.children) {
+    if (child === anchor) {
+      continue;
+    }
+    TOOLTIP_WORLD_BOX.expandByObject(child);
+  }
+  if (TOOLTIP_WORLD_BOX.isEmpty()) {
+    setTooltipAnchorOnUnitPlane(anchor, placement);
+    return;
+  }
+  TOOLTIP_INVERSE.copy(group.matrixWorld).invert();
+  TOOLTIP_LOCAL_BOX.makeEmpty();
+  for (let x = 0; x <= 1; x += 1) {
+    for (let y = 0; y <= 1; y += 1) {
+      for (let z = 0; z <= 1; z += 1) {
+        TOOLTIP_CORNER.set(
+          x === 0 ? TOOLTIP_WORLD_BOX.min.x : TOOLTIP_WORLD_BOX.max.x,
+          y === 0 ? TOOLTIP_WORLD_BOX.min.y : TOOLTIP_WORLD_BOX.max.y,
+          z === 0 ? TOOLTIP_WORLD_BOX.min.z : TOOLTIP_WORLD_BOX.max.z,
+        ).applyMatrix4(TOOLTIP_INVERSE);
+        TOOLTIP_LOCAL_BOX.expandByPoint(TOOLTIP_CORNER);
+      }
+    }
+  }
+  setTooltipAnchorOnLocalBox(
+    anchor,
+    placement,
+    TOOLTIP_LOCAL_BOX.min.x,
+    TOOLTIP_LOCAL_BOX.max.x,
+    TOOLTIP_LOCAL_BOX.min.y,
+    TOOLTIP_LOCAL_BOX.max.y,
+  );
+}
+
 /** Internal spatial and interaction primitive shared by concrete hotspots. */
 export function HotspotAnchor({
   id,
@@ -178,6 +310,10 @@ export function HotspotAnchor({
   draggable = false,
   interactive = true,
   ariaLabel,
+  tooltip,
+  tooltipTrigger = "always",
+  tooltipPlacement = "top",
+  tooltipOffset,
   children,
   onClick,
   onHoverChange,
@@ -186,9 +322,17 @@ export function HotspotAnchor({
   onDragEnd,
 }: HotspotAnchorProps) {
   const controlsRef = useContext(PanoramaViewContext);
+  const eventBus = useContext(PanoEventBusContext);
   const groupRef = useRef<Object3D>(null);
+  const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const tooltipContent = useMemo(
+    () => resolveHotspotTooltipContent(tooltip),
+    [tooltip],
+  );
   const normalizedPosition = normalizePanoPosition(position);
   const rendering =
     internalOrientation && internalPlacement
@@ -220,12 +364,18 @@ export function HotspotAnchor({
     planeGeometry.dispose();
     return geometry;
   }, []);
+  const canActivateFromKeyboard = Boolean(
+    visible && interactive && (onClick || tooltipTrigger === "click"),
+  );
   const focused = useHotspotAccessibility({
     id,
     ariaLabel,
-    onActivate: visible && interactive && onClick
+    onActivate: canActivateFromKeyboard
       ? (event) => {
-          onClick({
+          if (tooltipTrigger === "click") {
+            setPinned((current) => !current);
+          }
+          onClick?.({
             id,
             position: normalizedPosition,
             source: "keyboard",
@@ -234,6 +384,10 @@ export function HotspotAnchor({
         }
       : undefined,
   });
+  const tooltipOpen =
+    visible &&
+    tooltipContent !== null &&
+    isTooltipOpen(tooltipTrigger, hovered, focused, pinned);
 
   useEffect(
     () => () => {
@@ -244,6 +398,22 @@ export function HotspotAnchor({
   );
 
   useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
+
+  useEffect(() => {
+    if (tooltipTrigger !== "click") {
+      setPinned(false);
+      return;
+    }
+    return eventBus?.subscribe("click", () => {
+      setPinned(false);
+    });
+  }, [eventBus, tooltipTrigger]);
+
+  useEffect(() => {
+    if (tooltipTrigger !== "hover") {
+      setHovered(false);
+    }
+  }, [tooltipTrigger]);
 
   useFrame(({ camera }) => {
     if (!groupRef.current) {
@@ -267,6 +437,14 @@ export function HotspotAnchor({
       (useAngularScale ? worldHeight : 1) * scaleFactor,
       1,
     );
+    if (tooltipOpen && tooltipAnchorRef.current) {
+      updateTooltipAnchor(
+        tooltipAnchorRef.current,
+        groupRef.current,
+        tooltipPlacement,
+        useAngularScale,
+      );
+    }
   });
 
   const stopPointerEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
@@ -311,6 +489,9 @@ export function HotspotAnchor({
       onClick={interactive ? (event) => {
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
+          if (tooltipTrigger === "click") {
+            setPinned((current) => !current);
+          }
           onClick?.(makeInteractionEvent(id, normalizedPosition, event));
         }
         suppressNextClickRef.current = false;
@@ -333,6 +514,7 @@ export function HotspotAnchor({
           releaseInteractionLock,
           moved: false,
         };
+        setHovered(false);
         onDragStart?.({
           ...makeInteractionEvent(id, startPosition, event),
           source: "pointer",
@@ -357,6 +539,7 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOut={interactive ? (event) => {
         if (!dragStateRef.current) {
+          setHovered(false);
           onHoverChange?.(
             false,
             makeInteractionEvent(id, normalizedPosition, event),
@@ -365,6 +548,7 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOver={interactive ? (event) => {
         if (!dragStateRef.current) {
+          setHovered(true);
           onHoverChange?.(
             true,
             makeInteractionEvent(id, normalizedPosition, event),
@@ -384,6 +568,15 @@ export function HotspotAnchor({
         </lineSegments>
       )) : null}
       {children}
+      {tooltipOpen && tooltipContent ? (
+        <group ref={tooltipAnchorRef}>
+          <HotspotTooltip
+            content={tooltipContent}
+            offset={resolveHotspotTooltipOffset(tooltipOffset)}
+            placement={tooltipPlacement}
+          />
+        </group>
+      ) : null}
     </group>
   );
 }

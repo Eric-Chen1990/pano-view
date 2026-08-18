@@ -68,6 +68,10 @@ export const DEMO_POLYGON: EditorPolygon = {
   strokeWidth: 2,
   strokeOpacity: 0.88,
   visible: true,
+  tooltip: { text: "Courtyard canopy" },
+  tooltipTrigger: "always",
+  tooltipPlacement: "top",
+  tooltipOffset: 12,
 };
 
 export const DEMO_HOTSPOTS: EditorHotspot[] = [
@@ -86,6 +90,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     opacity: 1,
     visible: true,
     src: "/fixtures/hotspots/gallery-card.svg",
+    tooltip: { text: "Courtyard gallery" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "signal-marker",
@@ -108,6 +116,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
       strokeWidth: 10,
       innerRadius: 0.66,
     },
+    tooltip: { text: "Signal point" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "sequence-marker",
@@ -129,6 +141,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     playing: true,
     fps: 3,
     loop: true,
+    tooltip: { text: "Animated sequence" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "video-window",
@@ -150,6 +166,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     loop: true,
     muted: true,
     volume: 1,
+    tooltip: { text: "Video window" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "courtyard-caption",
@@ -173,6 +193,10 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     align: "center",
     verticalAlign: "middle",
     whiteSpace: "normal",
+    tooltip: { text: "Courtyard overlook" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
   {
     id: "visitor-guide",
@@ -192,5 +216,9 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     title: "Visitor guide",
     sandbox: "allow-scripts allow-popups allow-forms",
     pointerPolicy: "hotspot",
+    tooltip: { text: "Visitor guide" },
+    tooltipTrigger: "always",
+    tooltipPlacement: "top",
+    tooltipOffset: 12,
   },
 ];

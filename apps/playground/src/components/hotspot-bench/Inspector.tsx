@@ -10,6 +10,7 @@ import { PolygonFields } from "./fields/PolygonFields";
 import { PolylineFields } from "./fields/PolylineFields";
 import { SequenceFields } from "./fields/SequenceFields";
 import { TextFields } from "./fields/TextFields";
+import { TooltipFields } from "./fields/TooltipFields";
 import { VideoFields } from "./fields/VideoFields";
 import {
   selectDrawingPath,
@@ -347,6 +348,14 @@ function SelectedHotspotFields({
         />
         <span>Visible in panorama</span>
       </label>
+
+      <TooltipFields
+        onChange={(patch) => onUpdateHotspot(selected.id, patch)}
+        tooltip={selected.tooltip ?? {}}
+        tooltipOffset={selected.tooltipOffset ?? 12}
+        tooltipPlacement={selected.tooltipPlacement ?? "top"}
+        tooltipTrigger={selected.tooltipTrigger ?? "always"}
+      />
 
       {selected.type === "image" ? (
         <label className="field wide">

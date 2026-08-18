@@ -5,6 +5,9 @@ import type {
   HotspotMode,
   HotspotPosition,
   HotspotScaleMode,
+  HotspotTooltipContent,
+  HotspotTooltipPlacement,
+  HotspotTooltipTrigger,
 } from "./types";
 
 /** Shared serializable fields for every saved hotspot definition. */
@@ -15,6 +18,10 @@ export type HotspotDefinitionBase = {
   visible?: boolean;
   interactive?: boolean;
   renderOrder?: number;
+  tooltip?: string | HotspotTooltipContent;
+  tooltipTrigger?: HotspotTooltipTrigger;
+  tooltipPlacement?: HotspotTooltipPlacement;
+  tooltipOffset?: number;
 };
 
 /** Shared serializable fields for a hotspot anchored at one yaw/pitch point. */
