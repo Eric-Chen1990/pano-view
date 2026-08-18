@@ -346,7 +346,7 @@ export function KeyboardExample({ scenes }: { scenes: Scene[] }) {
 
 Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
 
-Default bindings: arrows for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
+Default bindings: arrows and WASD for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
 
 ## Panorama coordinate events
 

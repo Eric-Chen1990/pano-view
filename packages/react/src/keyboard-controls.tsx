@@ -51,10 +51,10 @@ export type KeyboardControlsProps = {
 };
 
 const DEFAULT_KEYS: Record<KeyboardControlAction, readonly string[]> = {
-  left: ["ArrowLeft"],
-  right: ["ArrowRight"],
-  up: ["ArrowUp"],
-  down: ["ArrowDown"],
+  left: ["ArrowLeft", "a", "KeyA"],
+  right: ["ArrowRight", "d", "KeyD"],
+  up: ["ArrowUp", "w", "KeyW"],
+  down: ["ArrowDown", "s", "KeyS"],
   zoomIn: ["+", "="],
   zoomOut: ["-", "_"],
   previousScene: ["[", "PageUp"],
