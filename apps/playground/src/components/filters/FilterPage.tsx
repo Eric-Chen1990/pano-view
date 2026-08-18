@@ -150,7 +150,11 @@ export function FilterPage() {
           >
             <PanoFilter intensity={intensity} preset={preset} />
             {source === "sphere" && SPHERE_SCENE?.type === "sphere" ? (
-              <Sphere src={SPHERE_SCENE.src} yawOffset={SPHERE_SCENE.yawOffset} />
+              <Sphere
+                src={SPHERE_SCENE.src}
+                previewUrl={SPHERE_SCENE.previewUrl}
+                yawOffset={SPHERE_SCENE.yawOffset}
+              />
             ) : null}
             {source === "tile" && TILE_SCENE?.type === "tile" ? (
               <Tile
@@ -159,6 +163,7 @@ export function FilterPage() {
                 maxTextureMemoryMb={96}
                 multires={TILE_SCENE.multires}
                 urlTemplate={TILE_SCENE.urlTemplate}
+                previewUrl={TILE_SCENE.previewUrl}
               />
             ) : null}
             <FilterHotspots />

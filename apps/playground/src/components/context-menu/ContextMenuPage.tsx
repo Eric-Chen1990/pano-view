@@ -104,7 +104,7 @@ function buildContextMenuSnippet(
   }}
   style={{ height: 540 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>`;
     case "append":
       return `<PanoViewer
@@ -118,7 +118,7 @@ function buildContextMenuSnippet(
   }}
   style={{ height: 540 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>`;
     case "presets":
       return `<PanoViewer
@@ -135,7 +135,7 @@ function buildContextMenuSnippet(
   }}
   style={{ height: 540 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>`;
     default: {
       const exhaustive: never = mode;
@@ -315,7 +315,10 @@ export function ContextMenuPage() {
               onEnterFullscreen={() => setLastAction("Entered fullscreen")}
               onExitFullscreen={() => setLastAction("Exited fullscreen")}
             />
-            <Sphere src="/fixtures/panorama/panos/1.jpg" />
+            <Sphere
+              src="/fixtures/panorama/panos/1/sphere.webp"
+              previewUrl="preview.webp"
+            />
           </PanoViewer>
         </div>
         <CodeSnippet

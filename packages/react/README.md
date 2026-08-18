@@ -7,10 +7,13 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 ## krpano-compatible tile output
 
 Use this package when you want a React-native viewer around equirectangular
-images or an existing krpano cube-tile pyramid. `Tile` understands the common
-krpano-style multires directory layout by default, while keeping rendering,
-controls, hotspots, and scene transitions in your React application. It is
-compatible with that tile output format but is not affiliated with krpano.
+images or an existing krpano cube-tile pyramid. Copy the krpano `<cube>` `url`
+and `multires` attributes into `Tile`'s `urlTemplate` and `multires`, and copy
+`<preview url>` into `previewUrl`; krpano's on-disk naming is not the same as
+this package's defaults, so omitting them loads the wrong tiles or preview.
+Rendering, controls, hotspots, and scene transitions stay in your React
+application. This package is compatible with that tile output format but is
+not affiliated with krpano.
 
 ## Install
 
@@ -120,7 +123,7 @@ export function ControlledExample() {
         style={{ height: 560 }}
       >
         <AutoRotate enabled speed={18} acceleration={18} startDelay={1_000} />
-        <Sphere src="/panoramas/room.webp" />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
     </>
   );
@@ -151,6 +154,12 @@ The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the
 
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
 
+`previewUrl` is required and shows a low-resolution 2:1 image while `src` loads.
+Relative paths resolve against the directory of `src`; root-absolute and
+`http(s)` URLs are used as-is. For krpano sphere scenes, copy
+[`<preview url>`](https://krpano.com/docu/xml/#preview) into `previewUrl`. That
+preview must be equirectangular, not a cube strip.
+
 ```tsx
 "use client";
 
@@ -159,7 +168,10 @@ import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
 export function SphereExample() {
   return (
     <PanoViewer style={{ width: "100%", height: 560 }}>
-      <Sphere src="/panoramas/room.webp" />
+      <Sphere
+        src="/panoramas/room.webp"
+        previewUrl="preview.webp"
+      />
     </PanoViewer>
   );
 }
@@ -240,13 +252,13 @@ that are not same-origin should set `crossOrigin` (usually `"anonymous"`).
 
 ## Tile
 
-`Tile` renders six inward-facing cube faces and loads only tiles around the current view. The default layout matches krpano-style output:
+`Tile` renders six inward-facing cube faces and loads only tiles around the current view. When `urlTemplate` is omitted, paths relative to `baseUrl` use this package default:
 
 ```text
-tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp
+tiles/%s/l%l/%v/l%l_%s_%h_%v.webp
 ```
 
-Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
+which expands to `tiles/{face}/l{level}/{row}/l{level}_{face}_{col}_{row}.webp`. Faces are `f`, `r`, `b`, `l`, `u`, and `d`; rows and columns are 1-based.
 
 ```tsx
 import { PanoViewer, Tile } from "@ericchen1990/pano-view";
@@ -257,33 +269,81 @@ export function TileExample() {
       <Tile
         baseUrl="https://cdn.example.com/panoramas/room"
         multires="512,500,1000,2000"
+        previewUrl="previews/cube-vertical.webp"
       />
     </PanoViewer>
   );
 }
 ```
 
-The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Use `previewFaceOrder` when an atlas uses a different order:
+krpano cube-tile output does not follow that default. Read `url`, `multires`,
+and the preview path from the krpano XML
+([`<cube>`](https://krpano.com/docu/xml/#image.cube),
+[`<preview>`](https://krpano.com/docu/xml/#preview)) and pass them through. If
+those values are missing or do not match the files on disk, tiles resolve to
+the wrong face, level, or row/column and the panorama looks scrambled.
+
+| krpano | `Tile` / `TileScene` prop |
+|---|---|
+| `<cube url>` | `urlTemplate` |
+| `<cube multires>` | `multires` |
+| `<preview url>` | `previewUrl` |
+| `<preview striporder>` | `previewFaceOrder` |
+
+`Sphere` uses the same `<preview url>` → `previewUrl` mapping; that file must be a 2:1 equirectangular image, not a cube strip.
+
+krpano's documented short syntax:
+
+```xml
+<preview url="preview.jpg" />
+<image>
+  <cube url="pano_%s_%l_%v_%h.jpg"
+        multires="512,1024,2048,4096"
+  />
+</image>
+```
+
+maps to:
 
 ```tsx
 <Tile
   baseUrl="/panoramas/room"
+  urlTemplate="pano_%s_%l_%v_%h.jpg"
+  multires="512,1024,2048,4096"
+  previewUrl="preview.jpg"
+/>
+```
+
+A MAKE PANO (MULTIRES) folder layout is often
+`tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg` with `preview.jpg` at the scene root. That
+filename is `%v_%h` (row then column). This package's default tile template is
+`%h_%v` (column then row). Copy the XML values instead of assuming the two
+conventions match.
+
+The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. `previewUrl` is required. Relative paths resolve against `baseUrl`; root-absolute and `http(s)` URLs are used as-is. A typical krpano MAKE PANO (MULTIRES) scene looks like this:
+
+```tsx
+<Tile
+  baseUrl="/panoramas/room"
+  urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg"
   multires="512,1000,2000"
-  previewUrl="/panoramas/room/previews/cube-vertical.webp"
+  previewUrl="preview.jpg"
   previewFaceOrder={["l", "f", "r", "b", "u", "d"]}
 />
 ```
 
-`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`.
+`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
-Override storage conventions with either a krpano placeholder template or a resolver. Both return paths relative to `baseUrl`:
+For layouts that are not krpano XML, override the default with a placeholder
+template or a resolver. Both return paths relative to `baseUrl`:
 
 ```tsx
 <Tile
   baseUrl="/panoramas/room"
   multires={{ tileSize: 512, levels: [500, 1000, 2000] }}
+  previewUrl="previews/cube-vertical.webp"
   urlTemplate="assets/%s/%l/%v_%h.webp"
   resolveTileUrl={({ face, level, row, col }) =>
     `api/tile/${face}/${level}/${row}/${col}`
@@ -304,7 +364,7 @@ a single non-stereo cube panorama.
 ## Scenes
 
 `Scenes` switches controlled sphere and cube-tile scenes with GPU-only
-snapshot blending. The target scene loads its sphere image or tile preview first;
+snapshot blending. The target scene loads its sphere or tile preview first;
 once ready, the current framebuffer becomes a temporary GPU texture, its source
 textures are released, and the target scene blends in. This avoids holding two
 high-resolution tile scenes in WebGL memory at once.
@@ -317,12 +377,14 @@ import {
 } from "@ericchen1990/pano-view";
 
 const scenes: Scene[] = [
-  { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp" },
+  { id: "lobby", type: "sphere", src: "/panoramas/lobby.webp", previewUrl: "preview.webp" },
   {
     id: "terrace",
     type: "tile",
     baseUrl: "/panoramas/terrace",
     multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    previewUrl: "previews/cube-vertical.webp",
   },
 ];
 
@@ -368,7 +430,7 @@ to leave the source unfiltered.
 ```tsx
 <PanoViewer style={{ height: 560 }}>
   <PanoFilter preset="pencil" intensity={0.85} />
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
   <ImageHotspot
     id="door"
     position={{ yaw: 24, pitch: -6 }}
@@ -402,7 +464,7 @@ Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enab
 ```tsx
 <PanoViewer style={{ height: 560 }}>
   <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -451,7 +513,7 @@ export function GyroExample() {
           touchMode="full"
           onDenied={() => setEnabled(false)}
         />
-        <Sphere src="/panoramas/room.webp" />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
     </>
   );
@@ -508,7 +570,7 @@ export function WebVRExample() {
         mobileVr
         onEnterVR={(mode) => console.log("Entered", mode)}
       />
-      <Sphere src="/panoramas/room.webp" />
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
     </PanoViewer>
   );
 }
@@ -551,7 +613,7 @@ interactive through the default WebXR controller rays.
   }}
   style={{ height: 560 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -649,7 +711,7 @@ export function PlacementExample() {
       onPanoramaPointerMove={({ position }) => console.log("move", position)}
       style={{ height: 560 }}
     >
-      <Sphere src="/panoramas/room.webp" />
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
     </PanoViewer>
   );
 }
@@ -690,7 +752,7 @@ import {
     onAutoRotateOneRound={() => console.log("full turn")}
   />
   <AutoRotate enabled />
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>;
 ```
 
@@ -723,7 +785,7 @@ separator between them.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -731,7 +793,7 @@ Disable the default menu (restore the browser menu, or mount your own):
 
 ```tsx
 <PanoViewer contextMenu={false}>
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -739,7 +801,7 @@ Tune appearance while keeping the default items:
 
 ```tsx
 <PanoViewer contextMenu={{ appearance: { opacity: 0.92, borderRadius: 8 } }}>
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -766,7 +828,7 @@ only add your own:
   }}
   style={{ height: 560 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -800,7 +862,7 @@ reimplementing fullscreen enter/exit state:
   }}
   style={{ height: 560 }}
 >
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
 
@@ -931,7 +993,7 @@ are angular degrees, so they remain independent of the canvas resolution.
 import { ImageHotspot, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 
 <PanoViewer style={{ height: 560 }}>
-  <Sphere src="/panoramas/room.webp" />
+  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
   <ImageHotspot
     id="gallery"
     ariaLabel="Open gallery"

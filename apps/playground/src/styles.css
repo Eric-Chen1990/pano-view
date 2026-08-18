@@ -69,34 +69,3 @@
   }
 }
 
-@layer components {
-  .reticle {
-    position: absolute;
-    inset: 50% auto auto 50%;
-    width: 22px;
-    height: 22px;
-    border: 1px solid rgb(255 255 255 / 0.62);
-    border-radius: 9999px;
-    pointer-events: none;
-    transform: translate(-50%, -50%);
-  }
-
-  .reticle::before,
-  .reticle::after {
-    position: absolute;
-    inset: 50% auto auto 50%;
-    background: rgb(255 255 255 / 0.62);
-    content: "";
-    transform: translate(-50%, -50%);
-  }
-
-  .reticle::before {
-    width: 30px;
-    height: 1px;
-  }
-
-  .reticle::after {
-    width: 1px;
-    height: 30px;
-  }
-}

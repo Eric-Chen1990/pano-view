@@ -1,3 +1,4 @@
+import { resolveRelativeAssetUrl } from "../asset-url";
 import type {
   TileAddress,
   TileMultiresConfig,
@@ -52,19 +53,17 @@ export function parseMultires(
   return { tileSize, levels };
 }
 
+export const DEFAULT_TILE_URL_TEMPLATE = "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
+
 export function buildDefaultTileUrlTemplate(): string {
-  return "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
+  return DEFAULT_TILE_URL_TEMPLATE;
 }
 
 export function resolveRelativeTileUrl(
   baseUrl: string,
   relativePath: string,
 ): string {
-  const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
-  const normalizedPath = relativePath.replace(/^\/+/, "");
-  return normalizedBaseUrl
-    ? `${normalizedBaseUrl}/${normalizedPath}`
-    : normalizedPath;
+  return resolveRelativeAssetUrl(baseUrl, relativePath);
 }
 
 export function resolveTemplateUrl(

@@ -23,6 +23,7 @@ const TILE_SCENE = {
   type: "tile" as const,
   multires: "512,1000,2000",
   urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+  previewUrl: "previews/cube-vertical.webp",
 };
 
 const VR_SCENES = [

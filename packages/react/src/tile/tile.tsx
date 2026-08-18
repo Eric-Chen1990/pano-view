@@ -19,6 +19,7 @@ import {
   TextureLoader,
   Vector3,
 } from "three";
+import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   CUBE_FACES,
@@ -517,10 +518,7 @@ export function Tile({
     [levels, tileSize],
   );
   const anisotropy = gl.capabilities.getMaxAnisotropy();
-  const effectivePreviewUrl =
-    previewUrl === undefined
-      ? `${baseUrl.replace(/\/$/, "")}/previews/cube-vertical.webp`
-      : previewUrl;
+  const effectivePreviewUrl = resolveAssetUrl(baseUrl, previewUrl);
   const previewTexture = usePreviewTexture(
     effectivePreviewUrl,
     anisotropy,

@@ -1,5 +1,12 @@
 # @ericchen1990/pano-view
 
+## 2.1.0
+
+### Minor Changes
+
+- 0e415fc: Add required `previewUrl` to `Sphere` and `SphereScene` so a low-resolution 2:1 image displays while the full source loads. Relative paths resolve against the directory of `src`.
+- 6d186ba: Make Tile `previewUrl` required and resolve it relative to `baseUrl`. Copy krpano `<preview url>`; a common atlas for this package is `previews/cube-vertical.webp`.
+
 ## 2.0.0
 
 ### Major Changes

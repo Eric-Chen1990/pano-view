@@ -269,12 +269,16 @@ export function CanvasPanel() {
             onDenied={() => setGyroEnabled(false)}
           />
           {mode === "sphere" ? (
-            <Sphere src="/fixtures/panorama/panos/1.jpg" />
+            <Sphere
+              src="/fixtures/panorama/panos/1/sphere.webp"
+              previewUrl="preview.webp"
+            />
           ) : (
             <Tile
               baseUrl="/fixtures/panorama/cube-tiles/4"
               multires="512,1000,2000"
               urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
+              previewUrl="previews/cube-vertical.webp"
               onLevelChange={setLevel}
               onLoadProgress={setProgress}
               onTileError={incrementTileErrors}
@@ -282,7 +286,6 @@ export function CanvasPanel() {
           )}
           <HotspotLayer />
         </PanoViewer>
-        <div className="reticle" aria-hidden="true" />
         <p
           className="pointer-events-none absolute bottom-[15px] left-[15px] m-0 max-w-[calc(100%-30px)] border border-[rgb(117_203_211_/_0.42)] bg-[rgb(2_6_7_/_0.74)] px-[9px] py-2 font-mono text-[0.62rem] tracking-[0.04em] text-[#dbeef0] max-[760px]:text-[0.56rem]"
           role="status"
