@@ -21,7 +21,7 @@ export function HotspotBenchPage() {
             Panorama hotspot bench
           </p>
           <h1
-            className="m-0 text-[clamp(3rem,7vw,6rem)] leading-[0.92] font-black tracking-[-0.075em] text-[#f5fbfc]"
+            className="m-0 text-[clamp(3rem,7vw,6rem)] leading-[0.92] font-black tracking-tight text-[#f5fbfc]"
             id="page-title"
           >
             Place it

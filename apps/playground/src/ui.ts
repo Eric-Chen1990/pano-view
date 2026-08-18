@@ -19,7 +19,7 @@ export const pageHeadingWrapClassName =
   "flex items-end justify-between gap-6 border-b border-[#244047] p-6 max-[760px]:flex-col max-[760px]:items-start";
 
 export const pageHeadingTitleClassName =
-  "m-0 text-[clamp(2rem,4vw,3.75rem)] leading-[0.92] font-black tracking-[-0.06em] text-[#f5fbfc]";
+  "m-0 text-[clamp(2rem,4vw,3.75rem)] leading-[0.92] font-black tracking-tight text-[#f5fbfc]";
 
 export const pageHeadingStatusClassName =
   "m-0 max-w-[36rem] text-sm leading-6 text-[#9ab1b7]";
