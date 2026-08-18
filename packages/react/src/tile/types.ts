@@ -40,11 +40,16 @@ export type TileProps = {
    * For krpano output, copy `image.cube.multires` from the XML.
    */
   multires: string | TileMultiresConfig;
-  /** Defaults to `${baseUrl}/previews/cube-vertical.webp`. */
+  /**
+   * Preview atlas path. Relative paths resolve against `baseUrl`; root-absolute
+   * and `http(s)` / `blob:` / `data:` URLs are used as-is. Defaults to
+   * `previews/cube-vertical.webp`. For krpano output, copy `<preview url>`
+   * (often `preview.jpg` at the scene root). Pass `null` to skip the preview.
+   */
   previewUrl?: string | null;
   /**
    * Face order in the vertical preview atlas, from top to bottom. Defaults to
-   * `l/f/r/b/u/d`.
+   * `l/f/r/b/u/d`, matching krpano `preview.striporder` `LFRBUD`.
    */
   previewFaceOrder?: readonly CubeFaceCode[];
   /**

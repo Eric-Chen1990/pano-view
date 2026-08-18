@@ -35,6 +35,7 @@ import {
 import {
   buildDefaultTileUrlTemplate,
   parseMultires,
+  resolvePreviewUrl,
   resolveRelativeTileUrl,
   resolveTemplateUrl,
 } from "./multires";
@@ -517,10 +518,7 @@ export function Tile({
     [levels, tileSize],
   );
   const anisotropy = gl.capabilities.getMaxAnisotropy();
-  const effectivePreviewUrl =
-    previewUrl === undefined
-      ? `${baseUrl.replace(/\/$/, "")}/previews/cube-vertical.webp`
-      : previewUrl;
+  const effectivePreviewUrl = resolvePreviewUrl(baseUrl, previewUrl);
   const previewTexture = usePreviewTexture(
     effectivePreviewUrl,
     anisotropy,

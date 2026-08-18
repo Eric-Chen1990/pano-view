@@ -8,11 +8,12 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 
 Use this package when you want a React-native viewer around equirectangular
 images or an existing krpano cube-tile pyramid. Copy the krpano `<cube>` `url`
-and `multires` attributes into `Tile`'s `urlTemplate` and `multires` props;
-krpano's on-disk naming is not the same as this package's default template, so
-omitting them loads the wrong tiles. Rendering, controls, hotspots, and scene
-transitions stay in your React application. This package is compatible with
-that tile output format but is not affiliated with krpano.
+and `multires` attributes into `Tile`'s `urlTemplate` and `multires`, and copy
+`<preview url>` into `previewUrl`; krpano's on-disk naming is not the same as
+this package's defaults, so omitting them loads the wrong tiles or preview.
+Rendering, controls, hotspots, and scene transitions stay in your React
+application. This package is compatible with that tile output format but is
+not affiliated with krpano.
 
 ## Install
 
@@ -265,20 +266,24 @@ export function TileExample() {
 }
 ```
 
-krpano cube-tile output does not follow that default. Read `url` and `multires`
-from the krpano [`<cube>`](https://krpano.com/docu/xml/#image.cube) element and
-pass them through as `urlTemplate` and `multires`. If either value is missing
-or does not match the files on disk, tiles resolve to the wrong face, level, or
-row/column and the panorama looks scrambled.
+krpano cube-tile output does not follow that default. Read `url`, `multires`,
+and the preview path from the krpano XML
+([`<cube>`](https://krpano.com/docu/xml/#image.cube),
+[`<preview>`](https://krpano.com/docu/xml/#preview)) and pass them through. If
+those values are missing or do not match the files on disk, tiles resolve to
+the wrong face, level, or row/column and the panorama looks scrambled.
 
-| krpano `<cube>` | `Tile` / `TileScene` prop |
+| krpano | `Tile` / `TileScene` prop |
 |---|---|
-| `url` | `urlTemplate` |
-| `multires` | `multires` |
+| `<cube url>` | `urlTemplate` |
+| `<cube multires>` | `multires` |
+| `<preview url>` | `previewUrl` |
+| `<preview striporder>` | `previewFaceOrder` |
 
 krpano's documented short syntax:
 
 ```xml
+<preview url="preview.jpg" />
 <image>
   <cube url="pano_%s_%l_%v_%h.jpg"
         multires="512,1024,2048,4096"
@@ -293,26 +298,28 @@ maps to:
   baseUrl="/panoramas/room"
   urlTemplate="pano_%s_%l_%v_%h.jpg"
   multires="512,1024,2048,4096"
+  previewUrl="preview.jpg"
 />
 ```
 
 A MAKE PANO (MULTIRES) folder layout is often
-`tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`. That filename is `%v_%h` (row then column).
-This package's default is `%h_%v` (column then row). Copy the XML values
+`tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg` with `preview.jpg` at the scene root. That
+filename is `%v_%h` (row then column). This package's default is `%h_%v`
+(column then row) and `previews/cube-vertical.webp`. Copy the XML values
 instead of assuming the two conventions match.
 
-The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `${baseUrl}/previews/cube-vertical.webp`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Use `previewFaceOrder` when an atlas uses a different order:
+The first `multires` value is the tile size. Remaining values are ascending cube-face sizes for `l1`, `l2`, and later levels. The default preview is `previews/cube-vertical.webp` relative to `baseUrl`, with six square faces stacked from top to bottom as `l/f/r/b/u/d`. Relative `previewUrl` values also resolve against `baseUrl`; root-absolute and `http(s)` URLs are used as-is. Pass `previewUrl={null}` to skip the preview. Use `previewFaceOrder` when an atlas uses a different order:
 
 ```tsx
 <Tile
   baseUrl="/panoramas/room"
   multires="512,1000,2000"
-  previewUrl="/panoramas/room/previews/cube-vertical.webp"
+  previewUrl="previews/cube-vertical.webp"
   previewFaceOrder={["l", "f", "r", "b", "u", "d"]}
 />
 ```
 
-`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`.
+`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 

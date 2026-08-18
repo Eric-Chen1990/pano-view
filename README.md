@@ -6,9 +6,10 @@ multiresolution panoramic viewing experiences.
 `@ericchen1990/pano-view` is a lightweight React alternative for projects that
 need to display equirectangular panoramas or krpano-style cube-tile output in a
 custom application. Copy the krpano `<cube>` `url` and `multires` attributes
-into `urlTemplate` and `multires`; those values are not the same as this
-package's default path layout, so an existing tile pyramid can be reused
-without a krpano viewer runtime only when both are passed through.
+into `urlTemplate` and `multires`, and copy `<preview url>` into `previewUrl`;
+those values are not the same as this package's default path layout, so an
+existing tile pyramid can be reused without a krpano viewer runtime only when
+they are passed through.
 
 Try the components in the [live playground](https://pano-view-playground.vercel.app/).
 

@@ -52,8 +52,11 @@ export function parseMultires(
   return { tileSize, levels };
 }
 
+export const DEFAULT_TILE_URL_TEMPLATE = "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
+export const DEFAULT_TILE_PREVIEW_PATH = "previews/cube-vertical.webp";
+
 export function buildDefaultTileUrlTemplate(): string {
-  return "tiles/%s/l%l/%v/l%l_%s_%h_%v.webp";
+  return DEFAULT_TILE_URL_TEMPLATE;
 }
 
 export function resolveRelativeTileUrl(
@@ -65,6 +68,28 @@ export function resolveRelativeTileUrl(
   return normalizedBaseUrl
     ? `${normalizedBaseUrl}/${normalizedPath}`
     : normalizedPath;
+}
+
+function isAbsoluteAssetUrl(url: string): boolean {
+  return (
+    url.startsWith("/") ||
+    url.startsWith("//") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(url)
+  );
+}
+
+export function resolveAssetUrl(baseUrl: string, path: string): string {
+  return isAbsoluteAssetUrl(path) ? path : resolveRelativeTileUrl(baseUrl, path);
+}
+
+export function resolvePreviewUrl(
+  baseUrl: string,
+  previewUrl: string | null | undefined,
+): string | null {
+  if (previewUrl === null) {
+    return null;
+  }
+  return resolveAssetUrl(baseUrl, previewUrl ?? DEFAULT_TILE_PREVIEW_PATH);
 }
 
 export function resolveTemplateUrl(
