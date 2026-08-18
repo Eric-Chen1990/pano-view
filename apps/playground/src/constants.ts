@@ -59,15 +59,30 @@ export const TRANSITION_PRESET_GROUPS: Array<{
     ],
   },
   {
-    label: "Cinematic",
+    label: "Grid",
     presets: [
       { value: "pixelate", label: "Pixelate" },
       { value: "gridWipe", label: "Grid wipe" },
+      { value: "gridWipeUp", label: "Grid up" },
+      { value: "gridWipeRight", label: "Grid right" },
+      { value: "gridWipeDiagonal", label: "Grid diagonal" },
+      { value: "gridWipeCenter", label: "Grid center" },
+      { value: "gridWipeChecker", label: "Grid checker" },
+      { value: "hexDissolve", label: "Hex dissolve" },
+    ],
+  },
+  {
+    label: "Cinematic",
+    presets: [
       { value: "dissolve", label: "Dissolve" },
       { value: "shatter", label: "Shatter" },
       { value: "particles", label: "Particles" },
       { value: "glitch", label: "Glitch" },
       { value: "swirl", label: "Swirl" },
+      { value: "clockWipe", label: "Clock wipe" },
+      { value: "ripple", label: "Ripple" },
+      { value: "zoomBlur", label: "Zoom blur" },
+      { value: "filmBurn", label: "Film burn" },
     ],
   },
 ];

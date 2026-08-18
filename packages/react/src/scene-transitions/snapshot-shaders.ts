@@ -22,6 +22,47 @@ vec2 aspectGrid(float rows) {
   float aspect = resolution.x / max(resolution.y, 1.0);
   return vec2(max(8.0, floor(rows * aspect)), rows);
 }
+
+vec2 gridCellId() {
+  return floor(vUv * aspectGrid(16.0));
+}
+
+vec2 gridCellUv() {
+  vec2 cells = aspectGrid(16.0);
+  return (floor(vUv * cells) + 0.5) / cells;
+}
+
+float gridWipeAlpha(float spatialOrder, float t) {
+  vec2 cells = aspectGrid(16.0);
+  vec2 id = floor(vUv * cells);
+  vec2 local = fract(vUv * cells);
+  float order = mix(clamp(spatialOrder, 0.0, 1.0), hash(id), 0.12);
+  float disappear = smoothstep(order, order + 0.16, t);
+  float sc = mix(1.0, 0.18, disappear);
+  vec2 scaled = 0.5 + (local - 0.5) / max(sc, 0.001);
+  float inside = step(0.0, scaled.x) * step(scaled.x, 1.0) * step(0.0, scaled.y) * step(scaled.y, 1.0);
+  return inside * (1.0 - disappear);
+}
+
+float hexRound(float x) {
+  return floor(x + 0.5);
+}
+
+vec2 hexCellId(vec2 uv) {
+  float aspect = resolution.x / max(resolution.y, 1.0);
+  vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * 12.0;
+  float q = 1.1547005 * p.x;
+  float r = -0.5773503 * p.x + p.y;
+  vec3 cube = vec3(q, -q - r, r);
+  vec3 rounded = vec3(hexRound(cube.x), hexRound(cube.y), hexRound(cube.z));
+  vec3 diff = abs(rounded - cube);
+  if (diff.x > diff.y && diff.x > diff.z) {
+    rounded.x = -rounded.y - rounded.z;
+  } else if (diff.y > diff.z) {
+    rounded.y = -rounded.x - rounded.z;
+  }
+  return rounded.xz;
+}
 `;
 
 const FOOTER = `
@@ -117,10 +158,30 @@ export const SNAPSHOT_FRAGMENT_SHADERS: Record<SnapshotTransitionPreset, string>
   `),
 
   gridWipe: snapshotShader(`
-    vec2 cells = aspectGrid(16.0);
-    vec2 id = floor(vUv * cells);
-    float order = hash(id);
-    alpha = 1.0 - smoothstep(order, order + 0.18, t);
+    alpha = gridWipeAlpha(hash(gridCellId()), t);
+  `),
+
+  gridWipeUp: snapshotShader(`
+    alpha = gridWipeAlpha(gridCellUv().y, t);
+  `),
+
+  gridWipeRight: snapshotShader(`
+    alpha = gridWipeAlpha(gridCellUv().x, t);
+  `),
+
+  gridWipeDiagonal: snapshotShader(`
+    vec2 uv01 = gridCellUv();
+    alpha = gridWipeAlpha((uv01.x + uv01.y) * 0.5, t);
+  `),
+
+  gridWipeCenter: snapshotShader(`
+    alpha = gridWipeAlpha(length(gridCellUv() - 0.5) * 1.414, t);
+  `),
+
+  gridWipeChecker: snapshotShader(`
+    vec2 id = gridCellId();
+    float spatial = mix(0.0, 0.48, mod(id.x + id.y, 2.0));
+    alpha = gridWipeAlpha(spatial, t);
   `),
 
   dissolve: snapshotShader(`
@@ -186,6 +247,48 @@ export const SNAPSHOT_FRAGMENT_SHADERS: Record<SnapshotTransitionPreset, string>
     uv = rotated / mix(1.0, 1.5, eased) + 0.5;
     old = texture2D(map, uv);
     alpha = 1.0 - easeInCubic(t);
+  `),
+
+  clockWipe: snapshotShader(`
+    float angle = atan(vUv.y - 0.5, vUv.x - 0.5);
+    float a = fract(angle / 6.28318530718 + 0.25);
+    alpha = 1.0 - smoothstep(a, a + 0.045, t);
+  `),
+
+  ripple: snapshotShader(`
+    vec2 p = vUv - 0.5;
+    float dist = length(p);
+    float wave = sin(dist * 42.0 - t * 20.0) * 0.028 * (1.0 - t);
+    uv = vUv + normalize(p + 1e-5) * wave;
+    old = texture2D(map, uv);
+    alpha = 1.0 - easeInCubic(t);
+  `),
+
+  zoomBlur: snapshotShader(`
+    vec2 dir = vUv - 0.5;
+    vec4 acc = vec4(0.0);
+    for (int i = 0; i < 12; i++) {
+      float f = float(i) / 11.0;
+      acc += texture2D(map, 0.5 + dir * (1.0 - f * easeInCubic(t) * 0.88));
+    }
+    old = acc / 12.0;
+    alpha = 1.0 - easeInCubic(t);
+  `),
+
+  hexDissolve: snapshotShader(`
+    float order = hash(hexCellId(vUv));
+    alpha = 1.0 - smoothstep(order, order + 0.14, t);
+  `),
+
+  filmBurn: snapshotShader(`
+    float n = fbm(vUv * 6.0 + vec2(t * 1.4, t * 0.6));
+    float edge = length((vUv - 0.5) * vec2(1.1, 1.0));
+    float fuel = n * 0.62 + edge * 0.5;
+    float burn = smoothstep(fuel, fuel + 0.18, t * 1.15);
+    float glow = smoothstep(0.0, 0.22, burn) * (1.0 - smoothstep(0.35, 1.0, burn));
+    old.rgb = mix(old.rgb, vec3(1.0, 0.38, 0.08), glow);
+    old.rgb = mix(old.rgb, vec3(1.0, 0.92, 0.7), glow * glow);
+    alpha = 1.0 - burn;
   `),
 };
 

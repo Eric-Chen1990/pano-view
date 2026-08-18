@@ -13,11 +13,21 @@ export type SceneTransitionPreset =
   | "ellipticZoomOpen"
   | "pixelate"
   | "gridWipe"
+  | "gridWipeUp"
+  | "gridWipeRight"
+  | "gridWipeDiagonal"
+  | "gridWipeCenter"
+  | "gridWipeChecker"
   | "dissolve"
   | "shatter"
   | "particles"
   | "glitch"
-  | "swirl";
+  | "swirl"
+  | "clockWipe"
+  | "ripple"
+  | "zoomBlur"
+  | "hexDissolve"
+  | "filmBurn";
 
 export type SceneTransition =
   | SceneTransitionPreset
@@ -52,11 +62,21 @@ const TRANSITION_DEFAULTS: Record<SceneTransitionPreset, {
   ellipticZoomOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -0.5, 0.3, 0.8, linear)" },
   pixelate: { duration: 1, krpanoBlend: "pano-view cinematic" },
   gridWipe: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  gridWipeUp: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  gridWipeRight: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  gridWipeDiagonal: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  gridWipeCenter: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  gridWipeChecker: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
   dissolve: { duration: 1, krpanoBlend: "pano-view cinematic" },
   shatter: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
   particles: { duration: 1.4, krpanoBlend: "pano-view cinematic" },
   glitch: { duration: 0.8, krpanoBlend: "pano-view cinematic" },
   swirl: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  clockWipe: { duration: 1, krpanoBlend: "pano-view cinematic" },
+  ripple: { duration: 1.2, krpanoBlend: "pano-view cinematic" },
+  zoomBlur: { duration: 1, krpanoBlend: "pano-view cinematic" },
+  hexDissolve: { duration: 1.1, krpanoBlend: "pano-view cinematic" },
+  filmBurn: { duration: 1.3, krpanoBlend: "pano-view cinematic" },
 };
 
 export function resolveTransition(transition: SceneTransition | undefined): TransitionDefinition {

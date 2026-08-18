@@ -22,10 +22,20 @@ export function TransitionOverlay(props: OverlayProps) {
     case "ellipticZoomOpen":
     case "pixelate":
     case "gridWipe":
+    case "gridWipeUp":
+    case "gridWipeRight":
+    case "gridWipeDiagonal":
+    case "gridWipeCenter":
+    case "gridWipeChecker":
     case "dissolve":
     case "shatter":
     case "glitch":
     case "swirl":
+    case "clockWipe":
+    case "ripple":
+    case "zoomBlur":
+    case "hexDissolve":
+    case "filmBurn":
       return <SnapshotOverlay {...props} />;
     default: {
       const exhaustive: never = preset;

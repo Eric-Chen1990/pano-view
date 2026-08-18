@@ -339,10 +339,13 @@ const scenes: Scene[] = [
 Available KRpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
 `whiteFlash`, `slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`,
 `circleOpen`, `verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`.
-Cinematic presets are `pixelate`, `gridWipe`, `dissolve`, `shatter`,
-`particles`, `glitch`, and `swirl`. All of them still blend a GPU framebuffer
-snapshot over the incoming panorama; they do not mix two full 360 textures.
-Pass `{ preset: "crossfade", duration: 0.6 }` to override a preset duration.
+Grid presets are `pixelate`, `gridWipe`, `gridWipeUp`, `gridWipeRight`,
+`gridWipeDiagonal`, `gridWipeCenter`, `gridWipeChecker`, and `hexDissolve`.
+Cinematic presets are `dissolve`, `shatter`, `particles`, `glitch`, `swirl`,
+`clockWipe`, `ripple`, `zoomBlur`, and `filmBurn`. All of them still blend a
+GPU framebuffer snapshot over the incoming panorama; they do not mix two full
+360 textures. Pass `{ preset: "crossfade", duration: 0.6 }` to override a
+preset duration.
 
 While a transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
