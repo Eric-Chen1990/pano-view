@@ -130,7 +130,8 @@ export type PanoViewerProps = Omit<
    * Default context menu. `true` / omit mounts Reset view + Fullscreen;
    * `false` skips the default instance; an object merges appearance and
    * may use `items` (full replace, supports preset ids), or `prepend` /
-   * `append` to keep the defaults and add entries.
+   * `append` to keep the defaults and add entries. The browser's native
+   * context menu is always suppressed on the viewer, including overlays.
    */
   contextMenu?: boolean | PanoContextMenuProps;
   onViewChange?: (view: PanoViewerState) => void;
@@ -403,6 +404,22 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
 
       syncFullscreen();
       return subscribeFullscreenChange(syncFullscreen);
+    }, []);
+
+    useEffect(() => {
+      const root = rootRef.current;
+      if (!root) {
+        return;
+      }
+
+      const suppressNativeContextMenu = (event: Event) => {
+        event.preventDefault();
+      };
+
+      root.addEventListener("contextmenu", suppressNativeContextMenu, true);
+      return () => {
+        root.removeEventListener("contextmenu", suppressNativeContextMenu, true);
+      };
     }, []);
 
     const contextMenuActions = useMemo(

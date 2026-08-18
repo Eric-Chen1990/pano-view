@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 2.2.2
+
+### Patch Changes
+
+- 43d04ab: Always suppress the browser native context menu on PanoViewer, including chrome and overlays. `contextMenu={false}` no longer restores the native menu.
+
 ## 2.2.1
 
 ### Patch Changes
