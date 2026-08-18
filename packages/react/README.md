@@ -15,10 +15,10 @@ compatible with that tile output format but is not affiliated with krpano.
 ## Install
 
 ```bash
-npm install @ericchen1990/pano-view react react-dom three @react-three/fiber @react-three/drei
+npm install @ericchen1990/pano-view
 ```
 
-React 19, React DOM 19, `@react-three/fiber` 9, `@react-three/drei` 10, and Three.js are peer dependencies.
+React 19, React DOM 19, Three.js, `@react-three/fiber` 9, and `@react-three/drei` 10 are peer dependencies. npm 7+ and pnpm install them automatically; they must be a single copy in the host app.
 
 ## Exported components
 
