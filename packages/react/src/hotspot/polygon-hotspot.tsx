@@ -1,4 +1,3 @@
-import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
   BufferGeometry,
@@ -11,10 +10,11 @@ import {
   Vector2,
   Vector3,
 } from "three";
-import { Line2 } from "three/addons/lines/Line2.js";
-import { LineGeometry } from "three/addons/lines/LineGeometry.js";
-import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import { HotspotAnchor } from "./hotspot-anchor";
+import {
+  HotspotStrokeLine,
+  type HotspotStrokePoint,
+} from "./hotspot-stroke-line";
 import {
   clampPanoPitch,
   normalizePanoPosition,
@@ -340,8 +340,8 @@ function makeFillGeometry(vertices: HotspotPosition[], center: HotspotPosition):
 function makeStrokePositions(
   vertices: HotspotPosition[],
   center: HotspotPosition,
-): number[] {
-  const positions: number[] = [];
+): HotspotStrokePoint[] {
+  const points: HotspotStrokePoint[] = [];
   const worldToLocal = makeWorldToLocal(center);
   const unwrapped = unwrapPolygonVertices(vertices);
   const steps = polygonSubdivisionSteps(vertices);
@@ -363,40 +363,14 @@ function makeStrokePositions(
         POLYGON_RADIUS,
       )
       .applyMatrix4(worldToLocal);
-      positions.push(point.x, point.y, point.z);
+      points.push([point.x, point.y, point.z]);
     }
   }
-  positions.push(...positions.slice(0, 3));
-  return positions;
-}
-
-function makeStrokeLine(
-  positions: number[],
-  color: ColorRepresentation,
-  width: number,
-  opacity: number,
-): Line2 {
-  const geometry = new LineGeometry();
-  geometry.setPositions(positions);
-  const material = new LineMaterial({
-    color,
-    depthTest: true,
-    depthWrite: false,
-    linewidth: Math.max(0.5, width),
-    opacity,
-    transparent: true,
-    worldUnits: false,
-    alphaToCoverage: true,
-  });
-  const line = new Line2(geometry, material);
-  line.computeLineDistances();
-  return line;
-}
-
-function disposeStrokeLine(line: Line2 | null): void {
-  if (!line) return;
-  line.geometry.dispose();
-  (line.material as LineMaterial).dispose();
+  const first = points[0];
+  if (first) {
+    points.push(first);
+  }
+  return points;
 }
 
 function translateVertices(
@@ -429,8 +403,6 @@ export function PolygonHotspot({
   onInvalid,
   ...anchorProps
 }: PolygonHotspotProps) {
-  const gl = useThree((state) => state.gl);
-  const size = useThree((state) => state.size);
   const issues = useMemo(() => validatePolygonVertices(vertices), [vertices]);
   const valid = issues.length === 0;
   const center = useMemo(() => valid ? polygonCenter(vertices) : null, [valid, vertices]);
@@ -438,24 +410,11 @@ export function PolygonHotspot({
     () => valid && center ? makeFillGeometry(vertices, center) : null,
     [center, valid, vertices],
   );
-  const strokePositions = useMemo(
+  const strokePoints = useMemo(
     () => valid && center ? makeStrokePositions(vertices, center) : null,
     [center, valid, vertices],
   );
   const resolvedStrokeOpacity = Math.max(0, Math.min(strokeOpacity, 1));
-  const devicePixelRatio = gl.getPixelRatio();
-  const strokeLine = useMemo(
-    () => strokePositions
-      ? makeStrokeLine(strokePositions, stroke, strokeWidth * devicePixelRatio, resolvedStrokeOpacity)
-      : null,
-    [devicePixelRatio, resolvedStrokeOpacity, stroke, strokePositions, strokeWidth],
-  );
-  const focusStrokeLine = useMemo(
-    () => strokePositions
-      ? makeStrokeLine(strokePositions, "#75cbd3", (strokeWidth + 2) * devicePixelRatio, 1)
-      : null,
-    [devicePixelRatio, strokePositions, strokeWidth],
-  );
   const startVerticesRef = useRef<HotspotPosition[] | null>(null);
   const issuesKey = issues.map((issue) => issue.code).join(",");
 
@@ -463,17 +422,10 @@ export function PolygonHotspot({
     if (!valid) onInvalid?.(issues);
   }, [issues, issuesKey, onInvalid, valid]);
   useEffect(() => () => fillGeometry?.dispose(), [fillGeometry]);
-  useEffect(() => () => disposeStrokeLine(strokeLine), [strokeLine]);
-  useEffect(() => () => disposeStrokeLine(focusStrokeLine), [focusStrokeLine]);
-  useEffect(() => {
-    const width = gl.domElement.width;
-    const height = gl.domElement.height;
-    for (const line of [strokeLine, focusStrokeLine]) {
-      if (line) (line.material as LineMaterial).resolution.set(width, height);
-    }
-  }, [focusStrokeLine, gl, size.height, size.width, strokeLine]);
 
-  if (!valid || !center || !fillGeometry || !strokeLine || !focusStrokeLine) return null;
+  if (!valid || !center || !fillGeometry || !strokePoints || strokePoints.length < 2) {
+    return null;
+  }
 
   const emitVerticesChange = (event: HotspotDragEvent, callback?: (event: PolygonVerticesChangeEvent) => void) => {
     const startVertices = startVerticesRef.current ?? cloneVertices(vertices);
@@ -502,7 +454,13 @@ export function PolygonHotspot({
       interactive={interactive}
       useAngularScale={false}
       focusContent={
-        <primitive object={focusStrokeLine} renderOrder={renderOrder + 2} />
+        <HotspotStrokeLine
+          color="#75cbd3"
+          lineWidth={strokeWidth + 2}
+          opacity={1}
+          points={strokePoints}
+          renderOrder={renderOrder + 2}
+        />
       }
       onDragStart={(event) => {
         startVerticesRef.current = cloneVertices(vertices);
@@ -523,7 +481,13 @@ export function PolygonHotspot({
           transparent
         />
       </mesh>
-      <primitive object={strokeLine} renderOrder={renderOrder + 1} />
+      <HotspotStrokeLine
+        color={stroke}
+        lineWidth={strokeWidth}
+        opacity={resolvedStrokeOpacity}
+        points={strokePoints}
+        renderOrder={renderOrder + 1}
+      />
     </HotspotAnchor>
   );
 }

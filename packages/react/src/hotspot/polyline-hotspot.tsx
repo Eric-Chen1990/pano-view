@@ -1,4 +1,3 @@
-import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
   ColorRepresentation,
@@ -7,10 +6,11 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { Line2 } from "three/addons/lines/Line2.js";
-import { LineGeometry } from "three/addons/lines/LineGeometry.js";
-import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import { HotspotAnchor } from "./hotspot-anchor";
+import {
+  HotspotStrokeLine,
+  type HotspotStrokePoint,
+} from "./hotspot-stroke-line";
 import {
   clampPanoPitch,
   normalizePanoPosition,
@@ -139,8 +139,11 @@ function subdivisionSteps(vertices: HotspotPosition[]): number {
   );
 }
 
-function makeLinePositions(vertices: HotspotPosition[], center: HotspotPosition): number[] {
-  const positions: number[] = [];
+function makeLinePositions(
+  vertices: HotspotPosition[],
+  center: HotspotPosition,
+): HotspotStrokePoint[] {
+  const points: HotspotStrokePoint[] = [];
   const worldToLocal = makeWorldToLocal(center);
   const unwrapped = unwrapVertices(vertices);
   const steps = subdivisionSteps(vertices);
@@ -157,43 +160,14 @@ function makeLinePositions(vertices: HotspotPosition[], center: HotspotPosition)
         },
         POLYLINE_RADIUS,
       ).applyMatrix4(worldToLocal);
-      positions.push(point.x, point.y, point.z);
+      points.push([point.x, point.y, point.z]);
     }
   }
 
   const last = unwrapped[unwrapped.length - 1]!;
   const lastPoint = panoPositionToVector3(last, POLYLINE_RADIUS).applyMatrix4(worldToLocal);
-  positions.push(lastPoint.x, lastPoint.y, lastPoint.z);
-  return positions;
-}
-
-function makeLine(
-  positions: number[],
-  color: ColorRepresentation,
-  width: number,
-  opacity: number,
-): Line2 {
-  const geometry = new LineGeometry();
-  geometry.setPositions(positions);
-  const material = new LineMaterial({
-    color,
-    depthTest: true,
-    depthWrite: false,
-    linewidth: Math.max(0.5, width),
-    opacity,
-    transparent: true,
-    worldUnits: false,
-    alphaToCoverage: true,
-  });
-  const line = new Line2(geometry, material);
-  line.computeLineDistances();
-  return line;
-}
-
-function disposeLine(line: Line2 | null): void {
-  if (!line) return;
-  line.geometry.dispose();
-  (line.material as LineMaterial).dispose();
+  points.push([lastPoint.x, lastPoint.y, lastPoint.z]);
+  return points;
 }
 
 function translateVertices(
@@ -231,41 +205,21 @@ export function PolylineHotspot({
   onInvalid,
   ...anchorProps
 }: PolylineHotspotProps) {
-  const gl = useThree((state) => state.gl);
-  const size = useThree((state) => state.size);
   const issues = useMemo(() => validatePolylineVertices(vertices), [vertices]);
   const valid = issues.length === 0;
   const center = useMemo(() => valid ? polylineCenter(vertices) : null, [valid, vertices]);
-  const linePositions = useMemo(
+  const linePoints = useMemo(
     () => valid && center ? makeLinePositions(vertices, center) : null,
     [center, valid, vertices],
   );
-  const devicePixelRatio = gl.getPixelRatio();
   const opacity = Math.max(0, Math.min(strokeOpacity, 1));
-  const line = useMemo(
-    () => linePositions ? makeLine(linePositions, stroke, strokeWidth * devicePixelRatio, opacity) : null,
-    [devicePixelRatio, linePositions, opacity, stroke, strokeWidth],
-  );
-  const focusLine = useMemo(
-    () => linePositions ? makeLine(linePositions, "#75cbd3", (strokeWidth + 2) * devicePixelRatio, 1) : null,
-    [devicePixelRatio, linePositions, strokeWidth],
-  );
   const startVerticesRef = useRef<HotspotPosition[] | null>(null);
 
   useEffect(() => {
     if (!valid) onInvalid?.(issues);
   }, [issues, onInvalid, valid]);
-  useEffect(() => () => disposeLine(line), [line]);
-  useEffect(() => () => disposeLine(focusLine), [focusLine]);
-  useEffect(() => {
-    const width = gl.domElement.width;
-    const height = gl.domElement.height;
-    for (const nextLine of [line, focusLine]) {
-      if (nextLine) (nextLine.material as LineMaterial).resolution.set(width, height);
-    }
-  }, [focusLine, gl, line, size.height, size.width]);
 
-  if (!valid || !center || !line || !focusLine) return null;
+  if (!valid || !center || !linePoints || linePoints.length < 2) return null;
 
   const emitVerticesChange = (
     event: HotspotDragEvent,
@@ -294,7 +248,15 @@ export function PolylineHotspot({
       renderOrder={renderOrder}
       draggable={draggable}
       useAngularScale={false}
-      focusContent={<primitive object={focusLine} renderOrder={renderOrder + 2} />}
+      focusContent={
+        <HotspotStrokeLine
+          color="#75cbd3"
+          lineWidth={strokeWidth + 2}
+          opacity={1}
+          points={linePoints}
+          renderOrder={renderOrder + 2}
+        />
+      }
       onDragStart={(event) => {
         startVerticesRef.current = cloneVertices(vertices);
         emitVerticesChange(event, onDragStart);
@@ -305,7 +267,13 @@ export function PolylineHotspot({
         startVerticesRef.current = null;
       }}
     >
-      <primitive object={line} renderOrder={renderOrder + 1} />
+      <HotspotStrokeLine
+        color={stroke}
+        lineWidth={strokeWidth}
+        opacity={opacity}
+        points={linePoints}
+        renderOrder={renderOrder + 1}
+      />
     </HotspotAnchor>
   );
 }
