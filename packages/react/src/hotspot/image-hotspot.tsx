@@ -2,7 +2,6 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import {
   ClampToEdgeWrapping,
-  DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   SRGBColorSpace,
@@ -10,6 +9,7 @@ import {
   TextureLoader,
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
+import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
 
 export type ImageHotspotProps = HotspotCommonProps & {
@@ -17,13 +17,6 @@ export type ImageHotspotProps = HotspotCommonProps & {
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
 };
-
-function clampOpacity(opacity: number | undefined): number {
-  if (!Number.isFinite(opacity)) {
-    return 1;
-  }
-  return Math.max(0, Math.min(opacity!, 1));
-}
 
 function useHotspotImageTexture(
   src: string,
@@ -101,16 +94,7 @@ export function ImageHotspot({
 
   return (
     <HotspotAnchor {...anchorProps} height={height} width={width}>
-      <mesh>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={texture}
-          opacity={texture ? clampOpacity(opacity) : 0}
-          side={DoubleSide}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
+      <HotspotPlane map={texture} opacity={opacity} />
     </HotspotAnchor>
   );
 }

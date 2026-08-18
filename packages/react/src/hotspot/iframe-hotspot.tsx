@@ -88,6 +88,8 @@ export function IframeHotspot({
       <mesh>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial
+          // Empty hit target: skip depth writes so this rectangle cannot hide
+          // polygons or other hotspots behind it.
           depthWrite={false}
           opacity={0}
           side={DoubleSide}

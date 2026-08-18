@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   CanvasTexture,
   ClampToEdgeWrapping,
-  DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   SRGBColorSpace,
   Texture,
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
+import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
 
 const TEXT_TEXTURE_LONG_SIDE = 1024;
@@ -56,10 +56,6 @@ function clamp01(value: number | undefined, fallback: number): number {
     return fallback;
   }
   return Math.max(0, Math.min(value!, 1));
-}
-
-function clampOpacity(opacity: number | undefined): number {
-  return clamp01(opacity, 1);
 }
 
 function resolvePositive(value: number | undefined, fallback: number): number {
@@ -392,16 +388,7 @@ export function TextHotspot({
 
   return (
     <HotspotAnchor {...anchorProps} height={height} width={width}>
-      <mesh>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={texture}
-          opacity={texture ? clampOpacity(opacity) : 0}
-          side={DoubleSide}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
+      <HotspotPlane map={texture} opacity={opacity} />
     </HotspotAnchor>
   );
 }

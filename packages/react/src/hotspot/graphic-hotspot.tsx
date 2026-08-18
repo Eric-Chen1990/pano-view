@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   CanvasTexture,
   ClampToEdgeWrapping,
-  DoubleSide,
   LinearFilter,
   LinearMipmapLinearFilter,
   SRGBColorSpace,
   Texture,
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
+import { HotspotPlane } from "./hotspot-plane";
 import { ImageHotspot } from "./image-hotspot";
 import type { HotspotCommonProps } from "./types";
 
@@ -78,13 +78,6 @@ export type GraphicHotspotProps = HotspotCommonProps & {
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
 };
-
-function clampOpacity(opacity: number | undefined): number {
-  if (!Number.isFinite(opacity)) {
-    return 1;
-  }
-  return Math.max(0, Math.min(opacity!, 1));
-}
 
 function resolveStrokeWidth(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(value!, 0) : 8;
@@ -360,16 +353,7 @@ function CanvasGraphicHotspot({
 
   return (
     <HotspotAnchor {...anchorProps} height={height} width={width}>
-      <mesh>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={texture}
-          opacity={texture ? clampOpacity(opacity) : 0}
-          side={DoubleSide}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
+      <HotspotPlane map={texture} opacity={opacity} />
     </HotspotAnchor>
   );
 }
