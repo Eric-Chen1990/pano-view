@@ -20,6 +20,10 @@ import {
   Vector3,
 } from "three";
 import { PanoEventBusContext } from "../pano-event-bus";
+import {
+  hotspotCursorClaimId,
+  usePanoCursor,
+} from "../pano-cursor";
 import { PanoramaViewContext } from "../panorama-view-runtime";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { useHotspotAccessibility } from "./accessibility";
@@ -309,6 +313,7 @@ export function HotspotAnchor({
   visible = true,
   draggable = false,
   interactive = true,
+  cursor,
   ariaLabel,
   tooltip,
   tooltipTrigger = "always",
@@ -323,11 +328,13 @@ export function HotspotAnchor({
 }: HotspotAnchorProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const eventBus = useContext(PanoEventBusContext);
+  const cursorApi = usePanoCursor();
   const groupRef = useRef<Object3D>(null);
   const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const suppressNextClickRef = useRef(false);
   const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [pinned, setPinned] = useState(false);
   const tooltipContent = useMemo(
     () => resolveHotspotTooltipContent(tooltip),
@@ -388,6 +395,7 @@ export function HotspotAnchor({
     visible &&
     tooltipContent !== null &&
     isTooltipOpen(tooltipTrigger, hovered, focused, pinned);
+  const cursorClaimId = hotspotCursorClaimId(id);
 
   useEffect(
     () => () => {
@@ -395,6 +403,36 @@ export function HotspotAnchor({
       dragStateRef.current = null;
     },
     [],
+  );
+
+  useEffect(() => {
+    if (!cursorApi) {
+      return;
+    }
+    if (interactive && visible && dragging) {
+      cursorApi.claim(cursorClaimId, "hotspotDragging");
+      return;
+    }
+    if (interactive && visible && hovered) {
+      cursorApi.claim(cursorClaimId, "hotspot", cursor);
+      return;
+    }
+    cursorApi.release(cursorClaimId);
+  }, [
+    cursor,
+    cursorApi,
+    cursorClaimId,
+    dragging,
+    hovered,
+    interactive,
+    visible,
+  ]);
+
+  useEffect(
+    () => () => {
+      cursorApi?.release(cursorClaimId);
+    },
+    [cursorApi, cursorClaimId],
   );
 
   useEffect(() => () => focusGeometry.dispose(), [focusGeometry]);
@@ -477,6 +515,10 @@ export function HotspotAnchor({
     suppressNextClickRef.current = dragState.moved;
     dragState.releaseInteractionLock();
     dragStateRef.current = null;
+    setDragging(false);
+    if (emitDragEnd) {
+      setHovered(true);
+    }
   };
 
   return (
@@ -515,6 +557,7 @@ export function HotspotAnchor({
           moved: false,
         };
         setHovered(false);
+        setDragging(true);
         onDragStart?.({
           ...makeInteractionEvent(id, startPosition, event),
           source: "pointer",

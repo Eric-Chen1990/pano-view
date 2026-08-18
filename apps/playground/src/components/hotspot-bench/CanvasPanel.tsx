@@ -19,6 +19,10 @@ import {
 } from "./store";
 
 const VIEWER_CONTROLS = { inertia: true, keyboard: true };
+const PLACING_CURSORS = {
+  default: "crosshair",
+  dragging: "crosshair",
+} as const;
 
 export function CanvasPanel() {
   const viewerRef = useRef<PanoViewerHandle>(null);
@@ -138,6 +142,7 @@ export function CanvasPanel() {
           aria-label={`${mode} panorama hotspot editor`}
           className="pano-view"
           controls={placementTool || drawingPath ? false : VIEWER_CONTROLS}
+          cursors={placementTool || drawingPath ? PLACING_CURSORS : undefined}
           initialView={INITIAL_VIEW}
           onPanoramaClick={({ position }) => addHotspot(position)}
           onPanoramaDoubleClick={() => {

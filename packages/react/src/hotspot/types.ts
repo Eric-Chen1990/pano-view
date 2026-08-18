@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 export const MAX_HOTSPOT_PITCH = 90;
 
 export type HotspotPosition = {
@@ -86,6 +88,11 @@ export type HotspotCommonProps = {
   visible?: boolean;
   /** Whether the hotspot accepts pointer and keyboard interaction. Defaults to true. */
   interactive?: boolean;
+  /**
+   * Canvas cursor while this hotspot is hovered. Defaults to the viewer's
+   * `cursors.hotspot` value (`"pointer"`).
+   */
+  cursor?: CSSProperties["cursor"];
   draggable?: boolean;
   /** Required for keyboard-accessible clickable hotspots. */
   ariaLabel?: string;

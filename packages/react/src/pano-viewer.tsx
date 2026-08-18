@@ -35,6 +35,11 @@ import {
   createPanoEventBus,
   PanoEventBusContext,
 } from "./pano-event-bus";
+import {
+  PanoCursorController,
+  resolvePanoCursors,
+  type PanoCursors,
+} from "./pano-cursor";
 import { PanoEvents } from "./pano-events";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import {
@@ -80,6 +85,12 @@ export type PanoViewerProps = Omit<
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
+  /**
+   * Canvas cursor. `true` / omit uses grab / grabbing / pointer / move;
+   * `false` leaves the canvas cursor unchanged; an object merges with the
+   * defaults (`default`, `dragging`, `hotspot`, `hotspotDragging`).
+   */
+  cursors?: boolean | PanoCursors;
   /**
    * Default context menu. `true` / omit mounts Reset view + Fullscreen;
    * `false` skips the default instance; an object merges appearance and
@@ -131,6 +142,21 @@ function resolveContextMenuChannel(
   return { mount: true, props: { ...value } };
 }
 
+function PanoCursorTree({
+  cursors,
+  children,
+}: {
+  cursors: ReturnType<typeof resolvePanoCursors>;
+  children: ReactNode;
+}) {
+  if (!cursors) {
+    return children;
+  }
+  return (
+    <PanoCursorController cursors={cursors}>{children}</PanoCursorController>
+  );
+}
+
 export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   function PanoViewer(
     {
@@ -139,6 +165,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       minFov = 30,
       maxFov = 100,
       controls = true,
+      cursors,
       contextMenu = true,
       onViewChange,
       onPanoramaClick,
@@ -287,6 +314,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       () => resolveContextMenuChannel(contextMenu),
       [contextMenu],
     );
+    const resolvedCursors = useMemo(
+      () => resolvePanoCursors(cursors),
+      [cursors],
+    );
 
     // Bridge deprecated controls.autoRotate / autoRotateSpeed without
     // surfacing @deprecated diagnostics on this compatibility path.
@@ -364,6 +395,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         >
           <HotspotAccessibilityContext.Provider value={registry}>
             <PanoEventBusContext.Provider value={eventBus}>
+              <PanoCursorTree cursors={resolvedCursors}>
               <PanoramaViewContext.Provider value={controlsRef}>
                 <PanoContextMenuOverlayContext.Provider
                   value={contextMenuOverlayApi}
@@ -420,6 +452,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   </PanoContextMenuActionsContext.Provider>
                 </PanoContextMenuOverlayContext.Provider>
               </PanoramaViewContext.Provider>
+              </PanoCursorTree>
             </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
         </Canvas>

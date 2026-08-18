@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
 import type { TextHotspotStyle } from "./text-hotspot";
@@ -17,6 +18,8 @@ export type HotspotDefinitionBase = {
   label?: string;
   visible?: boolean;
   interactive?: boolean;
+  /** Canvas cursor while this hotspot is hovered. */
+  cursor?: CSSProperties["cursor"];
   renderOrder?: number;
   tooltip?: string | HotspotTooltipContent;
   tooltipTrigger?: HotspotTooltipTrigger;

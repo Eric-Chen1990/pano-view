@@ -108,6 +108,22 @@ The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRo
 
 Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
+The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the mouse, `pointer` over an interactive hotspot, and `move` while dragging a hotspot. Override those values with `cursors` (`default`, `dragging`, `hotspot`, `hotspotDragging`), or pass `cursors={false}` to leave the canvas cursor unchanged. A hotspot may set `cursor` to replace the hover cursor for that hotspot only.
+
+```tsx
+<PanoViewer
+  cursors={{ default: "grab", dragging: "grabbing", hotspot: "pointer" }}
+  style={{ height: 560 }}
+>
+  <ImageHotspot
+    id="door"
+    cursor="zoom-in"
+    position={{ yaw: 24, pitch: -6 }}
+    src="/hotspots/door.webp"
+  />
+</PanoViewer>
+```
+
 ## Sphere
 
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
@@ -538,6 +554,8 @@ and semantic interaction callbacks. Point hotspots additionally use a
 controlled `position`, angular `width`/`height`, hotspot mode, and the zoom
 options described below. `interactive={false}` keeps a hotspot visible while
 letting a drawing tool receive the panorama pointer events beneath it.
+Interactive hotspots set the canvas cursor to `pointer` while hovered, or to
+the hotspot's `cursor` prop when that is set.
 
 `onClick` and `onHoverChange` receive a position and input source (`"pointer"`
 or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,

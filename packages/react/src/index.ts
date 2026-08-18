@@ -1,5 +1,7 @@
 export { PanoViewer } from "./pano-viewer";
 export type { PanoViewerProps } from "./pano-viewer";
+export { DEFAULT_PANO_CURSORS } from "./pano-cursor";
+export type { PanoCursor, PanoCursors } from "./pano-cursor";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
 export { PanoContextMenu } from "./pano-context-menu";
