@@ -1,6 +1,7 @@
 import type {
   GraphicDefinition,
   HotspotMode,
+  HotspotPointerEvents,
   HotspotPosition,
   HotspotTooltipContent,
   HotspotTooltipPlacement,
@@ -39,6 +40,7 @@ type EditorPointHotspotBase = {
   scaleMode: "fov" | "fixed";
   opacity: number;
   visible: boolean;
+  pointerEvents: HotspotPointerEvents;
   tooltip: HotspotTooltipContent;
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
@@ -104,6 +106,7 @@ export type EditorPolygon = {
   strokeWidth: number;
   strokeOpacity: number;
   visible: boolean;
+  pointerEvents: HotspotPointerEvents;
   tooltip: HotspotTooltipContent;
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
@@ -118,6 +121,7 @@ export type EditorPolyline = {
   strokeWidth: number;
   strokeOpacity: number;
   visible: boolean;
+  pointerEvents: HotspotPointerEvents;
   tooltip: HotspotTooltipContent;
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;

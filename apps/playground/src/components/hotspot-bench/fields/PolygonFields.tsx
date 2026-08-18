@@ -79,6 +79,16 @@ export function PolygonFields({
         />
         <span>Visible in panorama</span>
       </label>
+      <label className="check-field">
+        <input
+          checked={polygon.pointerEvents !== "none"}
+          onChange={(event) => onChange({
+            pointerEvents: event.currentTarget.checked ? "auto" : "none",
+          })}
+          type="checkbox"
+        />
+        <span>Respond to mouse</span>
+      </label>
       <TooltipFields
         onChange={onChange}
         tooltip={polygon.tooltip ?? {}}

@@ -2,7 +2,10 @@ import { Html } from "@react-three/drei";
 import type { IframeHTMLAttributes } from "react";
 import { DoubleSide } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
-import type { HotspotCommonProps } from "./types";
+import {
+  acceptsHotspotPointerEvents,
+  type HotspotCommonProps,
+} from "./types";
 
 const IFRAME_LONG_SIDE = 800;
 /** drei Html transform uses `1 / ((distanceFactor || 10) / 400)`. 400 keeps 1 world unit = 1 CSS pixel. */
@@ -78,13 +81,25 @@ export function IframeHotspot({
   height = 12,
   onLoad,
   onError,
+  interactive = true,
+  pointerEvents = "auto",
   ...anchorProps
 }: IframeHotspotProps) {
   const { cssWidth, cssHeight } = iframeCssSize(width, height);
   const iframeTitle = title ?? anchorProps.ariaLabel;
+  const acceptsPointer = acceptsHotspotPointerEvents(
+    interactive,
+    pointerEvents,
+  );
 
   return (
-    <HotspotAnchor {...anchorProps} height={height} width={width}>
+    <HotspotAnchor
+      {...anchorProps}
+      height={height}
+      interactive={interactive}
+      pointerEvents={pointerEvents}
+      width={width}
+    >
       <mesh>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial
@@ -99,7 +114,9 @@ export function IframeHotspot({
       </mesh>
       <Html
         distanceFactor={CSS3D_DISTANCE_FACTOR}
-        pointerEvents={pointerPolicy === "content" ? "auto" : "none"}
+        pointerEvents={
+          acceptsPointer && pointerPolicy === "content" ? "auto" : "none"
+        }
         scale={[1 / cssWidth, 1 / cssHeight, 1]}
         style={{
           background: background ?? "transparent",

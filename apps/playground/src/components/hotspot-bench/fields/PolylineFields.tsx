@@ -52,6 +52,16 @@ export function PolylineFields({
         />
         <span>Visible in panorama</span>
       </label>
+      <label className="check-field">
+        <input
+          checked={polyline.pointerEvents !== "none"}
+          onChange={(event) => onChange({
+            pointerEvents: event.currentTarget.checked ? "auto" : "none",
+          })}
+          type="checkbox"
+        />
+        <span>Respond to mouse</span>
+      </label>
       <TooltipFields
         onChange={onChange}
         tooltip={polyline.tooltip ?? {}}

@@ -286,6 +286,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         strokeWidth: 2,
         strokeOpacity: 0.88,
         visible: true,
+        pointerEvents: "auto",
         ...defaultEditorTooltip("Drawn polyline"),
       };
       set((state) => ({
@@ -316,6 +317,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       strokeWidth: 2,
       strokeOpacity: 0.88,
       visible: true,
+      pointerEvents: "auto",
       ...defaultEditorTooltip("Drawn polygon"),
     };
     set((state) => ({
@@ -352,6 +354,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fov",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: "/fixtures/hotspots/gallery-card.svg",
         ...defaultEditorTooltip("Open image hotspot"),
       };
@@ -378,6 +381,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fixed",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         graphic: createGraphic("circle"),
         ...defaultEditorTooltip("Explore graphic hotspot"),
       };
@@ -404,6 +408,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fixed",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: SEQUENCE_SPRITE,
         frameCount: 4,
         frameDirection: "vertical",
@@ -435,6 +440,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fov",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: "/fixtures/hotspots/loop.webm",
         poster: "/fixtures/hotspots/gallery-card.svg",
         playing: false,
@@ -466,6 +472,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fixed",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         text: "Courtyard overlook",
         fontFamily: "system-ui, sans-serif",
         fontSize: 96,
@@ -502,6 +509,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         scaleMode: "fov",
         opacity: 1,
         visible: true,
+        pointerEvents: "auto",
         src: "/fixtures/hotspots/embed.html",
         title: "Visitor guide",
         sandbox: "allow-scripts allow-popups allow-forms",

@@ -175,6 +175,7 @@ export type {
   HotspotInteractionEvent,
   HotspotCommonProps,
   HotspotMode,
+  HotspotPointerEvents,
   HotspotScaleMode,
   HotspotPosition,
   HotspotTooltipContent,

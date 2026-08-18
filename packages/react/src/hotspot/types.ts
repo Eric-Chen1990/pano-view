@@ -37,6 +37,28 @@ export type HotspotDragEvent = HotspotInteractionEvent & {
 /** When a hotspot tooltip is shown. Defaults to `"always"`. */
 export type HotspotTooltipTrigger = "always" | "hover" | "click";
 
+/**
+ * Pointer hit-testing for a hotspot. `"none"` ignores mouse, touch, and pen
+ * so events pass through to the panorama. Defaults to `"auto"`.
+ */
+export type HotspotPointerEvents = "auto" | "none";
+
+export function acceptsHotspotPointerEvents(
+  interactive: boolean,
+  pointerEvents: HotspotPointerEvents,
+): boolean {
+  switch (pointerEvents) {
+    case "auto":
+      return interactive;
+    case "none":
+      return false;
+    default: {
+      const exhaustive: never = pointerEvents;
+      return exhaustive;
+    }
+  }
+}
+
 /** Where the tooltip sits relative to the hotspot. Defaults to `"top"`. */
 export type HotspotTooltipPlacement = "top" | "bottom" | "left" | "right";
 
@@ -55,7 +77,7 @@ export type HotspotCommonProps = {
    * Defaults to always visible when content is present.
    */
   tooltip?: string | HotspotTooltipContent;
-  /** Defaults to `"always"`. `"hover"` and `"click"` require `interactive`. */
+  /** Defaults to `"always"`. `"hover"` and `"click"` require `interactive` and `pointerEvents` other than `"none"`. */
   tooltipTrigger?: HotspotTooltipTrigger;
   /** Defaults to `"top"`. */
   tooltipPlacement?: HotspotTooltipPlacement;
@@ -88,6 +110,12 @@ export type HotspotCommonProps = {
   visible?: boolean;
   /** Whether the hotspot accepts pointer and keyboard interaction. Defaults to true. */
   interactive?: boolean;
+  /**
+   * Pointer hit-testing. `"none"` ignores mouse, touch, and pen so events
+   * pass through to the panorama. Defaults to `"auto"`.
+   * `interactive={false}` also disables pointer hits.
+   */
+  pointerEvents?: HotspotPointerEvents;
   /**
    * Canvas cursor while this hotspot is hovered. Defaults to the viewer's
    * `cursors.hotspot` value (`"pointer"`).

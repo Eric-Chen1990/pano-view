@@ -4,6 +4,7 @@ import type { IframePointerPolicy } from "./iframe-hotspot";
 import type { TextHotspotStyle } from "./text-hotspot";
 import type {
   HotspotMode,
+  HotspotPointerEvents,
   HotspotPosition,
   HotspotScaleMode,
   HotspotTooltipContent,
@@ -18,6 +19,8 @@ export type HotspotDefinitionBase = {
   label?: string;
   visible?: boolean;
   interactive?: boolean;
+  /** Pointer hit-testing. `"none"` ignores mouse, touch, and pen. */
+  pointerEvents?: HotspotPointerEvents;
   /** Canvas cursor while this hotspot is hovered. */
   cursor?: CSSProperties["cursor"];
   renderOrder?: number;

@@ -78,6 +78,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           mode: hotspot.mode,
           distance: hotspot.distance,
           interactive: !drawingPath,
+          pointerEvents: hotspot.pointerEvents,
           position: hotspot.position,
           rotation: hotspot.rotation,
           scale: hotspot.scale,
@@ -196,6 +197,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           fillOpacity={polygon.fillOpacity}
           id={polygon.id}
           interactive={!drawingPath}
+          pointerEvents={polygon.pointerEvents}
           onClick={() => {
             selectItem(polygon.id);
             setLastAction(`${polygon.label} selected.`);
@@ -236,6 +238,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
           draggable={tool === "select"}
           id={polyline.id}
           interactive={!drawingPath}
+          pointerEvents={polyline.pointerEvents}
           onClick={() => {
             selectItem(polyline.id);
             setLastAction(`${polyline.label} selected.`);

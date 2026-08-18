@@ -348,6 +348,16 @@ function SelectedHotspotFields({
         />
         <span>Visible in panorama</span>
       </label>
+      <label className="check-field">
+        <input
+          checked={selected.pointerEvents !== "none"}
+          onChange={(event) => onUpdateHotspot(selected.id, {
+            pointerEvents: event.currentTarget.checked ? "auto" : "none",
+          })}
+          type="checkbox"
+        />
+        <span>Respond to mouse</span>
+      </label>
 
       <TooltipFields
         onChange={(patch) => onUpdateHotspot(selected.id, patch)}

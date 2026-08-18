@@ -37,13 +37,14 @@ import {
   resolveHotspotTooltipContent,
   resolveHotspotTooltipOffset,
 } from "./hotspot-tooltip";
-import type {
-  HotspotCommonProps,
-  HotspotInteractionEvent,
-  HotspotMode,
-  HotspotPosition,
-  HotspotTooltipPlacement,
-  HotspotTooltipTrigger,
+import {
+  acceptsHotspotPointerEvents,
+  type HotspotCommonProps,
+  type HotspotInteractionEvent,
+  type HotspotMode,
+  type HotspotPosition,
+  type HotspotTooltipPlacement,
+  type HotspotTooltipTrigger,
 } from "./types";
 
 const DEFAULT_FLOATING_DISTANCE = 10;
@@ -313,6 +314,7 @@ export function HotspotAnchor({
   visible = true,
   draggable = false,
   interactive = true,
+  pointerEvents = "auto",
   cursor,
   ariaLabel,
   tooltip,
@@ -371,6 +373,7 @@ export function HotspotAnchor({
     planeGeometry.dispose();
     return geometry;
   }, []);
+  const acceptsPointer = acceptsHotspotPointerEvents(interactive, pointerEvents);
   const canActivateFromKeyboard = Boolean(
     visible && interactive && (onClick || tooltipTrigger === "click"),
   );
@@ -409,22 +412,22 @@ export function HotspotAnchor({
     if (!cursorApi) {
       return;
     }
-    if (interactive && visible && dragging) {
+    if (acceptsPointer && visible && dragging) {
       cursorApi.claim(cursorClaimId, "hotspotDragging");
       return;
     }
-    if (interactive && visible && hovered) {
+    if (acceptsPointer && visible && hovered) {
       cursorApi.claim(cursorClaimId, "hotspot", cursor);
       return;
     }
     cursorApi.release(cursorClaimId);
   }, [
+    acceptsPointer,
     cursor,
     cursorApi,
     cursorClaimId,
     dragging,
     hovered,
-    interactive,
     visible,
   ]);
 
@@ -452,6 +455,20 @@ export function HotspotAnchor({
       setHovered(false);
     }
   }, [tooltipTrigger]);
+
+  useEffect(() => {
+    if (acceptsPointer) {
+      return;
+    }
+    setHovered(false);
+    const dragState = dragStateRef.current;
+    if (!dragState) {
+      return;
+    }
+    dragState.releaseInteractionLock();
+    dragStateRef.current = null;
+    setDragging(false);
+  }, [acceptsPointer]);
 
   useFrame(({ camera }) => {
     if (!groupRef.current) {
@@ -528,7 +545,7 @@ export function HotspotAnchor({
       renderOrder={renderOrder}
       scale={[worldWidth, worldHeight, 1]}
       visible={visible}
-      onClick={interactive ? (event) => {
+      onClick={acceptsPointer ? (event) => {
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
           if (tooltipTrigger === "click") {
@@ -538,9 +555,9 @@ export function HotspotAnchor({
         }
         suppressNextClickRef.current = false;
       } : undefined}
-      onLostPointerCapture={interactive ? (event) => releasePointer(event, false) : undefined}
-      onPointerCancel={interactive ? (event) => releasePointer(event, false) : undefined}
-      onPointerDown={interactive ? (event) => {
+      onLostPointerCapture={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
+      onPointerCancel={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
+      onPointerDown={acceptsPointer ? (event) => {
         stopPointerEvent(event);
         if (!draggable || dragStateRef.current) {
           return;
@@ -564,7 +581,7 @@ export function HotspotAnchor({
           startPosition,
         });
       } : undefined}
-      onPointerMove={interactive ? (event) => {
+      onPointerMove={acceptsPointer ? (event) => {
         const dragState = dragStateRef.current;
         if (!dragState || dragState.pointerId !== event.pointerId) {
           return;
@@ -580,7 +597,7 @@ export function HotspotAnchor({
           startPosition: dragState.startPosition,
         });
       } : undefined}
-      onPointerOut={interactive ? (event) => {
+      onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
           setHovered(false);
           onHoverChange?.(
@@ -589,7 +606,7 @@ export function HotspotAnchor({
           );
         }
       } : undefined}
-      onPointerOver={interactive ? (event) => {
+      onPointerOver={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
           setHovered(true);
           onHoverChange?.(
@@ -598,7 +615,7 @@ export function HotspotAnchor({
           );
         }
       } : undefined}
-      onPointerUp={interactive ? (event) => releasePointer(event, true) : undefined}
+      onPointerUp={acceptsPointer ? (event) => releasePointer(event, true) : undefined}
     >
       {focused ? (focusContent ?? (
         <lineSegments

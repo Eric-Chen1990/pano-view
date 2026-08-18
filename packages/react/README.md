@@ -615,13 +615,24 @@ For a fully custom DOM menu, set `contextMenu={false}` and render
 
 ## Shared hotspot contract and saved definitions
 
-Every hotspot has an `id`, optional `visible`, `interactive`, `renderOrder`,
-and semantic interaction callbacks. Point hotspots additionally use a
-controlled `position`, angular `width`/`height`, hotspot mode, and the zoom
-options described below. `interactive={false}` keeps a hotspot visible while
-letting a drawing tool receive the panorama pointer events beneath it.
+Every hotspot has an `id`, optional `visible`, `interactive`, `pointerEvents`,
+`renderOrder`, and semantic interaction callbacks. Point hotspots additionally
+use a controlled `position`, angular `width`/`height`, hotspot mode, and the
+zoom options described below. `interactive={false}` keeps a hotspot visible
+while letting a drawing tool receive the panorama pointer events beneath it.
+`pointerEvents="none"` ignores mouse, touch, and pen so those events pass
+through to the panorama even when the hotspot stays keyboard-interactive.
 Interactive hotspots set the canvas cursor to `pointer` while hovered, or to
 the hotspot's `cursor` prop when that is set.
+
+```tsx
+<TextHotspot
+  id="caption"
+  pointerEvents="none"
+  position={{ yaw: 12, pitch: -8 }}
+  text="Decorative label"
+/>
+```
 
 `onClick` and `onHoverChange` receive a position and input source (`"pointer"`
 or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
@@ -635,7 +646,8 @@ Every hotspot can show a DOM tooltip at its anchor. Pass a string or
 on screen. Clicking the hotspot does not toggle it. Optional
 `tooltipTrigger="hover"` shows the bubble on pointer hover or keyboard focus;
 `"click"` pins it until the hotspot is clicked again or the empty panorama is
-clicked. Hover and click triggers need `interactive`.
+clicked. Hover and click triggers need `interactive` and `pointerEvents`
+other than `"none"`.
 
 `tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
 The bubble sits outside that edge of the hotspot. `tooltipOffset` is the
@@ -1007,7 +1019,9 @@ import { IframeHotspot } from "@ericchen1990/pano-view";
 
 `pointerPolicy="hotspot"` (default) sets the iframe to `pointer-events: none`
 so clicks and drags hit the WebGL plane. `"content"` makes the page
-interactive and blocks dragging through the iframe. `sandbox` defaults to
+interactive and blocks dragging through the iframe. A hotspot
+`pointerEvents="none"` also forces the iframe overlay not to capture pointer
+events. `sandbox` defaults to
 `allow-scripts allow-popups allow-forms` without `allow-same-origin`.
 `referrerPolicy` defaults to `strict-origin-when-cross-origin`. Prefer a
 same-origin document; many third-party sites send `X-Frame-Options` and will
