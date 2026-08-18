@@ -32,15 +32,15 @@ const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
 
 const VIDEO_TRACKS: readonly PanoVideoTrack[] = [
   {
-    src: "/fixtures/360video/1/zh.vtt",
-    srcLang: "zh",
-    label: "中文",
-    default: true,
-  },
-  {
     src: "/fixtures/360video/1/en.vtt",
     srcLang: "en",
     label: "English",
+    default: true,
+  },
+  {
+    src: "/fixtures/360video/1/zh.vtt",
+    srcLang: "zh",
+    label: "中文",
   },
 ];
 
@@ -52,10 +52,7 @@ function buildVideoSnippet(
   fontSize: number,
   captionColor: string,
 ): string {
-  const defaultTrack =
-    captionLang === "en"
-      ? "en"
-      : "zh";
+  const defaultTrack = captionLang === "zh" ? "zh" : "en";
   const captionsProp =
     captionLang === "off"
       ? "false"
@@ -66,7 +63,6 @@ function buildVideoSnippet(
   <PanoVideo
     defaultVariantId="1024"
     loop={${loop}}
-    muted
     captions={${captionsProp}}
     variants={[
       {
@@ -89,8 +85,8 @@ function buildVideoSnippet(
       },
     ]}
     tracks={[
-      { src: "/fixtures/360video/1/zh.vtt", srcLang: "zh", label: "中文"${defaultTrack === "zh" ? ", default: true" : ""} },
       { src: "/fixtures/360video/1/en.vtt", srcLang: "en", label: "English"${defaultTrack === "en" ? ", default: true" : ""} },
+      { src: "/fixtures/360video/1/zh.vtt", srcLang: "zh", label: "中文"${defaultTrack === "zh" ? ", default: true" : ""} },
     ]}
   />
 </PanoViewer>`;
@@ -98,7 +94,7 @@ function buildVideoSnippet(
 
 export function VideoPage() {
   const [loop, setLoop] = useState(true);
-  const [captionLang, setCaptionLang] = useState<CaptionLang>("zh");
+  const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
   const [status, setStatus] = useState("Play the 360 clip, then switch quality or captions.");
@@ -153,8 +149,8 @@ export function VideoPage() {
               }
               value={captionLang}
             >
-              <option value="zh">中文</option>
               <option value="en">English</option>
+              <option value="zh">中文</option>
               <option value="off">Off</option>
             </select>
           </label>
@@ -190,7 +186,6 @@ export function VideoPage() {
               captions={captions}
               defaultVariantId="1024"
               loop={loop}
-              muted
               tracks={tracks}
               variants={VIDEO_VARIANTS}
               onError={({ source }) => {

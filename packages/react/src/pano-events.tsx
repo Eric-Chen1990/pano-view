@@ -1,5 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import {
+  getFullscreenElement,
+  subscribeFullscreenChange,
+} from "./fullscreen";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import {
   PanoEventBusContext,
@@ -203,7 +207,7 @@ export function usePanoEvents({
     const wasFullscreenRef = { current: false };
 
     const isViewerFullscreen = () => {
-      const fullscreenElement = document.fullscreenElement;
+      const fullscreenElement = getFullscreenElement();
       if (!fullscreenElement) {
         return false;
       }
@@ -227,10 +231,7 @@ export function usePanoEvents({
     };
 
     wasFullscreenRef.current = isViewerFullscreen();
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
+    return subscribeFullscreenChange(handleFullscreenChange);
   }, [gl]);
 
   useEffect(() => {

@@ -28,7 +28,9 @@ import {
   cueText,
   DEFAULT_PANO_VIDEO_PLAYBACK_RATES,
   defaultPanoVideoTrackId,
+  filterSupportedPlaybackRates,
   panoVideoTrackId,
+  probeVolumeAdjustable,
   resolvePanoVideoVariantId,
   resolvePanoVideoVariants,
 } from "./format";
@@ -105,6 +107,7 @@ function createEmptySnapshot(): PanoVideoPlaybackSnapshot {
     currentTime: 0,
     duration: 0,
     volume: 1,
+    volumeAdjustable: true,
     muted: true,
     playbackRate: 1,
     variantId: "default",
@@ -325,6 +328,10 @@ export function PanoVideo({
   const autoPlayRef = useRef(autoPlay);
   autoPlayRef.current = autoPlay;
   const blockedRef = useRef(false);
+  const mediaCapabilitiesRef = useRef({
+    volumeAdjustable: true,
+    playbackRates: [...DEFAULT_PANO_VIDEO_PLAYBACK_RATES] as readonly number[],
+  });
   const storeRef = useRef<Store | null>(null);
   if (!storeRef.current) {
     storeRef.current = {
@@ -445,6 +452,7 @@ export function PanoVideo({
         currentTime: video?.currentTime ?? 0,
         duration: video && Number.isFinite(video.duration) ? video.duration : 0,
         volume: video ? clampVolume(video.volume) : clampVolume(volume),
+        volumeAdjustable: mediaCapabilitiesRef.current.volumeAdjustable,
         muted: video?.muted ?? muted,
         playbackRate: video?.playbackRate ?? 1,
         variantId: resolvedVariantId,
@@ -452,7 +460,7 @@ export function PanoVideo({
         trackId,
         tracks,
         captionsEnabled,
-        playbackRates,
+        playbackRates: mediaCapabilitiesRef.current.playbackRates,
         playbackState,
         ...patch,
       };
@@ -464,7 +472,6 @@ export function PanoVideo({
     [
       captionsEnabled,
       muted,
-      playbackRates,
       ready,
       resolvedVariantId,
       resource,
@@ -539,6 +546,20 @@ export function PanoVideo({
     };
   }, [captions, controller, controls, host, variants.length]);
 
+  useLayoutEffect(() => {
+    if (!resource) {
+      return;
+    }
+    mediaCapabilitiesRef.current = {
+      volumeAdjustable: probeVolumeAdjustable(resource.video),
+      playbackRates: filterSupportedPlaybackRates(
+        resource.video,
+        playbackRates,
+      ),
+    };
+    emitSnapshot();
+  }, [emitSnapshot, playbackRates, resource]);
+
   useEffect(() => {
     emitSnapshot();
   }, [emitSnapshot]);
@@ -567,7 +588,11 @@ export function PanoVideo({
       if (resumeTime > 0 && Number.isFinite(video.duration)) {
         video.currentTime = Math.min(resumeTime, video.duration);
       }
-      video.playbackRate = resumeRate;
+      try {
+        video.playbackRate = resumeRate;
+      } catch {
+        // Some browsers reject rates outside a narrow range.
+      }
     };
     const handleLoadedData = () => {
       if (!active) {
@@ -629,6 +654,9 @@ export function PanoVideo({
         emitSnapshot();
       },
       setVolume: (nextVolume) => {
+        if (!mediaCapabilitiesRef.current.volumeAdjustable) {
+          return;
+        }
         video.volume = clampVolume(nextVolume);
         if (video.volume > 0) {
           video.muted = false;
@@ -643,7 +671,22 @@ export function PanoVideo({
         if (!Number.isFinite(rate) || rate <= 0) {
           return;
         }
-        video.playbackRate = rate;
+        const previous = video.playbackRate;
+        try {
+          video.playbackRate = rate;
+        } catch {
+          emitSnapshot();
+          return;
+        }
+        if (Math.abs(video.playbackRate - rate) > 0.001) {
+          try {
+            video.playbackRate = previous;
+          } catch {
+            // Keep whatever the element accepted.
+          }
+          emitSnapshot();
+          return;
+        }
         emitSnapshot();
       },
       setVariantId: (id) => {
@@ -674,7 +717,9 @@ export function PanoVideo({
     const { video } = resource;
     video.loop = loop;
     video.muted = muted;
-    video.volume = clampVolume(volume);
+    if (mediaCapabilitiesRef.current.volumeAdjustable) {
+      video.volume = clampVolume(volume);
+    }
     video.playsInline = playsInline;
     video.preload = preload;
   }, [loop, muted, playsInline, preload, resource, volume]);

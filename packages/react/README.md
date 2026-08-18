@@ -152,9 +152,13 @@ browser can pick mp4 / webm and the control bar can switch resolution. Changing
 quality keeps the current time and play/pause state.
 
 A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
-volume, speed, resolution, captions, and fullscreen. Pass `controls={false}` to
-hide it, an appearance object to restyle the default instance, or render
-`PanoVideoControls` as a `PanoViewer` child to replace that instance.
+volume, speed, resolution, captions, and fullscreen. Volume is a hover (or tap)
+vertical slider when the browser allows `HTMLMediaElement.volume`; iOS Safari
+only exposes mute. The speed menu lists rates the current element accepts.
+When the viewer is narrow, speed, quality, and captions move into a More menu.
+Pass `controls={false}` to hide it, an appearance object to restyle the default
+instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
+instance.
 
 Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
 rendered as a HUD overlay. `captions={false}` hides the overlay and the language
@@ -193,8 +197,8 @@ export function VideoExample() {
           },
         ]}
         tracks={[
-          { src: "/video/zh.vtt", srcLang: "zh", label: "中文", default: true },
-          { src: "/video/en.vtt", srcLang: "en", label: "English" },
+          { src: "/video/en.vtt", srcLang: "en", label: "English", default: true },
+          { src: "/video/zh.vtt", srcLang: "zh", label: "中文" },
         ]}
         captions={{ fontSize: 16, color: "#fff" }}
         muted

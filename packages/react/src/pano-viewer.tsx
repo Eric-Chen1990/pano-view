@@ -22,6 +22,12 @@ import {
   resetControlClaims,
 } from "./control-claims";
 import {
+  exitElementFullscreen,
+  getFullscreenElement,
+  requestElementFullscreen,
+  subscribeFullscreenChange,
+} from "./fullscreen";
+import {
   HotspotAccessibilityContext,
   useHotspotAccessibilityLayer,
 } from "./hotspot/accessibility";
@@ -330,11 +336,15 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       if (typeof document === "undefined") {
         return;
       }
-      if (document.fullscreenElement) {
-        await document.exitFullscreen?.();
+      if (getFullscreenElement()) {
+        await exitElementFullscreen();
         return;
       }
-      await rootRef.current?.requestFullscreen?.();
+      const root = rootRef.current;
+      if (!root) {
+        return;
+      }
+      await requestElementFullscreen(root);
     }, []);
 
     const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
@@ -345,7 +355,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       }
 
       const syncFullscreen = () => {
-        const fullscreenElement = document.fullscreenElement;
+        const fullscreenElement = getFullscreenElement();
         const root = rootRef.current;
         if (!fullscreenElement || !root) {
           setIsViewerFullscreen(false);
@@ -359,10 +369,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       };
 
       syncFullscreen();
-      document.addEventListener("fullscreenchange", syncFullscreen);
-      return () => {
-        document.removeEventListener("fullscreenchange", syncFullscreen);
-      };
+      return subscribeFullscreenChange(syncFullscreen);
     }, []);
 
     const contextMenuActions = useMemo(

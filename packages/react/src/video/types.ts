@@ -63,6 +63,8 @@ export type PanoVideoPlaybackSnapshot = {
   currentTime: number;
   duration: number;
   volume: number;
+  /** False when the element ignores `volume` (iOS Safari). Mute still works. */
+  volumeAdjustable: boolean;
   muted: boolean;
   playbackRate: number;
   variantId: string;

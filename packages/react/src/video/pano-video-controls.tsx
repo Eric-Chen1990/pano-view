@@ -8,7 +8,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from "react";
+import { isFullscreenEnabled } from "../fullscreen";
 import { type PanoContextMenuActionsApi } from "../pano-context-menu";
 import { formatMediaTime, panoVideoTrackId } from "./format";
 import {
@@ -31,8 +37,25 @@ export const DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE: Required<PanoVideoControlsA
   };
 
 const IDLE_HIDE_MS = 2_500;
+const COMPACT_CONTROLS_WIDTH = 560;
+const NARROW_CONTROLS_WIDTH = 420;
+const VOLUME_SLIDER_HEIGHT = 84;
+const VOLUME_TRACK_WIDTH = 6;
+const VOLUME_THUMB_SIZE = 14;
+const VOLUME_POP_PADDING_X = 10;
+const VOLUME_POP_FONT_SIZE = 11;
+const VOLUME_POP_PADDING_TOP = 16;
+const VOLUME_POP_PADDING_BOTTOM = 18;
+const VOLUME_LABEL_TRACK_GAP = 14;
+const VOLUME_STEP = 0.05;
+const VOLUME_TRACK_GRADIENT =
+  "linear-gradient(to top, #22c55e 0%, #14b8a6 52%, #7dd3fc 100%)";
 
-type MenuId = "rate" | "variant" | "captions";
+function formatVolumePercent(volume: number): string {
+  return `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`;
+}
+
+type MenuId = "rate" | "variant" | "captions" | "more";
 
 export type PanoVideoControlsProps = {
   appearance?: PanoVideoControlsAppearance;
@@ -61,6 +84,21 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+function hasFinePointerHover(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  );
+}
+
+function volumeFromClientY(clientY: number, track: HTMLElement): number {
+  const rect = track.getBoundingClientRect();
+  if (rect.height <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
+}
+
 function Icon({ path }: { path: string }) {
   return (
     <svg
@@ -83,12 +121,14 @@ function ChromeButton({
   appearance,
   children,
   disabled,
+  id,
   label,
   onClick,
 }: {
   appearance: Required<PanoVideoControlsAppearance>;
   children: ReactNode;
   disabled?: boolean;
+  id?: string;
   label: string;
   onClick: () => void;
 }) {
@@ -96,6 +136,7 @@ function ChromeButton({
     <button
       aria-label={label}
       disabled={disabled}
+      id={id}
       onClick={onClick}
       onPointerDown={(event: ReactPointerEvent<HTMLButtonElement>) => {
         event.stopPropagation();
@@ -183,6 +224,253 @@ function ChromeMenu({
   );
 }
 
+function VerticalVolumeSlider({
+  appearance,
+  onVolume,
+  volume,
+}: {
+  appearance: Required<PanoVideoControlsAppearance>;
+  onVolume: (volume: number) => void;
+  volume: number;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const applyPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    if (!track) {
+      return;
+    }
+    onVolume(volumeFromClientY(event.clientY, track));
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+      event.preventDefault();
+      onVolume(Math.min(1, volume + VOLUME_STEP));
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      onVolume(Math.max(0, volume - VOLUME_STEP));
+    }
+  };
+
+  const percentLabel = formatVolumePercent(volume);
+
+  return (
+    <div
+      style={{
+        alignItems: "center",
+        background: "rgba(12, 12, 12, 0.92)",
+        borderRadius: 14,
+        bottom: "calc(100% + 12px)",
+        boxShadow: "0 10px 28px rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        flexDirection: "column",
+        left: "50%",
+        minWidth: 44,
+        padding: `${VOLUME_POP_PADDING_TOP}px ${VOLUME_POP_PADDING_X}px ${VOLUME_POP_PADDING_BOTTOM}px`,
+        pointerEvents: "auto",
+        position: "absolute",
+        transform: "translateX(-50%)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          color: appearance.color,
+          fontSize: VOLUME_POP_FONT_SIZE,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 700,
+          lineHeight: 1,
+          marginBottom: VOLUME_LABEL_TRACK_GAP,
+        }}
+      >
+        {percentLabel}
+      </span>
+      <div
+        style={{
+          paddingBottom: VOLUME_THUMB_SIZE / 2,
+          paddingTop: VOLUME_THUMB_SIZE / 2,
+        }}
+      >
+        <div
+          aria-label="Volume"
+          aria-valuemax={1}
+          aria-valuemin={0}
+          aria-valuenow={volume}
+          aria-valuetext={percentLabel}
+          onKeyDown={handleKeyDown}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            applyPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+              return;
+            }
+            event.stopPropagation();
+            applyPointer(event);
+          }}
+          ref={trackRef}
+          role="slider"
+          style={{
+            background: "rgba(255, 255, 255, 0.14)",
+            borderRadius: 999,
+            cursor: "pointer",
+            height: VOLUME_SLIDER_HEIGHT,
+            position: "relative",
+            width: VOLUME_TRACK_WIDTH,
+          }}
+          tabIndex={0}
+        >
+          <div
+            style={{
+              background: VOLUME_TRACK_GRADIENT,
+              borderRadius: 999,
+              bottom: 0,
+              left: 0,
+              pointerEvents: "none",
+              position: "absolute",
+              right: 0,
+              top: `${(1 - volume) * 100}%`,
+            }}
+          />
+          <div
+            style={{
+              background: appearance.color,
+              borderRadius: "50%",
+              boxShadow: `0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 10px ${appearance.accent}, 0 0 18px color-mix(in srgb, ${appearance.accent} 55%, transparent)`,
+              height: VOLUME_THUMB_SIZE,
+              left: "50%",
+              pointerEvents: "none",
+              position: "absolute",
+              top: `${(1 - volume) * 100}%`,
+              transform: "translate(-50%, -50%)",
+              width: VOLUME_THUMB_SIZE,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VolumeControl({
+  appearance,
+  muted,
+  onOpenChange,
+  onToggleMuted,
+  onVolume,
+  volume,
+  volumeAdjustable,
+}: {
+  appearance: Required<PanoVideoControlsAppearance>;
+  muted: boolean;
+  onOpenChange: (open: boolean) => void;
+  onToggleMuted: () => void;
+  onVolume: (volume: number) => void;
+  volume: number;
+  volumeAdjustable: boolean;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const displayVolume = muted ? 0 : volume;
+  const mutedOrSilent = muted || volume === 0;
+
+  useEffect(() => {
+    onOpenChange(open);
+  }, [onOpenChange, open]);
+
+  useEffect(() => {
+    if (!open || !volumeAdjustable || hasFinePointerHover()) {
+      return;
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) {
+        return;
+      }
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [open, volumeAdjustable]);
+
+  if (!volumeAdjustable) {
+    return (
+      <ChromeButton
+        appearance={appearance}
+        label={mutedOrSilent ? "Unmute" : "Mute"}
+        onClick={onToggleMuted}
+      >
+        {mutedOrSilent ? (
+          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.2 6.2l3.2 3.6M13.4 6.2l-3.2 3.6" />
+        ) : (
+          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.5 5.5a3 3 0 0 1 0 5" />
+        )}
+      </ChromeButton>
+    );
+  }
+
+  return (
+    <div
+      data-pano-video-volume=""
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node)) {
+          return;
+        }
+        if (hasFinePointerHover()) {
+          setOpen(false);
+        }
+      }}
+      onFocus={() => {
+        setOpen(true);
+      }}
+      onPointerEnter={() => {
+        if (hasFinePointerHover()) {
+          setOpen(true);
+        }
+      }}
+      onPointerLeave={() => {
+        if (hasFinePointerHover()) {
+          setOpen(false);
+        }
+      }}
+      ref={rootRef}
+      style={{ position: "relative" }}
+    >
+      {open ? (
+        <VerticalVolumeSlider
+          appearance={appearance}
+          onVolume={onVolume}
+          volume={displayVolume}
+        />
+      ) : null}
+      <ChromeButton
+        appearance={appearance}
+        label={mutedOrSilent ? "Unmute" : "Mute"}
+        onClick={() => {
+          if (!hasFinePointerHover()) {
+            setOpen(true);
+          }
+          onToggleMuted();
+        }}
+      >
+        {mutedOrSilent ? (
+          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.2 6.2l3.2 3.6M13.4 6.2l-3.2 3.6" />
+        ) : (
+          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.5 5.5a3 3 0 0 1 0 5" />
+        )}
+      </ChromeButton>
+    </div>
+  );
+}
+
 export function PanoVideoControlsHud({
   appearance,
   controller,
@@ -205,25 +493,55 @@ export function PanoVideoControlsHud({
   );
   const [menu, setMenu] = useState<MenuId | null>(null);
   const [visible, setVisible] = useState(true);
+  const [volumeOpen, setVolumeOpen] = useState(false);
+  const [overlayWidth, setOverlayWidth] = useState(
+    () => overlayElement.clientWidth,
+  );
   const idleTimerRef = useRef(0);
   const barId = useId();
   const rateMenuId = `${barId}-rate`;
   const variantMenuId = `${barId}-variant`;
   const captionsMenuId = `${barId}-captions`;
+  const moreMenuId = `${barId}-more`;
+  const compact = overlayWidth < COMPACT_CONTROLS_WIDTH;
+  const hideTime = overlayWidth < NARROW_CONTROLS_WIDTH;
+  const showFullscreen = isFullscreenEnabled();
 
   const bumpVisibility = useCallback(
     (playing: boolean) => {
       setVisible(true);
       window.clearTimeout(idleTimerRef.current);
-      if (!playing || menu) {
+      if (!playing || menu || volumeOpen) {
         return;
       }
       idleTimerRef.current = window.setTimeout(() => {
         setVisible(false);
       }, IDLE_HIDE_MS);
     },
-    [menu],
+    [menu, volumeOpen],
   );
+
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (typeof width === "number") {
+        setOverlayWidth(width);
+      }
+    });
+    observer.observe(overlayElement);
+    return () => {
+      observer.disconnect();
+    };
+  }, [overlayElement]);
+
+  useEffect(() => {
+    if (!compact && menu === "more") {
+      setMenu(null);
+    }
+  }, [compact, menu]);
 
   useEffect(() => {
     bumpVisibility(snapshot.playing);
@@ -239,7 +557,7 @@ export function PanoVideoControlsHud({
       bumpVisibility(snapshot.playing);
     };
     const handlePointerLeave = () => {
-      if (snapshot.playing && !menu) {
+      if (snapshot.playing && !menu && !volumeOpen) {
         setVisible(false);
       }
     };
@@ -289,7 +607,7 @@ export function PanoVideoControlsHud({
       root.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handlePointerDown, true);
     };
-  }, [bumpVisibility, controller, menu, overlayElement, snapshot.playing]);
+  }, [bumpVisibility, controller, menu, overlayElement, snapshot.playing, volumeOpen]);
 
   useEffect(
     () => () => {
@@ -299,7 +617,7 @@ export function PanoVideoControlsHud({
   );
 
   const duration = snapshot.duration > 0 ? snapshot.duration : 0;
-  const showBar = visible || !snapshot.playing || menu !== null;
+  const showBar = visible || !snapshot.playing || menu !== null || volumeOpen;
   const canSwitchVariant = snapshot.variants.length > 1;
   const showCaptionsMenu = snapshot.captionsEnabled && snapshot.tracks.length > 0;
 
@@ -311,6 +629,14 @@ export function PanoVideoControlsHud({
     setMenu((current) => (current === id ? null : id));
     setVisible(true);
   };
+
+  const rateLabelledBy = compact ? `${barId}-more-btn` : `${barId}-rate-btn`;
+  const variantLabelledBy = compact
+    ? `${barId}-more-btn`
+    : `${barId}-variant-btn`;
+  const captionsLabelledBy = compact
+    ? `${barId}-more-btn`
+    : `${barId}-captions-btn`;
 
   let menuNode: ReactNode = null;
   switch (menu) {
@@ -328,7 +654,7 @@ export function PanoVideoControlsHud({
               closeMenu();
             },
           }))}
-          labelledBy={`${barId}-rate-btn`}
+          labelledBy={rateLabelledBy}
         />
       );
       break;
@@ -346,7 +672,7 @@ export function PanoVideoControlsHud({
               closeMenu();
             },
           }))}
-          labelledBy={`${barId}-variant-btn`}
+          labelledBy={variantLabelledBy}
         />
       );
       break;
@@ -378,7 +704,50 @@ export function PanoVideoControlsHud({
               };
             }),
           ]}
-          labelledBy={`${barId}-captions-btn`}
+          labelledBy={captionsLabelledBy}
+        />
+      );
+      break;
+    case "more":
+      menuNode = (
+        <ChromeMenu
+          appearance={resolved}
+          id={moreMenuId}
+          items={[
+            {
+              id: "rate",
+              label: "Speed",
+              active: false,
+              onSelect: () => {
+                setMenu("rate");
+              },
+            },
+            ...(canSwitchVariant
+              ? [
+                  {
+                    id: "variant",
+                    label: "Quality",
+                    active: false,
+                    onSelect: () => {
+                      setMenu("variant");
+                    },
+                  },
+                ]
+              : []),
+            ...(showCaptionsMenu
+              ? [
+                  {
+                    id: "captions",
+                    label: "Captions",
+                    active: false,
+                    onSelect: () => {
+                      setMenu("captions");
+                    },
+                  },
+                ]
+              : []),
+          ]}
+          labelledBy={`${barId}-more-btn`}
         />
       );
       break;
@@ -411,6 +780,58 @@ export function PanoVideoControlsHud({
     zIndex: 2,
   };
 
+  const rateButton = (
+    <div data-pano-video-menu="rate" style={{ position: "relative" }}>
+      {!compact && menu === "rate" ? menuNode : null}
+      <ChromeButton
+        appearance={resolved}
+        label="Playback speed"
+        onClick={() => {
+          toggleMenu("rate");
+        }}
+      >
+        <span id={`${barId}-rate-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
+          {snapshot.playbackRate === 1 ? "1x" : `${snapshot.playbackRate}x`}
+        </span>
+      </ChromeButton>
+    </div>
+  );
+
+  const variantButton = canSwitchVariant ? (
+    <div data-pano-video-menu="variant" style={{ position: "relative" }}>
+      {!compact && menu === "variant" ? menuNode : null}
+      <ChromeButton
+        appearance={resolved}
+        label="Resolution"
+        onClick={() => {
+          toggleMenu("variant");
+        }}
+      >
+        <span id={`${barId}-variant-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
+          {snapshot.variants.find((variant) => variant.id === snapshot.variantId)
+            ?.label ?? "Quality"}
+        </span>
+      </ChromeButton>
+    </div>
+  ) : null;
+
+  const captionsButton = showCaptionsMenu ? (
+    <div data-pano-video-menu="captions" style={{ position: "relative" }}>
+      {!compact && menu === "captions" ? menuNode : null}
+      <ChromeButton
+        appearance={resolved}
+        label="Captions"
+        onClick={() => {
+          toggleMenu("captions");
+        }}
+      >
+        <span id={`${barId}-captions-btn`}>
+          <Icon path="M2.5 4.5h11v7h-11zM5 7.2h2.4M5 9.2h5.5" />
+        </span>
+      </ChromeButton>
+    </div>
+  ) : null;
+
   return (
     <div data-pano-video-controls="" style={barStyle}>
       <ChromeButton
@@ -426,9 +847,11 @@ export function PanoVideoControlsHud({
           <Icon path="M5 3.2v9.6L13 8z" />
         )}
       </ChromeButton>
-      <span style={{ fontVariantNumeric: "tabular-nums", minWidth: 34, opacity: 0.85 }}>
-        {formatMediaTime(snapshot.currentTime)}
-      </span>
+      {hideTime ? null : (
+        <span style={{ fontVariantNumeric: "tabular-nums", minWidth: 34, opacity: 0.85 }}>
+          {formatMediaTime(snapshot.currentTime)}
+        </span>
+      )}
       <input
         aria-label="Seek"
         max={duration || 1}
@@ -448,100 +871,60 @@ export function PanoVideoControlsHud({
         type="range"
         value={duration > 0 ? snapshot.currentTime : 0}
       />
-      <span style={{ minWidth: 34, opacity: 0.85 }}>
-        {formatMediaTime(duration)}
-      </span>
-      <ChromeButton
+      {hideTime ? null : (
+        <span style={{ minWidth: 34, opacity: 0.85 }}>
+          {formatMediaTime(duration)}
+        </span>
+      )}
+      <VolumeControl
         appearance={resolved}
-        label={snapshot.muted || snapshot.volume === 0 ? "Unmute" : "Mute"}
-        onClick={() => {
+        muted={snapshot.muted}
+        onOpenChange={setVolumeOpen}
+        onToggleMuted={() => {
           controller.toggleMuted();
         }}
-      >
-        {snapshot.muted || snapshot.volume === 0 ? (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.2 6.2l3.2 3.6M13.4 6.2l-3.2 3.6" />
-        ) : (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.5 5.5a3 3 0 0 1 0 5" />
-        )}
-      </ChromeButton>
-      <input
-        aria-label="Volume"
-        max={1}
-        min={0}
-        onChange={(event) => {
-          controller.setVolume(Number(event.currentTarget.value));
+        onVolume={(nextVolume) => {
+          controller.setVolume(nextVolume);
         }}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-        }}
-        step={0.05}
-        style={{
-          accentColor: resolved.accent,
-          width: 72,
-        }}
-        type="range"
-        value={snapshot.muted ? 0 : snapshot.volume}
+        volume={snapshot.volume}
+        volumeAdjustable={snapshot.volumeAdjustable}
       />
-      <div data-pano-video-menu="rate" style={{ position: "relative" }}>
-        {menu === "rate" ? menuNode : null}
+      {compact ? (
+        <div data-pano-video-menu="more" style={{ position: "relative" }}>
+          {menu !== null ? menuNode : null}
+          <ChromeButton
+            appearance={resolved}
+            id={`${barId}-more-btn`}
+            label="More"
+            onClick={() => {
+              toggleMenu("more");
+            }}
+          >
+            <Icon path="M3 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0M7 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0M11 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0" />
+          </ChromeButton>
+        </div>
+      ) : (
+        <>
+          {rateButton}
+          {variantButton}
+          {captionsButton}
+        </>
+      )}
+      {showFullscreen ? (
         <ChromeButton
           appearance={resolved}
-          label="Playback speed"
+          label={fullscreen?.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           onClick={() => {
-            toggleMenu("rate");
+            fullscreen?.toggleFullscreen();
           }}
         >
-          <span id={`${barId}-rate-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
-            {snapshot.playbackRate === 1 ? "1x" : `${snapshot.playbackRate}x`}
-          </span>
+          {fullscreen?.isFullscreen ? (
+            <Icon path="M6 3.5H3.5V6M10 3.5h2.5V6M6 12.5H3.5V10M10 12.5h2.5V10" />
+          ) : (
+            <Icon path="M3.5 6V3.5H6M10 3.5h2.5V6M3.5 10v2.5H6M10 12.5h2.5V10" />
+          )}
         </ChromeButton>
-      </div>
-      {canSwitchVariant ? (
-        <div data-pano-video-menu="variant" style={{ position: "relative" }}>
-          {menu === "variant" ? menuNode : null}
-          <ChromeButton
-            appearance={resolved}
-            label="Resolution"
-            onClick={() => {
-              toggleMenu("variant");
-            }}
-          >
-            <span id={`${barId}-variant-btn`} style={{ fontSize: 11, padding: "0 2px" }}>
-              {snapshot.variants.find((variant) => variant.id === snapshot.variantId)
-                ?.label ?? "Quality"}
-            </span>
-          </ChromeButton>
-        </div>
       ) : null}
-      {showCaptionsMenu ? (
-        <div data-pano-video-menu="captions" style={{ position: "relative" }}>
-          {menu === "captions" ? menuNode : null}
-          <ChromeButton
-            appearance={resolved}
-            label="Captions"
-            onClick={() => {
-              toggleMenu("captions");
-            }}
-          >
-            <span id={`${barId}-captions-btn`}>
-              <Icon path="M2.5 4.5h11v7h-11zM5 7.2h2.4M5 9.2h5.5" />
-            </span>
-          </ChromeButton>
-        </div>
-      ) : null}
-      <ChromeButton
-        appearance={resolved}
-        label={fullscreen?.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        onClick={() => {
-          fullscreen?.toggleFullscreen();
-        }}
-      >
-        {fullscreen?.isFullscreen ? (
-          <Icon path="M6 3.5H3.5V6M10 3.5h2.5V6M6 12.5H3.5V10M10 12.5h2.5V10" />
-        ) : (
-          <Icon path="M3.5 6V3.5H6M10 3.5h2.5V6M3.5 10v2.5H6M10 12.5h2.5V10" />
-        )}
-      </ChromeButton>
     </div>
   );
 }
