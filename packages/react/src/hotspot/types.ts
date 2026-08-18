@@ -79,7 +79,7 @@ export type HotspotCommonProps = {
   tooltip?: string | HotspotTooltipContent;
   /** Defaults to `"always"`. `"hover"` and `"click"` require `interactive` and `pointerEvents` other than `"none"`. */
   tooltipTrigger?: HotspotTooltipTrigger;
-  /** Defaults to `"top"`. */
+  /** Screen direction for the tooltip. Defaults to `"top"`. */
   tooltipPlacement?: HotspotTooltipPlacement;
   /**
    * Screen-space gap in CSS pixels between the hotspot edge and the tooltip.

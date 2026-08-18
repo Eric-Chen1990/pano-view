@@ -810,8 +810,10 @@ clicked. Hover and click triggers need `interactive` and `pointerEvents`
 other than `"none"`.
 
 `tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
-The bubble sits outside that edge of the hotspot. `tooltipOffset` is the
-screen-space gap in CSS pixels (default `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
+These are screen directions: the bubble sits outside the hotspot's projected
+screen bounds on that edge, so rotated graphics such as arrows are not covered.
+`tooltipOffset` is the screen-space gap in CSS pixels (default `12` /
+`DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
 
 ```tsx
 <ImageHotspot
