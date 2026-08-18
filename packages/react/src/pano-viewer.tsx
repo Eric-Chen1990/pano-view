@@ -60,6 +60,15 @@ import {
 } from "./panorama-view-runtime";
 import { clampPanoPitch } from "./hotspot/coordinates";
 import { TouchControls } from "./touch-controls";
+import {
+  PanoChromeOverlayContext,
+  usePanoChromeOverlay,
+} from "./video/chrome-overlay";
+import {
+  createPanoVideoHost,
+  PanoVideoHostContext,
+} from "./video/host";
+import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
@@ -164,6 +173,14 @@ function PanoCursorTree({
   );
 }
 
+function PanoVideoHostReset() {
+  const host = useContext(PanoVideoHostContext);
+  if (host) {
+    host.controlClaims = 0;
+  }
+  return null;
+}
+
 function DefaultControlChannels({
   userControlsEnabled,
   mouseChannel,
@@ -230,6 +247,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       useHotspotAccessibilityLayer();
     const { api: contextMenuOverlayApi, overlay: contextMenuOverlay } =
       usePanoContextMenuOverlay();
+    const { api: chromeOverlayApi, setOverlayNode, overlayElement } =
+      usePanoChromeOverlay();
+    const videoHost = useMemo(() => createPanoVideoHost(), []);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -447,9 +467,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                 <PanoContextMenuOverlayContext.Provider
                   value={contextMenuOverlayApi}
                 >
+                  <PanoChromeOverlayContext.Provider value={chromeOverlayApi}>
+                  <PanoVideoHostContext.Provider value={videoHost}>
                   <PanoContextMenuActionsContext.Provider
                     value={contextMenuActions}
                   >
+                  <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={controlsRef}
                     eventBus={eventBus}
@@ -488,12 +511,30 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     />
                   </ControlClaimsContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
+                  </PanoVideoHostContext.Provider>
+                  </PanoChromeOverlayContext.Provider>
                 </PanoContextMenuOverlayContext.Provider>
               </PanoramaViewContext.Provider>
               </PanoCursorTree>
             </PanoEventBusContext.Provider>
           </HotspotAccessibilityContext.Provider>
         </Canvas>
+        <div
+          data-pano-chrome-overlay=""
+          ref={setOverlayNode}
+          style={{
+            inset: 0,
+            pointerEvents: "none",
+            position: "absolute",
+            zIndex: 15,
+          }}
+        >
+          <PanoVideoChromeBridge
+            fullscreen={contextMenuActions}
+            host={videoHost}
+            overlayElement={overlayElement}
+          />
+        </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
       </div>

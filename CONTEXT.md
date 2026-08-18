@@ -39,3 +39,7 @@
 - **Controlled hotspot**: its position, vertices, visibility, and media
   `playing` state are passed by the host and must be written back by the host
   after callbacks.
+- **Pano Video**: an equirectangular 360 video mapped onto the panorama sphere
+  (not a video hotspot). Playback chrome and captions are screen-space HUD
+  overlays. Quality variants switch `HTMLVideoElement` sources while preserving
+  time; subtitles are configured WebVTT tracks rendered from `TextTrack` cues.

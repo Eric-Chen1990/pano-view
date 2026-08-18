@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
+import { VideoPage } from "./components/video/VideoPage";
 
 export type PlaygroundRoute = {
   path: string;
@@ -31,6 +32,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
     navLabel: "Context menu",
     stageLabel: "CONTEXT MENU · STAGE 07",
     Component: ContextMenuPage,
+  },
+  {
+    path: "/video",
+    navLabel: "360 video",
+    stageLabel: "360 VIDEO · STAGE 08",
+    Component: VideoPage,
   },
 ];
 

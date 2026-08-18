@@ -50,6 +50,25 @@ export { TouchControls } from "./touch-controls";
 export type { TouchControlsProps } from "./touch-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
+export { PanoVideo } from "./video/pano-video";
+export type { PanoVideoProps } from "./video/pano-video";
+export { PanoVideoControls } from "./video/pano-video-controls";
+export type { PanoVideoControlsProps } from "./video/pano-video-controls";
+export { DEFAULT_PANO_VIDEO_PLAYBACK_RATES } from "./video/format";
+export { DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE } from "./video/pano-video-captions";
+export { DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE } from "./video/pano-video-controls";
+export type {
+  PanoVideoCaptionAppearance,
+  PanoVideoControlsAppearance,
+  PanoVideoController,
+  PanoVideoErrorEvent,
+  PanoVideoErrorSource,
+  PanoVideoPlaybackSnapshot,
+  PanoVideoSource,
+  PanoVideoTrack,
+  PanoVideoTrackKind,
+  PanoVideoVariant,
+} from "./video/types";
 export { Scenes } from "./scenes";
 export type {
   Scene,

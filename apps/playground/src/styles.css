@@ -257,6 +257,22 @@ h1 {
   border: 1px solid #365e66;
 }
 
+.video-bench-controls {
+  flex-wrap: wrap;
+}
+
+.video-bench-controls input[type="checkbox"] {
+  accent-color: #df6b42;
+}
+
+.video-bench-controls input[type="color"] {
+  height: 28px;
+  width: 36px;
+  padding: 0;
+  border: 1px solid #365e66;
+  background: transparent;
+}
+
 .code-snippet {
   margin-top: 14px;
   border: 1px solid #365e66;

@@ -44,7 +44,7 @@ npm publish --access public
 ```
 
 The package exports composable panorama viewer components such as `PanoViewer`,
-`Sphere`, `Tile`, and `Scenes`. See the full
+`Sphere`, `PanoVideo`, `Tile`, and `Scenes`. See the full
 [Exported components](./packages/react/README.md#exported-components) list in the
 [`@ericchen1990/pano-view` README](./packages/react/README.md) for controls,
 events, hotspots, hooks, helpers, krpano-compatible tile layout, accessibility,

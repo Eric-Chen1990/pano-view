@@ -26,6 +26,7 @@ React 19, React DOM 19, Three.js, `@react-three/fiber` 9, and `@react-three/drei
 
 - [`PanoViewer`](#panoviewer) — canvas shell, camera, default controls, and imperative view API
 - [`Sphere`](#sphere) — single 2:1 equirectangular image
+- [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
 - [`Scenes`](#scenes) — controlled multi-scene transitions
 
@@ -40,6 +41,7 @@ React 19, React DOM 19, Three.js, `@react-three/fiber` 9, and `@react-three/drei
 
 - [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
+- [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
 
 ### Hotspots
 
@@ -141,6 +143,71 @@ export function SphereExample() {
   );
 }
 ```
+
+## PanoVideo
+
+`PanoVideo` maps a 2:1 equirectangular video onto the same inward sphere as
+`Sphere`. Pass one `src`, or `variants` with multiple files per quality so the
+browser can pick mp4 / webm and the control bar can switch resolution. Changing
+quality keeps the current time and play/pause state.
+
+A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
+volume, speed, resolution, captions, and fullscreen. Pass `controls={false}` to
+hide it, an appearance object to restyle the default instance, or render
+`PanoVideoControls` as a `PanoViewer` child to replace that instance.
+
+Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
+rendered as a HUD overlay. `captions={false}` hides the overlay and the language
+menu; an object merges with the default appearance (`color`, `background`,
+`fontSize`, `fontFamily`, `textShadow`, `padding`, `borderRadius`, `maxWidth`,
+`bottom`).
+
+```tsx
+"use client";
+
+import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+
+export function VideoExample() {
+  return (
+    <PanoViewer style={{ width: "100%", height: 560 }}>
+      <PanoVideo
+        defaultVariantId="1024"
+        variants={[
+          {
+            id: "1024",
+            label: "1024p",
+            poster: "/video/1024-poster.jpg",
+            sources: [
+              { src: "/video/1024.mp4", type: "video/mp4" },
+              { src: "/video/1024.webm", type: "video/webm" },
+            ],
+          },
+          {
+            id: "1920",
+            label: "1920p",
+            poster: "/video/1920-poster.jpg",
+            sources: [
+              { src: "/video/1920.mp4", type: "video/mp4" },
+              { src: "/video/1920.webm", type: "video/webm" },
+            ],
+          },
+        ]}
+        tracks={[
+          { src: "/video/zh.vtt", srcLang: "zh", label: "中文", default: true },
+          { src: "/video/en.vtt", srcLang: "en", label: "English" },
+        ]}
+        captions={{ fontSize: 16, color: "#fff" }}
+        muted
+      />
+    </PanoViewer>
+  );
+}
+```
+
+`muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
+rules. Unmuted playback still needs a user gesture; `onPlaybackStateChange`
+receives `"blocked"` when `play()` is rejected. Remote videos and VTT files
+that are not same-origin should set `crossOrigin` (usually `"anonymous"`).
 
 ## Tile
 
