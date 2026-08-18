@@ -8,7 +8,7 @@ import {
   type ViewInteractionEvent,
 } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
-import type { PanoViewState } from "./types";
+import type { PanoViewerState } from "./types";
 
 const DEFAULT_IDLE_TIME_MS = 2000;
 
@@ -18,8 +18,8 @@ export type PanoEventsProps = {
    * Each PanoEvents instance tracks idle independently.
    */
   idleTime?: number;
-  onViewChange?: (view: PanoViewState) => void;
-  onViewSettled?: (view: PanoViewState) => void;
+  onViewChange?: (view: PanoViewerState) => void;
+  onViewSettled?: (view: PanoViewerState) => void;
   onViewInteractionStart?: (event: ViewInteractionEvent) => void;
   onViewInteractionEnd?: (event: ViewInteractionEvent) => void;
   onClick?: (event: PanoramaPointerEvent) => void;
@@ -44,7 +44,7 @@ function resolveIdleTime(value: number | undefined): number {
 }
 
 /**
- * Subscribes to viewer-level panorama events. Must run inside PanoView.
+ * Subscribes to viewer-level panorama events. Must run inside PanoViewer.
  * Prefer the {@link PanoEvents} component for declarative usage.
  */
 export function usePanoEvents({
@@ -74,7 +74,7 @@ export function usePanoEvents({
   const { gl } = useThree();
 
   if (!eventBus || !controlsRef) {
-    throw new Error("usePanoEvents must be used inside <PanoView>.");
+    throw new Error("usePanoEvents must be used inside <PanoViewer>.");
   }
 
   const callbacksRef = useRef({
@@ -276,7 +276,7 @@ export function usePanoEvents({
 }
 
 /**
- * Declarative viewer-level event listeners for the nearest PanoView.
+ * Declarative viewer-level event listeners for the nearest PanoViewer.
  * Multiple instances may coexist; each tracks its own idle timer.
  */
 export function PanoEvents(props: PanoEventsProps) {

@@ -40,7 +40,7 @@ export type KeyboardControlsProps = {
   invert?: boolean;
   /**
    * Maximum FOV change rate in degrees per second. When omitted, no extra
-   * rate cap is applied. Usually supplied by PanoView from `controls.fovSpeed`.
+   * rate cap is applied. Usually supplied by PanoViewer from `controls.fovSpeed`.
    */
   fovSpeed?: number;
   /** Called once when the previous-scene binding is pressed. */
@@ -132,7 +132,7 @@ export function cycleSceneId(
 }
 
 /**
- * Adds keyboard navigation to the nearest PanoView. PanoView mounts a default
+ * Adds keyboard navigation to the nearest PanoViewer. PanoViewer mounts a default
  * instance; render your own to customize bindings or scene callbacks. Hold
  * movement/zoom keys for continuous motion; scene and reset bindings fire once
  * per key press.
@@ -159,7 +159,7 @@ export function KeyboardControls({
   const keyMap = useMemo(() => resolveKeyMap(keys), [keys]);
 
   if (!controlsRef) {
-    throw new Error("<KeyboardControls> must be rendered inside <PanoView>.");
+    throw new Error("<KeyboardControls> must be rendered inside <PanoViewer>.");
   }
 
   invertRef.current = invert;

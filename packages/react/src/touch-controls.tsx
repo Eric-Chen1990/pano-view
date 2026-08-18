@@ -22,8 +22,8 @@ function pointerDistance(a: PointerSample, b: PointerSample): number {
 }
 
 /**
- * Adds touch drag and pinch-zoom navigation to the nearest PanoView.
- * PanoView mounts a default instance; render your own only to override.
+ * Adds touch drag and pinch-zoom navigation to the nearest PanoViewer.
+ * PanoViewer mounts a default instance; render your own only to override.
  */
 export function TouchControls({
   enabled = true,
@@ -38,7 +38,7 @@ export function TouchControls({
   const optionsRef = useRef({ rotateSpeed, invert, pinchZoom });
 
   if (!controlsRef) {
-    throw new Error("<TouchControls> must be rendered inside <PanoView>.");
+    throw new Error("<TouchControls> must be rendered inside <PanoViewer>.");
   }
 
   optionsRef.current = { rotateSpeed, invert, pinchZoom };

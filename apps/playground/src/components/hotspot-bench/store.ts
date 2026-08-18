@@ -3,7 +3,7 @@ import {
   validatePolygonVertices,
   type GraphicDefinition,
   type HotspotPosition,
-  type PanoViewState,
+  type PanoViewerState,
   type TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import { create } from "zustand";
@@ -42,7 +42,7 @@ export type VideoPatch = Partial<
 type HotspotBenchState = {
   mode: ViewerMode;
   tool: EditorTool;
-  view: PanoViewState;
+  view: PanoViewerState;
   level: number;
   progress: TileLoadProgress;
   autoRotate: boolean;
@@ -57,7 +57,7 @@ type HotspotBenchState = {
 };
 
 type HotspotBenchActions = {
-  setView: (view: PanoViewState) => void;
+  setView: (view: PanoViewerState) => void;
   setLevel: (level: number) => void;
   setProgress: (progress: TileLoadProgress) => void;
   toggleAutoRotate: () => void;

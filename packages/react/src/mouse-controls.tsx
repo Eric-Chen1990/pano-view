@@ -15,7 +15,7 @@ const BUTTON_FLAG: Record<MouseControlButton, number> = {
 export type MouseControlsProps = MouseControlsOptions & {
   /**
    * Maximum FOV change rate in degrees per second for wheel zoom. When
-   * omitted, no extra rate cap is applied. Usually supplied by PanoView from
+   * omitted, no extra rate cap is applied. Usually supplied by PanoViewer from
    * `controls.fovSpeed`.
    */
   fovSpeed?: number;
@@ -33,8 +33,8 @@ function resolveButtons(
 }
 
 /**
- * Adds mouse (and pen) drag / wheel navigation to the nearest PanoView.
- * PanoView mounts a default instance; render your own only to override.
+ * Adds mouse (and pen) drag / wheel navigation to the nearest PanoViewer.
+ * PanoViewer mounts a default instance; render your own only to override.
  */
 export function MouseControls({
   enabled = true,
@@ -59,7 +59,7 @@ export function MouseControls({
   });
 
   if (!controlsRef) {
-    throw new Error("<MouseControls> must be rendered inside <PanoView>.");
+    throw new Error("<MouseControls> must be rendered inside <PanoViewer>.");
   }
 
   optionsRef.current = {

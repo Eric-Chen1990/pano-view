@@ -1,11 +1,11 @@
 import {
   MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   PanoEvents,
-  PanoView,
+  PanoViewer,
   Sphere,
   type PanoContextMenuAppearance,
   type PanoContextMenuEntry,
-  type PanoViewHandle,
+  type PanoViewerHandle,
 } from "@ericchen1990/pano-view";
 import { useMemo, useRef, useState } from "react";
 import { CodeSnippet } from "../CodeSnippet";
@@ -86,16 +86,16 @@ function buildContextMenuSnippet(
 
   switch (mode) {
     case "default":
-      return `<PanoView
+      return `<PanoViewer
   contextMenu={{
     appearance: ${appearance},
   }}
   style={{ height: 540 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>`;
+</PanoViewer>`;
     case "append":
-      return `<PanoView
+      return `<PanoViewer
   contextMenu={{
     appearance: ${appearance},
     append: [
@@ -107,9 +107,9 @@ function buildContextMenuSnippet(
   style={{ height: 540 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>`;
+</PanoViewer>`;
     case "presets":
-      return `<PanoView
+      return `<PanoViewer
   contextMenu={{
     appearance: ${appearance},
     items: [
@@ -124,7 +124,7 @@ function buildContextMenuSnippet(
   style={{ height: 540 }}
 >
   <Sphere src="/panoramas/room.webp" />
-</PanoView>`;
+</PanoViewer>`;
     default: {
       const exhaustive: never = mode;
       throw new Error(`Unhandled menu mode: ${exhaustive}`);
@@ -133,7 +133,7 @@ function buildContextMenuSnippet(
 }
 
 export function ContextMenuPage() {
-  const panoRef = useRef<PanoViewHandle>(null);
+  const panoRef = useRef<PanoViewerHandle>(null);
   const [mode, setMode] = useState<MenuMode>("default");
   const [opacity, setOpacity] = useState(0.95);
   const [borderRadius, setBorderRadius] = useState(8);
@@ -277,7 +277,7 @@ export function ContextMenuPage() {
           </label>
         </div>
         <div className="transition-viewer">
-          <PanoView
+          <PanoViewer
             ref={panoRef}
             aria-label="Panorama context menu demo"
             contextMenu={contextMenu}
@@ -288,7 +288,7 @@ export function ContextMenuPage() {
               onExitFullscreen={() => setLastAction("Exited fullscreen")}
             />
             <Sphere src="/fixtures/panorama/panos/1.jpg" />
-          </PanoView>
+          </PanoViewer>
         </div>
         <CodeSnippet
           blurb={snippetMeta.blurb}

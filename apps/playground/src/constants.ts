@@ -1,12 +1,12 @@
 import type {
-  PanoramaScene,
-  PanoramaTransitionPreset,
-  PanoViewState,
+  Scene,
+  SceneTransitionPreset,
+  PanoViewerState,
   TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import type { EditorHotspot, EditorPolygon } from "./types";
 
-export const INITIAL_VIEW: PanoViewState = { yaw: 0, pitch: 0, fov: 75 };
+export const INITIAL_VIEW: PanoViewerState = { yaw: 0, pitch: 0, fov: 75 };
 
 export const INITIAL_PROGRESS: TileLoadProgress = {
   requested: 0,
@@ -35,9 +35,9 @@ export const TRANSITION_SCENES = [
     multires: "512,1000,2000",
     urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
   },
-] satisfies readonly PanoramaScene[];
+] satisfies readonly Scene[];
 
-export const TRANSITION_PRESETS: Array<{ value: PanoramaTransitionPreset; label: string }> = [
+export const TRANSITION_PRESETS: Array<{ value: SceneTransitionPreset; label: string }> = [
   { value: "none", label: "No blend" },
   { value: "crossfade", label: "Crossfade" },
   { value: "zoom", label: "Zoom blend" },

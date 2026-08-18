@@ -51,12 +51,12 @@ import { TouchControls } from "./touch-controls";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
-  PanoViewHandle,
-  PanoViewState,
+  PanoViewerHandle,
+  PanoViewerState,
   TouchControlsOptions,
 } from "./types";
 
-const DEFAULT_VIEW: PanoViewState = {
+const DEFAULT_VIEW: PanoViewerState = {
   yaw: 0,
   pitch: 0,
   fov: 75,
@@ -71,12 +71,12 @@ const DEFAULT_CANVAS_STYLE: CSSProperties = {
   width: "100%",
 };
 
-export type PanoViewProps = Omit<
+export type PanoViewerProps = Omit<
   ComponentPropsWithoutRef<"div">,
   "children" | "onChange" | "contextMenu"
 > & {
   children?: ReactNode;
-  initialView?: Partial<PanoViewState>;
+  initialView?: Partial<PanoViewerState>;
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
@@ -87,7 +87,7 @@ export type PanoViewProps = Omit<
    * `append` to keep the defaults and add entries.
    */
   contextMenu?: boolean | PanoContextMenuProps;
-  onViewChange?: (view: PanoViewState) => void;
+  onViewChange?: (view: PanoViewerState) => void;
   onPanoramaClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaDoubleClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaPointerMove?: (event: PanoramaPointerEvent) => void;
@@ -131,8 +131,8 @@ function resolveContextMenuChannel(
   return { mount: true, props: { ...value } };
 }
 
-export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
-  function PanoView(
+export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
+  function PanoViewer(
     {
       children,
       initialView,
@@ -158,13 +158,13 @@ export const PanoView = forwardRef<PanoViewHandle, PanoViewProps>(
       useHotspotAccessibilityLayer();
     const { api: contextMenuOverlayApi, overlay: contextMenuOverlay } =
       usePanoContextMenuOverlay();
-    const fallbackViewRef = useRef<PanoViewState>(DEFAULT_VIEW);
+    const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
       179,
       Math.max(maxFov, normalizedMinFov + 1),
     );
-    const normalizedInitialView = useMemo<PanoViewState>(
+    const normalizedInitialView = useMemo<PanoViewerState>(
       () => ({
         yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
         pitch: clampPanoPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),

@@ -11,8 +11,8 @@ import { Euler, MathUtils, PerspectiveCamera } from "three";
 import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
-  PanoViewState,
-  SetPanoViewOptions,
+  PanoViewerState,
+  SetPanoViewerOptions,
 } from "./types";
 
 const MAX_PITCH = 90;
@@ -31,12 +31,12 @@ export type ApplyViewDeltaOptions = {
 };
 
 export type PanoramaViewRuntimeHandle = {
-  getView: () => PanoViewState;
+  getView: () => PanoViewerState;
   /** Target view used by drag/zoom input before camera smoothing. */
-  getTargetView: () => PanoViewState;
+  getTargetView: () => PanoViewerState;
   setView: (
-    view: Partial<PanoViewState>,
-    options?: SetPanoViewOptions,
+    view: Partial<PanoViewerState>,
+    options?: SetPanoViewerOptions,
   ) => void;
   reset: () => void;
   /**
@@ -44,7 +44,7 @@ export type PanoramaViewRuntimeHandle = {
    * view. Returns false while an interaction lock is held.
    */
   applyViewDelta: (
-    delta: Partial<PanoViewState>,
+    delta: Partial<PanoViewerState>,
     options?: ApplyViewDeltaOptions,
   ) => boolean;
   /** Marks whether keyboard navigation is currently driving the view. */
@@ -67,7 +67,7 @@ export const PanoramaViewContext = createContext<
 >(null);
 
 type PanoramaViewRuntimeProps = {
-  initialView: PanoViewState;
+  initialView: PanoViewerState;
   minFov: number;
   maxFov: number;
   options: PanoramaControlsOptions;
@@ -98,7 +98,7 @@ function resolveFrictionStop(value: number | undefined): number {
   return Number.isFinite(value) && value! >= 0 ? value! : DEFAULT_FRICTION_STOP;
 }
 
-function viewsEqual(a: PanoViewState, b: PanoViewState): boolean {
+function viewsEqual(a: PanoViewerState, b: PanoViewerState): boolean {
   return a.yaw === b.yaw && a.pitch === b.pitch && a.fov === b.fov;
 }
 
@@ -114,9 +114,9 @@ export const PanoramaViewRuntime = forwardRef<
   ref,
 ) {
   const { camera } = useThree();
-  const viewRef = useRef<PanoViewState>({ ...initialView });
-  const targetViewRef = useRef<PanoViewState>({ ...initialView });
-  const initialViewRef = useRef<PanoViewState>({ ...initialView });
+  const viewRef = useRef<PanoViewerState>({ ...initialView });
+  const targetViewRef = useRef<PanoViewerState>({ ...initialView });
+  const initialViewRef = useRef<PanoViewerState>({ ...initialView });
   const yawVelocityRef = useRef(0);
   const pitchVelocityRef = useRef(0);
   const zoomVelocityRef = useRef(0);
@@ -130,7 +130,7 @@ export const PanoramaViewRuntime = forwardRef<
   const lastVelocitySampleAtRef = useRef<number | null>(null);
   const optionsRef = useRef(options);
   const eventBusRef = useRef(eventBus);
-  const lastEmittedViewRef = useRef<PanoViewState | null>(null);
+  const lastEmittedViewRef = useRef<PanoViewerState | null>(null);
   const eulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
   const minFovRef = useRef(minFov);
   const maxFovRef = useRef(maxFov);
@@ -157,9 +157,9 @@ export const PanoramaViewRuntime = forwardRef<
   };
 
   const hardConstrainView = (
-    view: Partial<PanoViewState>,
-    current: PanoViewState = targetViewRef.current,
-  ): PanoViewState => {
+    view: Partial<PanoViewerState>,
+    current: PanoViewerState = targetViewRef.current,
+  ): PanoViewerState => {
     return {
       yaw: normalizeYaw(view.yaw ?? current.yaw),
       pitch: clamp(view.pitch ?? current.pitch, -MAX_PITCH, MAX_PITCH),
@@ -172,9 +172,9 @@ export const PanoramaViewRuntime = forwardRef<
   };
 
   const softConstrainView = (
-    view: Partial<PanoViewState>,
-    current: PanoViewState = targetViewRef.current,
-  ): PanoViewState => {
+    view: Partial<PanoViewerState>,
+    current: PanoViewerState = targetViewRef.current,
+  ): PanoViewerState => {
     const bouncing = optionsRef.current.bouncingLimits === true;
     if (!bouncing || !interactingRef.current) {
       return hardConstrainView(view, current);
@@ -248,8 +248,8 @@ export const PanoramaViewRuntime = forwardRef<
   };
 
   const setView = (
-    view: Partial<PanoViewState>,
-    setOptions?: SetPanoViewOptions,
+    view: Partial<PanoViewerState>,
+    setOptions?: SetPanoViewerOptions,
   ) => {
     const nextView = hardConstrainView(view);
     targetViewRef.current = nextView;
@@ -261,7 +261,7 @@ export const PanoramaViewRuntime = forwardRef<
   };
 
   const applyViewDelta = (
-    delta: Partial<PanoViewState>,
+    delta: Partial<PanoViewerState>,
     applyOptions?: ApplyViewDeltaOptions,
   ): boolean => {
     if (interactionLockCountRef.current > 0) {

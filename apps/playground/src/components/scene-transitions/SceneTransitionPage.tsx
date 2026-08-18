@@ -1,10 +1,10 @@
 import {
   ImageHotspot,
   KeyboardControls,
-  PanoramaScenes,
-  PanoView,
+  Scenes,
+  PanoViewer,
   cycleSceneId,
-  type PanoramaTransitionPreset,
+  type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import { TRANSITION_PRESETS, TRANSITION_SCENES } from "../../constants";
@@ -12,7 +12,7 @@ import { SiteHeader } from "../SiteHeader";
 
 export function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
-  const [preset, setPreset] = useState<PanoramaTransitionPreset>("crossfade");
+  const [preset, setPreset] = useState<SceneTransitionPreset>("crossfade");
   const [status, setStatus] = useState("Choose a scene and a KRpano-style blend.");
 
   return (
@@ -42,7 +42,7 @@ export function SceneTransitionPage() {
           <label>
             Blend
             <select
-              onChange={(event) => setPreset(event.currentTarget.value as PanoramaTransitionPreset)}
+              onChange={(event) => setPreset(event.currentTarget.value as SceneTransitionPreset)}
               value={preset}
             >
               {TRANSITION_PRESETS.map((entry) => (
@@ -52,7 +52,7 @@ export function SceneTransitionPage() {
           </label>
         </div>
         <div className="transition-viewer">
-          <PanoView
+          <PanoViewer
             aria-label="Panorama scene transition demo"
             controls={{ keyboard: false }}
             style={{ height: 540 }}
@@ -71,7 +71,7 @@ export function SceneTransitionPage() {
                 }
               }}
             />
-            <PanoramaScenes
+            <Scenes
               activeSceneId={activeSceneId}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
@@ -94,7 +94,7 @@ export function SceneTransitionPage() {
                 />
               )}
             />
-          </PanoView>
+          </PanoViewer>
         </div>
       </section>
       <footer>

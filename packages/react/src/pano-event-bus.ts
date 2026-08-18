@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import type { PanoramaPointerEvent } from "./hotspot/types";
-import type { PanoViewState } from "./types";
+import type { PanoViewerState } from "./types";
 
 export type ViewInteractionSource = "mouse" | "touch" | "keyboard";
 
@@ -20,8 +20,8 @@ export type ViewInteractionEvent = {
 };
 
 export type PanoEventMap = {
-  viewchange: PanoViewState;
-  viewsettled: PanoViewState;
+  viewchange: PanoViewerState;
+  viewsettled: PanoViewerState;
   viewinteractionstart: ViewInteractionEvent;
   viewinteractionend: ViewInteractionEvent;
   click: PanoramaPointerEvent;

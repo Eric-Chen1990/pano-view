@@ -31,7 +31,7 @@ import {
 import { Tile } from "./tile/tile";
 import type { TileProps } from "./tile/types";
 
-export type PanoramaTransitionPreset =
+export type SceneTransitionPreset =
   | "none"
   | "crossfade"
   | "zoom"
@@ -45,22 +45,22 @@ export type PanoramaTransitionPreset =
   | "horizontalOpen"
   | "ellipticZoomOpen";
 
-export type PanoramaTransition =
-  | PanoramaTransitionPreset
+export type SceneTransition =
+  | SceneTransitionPreset
   | {
-      preset: PanoramaTransitionPreset;
+      preset: SceneTransitionPreset;
       /** Overrides the KRpano-compatible default duration in seconds. */
       duration?: number;
     };
 
-export type SpherePanoramaScene = {
+export type SphereScene = {
   id: string;
   type: "sphere";
   src: string;
   yawOffset?: number;
 };
 
-export type TilePanoramaScene = Omit<
+export type TileScene = Omit<
   TileProps,
   | "loadMode"
   | "visible"
@@ -74,27 +74,27 @@ export type TilePanoramaScene = Omit<
   type: "tile";
 };
 
-export type PanoramaScene = SpherePanoramaScene | TilePanoramaScene;
+export type Scene = SphereScene | TileScene;
 
-export type PanoramaTransitionEndEvent = {
+export type SceneTransitionEndEvent = {
   previousSceneId: string;
   sceneId: string;
-  preset: PanoramaTransitionPreset;
+  preset: SceneTransitionPreset;
 };
 
-export type PanoramaTransitionErrorEvent = {
+export type SceneTransitionErrorEvent = {
   sceneId: string;
   error: unknown;
 };
 
-export type PanoramaScenesProps = {
-  scenes: readonly PanoramaScene[];
+export type ScenesProps = {
+  scenes: readonly Scene[];
   activeSceneId: string;
-  transition?: PanoramaTransition;
+  transition?: SceneTransition;
   /** Rendered only after a scene has finished transitioning in. */
-  renderHotspots?: (scene: PanoramaScene) => ReactNode;
-  onTransitionEnd?: (event: PanoramaTransitionEndEvent) => void;
-  onTransitionError?: (event: PanoramaTransitionErrorEvent) => void;
+  renderHotspots?: (scene: Scene) => ReactNode;
+  onTransitionEnd?: (event: SceneTransitionEndEvent) => void;
+  onTransitionError?: (event: SceneTransitionErrorEvent) => void;
   /** Viewer-wide budget shared by every tile scene. Defaults to 128 MiB. */
   maxTextureMemoryMb?: number;
   /** Viewer-wide tile request limit. Defaults to 4. */
@@ -104,7 +104,7 @@ export type PanoramaScenesProps = {
 };
 
 type TransitionDefinition = {
-  preset: PanoramaTransitionPreset;
+  preset: SceneTransitionPreset;
   duration: number;
 };
 
@@ -115,7 +115,7 @@ type Snapshot = {
 
 type Phase = "idle" | "preloading" | "capturing" | "recapturing" | "transitioning";
 
-const TRANSITION_DEFAULTS: Record<PanoramaTransitionPreset, {
+const TRANSITION_DEFAULTS: Record<SceneTransitionPreset, {
   duration: number;
   krpanoBlend: string;
 }> = {
@@ -133,7 +133,7 @@ const TRANSITION_DEFAULTS: Record<PanoramaTransitionPreset, {
   ellipticZoomOpen: { duration: 1, krpanoBlend: "OPENBLEND(1.0, -0.5, 0.3, 0.8, linear)" },
 };
 
-const EFFECT_INDEX: Record<PanoramaTransitionPreset, number> = {
+const EFFECT_INDEX: Record<SceneTransitionPreset, number> = {
   none: 0,
   crossfade: 1,
   zoom: 2,
@@ -148,7 +148,7 @@ const EFFECT_INDEX: Record<PanoramaTransitionPreset, number> = {
   ellipticZoomOpen: 11,
 };
 
-function resolveTransition(transition: PanoramaTransition | undefined): TransitionDefinition {
+function resolveTransition(transition: SceneTransition | undefined): TransitionDefinition {
   const preset = typeof transition === "string" ? transition : transition?.preset ?? "crossfade";
   return {
     preset,
@@ -168,7 +168,7 @@ function SceneSource({
   onReady,
   onError,
 }: {
-  scene: PanoramaScene | null;
+  scene: Scene | null;
   visible: boolean;
   baseOnly: boolean;
   onReady: () => void;
@@ -416,7 +416,7 @@ function SnapshotOverlay({
 
 const FULLSCREEN_PLANE = new PlaneGeometry(1, 1);
 
-function PanoramaScenesController({
+function ScenesController({
   scenes,
   activeSceneId,
   transition: transitionInput,
@@ -424,7 +424,7 @@ function PanoramaScenesController({
   onTransitionEnd,
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
-}: Omit<PanoramaScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
+}: Omit<ScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
   const controlsRef = useContext(PanoramaViewContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
@@ -436,7 +436,7 @@ function PanoramaScenesController({
     [scenes],
   );
   const initialScene = sceneMap.get(activeSceneId) ?? null;
-  const [slots, setSlots] = useState<[PanoramaScene | null, PanoramaScene | null]>([
+  const [slots, setSlots] = useState<[Scene | null, Scene | null]>([
     initialScene,
     null,
   ]);
@@ -454,7 +454,7 @@ function PanoramaScenesController({
   const slotsRef = useRef(slots);
   const phaseRef = useRef(phase);
   const liveSlotRef = useRef(liveSlot);
-  const transitionFromRef = useRef<PanoramaScene | null>(initialScene);
+  const transitionFromRef = useRef<Scene | null>(initialScene);
   slotsRef.current = slots;
   phaseRef.current = phase;
   liveSlotRef.current = liveSlot;
@@ -468,11 +468,11 @@ function PanoramaScenesController({
     onTransitionError?.({ sceneId, error });
   }, [onTransitionError]);
 
-  const startPreload = useCallback((scene: PanoramaScene) => {
+  const startPreload = useCallback((scene: Scene) => {
     const nextSlot = 1 - liveSlotRef.current;
     requestedSceneIdRef.current = scene.id;
     setSlots((current) => {
-      const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
       next[nextSlot] = scene;
       return next;
     });
@@ -518,7 +518,7 @@ function PanoramaScenesController({
       const previousScene = slotsRef.current[liveSlotRef.current];
       const nextScene = slotsRef.current[slot];
       setSlots((current) => {
-        const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+        const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
         next[liveSlotRef.current] = null;
         return next;
       });
@@ -555,7 +555,7 @@ function PanoramaScenesController({
 
     const sourceSlot = liveSlotRef.current;
     setSlots((current) => {
-      const next: [PanoramaScene | null, PanoramaScene | null] = [...current] as [PanoramaScene | null, PanoramaScene | null];
+      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
       next[sourceSlot] = null;
       return next;
     });
@@ -669,17 +669,17 @@ function PanoramaScenesController({
   );
 }
 
-export function PanoramaScenes({
+export function Scenes({
   maxTextureMemoryMb,
   maxConcurrentTileLoads,
   ...props
-}: PanoramaScenesProps) {
+}: ScenesProps) {
   return (
     <TileTextureManagerProvider
       maxTextureMemoryMb={maxTextureMemoryMb}
       maxConcurrentLoads={maxConcurrentTileLoads}
     >
-      <PanoramaScenesController {...props} />
+      <ScenesController {...props} />
     </TileTextureManagerProvider>
   );
 }

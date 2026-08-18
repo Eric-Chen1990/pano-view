@@ -1,9 +1,9 @@
 import {
   AutoRotate,
-  PanoView,
+  PanoViewer,
   Sphere,
   Tile,
-  type PanoViewHandle,
+  type PanoViewerHandle,
 } from "@ericchen1990/pano-view";
 import { useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -21,7 +21,7 @@ import {
 const VIEWER_CONTROLS = { inertia: true, keyboard: true };
 
 export function CanvasPanel() {
-  const viewerRef = useRef<PanoViewHandle>(null);
+  const viewerRef = useRef<PanoViewerHandle>(null);
   const {
     mode,
     view,
@@ -132,7 +132,7 @@ export function CanvasPanel() {
       </div>
 
       <div className={placementTool || drawingPath ? "viewer-frame placing" : "viewer-frame"}>
-        <PanoView
+        <PanoViewer
           key={mode}
           ref={viewerRef}
           aria-label={`${mode} panorama hotspot editor`}
@@ -164,7 +164,7 @@ export function CanvasPanel() {
             />
           )}
           <HotspotLayer />
-        </PanoView>
+        </PanoViewer>
         <div className="reticle" aria-hidden="true" />
         <p className="canvas-status" role="status">{lastAction}</p>
       </div>

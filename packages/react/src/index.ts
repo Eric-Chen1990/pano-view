@@ -1,5 +1,5 @@
-export { PanoView } from "./pano-view";
-export type { PanoViewProps } from "./pano-view";
+export { PanoViewer } from "./pano-viewer";
+export type { PanoViewerProps } from "./pano-viewer";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
 export { PanoContextMenu } from "./pano-context-menu";
@@ -48,17 +48,17 @@ export { TouchControls } from "./touch-controls";
 export type { TouchControlsProps } from "./touch-controls";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
-export { PanoramaScenes } from "./panorama-scenes";
+export { Scenes } from "./scenes";
 export type {
-  PanoramaScene,
-  PanoramaScenesProps,
-  PanoramaTransition,
-  PanoramaTransitionEndEvent,
-  PanoramaTransitionErrorEvent,
-  PanoramaTransitionPreset,
-  SpherePanoramaScene,
-  TilePanoramaScene,
-} from "./panorama-scenes";
+  Scene,
+  ScenesProps,
+  SceneTransition,
+  SceneTransitionEndEvent,
+  SceneTransitionErrorEvent,
+  SceneTransitionPreset,
+  SphereScene,
+  TileScene,
+} from "./scenes";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
 export { PolygonHotspot } from "./hotspot/polygon-hotspot";
@@ -120,9 +120,9 @@ export type {
   MouseControlButton,
   MouseControlsOptions,
   PanoramaControlsOptions,
-  PanoViewHandle,
-  PanoViewState,
-  SetPanoViewOptions,
+  PanoViewerHandle,
+  PanoViewerState,
+  SetPanoViewerOptions,
   TouchControlsOptions,
 } from "./types";
 export {

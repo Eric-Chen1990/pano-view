@@ -19,7 +19,7 @@ import type {
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoEventBusContext } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
-import type { PanoViewState } from "./types";
+import type { PanoViewerState } from "./types";
 
 const DEFAULT_ICON_SIZE = 16;
 const MENU_EDGE_PADDING = 8;
@@ -29,7 +29,7 @@ export const MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY = 0.4;
 
 export type PanoContextMenuSelectContext = {
   position: PanoramaPointerEvent["position"];
-  view: PanoViewState;
+  view: PanoViewerState;
   nativeEvent: MouseEvent | PointerEvent;
   close: () => void;
 };
@@ -111,7 +111,7 @@ export type PanoContextMenuAppearance = {
 
 export type PanoContextMenuRenderProps = {
   event: PanoramaPointerEvent;
-  view: PanoViewState;
+  view: PanoViewerState;
   close: () => void;
 };
 
@@ -148,7 +148,7 @@ export type PanoContextMenuProps = {
 type ContextMenuSession = {
   key: string;
   event: PanoramaPointerEvent;
-  view: PanoViewState;
+  view: PanoViewerState;
   render: () => ReactNode;
 };
 
@@ -547,7 +547,7 @@ function PositionedMenuShell({
 }
 
 /**
- * Creates a shared context-menu overlay API for PanoView. Provide `api`
+ * Creates a shared context-menu overlay API for PanoViewer. Provide `api`
  * inside the Canvas (R3F does not inherit outer React context) and render
  * `overlay` as a DOM sibling of the Canvas.
  */
@@ -634,8 +634,8 @@ export function usePanoContextMenuOverlay(): {
 }
 
 /**
- * Custom panorama context menu. Must render inside PanoView. Prefer
- * PanoView's `contextMenu` prop for the default menu; use this component
+ * Custom panorama context menu. Must render inside PanoViewer. Prefer
+ * PanoViewer's `contextMenu` prop for the default menu; use this component
  * when replacing the default instance (`contextMenu={false}`).
  */
 export function PanoContextMenu({
@@ -679,11 +679,11 @@ export function PanoContextMenu({
   };
 
   if (!eventBus || !controlsRef) {
-    throw new Error("<PanoContextMenu> must be rendered inside <PanoView>.");
+    throw new Error("<PanoContextMenu> must be rendered inside <PanoViewer>.");
   }
   if (!overlayApi) {
     throw new Error(
-      "<PanoContextMenu> requires the PanoView context-menu overlay host.",
+      "<PanoContextMenu> requires the PanoViewer context-menu overlay host.",
     );
   }
 
@@ -845,7 +845,7 @@ export type PanoContextMenuPresets = {
 /**
  * Builds reusable built-in context-menu items. Prefer preset id strings
  * (`"resetView"`, `"fullscreen"`) in `items` / `append` / `prepend` when
- * configuring `PanoView`; use this helper when assembling items manually.
+ * configuring `PanoViewer`; use this helper when assembling items manually.
  */
 export function createPanoContextMenuPresets(
   actions: PanoContextMenuPresetActions,
