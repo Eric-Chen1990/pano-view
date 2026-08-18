@@ -24,6 +24,7 @@ const RING_SEGMENTS = 96;
 const RING_INDICES_PER_SEGMENT = 6;
 const GAZE_POINTER_ID = 1_000_001;
 export const DEFAULT_WEBVR_CURSOR_DWELL_MS = 1_500;
+const MAX_DWELL_DELTA_MS = 48;
 
 type R3FObject = Object3D & {
   __r3f?: {
@@ -166,16 +167,20 @@ export function WebVRReticle({
     activeCamera.getWorldDirection(directionRef.current);
     const raycaster = raycasterRef.current;
     raycaster.setFromCamera(CENTER_NDC, camera);
+    scene.updateMatrixWorld();
     const hits = raycaster.intersectObjects(scene.children, true);
     const target = findGazeTarget(hits);
     const previous = hoveredRef.current;
+    const acquiredNewTarget = Boolean(
+      target && previous?.eventObject !== target.eventObject,
+    );
 
     if (previous && previous.eventObject !== target?.eventObject) {
       emitHandler(previous, camera, raycaster.ray, "onPointerOut", "pointerout");
       dwellRef.current = 0;
       clickedRef.current = false;
     }
-    if (target && previous?.eventObject !== target.eventObject) {
+    if (acquiredNewTarget && target) {
       emitHandler(target, camera, raycaster.ray, "onPointerOver", "pointerover");
       dwellRef.current = 0;
       clickedRef.current = false;
@@ -183,24 +188,26 @@ export function WebVRReticle({
     hoveredRef.current = target;
 
     const resolvedDwellMs = resolveDwellMs(dwellMs);
-    if (target && resolvedDwellMs > 0 && !clickedRef.current) {
+    if (target && resolvedDwellMs > 0 && !clickedRef.current && !acquiredNewTarget) {
       dwellRef.current = Math.min(
-        dwellRef.current + deltaSeconds * 1_000,
+        dwellRef.current + Math.min(deltaSeconds * 1_000, MAX_DWELL_DELTA_MS),
         resolvedDwellMs,
       );
       if (dwellRef.current >= resolvedDwellMs) {
         clickedRef.current = true;
+        dwellRef.current = 0;
         emitHandler(target, camera, raycaster.ray, "onClick", "click");
       }
     } else if (!target) {
       dwellRef.current = 0;
     }
 
-    const progress = target
-      ? resolvedDwellMs > 0
-        ? Math.min(dwellRef.current / resolvedDwellMs, 1)
-        : 1
-      : 0;
+    const progress =
+      target && !clickedRef.current
+        ? resolvedDwellMs > 0
+          ? Math.min(dwellRef.current / resolvedDwellMs, 1)
+          : 1
+        : 0;
     if (ringMesh) {
       const segments = Math.max(0, Math.ceil(progress * RING_SEGMENTS));
       ringMesh.visible = progress > 0.001;

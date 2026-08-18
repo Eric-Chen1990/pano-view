@@ -1,8 +1,9 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import type { ReactNode } from "react";
 import {
   Box3,
+  Camera,
   EdgesGeometry,
   MathUtils,
   Matrix4,
@@ -43,6 +45,7 @@ import {
   type HotspotInteractionEvent,
   type HotspotMode,
   type HotspotPosition,
+  type HotspotScaleMode,
   type HotspotTooltipPlacement,
   type HotspotTooltipTrigger,
 } from "./types";
@@ -113,6 +116,36 @@ function resolveDistance(
     return DEFAULT_FLOATING_DISTANCE;
   }
   return MathUtils.clamp(Math.abs(distance!), 0.1, maximumDistance);
+}
+
+function applyHotspotTransform(
+  group: Object3D,
+  camera: Camera,
+  orientation: "billboard" | "surface",
+  surfaceQuaternion: Quaternion,
+  rotation: number,
+  scaleMode: HotspotScaleMode,
+  referenceFov: number,
+  useAngularScale: boolean,
+  worldWidth: number,
+  worldHeight: number,
+) {
+  if (orientation === "billboard") {
+    group.quaternion.copy(camera.quaternion);
+  } else {
+    group.quaternion.copy(surfaceQuaternion);
+  }
+  group.rotateOnAxis(LOCAL_FORWARD, MathUtils.degToRad(-rotation));
+  const scaleFactor =
+    scaleMode === "fixed" && camera instanceof PerspectiveCamera
+      ? fixedScaleFactor(camera.fov, referenceFov)
+      : 1;
+  group.scale.set(
+    (useAngularScale ? worldWidth : 1) * scaleFactor,
+    (useAngularScale ? worldHeight : 1) * scaleFactor,
+    1,
+  );
+  group.updateMatrixWorld();
 }
 
 function maximumHotspotDistance(width: number, height: number): number {
@@ -331,6 +364,7 @@ export function HotspotAnchor({
   const controlsRef = useContext(PanoramaViewContext);
   const eventBus = useContext(PanoEventBusContext);
   const cursorApi = usePanoCursor();
+  const { camera } = useThree();
   const groupRef = useRef<Object3D>(null);
   const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
@@ -470,37 +504,61 @@ export function HotspotAnchor({
     setDragging(false);
   }, [acceptsPointer]);
 
-  useFrame(({ camera }) => {
-    if (!groupRef.current) {
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    if (!group) {
       return;
     }
-    if (orientation === "billboard") {
-      groupRef.current.quaternion.copy(camera.quaternion);
-    } else {
-      groupRef.current.quaternion.copy(surfaceQuaternion);
-    }
-    groupRef.current.rotateOnAxis(
-      LOCAL_FORWARD,
-      MathUtils.degToRad(-rotation),
+    applyHotspotTransform(
+      group,
+      camera,
+      orientation,
+      surfaceQuaternion,
+      rotation,
+      scaleMode,
+      referenceFov,
+      useAngularScale,
+      worldWidth,
+      worldHeight,
     );
-    const scaleFactor =
-      scaleMode === "fixed" && camera instanceof PerspectiveCamera
-        ? fixedScaleFactor(camera.fov, referenceFov)
-        : 1;
-    groupRef.current.scale.set(
-      (useAngularScale ? worldWidth : 1) * scaleFactor,
-      (useAngularScale ? worldHeight : 1) * scaleFactor,
-      1,
+  }, [
+    camera,
+    orientation,
+    referenceFov,
+    rotation,
+    scaleMode,
+    surfaceQuaternion,
+    useAngularScale,
+    worldHeight,
+    worldWidth,
+  ]);
+
+  useFrame((state) => {
+    const group = groupRef.current;
+    if (!group) {
+      return;
+    }
+    applyHotspotTransform(
+      group,
+      state.camera,
+      orientation,
+      surfaceQuaternion,
+      rotation,
+      scaleMode,
+      referenceFov,
+      useAngularScale,
+      worldWidth,
+      worldHeight,
     );
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(
         tooltipAnchorRef.current,
-        groupRef.current,
+        group,
         tooltipPlacement,
         useAngularScale,
       );
     }
-  });
+  }, -1);
 
   const stopPointerEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
     event.stopPropagation();
