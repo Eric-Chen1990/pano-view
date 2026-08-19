@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { Howl, Howler } from "howler";
+import type { Howl } from "howler";
 import { useEffect, useRef, useState } from "react";
 import {
   CanvasTexture,
@@ -10,6 +10,7 @@ import {
   Texture,
   TextureLoader,
 } from "three";
+import { createUnlockingHowl, sourceList } from "../audio/howl";
 import {
   audioSpatialFromView,
   clampAudioVolume,
@@ -18,8 +19,6 @@ import {
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
-
-Howler.autoUnlock = true;
 
 const SPEAKER_TEXTURE_SIZE = 512;
 
@@ -49,10 +48,6 @@ export type AudioHotspotProps = HotspotCommonProps & {
   onEnded?: () => void;
   onError?: (event: AudioHotspotErrorEvent) => void;
 };
-
-function sourceList(src: string | string[]): string[] {
-  return Array.isArray(src) ? src.filter(Boolean) : src ? [src] : [];
-}
 
 function createSpeakerTexture(): CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -232,78 +227,35 @@ function useAudioHowl({
     }
 
     let active = true;
-    let blockedNotified = false;
-    const unlockListeners: Array<{ type: "pointerdown" | "keydown"; listener: () => void }> =
-      [];
-
-    const removeUnlockListeners = () => {
-      for (const { type, listener } of unlockListeners) {
-        window.removeEventListener(type, listener, true);
-      }
-      unlockListeners.length = 0;
-    };
-
-    const instance = new Howl({
+    const handle = createUnlockingHowl({
       src: sources,
-      html5: false,
-      preload: true,
       loop: loopRef.current,
-      xhr:
-        crossOrigin === "use-credentials"
-          ? { withCredentials: true }
-          : undefined,
-      onend: () => {
-        if (!active || instance.loop()) {
-          return;
-        }
+      crossOrigin,
+      isActive: () => active,
+      shouldRetryPlay: () => playingRef.current,
+      onEnded: () => {
         onPlaybackStateChangeRef.current?.("ended");
         onEndedRef.current?.();
       },
-      onplay: () => {
-        if (active) {
-          onPlaybackStateChangeRef.current?.("playing");
-        }
+      onPlay: () => {
+        onPlaybackStateChangeRef.current?.("playing");
       },
-      onpause: () => {
-        if (active) {
-          onPlaybackStateChangeRef.current?.("paused");
-        }
+      onPause: () => {
+        onPlaybackStateChangeRef.current?.("paused");
       },
-      onloaderror: (_soundId, error) => {
-        if (active) {
-          onErrorRef.current?.({ id, error });
-        }
+      onLoadError: (error) => {
+        onErrorRef.current?.({ id, error });
       },
-      onplayerror: (_soundId, error) => {
-        if (!active) {
-          return;
-        }
-        if (!blockedNotified) {
-          blockedNotified = true;
-          onPlaybackStateChangeRef.current?.("blocked");
-          onPlaybackErrorRef.current?.(error);
-        }
-        const retry = () => {
-          removeUnlockListeners();
-          if (active && playingRef.current) {
-            void Howler.ctx?.resume();
-            instance.play();
-          }
-        };
-        removeUnlockListeners();
-        unlockListeners.push({ type: "pointerdown", listener: retry });
-        unlockListeners.push({ type: "keydown", listener: retry });
-        window.addEventListener("pointerdown", retry, { capture: true });
-        window.addEventListener("keydown", retry, { capture: true });
+      onPlayError: (error) => {
+        onPlaybackStateChangeRef.current?.("blocked");
+        onPlaybackErrorRef.current?.(error);
       },
     });
-
-    setHowl(instance);
+    setHowl(handle.howl);
 
     return () => {
       active = false;
-      removeUnlockListeners();
-      instance.unload();
+      handle.dispose();
     };
   }, [crossOrigin, id, sourcesKey]);
 

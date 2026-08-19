@@ -81,6 +81,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 - [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
 - [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`BackgroundAudio`](#backgroundaudio) — one shared track, or a different track per scene
 - [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
 
 ### Controls
@@ -500,6 +501,71 @@ Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enab
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
+
+## BackgroundAudio
+
+`BackgroundAudio` plays background music or ambience for the viewer. It is not
+a hotspot: there is no spherical position, no marker, and volume does not
+follow the camera. Render it as a child of `PanoViewer`, **alongside** `Scenes`,
+`Sphere`, or `Tile`. Do not put it in `Scenes`' `renderHotspots` — hotspots
+unmount during scene transitions and would stop the audio.
+
+`playing` is controlled by the host; the component does not change it. `loop`
+defaults to `true`. Browsers may block autoplay; `onPlaybackStateChange` then
+receives `"blocked"`, and the component retries `play()` after the next click
+or keypress while `playing` remains true.
+
+Pick one of the two patterns.
+
+**One track for every scene** — pass `src` only; omit `sources`. Scene changes
+do not restart the audio.
+
+```tsx
+import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio src="/bgm/tour.mp3" playing={isBgmPlaying} />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+**A different track per scene** — pass `sources` (keys are `Scene.id`) and the
+current `sceneId`. Omitting `sceneId` throws. When the file changes, playback
+crossfades over `fadeMs` (default 400 ms; `0` is a hard cut). When two scenes
+point at the same file, playback continues without restarting.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio
+    sources={{
+      lobby: "/bgm/lobby.mp3",
+      terrace: "/bgm/terrace.mp3",
+    }}
+    sceneId={activeSceneId}
+    playing={isBgmPlaying}
+  />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+Optional: also pass `src` as the default for scenes missing from `sources`. To
+silence a scene, set that id to `""` (this overrides `src`; it does not fall
+back to the default track).
+
+```tsx
+<BackgroundAudio
+  src="/bgm/default.mp3"
+  sources={{ lobby: "/bgm/courtyard.mp3", terrace: "" }}
+  sceneId={activeSceneId}
+  playing={isBgmPlaying}
+/>;
+```
+
+In that example, `lobby` plays the courtyard clip, `terrace` is silent, and
+every other scene plays `default.mp3`.
+
+For a sound attached to a point in the panorama that pans with the view, use
+`AudioHotspot`, not `BackgroundAudio`.
 
 ## Gyro
 
@@ -1304,7 +1370,8 @@ gesture unlocks audio; if autoplay is blocked, the hotspot reports
 `playing` remains true.
 
 The default marker is a built-in speaker icon. Pass `icon` for a custom
-image, or `marker={false}` for an invisible ambient source.
+image, or `marker={false}` for an invisible positional source. For a
+non-spatial tour or per-scene soundtrack, use [`BackgroundAudio`](#backgroundaudio).
 
 ```tsx
 import { AudioHotspot } from "@ericchen1990/pano-view";

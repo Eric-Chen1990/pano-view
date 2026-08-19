@@ -1,4 +1,5 @@
 import {
+  BackgroundAudio,
   ImageHotspot,
   KeyboardControls,
   Scenes,
@@ -25,10 +26,23 @@ import {
 import { BlendSelect } from "./BlendSelect";
 import { SiteHeader } from "../SiteHeader";
 
+const FOUNTAIN_BGM = "/fixtures/hotspots/fountain.mp3";
+
+const PER_SCENE_BACKGROUND = {
+  "sphere-1": FOUNTAIN_BGM,
+  "sphere-2": "",
+  "tile-3": FOUNTAIN_BGM,
+  "tile-4": "",
+} as const;
+
 export function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
+  const [backgroundMode, setBackgroundMode] = useState<"shared" | "per-scene">(
+    "shared",
+  );
+  const [backgroundPlaying, setBackgroundPlaying] = useState(true);
 
   return (
     <main className={shellClassName}>
@@ -66,6 +80,49 @@ export function SceneTransitionPage() {
             Blend
             <BlendSelect onChange={setPreset} value={preset} />
           </div>
+          <div className={controlLabelClassName}>
+            Background
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Background audio mode"
+            >
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  backgroundMode === "shared" && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setBackgroundMode("shared")}
+                type="button"
+              >
+                Shared
+              </button>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  backgroundMode === "per-scene" &&
+                    segmentedButtonActiveClassName,
+                )}
+                onClick={() => setBackgroundMode("per-scene")}
+                type="button"
+              >
+                Per scene
+              </button>
+            </div>
+          </div>
+          <div className={controlLabelClassName}>
+            BGM
+            <button
+              className={cn(
+                segmentedButtonClassName,
+                backgroundPlaying && segmentedButtonActiveClassName,
+              )}
+              onClick={() => setBackgroundPlaying((playing) => !playing)}
+              type="button"
+            >
+              {backgroundPlaying ? "Playing" : "Paused"}
+            </button>
+          </div>
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
@@ -85,6 +142,16 @@ export function SceneTransitionPage() {
                   setActiveSceneId(next);
                 }
               }}
+            />
+            <BackgroundAudio
+              playing={backgroundPlaying}
+              sceneId={
+                backgroundMode === "per-scene" ? activeSceneId : undefined
+              }
+              sources={
+                backgroundMode === "per-scene" ? PER_SCENE_BACKGROUND : undefined
+              }
+              src={backgroundMode === "shared" ? FOUNTAIN_BGM : undefined}
             />
             <Scenes
               activeSceneId={activeSceneId}
