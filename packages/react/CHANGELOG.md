@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 2.5.0
+
+### Minor Changes
+
+- 37d49ea: Add `usePanoViewer` to wrap `PanoViewerHandle` methods in a reusable parent-side hook.
+
 ## 2.4.0
 
 ### Minor Changes
