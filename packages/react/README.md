@@ -164,7 +164,242 @@ export function ControlledExample() {
 }
 ```
 
-The handle exposes `getView`, `setView`, `reset`, `startAutoRotate`, `stopAutoRotate`, and `toggleFullscreen`. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. The two auto-rotation handle methods remain supported for compatibility. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
+The handle exposes view, fullscreen, scene, VR, video, and background-audio controls so custom UIs can drive the viewer from a single ref:
+
+**View** — `getView`, `setView`, `reset`.
+
+**Fullscreen** — `enterFullscreen`, `exitFullscreen`, `toggleFullscreen`, `isFullscreen`.
+
+**Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` now accepts an optional `defaultActiveSceneId` (uncontrolled) or keeps the existing `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
+
+**WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `requestVRPermission`.
+
+**Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to host changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
+
+**Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to host changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` now accepts an optional `playing` prop (controlled) or uses `defaultPlaying` (uncontrolled).
+
+Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
+
+### Fullscreen
+
+```tsx
+import { useRef } from "react";
+import { PanoViewer, Sphere, type PanoViewerHandle } from "@ericchen1990/pano-view";
+
+function FullscreenExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button onClick={() => void ref.current?.enterFullscreen()}>Enter fullscreen</button>
+      <button onClick={() => void ref.current?.exitFullscreen()}>Exit fullscreen</button>
+      <button onClick={() => console.log(ref.current?.isFullscreen())}>Is fullscreen?</button>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### Imperative scene switching
+
+Use `defaultActiveSceneId` for uncontrolled mode — imperative calls update the internal state directly. For controlled mode keep passing `activeSceneId`; imperative calls invoke `onActiveSceneIdChange` so the parent can update its state.
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Scenes,
+  type PanoViewerHandle,
+  type Scene,
+} from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  { id: "lobby", type: "sphere", src: "/lobby.webp", previewUrl: "/lobby-preview.webp" },
+  { id: "roof",  type: "sphere", src: "/roof.webp",  previewUrl: "/roof-preview.webp" },
+];
+
+function SceneExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button onClick={() => ref.current?.setScene("roof")}>Go to roof</button>
+      <button onClick={() => ref.current?.nextScene()}>Next</button>
+      <button onClick={() => ref.current?.previousScene()}>Previous</button>
+      <p>Current: {ref.current?.getActiveSceneId()}</p>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### WebVR
+
+`enterVR` and `requestVRPermission` must be called from a user gesture.
+
+```tsx
+import { useRef } from "react";
+import { PanoViewer, Sphere, WebVR, type PanoViewerHandle } from "@ericchen1990/pano-view";
+
+function VRExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button
+        onClick={async () => {
+          await ref.current?.requestVRPermission();
+          await ref.current?.enterVR();
+        }}
+      >
+        Enter VR
+      </button>
+      <button onClick={() => void ref.current?.exitVR()}>Exit VR</button>
+      <button onClick={() => console.log(ref.current?.getVRMode())}>Mode?</button>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <WebVR />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### Custom video controls
+
+Set `controls={false}` on `PanoVideo` and drive playback from the viewer ref. Use `subscribeVideo` with `useSyncExternalStore` for reactive snapshots.
+
+```tsx
+import { useRef, useSyncExternalStore } from "react";
+import {
+  PanoViewer,
+  PanoVideo,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function VideoExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  const snapshot = useSyncExternalStore(
+    (cb) => ref.current?.subscribeVideo(cb) ?? (() => {}),
+    () => ref.current?.getVideo()?.getSnapshot() ?? null,
+    () => null,
+  );
+
+  return (
+    <>
+      <button onClick={() => void ref.current?.toggleVideo()}>
+        {snapshot?.playing ? "Pause" : "Play"}
+      </button>
+      <button onClick={() => ref.current?.toggleVideoMuted()}>
+        {snapshot?.muted ? "Unmute" : "Mute"}
+      </button>
+      {snapshot && (
+        <input
+          type="range"
+          min={0}
+          max={snapshot.duration}
+          value={snapshot.currentTime}
+          onChange={(e) => ref.current?.seekVideo(Number(e.target.value))}
+        />
+      )}
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <PanoVideo controls={false} src="/tour.mp4" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### Custom background audio controls
+
+`BackgroundAudio` supports uncontrolled mode — omit `playing` and use `defaultPlaying` instead. Drive it from the viewer ref.
+
+```tsx
+import { useRef, useSyncExternalStore } from "react";
+import {
+  PanoViewer,
+  Sphere,
+  BackgroundAudio,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function BGMExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  const snapshot = useSyncExternalStore(
+    (cb) => ref.current?.subscribeBackgroundAudio(cb) ?? (() => {}),
+    () => ref.current?.getBackgroundAudio()?.getSnapshot() ?? null,
+    () => null,
+  );
+
+  return (
+    <>
+      <button onClick={() => ref.current?.toggleBackgroundAudio()}>
+        {snapshot?.playing ? "Pause BGM" : "Play BGM"}
+      </button>
+      <button onClick={() => ref.current?.toggleBackgroundAudioMuted()}>
+        {snapshot?.muted ? "Unmute" : "Mute"}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={snapshot?.volume ?? 1}
+        onChange={(e) =>
+          ref.current?.setBackgroundAudioVolume(Number(e.target.value))
+        }
+      />
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <BackgroundAudio defaultPlaying src="/bgm.mp3" />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### All-in-one example
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Scenes,
+  WebVR,
+  PanoVideo,
+  BackgroundAudio,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function TourPlayer() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <nav>
+        <button onClick={() => ref.current?.previousScene()}>← Prev</button>
+        <button onClick={() => ref.current?.nextScene()}>Next →</button>
+        <button onClick={() => void ref.current?.toggleFullscreen()}>Fullscreen</button>
+        <button onClick={() => void ref.current?.enterVR()}>Enter VR</button>
+        <button onClick={() => ref.current?.toggleBackgroundAudio()}>BGM</button>
+      </nav>
+      <PanoViewer ref={ref} style={{ height: "100vh" }}>
+        <WebVR />
+        <BackgroundAudio defaultPlaying src="/bgm.mp3" />
+        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+The two deprecated auto-rotation handle methods (`startAutoRotate`, `stopAutoRotate`) remain for compatibility. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
 
 Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 

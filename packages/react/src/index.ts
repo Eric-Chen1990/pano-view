@@ -10,6 +10,10 @@ export type {
   BackgroundAudioProps,
   BackgroundAudioSource,
 } from "./background-audio";
+export type {
+  BackgroundAudioController,
+  BackgroundAudioSnapshot,
+} from "./background-audio-host";
 export { PanoFilter } from "./pano-filter/pano-filter";
 export type { PanoFilterProps } from "./pano-filter/pano-filter";
 export { PANO_FILTER_PRESETS } from "./pano-filter/presets";
@@ -106,6 +110,7 @@ export type {
   SphereScene,
   TileScene,
 } from "./scenes";
+export type { ScenesController } from "./scenes-host";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
 export { PolygonHotspot } from "./hotspot/polygon-hotspot";

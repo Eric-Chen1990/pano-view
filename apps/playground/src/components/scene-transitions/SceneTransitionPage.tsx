@@ -5,9 +5,10 @@ import {
   Scenes,
   PanoViewer,
   cycleSceneId,
+  type PanoViewerHandle,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -36,6 +37,7 @@ const PER_SCENE_SOURCES = {
 } as const;
 
 export function SceneTransitionPage() {
+  const viewerRef = useRef<PanoViewerHandle>(null);
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
@@ -130,8 +132,42 @@ export function SceneTransitionPage() {
             </div>
           </div>
         </div>
+        <div className={controlLabelClassName}>
+          Ref API
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ref-driven controls">
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => viewerRef.current?.previousScene()}
+              type="button"
+            >
+              ← Prev
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => viewerRef.current?.nextScene()}
+              type="button"
+            >
+              Next →
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => void viewerRef.current?.toggleFullscreen()}
+              type="button"
+            >
+              Fullscreen
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => viewerRef.current?.toggleBackgroundAudio()}
+              type="button"
+            >
+              Toggle BGM
+            </button>
+          </div>
+        </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
+            ref={viewerRef}
             aria-label="Panorama scene transition demo"
             style={{ height: 540 }}
           >

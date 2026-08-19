@@ -315,10 +315,11 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       enterVR,
       exitVR,
       openSetup: () => updateWebVRHost(host, { setupOpen: true }),
+      requestPermission,
       toggleVR,
       updateSettings,
     }),
-    [enterVR, exitVR, host, toggleVR, updateSettings],
+    [enterVR, exitVR, host, requestPermission, toggleVR, updateSettings],
   );
 
   useImperativeHandle(

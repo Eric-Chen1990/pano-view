@@ -147,7 +147,242 @@ export function ControlledExample() {
 }
 ```
 
-句柄暴露 `getView`、`setView`、`reset`、`startAutoRotate`、`stopAutoRotate` 与 `toggleFullscreen`。鼠标、触控与键盘输入默认启用 — 普通浏览无需再渲染控件组件。仅当需要覆盖属性时渲染 `MouseControls`、`TouchControls` 或 `KeyboardControls`（子组件会替换该通道的默认实例）。通过 `controls` 调节共享行为（`inertia`、`invert`、`bouncingLimits`、`fovSpeed`、`frictionStop`、`rotateDamping`、`zoomDamping`，以及顶层的 `rotateSpeed` / `zoomSpeed`）。将 `controls.mouse` / `touch` / `keyboard` 设为 `false` 可关闭某通道，或传入选项对象（含 `enabled`）在不挂载子组件的情况下覆盖默认值。自动旋转在渲染 `AutoRotate` 之前处于关闭状态。两个自动旋转句柄方法仍保留以兼容旧用法。默认右键菜单（重置视图 / 进入全屏）也会挂载 — 见 [`PanoContextMenu`](#panocontextmenu)。
+句柄从单个 `ref` 暴露视图、全屏、场景、VR、视频与背景音乐控制，方便宿主自绘 UI：
+
+**视图** — `getView`、`setView`、`reset`。
+
+**全屏** — `enterFullscreen`、`exitFullscreen`、`toggleFullscreen`、`isFullscreen`。
+
+**场景**（需 `<Scenes />`）— `setScene(id)`、`nextScene`、`previousScene`、`getActiveSceneId`、`getSceneIds`、`isSceneTransitioning`。`Scenes` 现支持可选 `defaultActiveSceneId`（非受控）或继续传 `activeSceneId`（受控）。受控模式下命令式调用会触发 `onActiveSceneIdChange`。
+
+**WebVR**（需 `<WebVR />`）— `enterVR`、`exitVR`、`toggleVR`、`isVRAvailable`、`isVREnabled`、`getVRMode`、`requestVRPermission`。
+
+**视频**（需 `<PanoVideo />`）— `getVideo` 返回 `PanoVideoController`，`subscribeVideo` 订阅宿主变更，另有快捷方法 `playVideo`、`pauseVideo`、`toggleVideo`、`seekVideo`、`setVideoVolume`、`setVideoMuted`、`toggleVideoMuted`。
+
+**背景音乐**（需 `<BackgroundAudio />`）— `getBackgroundAudio` 返回 `BackgroundAudioController`，`subscribeBackgroundAudio` 订阅宿主变更，另有快捷方法 `playBackgroundAudio`、`pauseBackgroundAudio`、`toggleBackgroundAudio`、`setBackgroundAudioVolume`、`setBackgroundAudioMuted`、`toggleBackgroundAudioMuted`。`BackgroundAudio` 现支持可选 `playing`（受控）或 `defaultPlaying`（非受控）。
+
+依赖未挂载子组件的方法（如无 `<WebVR />` 时调 `enterVR`）安全空操作，返回 `false`、`void` 或 `null`。
+
+### 全屏
+
+```tsx
+import { useRef } from "react";
+import { PanoViewer, Sphere, type PanoViewerHandle } from "@ericchen1990/pano-view";
+
+function FullscreenExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button onClick={() => void ref.current?.enterFullscreen()}>进入全屏</button>
+      <button onClick={() => void ref.current?.exitFullscreen()}>退出全屏</button>
+      <button onClick={() => console.log(ref.current?.isFullscreen())}>是否全屏？</button>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### 命令式切换场景
+
+使用 `defaultActiveSceneId` 为非受控模式 — 命令式调用直接更新内部状态。受控模式继续传 `activeSceneId`，命令式调用会触发 `onActiveSceneIdChange` 以便父组件更新 state。
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Scenes,
+  type PanoViewerHandle,
+  type Scene,
+} from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  { id: "lobby", type: "sphere", src: "/lobby.webp", previewUrl: "/lobby-preview.webp" },
+  { id: "roof",  type: "sphere", src: "/roof.webp",  previewUrl: "/roof-preview.webp" },
+];
+
+function SceneExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button onClick={() => ref.current?.setScene("roof")}>去天台</button>
+      <button onClick={() => ref.current?.nextScene()}>下一场景</button>
+      <button onClick={() => ref.current?.previousScene()}>上一场景</button>
+      <p>当前: {ref.current?.getActiveSceneId()}</p>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### WebVR
+
+`enterVR` 与 `requestVRPermission` 须在用户手势中调用。
+
+```tsx
+import { useRef } from "react";
+import { PanoViewer, Sphere, WebVR, type PanoViewerHandle } from "@ericchen1990/pano-view";
+
+function VRExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <button
+        onClick={async () => {
+          await ref.current?.requestVRPermission();
+          await ref.current?.enterVR();
+        }}
+      >
+        进入 VR
+      </button>
+      <button onClick={() => void ref.current?.exitVR()}>退出 VR</button>
+      <button onClick={() => console.log(ref.current?.getVRMode())}>当前模式？</button>
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <WebVR />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### 自定义视频控件
+
+将 `PanoVideo` 的 `controls` 设为 `false`，从 viewer ref 驱动播放。配合 `useSyncExternalStore` 使用 `subscribeVideo` 获取响应式快照。
+
+```tsx
+import { useRef, useSyncExternalStore } from "react";
+import {
+  PanoViewer,
+  PanoVideo,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function VideoExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  const snapshot = useSyncExternalStore(
+    (cb) => ref.current?.subscribeVideo(cb) ?? (() => {}),
+    () => ref.current?.getVideo()?.getSnapshot() ?? null,
+    () => null,
+  );
+
+  return (
+    <>
+      <button onClick={() => void ref.current?.toggleVideo()}>
+        {snapshot?.playing ? "暂停" : "播放"}
+      </button>
+      <button onClick={() => ref.current?.toggleVideoMuted()}>
+        {snapshot?.muted ? "取消静音" : "静音"}
+      </button>
+      {snapshot && (
+        <input
+          type="range"
+          min={0}
+          max={snapshot.duration}
+          value={snapshot.currentTime}
+          onChange={(e) => ref.current?.seekVideo(Number(e.target.value))}
+        />
+      )}
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <PanoVideo controls={false} src="/tour.mp4" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### 自定义背景音乐控件
+
+`BackgroundAudio` 支持非受控模式 — 省略 `playing`，改用 `defaultPlaying`。通过 viewer ref 驱动。
+
+```tsx
+import { useRef, useSyncExternalStore } from "react";
+import {
+  PanoViewer,
+  Sphere,
+  BackgroundAudio,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function BGMExample() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  const snapshot = useSyncExternalStore(
+    (cb) => ref.current?.subscribeBackgroundAudio(cb) ?? (() => {}),
+    () => ref.current?.getBackgroundAudio()?.getSnapshot() ?? null,
+    () => null,
+  );
+
+  return (
+    <>
+      <button onClick={() => ref.current?.toggleBackgroundAudio()}>
+        {snapshot?.playing ? "暂停 BGM" : "播放 BGM"}
+      </button>
+      <button onClick={() => ref.current?.toggleBackgroundAudioMuted()}>
+        {snapshot?.muted ? "取消静音" : "静音"}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={snapshot?.volume ?? 1}
+        onChange={(e) =>
+          ref.current?.setBackgroundAudioVolume(Number(e.target.value))
+        }
+      />
+      <PanoViewer ref={ref} style={{ height: 560 }}>
+        <BackgroundAudio defaultPlaying src="/bgm.mp3" />
+        <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+### 一站式示例
+
+```tsx
+import { useRef } from "react";
+import {
+  PanoViewer,
+  Scenes,
+  WebVR,
+  PanoVideo,
+  BackgroundAudio,
+  type PanoViewerHandle,
+} from "@ericchen1990/pano-view";
+
+function TourPlayer() {
+  const ref = useRef<PanoViewerHandle>(null);
+
+  return (
+    <>
+      <nav>
+        <button onClick={() => ref.current?.previousScene()}>← 上一场景</button>
+        <button onClick={() => ref.current?.nextScene()}>下一场景 →</button>
+        <button onClick={() => void ref.current?.toggleFullscreen()}>全屏</button>
+        <button onClick={() => void ref.current?.enterVR()}>进入 VR</button>
+        <button onClick={() => ref.current?.toggleBackgroundAudio()}>BGM</button>
+      </nav>
+      <PanoViewer ref={ref} style={{ height: "100vh" }}>
+        <WebVR />
+        <BackgroundAudio defaultPlaying src="/bgm.mp3" />
+        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      </PanoViewer>
+    </>
+  );
+}
+```
+
+两个已废弃的自动旋转方法（`startAutoRotate`、`stopAutoRotate`）继续保留以兼容。鼠标、触控与键盘输入默认启用 — 普通浏览无需再渲染控件组件。仅当需要覆盖属性时渲染 `MouseControls`、`TouchControls` 或 `KeyboardControls`（子组件会替换该通道的默认实例）。通过 `controls` 调节共享行为（`inertia`、`invert`、`bouncingLimits`、`fovSpeed`、`frictionStop`、`rotateDamping`、`zoomDamping`，以及顶层的 `rotateSpeed` / `zoomSpeed`）。将 `controls.mouse` / `touch` / `keyboard` 设为 `false` 可关闭某通道，或传入选项对象（含 `enabled`）在不挂载子组件的情况下覆盖默认值。自动旋转在渲染 `AutoRotate` 之前处于关闭状态。默认右键菜单（重置视图 / 进入全屏）也会挂载 — 见 [`PanoContextMenu`](#panocontextmenu)。
 
 拖拽与缩放会更新目标视图，相机平滑跟随。`rotateDamping` 与 `zoomDamping` 控制跟随速度，单位为秒⁻¹（默认分别为 `14` 与 `16`）；数值越低手感越柔和，`0` 表示该轴不做平滑。两者必须为非负有限数。命令式 `setView()` 与 `reset()` 仍为即时生效。
 

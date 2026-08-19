@@ -7,6 +7,7 @@ export type WebVRController = {
   enterVR: () => Promise<boolean>;
   exitVR: () => Promise<void>;
   toggleVR: () => Promise<boolean>;
+  requestPermission: () => Promise<boolean>;
   openSetup: () => void;
   closeSetup: () => void;
   updateSettings: (settings: WebVRSettings) => void;
