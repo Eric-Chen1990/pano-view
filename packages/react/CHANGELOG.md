@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 2.4.0
+
+### Minor Changes
+
+- Add an imperative `PanoViewerHandle` API for fullscreen, scene switching, WebVR, video playback, and background audio control so host apps can build custom viewer UI from a single ref.
+
 ## 2.3.0
 
 ### Minor Changes
