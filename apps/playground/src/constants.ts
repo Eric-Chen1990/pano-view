@@ -280,6 +280,7 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     pauseWhenHidden: true,
     range: 90,
     icon: "",
+    playingIcon: "",
     marker: true,
     tooltip: { text: "Fountain sound" },
     tooltipTrigger: "always",

@@ -29,6 +29,8 @@ export type AudioHotspotErrorEvent = {
   error: unknown;
 };
 
+type AudioMarkerState = "stopped" | "playing";
+
 export type AudioHotspotProps = HotspotCommonProps & {
   src: string | string[];
   playing: boolean;
@@ -38,8 +40,10 @@ export type AudioHotspotProps = HotspotCommonProps & {
   /** Degrees of look-away before the source is silent. Defaults to 360 (no look attenuation). */
   range?: number;
   pauseWhenHidden?: boolean;
-  /** Optional image marker. When omitted, a built-in speaker icon is used. */
+  /** Optional stopped-state image. When omitted, a built-in speaker icon is used. */
   icon?: string;
+  /** Optional playing-state image. Falls back to `icon`, then the built-in playing icon. */
+  playingIcon?: string;
   /** When false, no visual marker is rendered. Audio still plays. Defaults to true. */
   marker?: boolean;
   crossOrigin?: "" | "anonymous" | "use-credentials";
@@ -49,7 +53,23 @@ export type AudioHotspotProps = HotspotCommonProps & {
   onError?: (event: AudioHotspotErrorEvent) => void;
 };
 
-function createSpeakerTexture(): CanvasTexture {
+function paintSpeakerBody(
+  context: CanvasRenderingContext2D,
+  center: number,
+) {
+  context.fillStyle = "#f5fbfc";
+  context.beginPath();
+  context.moveTo(center - 92, center - 36);
+  context.lineTo(center - 28, center - 36);
+  context.lineTo(center + 28, center - 96);
+  context.lineTo(center + 28, center + 96);
+  context.lineTo(center - 28, center + 36);
+  context.lineTo(center - 92, center + 36);
+  context.closePath();
+  context.fill();
+}
+
+function createSpeakerTexture(state: AudioMarkerState): CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = SPEAKER_TEXTURE_SIZE;
   canvas.height = SPEAKER_TEXTURE_SIZE;
@@ -65,31 +85,33 @@ function createSpeakerTexture(): CanvasTexture {
 
   context.beginPath();
   context.arc(center, center, center - 18, 0, Math.PI * 2);
-  context.fillStyle = "#df6b42";
+  context.fillStyle = state === "playing" ? "#df6b42" : "#1a3a40";
   context.fill();
   context.strokeStyle = "#f5fbfc";
   context.lineWidth = 22;
   context.stroke();
 
-  context.fillStyle = "#f5fbfc";
-  context.beginPath();
-  context.moveTo(center - 92, center - 36);
-  context.lineTo(center - 28, center - 36);
-  context.lineTo(center + 28, center - 96);
-  context.lineTo(center + 28, center + 96);
-  context.lineTo(center - 28, center + 36);
-  context.lineTo(center - 92, center + 36);
-  context.closePath();
-  context.fill();
+  paintSpeakerBody(context, center);
 
   context.strokeStyle = "#f5fbfc";
   context.lineWidth = 18;
-  context.beginPath();
-  context.arc(center + 44, center, 44, -Math.PI / 2.6, Math.PI / 2.6);
-  context.stroke();
-  context.beginPath();
-  context.arc(center + 44, center, 78, -Math.PI / 2.8, Math.PI / 2.8);
-  context.stroke();
+  switch (state) {
+    case "stopped":
+      break;
+    case "playing": {
+      context.beginPath();
+      context.arc(center + 44, center, 44, -Math.PI / 2.6, Math.PI / 2.6);
+      context.stroke();
+      context.beginPath();
+      context.arc(center + 44, center, 78, -Math.PI / 2.8, Math.PI / 2.8);
+      context.stroke();
+      break;
+    }
+    default: {
+      const exhaustive: never = state;
+      return exhaustive;
+    }
+  }
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -102,22 +124,30 @@ function createSpeakerTexture(): CanvasTexture {
   return texture;
 }
 
-function useSpeakerTexture(enabled: boolean): CanvasTexture | null {
-  const [texture, setTexture] = useState<CanvasTexture | null>(null);
+function useSpeakerTextures(enabled: boolean): {
+  playing: CanvasTexture | null;
+  stopped: CanvasTexture | null;
+} {
+  const [textures, setTextures] = useState<{
+    playing: CanvasTexture | null;
+    stopped: CanvasTexture | null;
+  }>({ playing: null, stopped: null });
 
   useEffect(() => {
     if (!enabled) {
-      setTexture(null);
+      setTextures({ playing: null, stopped: null });
       return;
     }
-    const nextTexture = createSpeakerTexture();
-    setTexture(nextTexture);
+    const playing = createSpeakerTexture("playing");
+    const stopped = createSpeakerTexture("stopped");
+    setTextures({ playing, stopped });
     return () => {
-      nextTexture.dispose();
+      playing.dispose();
+      stopped.dispose();
     };
   }, [enabled]);
 
-  return texture;
+  return textures;
 }
 
 function useIconTexture(
@@ -276,6 +306,7 @@ export function AudioHotspot({
   range = 360,
   pauseWhenHidden = true,
   icon,
+  playingIcon,
   marker = true,
   crossOrigin,
   width = 8,
@@ -299,9 +330,12 @@ export function AudioHotspot({
     playing,
     src,
   });
-  const speakerTexture = useSpeakerTexture(marker && !icon);
-  const iconTexture = useIconTexture(icon, marker, onError, id);
-  const markerTexture = icon ? iconTexture : speakerTexture;
+  const speakerTextures = useSpeakerTextures(marker && !icon);
+  const stoppedIconTexture = useIconTexture(icon, marker, onError, id);
+  const playingIconTexture = useIconTexture(playingIcon, marker, onError, id);
+  const markerTexture = playing
+    ? playingIconTexture ?? stoppedIconTexture ?? speakerTextures.playing
+    : stoppedIconTexture ?? speakerTextures.stopped;
   const playingRef = useRef(playing);
   playingRef.current = playing;
   const mutedRef = useRef(muted);

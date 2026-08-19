@@ -1369,8 +1369,11 @@ gesture unlocks audio; if autoplay is blocked, the hotspot reports
 `"blocked"` and retries `play()` after the next pointer or key event while
 `playing` remains true.
 
-The default marker is a built-in speaker icon. Pass `icon` for a custom
-image, or `marker={false}` for an invisible positional source. For a
+The default marker switches between a built-in **stopped** icon (speaker)
+and a **playing** icon (speaker plus sound waves). Pass `icon`
+for a custom stopped image and `playingIcon` for a custom playing image.
+If only `icon` is set, it is used for both states. `marker={false}` hides
+the visual for an invisible positional source. For a
 non-spatial tour or per-scene soundtrack, use [`BackgroundAudio`](#backgroundaudio).
 
 ```tsx

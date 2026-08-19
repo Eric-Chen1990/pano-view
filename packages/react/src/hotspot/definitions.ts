@@ -89,6 +89,7 @@ export type AudioHotspotDefinition = PointHotspotDefinitionBase & {
   pauseWhenHidden?: boolean;
   range?: number;
   icon?: string;
+  playingIcon?: string;
   marker?: boolean;
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };

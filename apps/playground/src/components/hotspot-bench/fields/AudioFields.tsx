@@ -24,7 +24,7 @@ export function AudioFields({
         onClick={() => onChange({ playing: !hotspot.playing })}
         type="button"
       >
-        {hotspot.playing ? "Pause audio" : "Play audio"}
+        {hotspot.playing ? "Stop audio" : "Play audio"}
       </button>
       <label className={fieldWideClassName}>
         <span className={fieldLabelClassName}>Audio URL</span>
@@ -35,12 +35,21 @@ export function AudioFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Icon URL</span>
+        <span className={fieldLabelClassName}>Stopped icon URL</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ icon: event.currentTarget.value })}
           placeholder="Built-in speaker"
           value={hotspot.icon}
+        />
+      </label>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Playing icon URL</span>
+        <input
+          className={fieldInputClassName}
+          onChange={(event) => onChange({ playingIcon: event.currentTarget.value })}
+          placeholder="Built-in speaker waves"
+          value={hotspot.playingIcon}
         />
       </label>
       <label className={fieldWideClassName}>

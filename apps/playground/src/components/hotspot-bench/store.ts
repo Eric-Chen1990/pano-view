@@ -499,6 +499,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         pauseWhenHidden: true,
         range: 90,
         icon: "",
+        playingIcon: "",
         marker: true,
         ...defaultEditorTooltip("Play fountain sound"),
       };

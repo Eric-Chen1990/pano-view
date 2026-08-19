@@ -167,6 +167,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
               key={hotspot.id}
               {...sharedProps}
               icon={hotspot.icon || undefined}
+              playingIcon={hotspot.playingIcon || undefined}
               loop={hotspot.loop}
               marker={hotspot.marker}
               muted={hotspot.muted}

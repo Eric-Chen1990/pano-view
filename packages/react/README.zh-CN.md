@@ -1108,7 +1108,7 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 
 `playing` 与 `VideoHotspot` 一样受控。`loop` 默认 `false`，`muted` 默认 `false`，`volume` 默认 `1`，`pauseWhenHidden` 默认 `true`（标签页隐藏时暂停，仍为 `playing` 则回来后恢复）。首次用户手势会解锁音频；若自动播放被拦，会报告 `"blocked"`，并在 `playing` 仍为 true 时于下一次指针或按键后重试 `play()`。
 
-默认标记为内置扬声器图标。可用 `icon` 换成自定义图，或 `marker={false}` 作为无视觉的定点声源。非空间的全 tour 或按场景背景声请使用 [`BackgroundAudio`](#backgroundaudio)。
+默认标记在 **停止**（扬声器）与 **播放**（扬声器 + 声波）之间切换。可用 `icon` 自定义停止图标、`playingIcon` 自定义播放图标。只设 `icon` 时两种状态共用该图。`marker={false}` 则无视觉，仍作为定点声源。非空间的全 tour 或按场景背景声请使用 [`BackgroundAudio`](#backgroundaudio)。
 
 ```tsx
 import { AudioHotspot } from "@ericchen1990/pano-view";

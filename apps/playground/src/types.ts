@@ -87,6 +87,7 @@ export type EditorHotspot =
       pauseWhenHidden: boolean;
       range: number;
       icon: string;
+      playingIcon: string;
       marker: boolean;
     })
   | (EditorPointHotspotBase & {
