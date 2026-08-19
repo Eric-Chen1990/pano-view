@@ -3,11 +3,11 @@ import {
   PanoEvents,
   PanoViewer,
   Sphere,
+  usePanoViewer,
   type PanoContextMenuAppearance,
   type PanoContextMenuEntry,
-  type PanoViewerHandle,
 } from "@ericchen1990/pano-view";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "../../cn";
 import {
   eyebrowClassName,
@@ -145,7 +145,7 @@ function buildContextMenuSnippet(
 }
 
 export function ContextMenuPage() {
-  const panoRef = useRef<PanoViewerHandle>(null);
+  const pano = usePanoViewer();
   const [mode, setMode] = useState<MenuMode>("default");
   const [opacity, setOpacity] = useState(0.95);
   const [borderRadius, setBorderRadius] = useState(8);
@@ -185,7 +185,7 @@ export function ContextMenuPage() {
       label: "Look here",
       image: "/fixtures/hotspots/signal.svg",
       onSelect: ({ position }) => {
-        panoRef.current?.setView({
+        pano.setView({
           yaw: position.yaw,
           pitch: position.pitch,
         });
@@ -306,7 +306,7 @@ export function ContextMenuPage() {
         </div>
         <div className="bg-[#020607]">
           <PanoViewer
-            ref={panoRef}
+            ref={pano.ref}
             aria-label="Panorama context menu demo"
             contextMenu={contextMenu}
             style={{ height: 540 }}

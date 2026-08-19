@@ -5,10 +5,10 @@ import {
   Scenes,
   PanoViewer,
   cycleSceneId,
-  type PanoViewerHandle,
+  usePanoViewer,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -37,7 +37,7 @@ const PER_SCENE_SOURCES = {
 } as const;
 
 export function SceneTransitionPage() {
-  const viewerRef = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
@@ -137,28 +137,28 @@ export function SceneTransitionPage() {
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ref-driven controls">
             <button
               className={segmentedButtonClassName}
-              onClick={() => viewerRef.current?.previousScene()}
+              onClick={() => viewer.previousScene()}
               type="button"
             >
               ← Prev
             </button>
             <button
               className={segmentedButtonClassName}
-              onClick={() => viewerRef.current?.nextScene()}
+              onClick={() => viewer.nextScene()}
               type="button"
             >
               Next →
             </button>
             <button
               className={segmentedButtonClassName}
-              onClick={() => void viewerRef.current?.toggleFullscreen()}
+              onClick={() => void viewer.toggleFullscreen()}
               type="button"
             >
               Fullscreen
             </button>
             <button
               className={segmentedButtonClassName}
-              onClick={() => viewerRef.current?.toggleBackgroundAudio()}
+              onClick={() => viewer.toggleBackgroundAudio()}
               type="button"
             >
               Toggle BGM
@@ -167,7 +167,7 @@ export function SceneTransitionPage() {
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
-            ref={viewerRef}
+            ref={viewer.ref}
             aria-label="Panorama scene transition demo"
             style={{ height: 540 }}
           >

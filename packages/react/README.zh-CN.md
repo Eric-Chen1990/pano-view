@@ -96,6 +96,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 ### Hook 与辅助工具
 
+- `usePanoViewer` — 将 viewer ref 封装成可复用的父组件侧命令
 - `usePanoEvents` — 在自定义子组件内订阅查看器事件（[`PanoEvents`](#panoevents)）
 - 坐标辅助函数 — `normalizePanoPosition`、`normalizePanoYaw`、`clampPanoPitch`、`panoPositionToVector3`、`vector3ToPanoPosition`（[全景坐标事件](#全景坐标事件)）
 - `cycleSceneId` — 循环上一/下一场景 id（[`KeyboardControls`](#keyboardcontrols)）
@@ -109,25 +110,24 @@ import "@ericchen1990/pano-view/styles.css";
 角度对外以度为单位。偏航（yaw）为正表示向右看，俯仰（pitch）为正表示向上看。
 
 ```tsx
-import { useRef } from "react";
 import "@ericchen1990/pano-view/styles.css";
 import {
   PanoViewer,
   Sphere,
   AutoRotate,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 export function ControlledExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
-      <button onClick={() => ref.current?.setView({ yaw: 90, fov: 55 })}>
+      <button onClick={() => viewer.setView({ yaw: 90, fov: 55 })}>
         Look right
       </button>
       <PanoViewer
-        ref={ref}
+        ref={viewer.ref}
         controls={{
           inertia: true,
           rotateDamping: 14,
@@ -166,18 +166,17 @@ export function ControlledExample() {
 ### 全屏
 
 ```tsx
-import { useRef } from "react";
-import { PanoViewer, Sphere, type PanoViewerHandle } from "@ericchen1990/pano-view";
+import { PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
 
 function FullscreenExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
-      <button onClick={() => void ref.current?.enterFullscreen()}>进入全屏</button>
-      <button onClick={() => void ref.current?.exitFullscreen()}>退出全屏</button>
-      <button onClick={() => console.log(ref.current?.isFullscreen())}>是否全屏？</button>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <button onClick={() => void viewer.enterFullscreen()}>进入全屏</button>
+      <button onClick={() => void viewer.exitFullscreen()}>退出全屏</button>
+      <button onClick={() => console.log(viewer.isFullscreen())}>是否全屏？</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
     </>
@@ -187,14 +186,14 @@ function FullscreenExample() {
 
 ### 命令式切换场景
 
-使用 `defaultActiveSceneId` 为非受控模式 — 命令式调用直接更新内部状态。受控模式继续传 `activeSceneId`，命令式调用会触发 `onActiveSceneIdChange` 以便父组件更新 state。
+使用 `usePanoViewer()` 可将父组件侧命令缩短为 `viewer.setScene("roof")`。当宿主 UI 需要响应式显示当前场景 id 时，仍建议继续使用受控 `activeSceneId`。若使用非受控模式，`defaultActiveSceneId` 依然允许命令式调用直接更新内部状态。
 
 ```tsx
-import { useRef } from "react";
+import { useState } from "react";
 import {
   PanoViewer,
   Scenes,
-  type PanoViewerHandle,
+  usePanoViewer,
   type Scene,
 } from "@ericchen1990/pano-view";
 
@@ -204,16 +203,23 @@ const scenes: Scene[] = [
 ];
 
 function SceneExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
     <>
-      <button onClick={() => ref.current?.setScene("roof")}>去天台</button>
-      <button onClick={() => ref.current?.nextScene()}>下一场景</button>
-      <button onClick={() => ref.current?.previousScene()}>上一场景</button>
-      <p>当前: {ref.current?.getActiveSceneId()}</p>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
-        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      <button onClick={() => setActiveSceneId("roof")}>去天台</button>
+      <button onClick={() => viewer.nextScene()}>下一场景</button>
+      <button onClick={() => viewer.previousScene()}>上一场景</button>
+      <button onClick={() => viewer.setScene("roof")}>通过 hook 跳转</button>
+      <p>当前: {activeSceneId}</p>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+        <Scenes
+          activeSceneId={activeSceneId}
+          onActiveSceneIdChange={setActiveSceneId}
+          scenes={scenes}
+          transition="dissolve"
+        />
       </PanoViewer>
     </>
   );
@@ -225,25 +231,24 @@ function SceneExample() {
 `enterVR` 与 `requestVRPermission` 须在用户手势中调用。
 
 ```tsx
-import { useRef } from "react";
-import { PanoViewer, Sphere, WebVR, type PanoViewerHandle } from "@ericchen1990/pano-view";
+import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
       <button
         onClick={async () => {
-          await ref.current?.requestVRPermission();
-          await ref.current?.enterVR();
+          await viewer.requestVRPermission();
+          await viewer.enterVR();
         }}
       >
         进入 VR
       </button>
-      <button onClick={() => void ref.current?.exitVR()}>退出 VR</button>
-      <button onClick={() => console.log(ref.current?.getVRMode())}>当前模式？</button>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <button onClick={() => void viewer.exitVR()}>退出 VR</button>
+      <button onClick={() => console.log(viewer.getVRMode())}>当前模式？</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
@@ -254,31 +259,31 @@ function VRExample() {
 
 ### 自定义视频控件
 
-将 `PanoVideo` 的 `controls` 设为 `false`，从 viewer ref 驱动播放。配合 `useSyncExternalStore` 使用 `subscribeVideo` 获取响应式快照。
+将 `PanoVideo` 的 `controls` 设为 `false`，通过 `usePanoViewer()` 驱动播放。配合 `useSyncExternalStore` 使用 `subscribeVideo` 获取响应式快照。
 
 ```tsx
-import { useRef, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   PanoViewer,
   PanoVideo,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function VideoExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   const snapshot = useSyncExternalStore(
-    (cb) => ref.current?.subscribeVideo(cb) ?? (() => {}),
-    () => ref.current?.getVideo()?.getSnapshot() ?? null,
+    viewer.subscribeVideo,
+    () => viewer.getVideo()?.getSnapshot() ?? null,
     () => null,
   );
 
   return (
     <>
-      <button onClick={() => void ref.current?.toggleVideo()}>
+      <button onClick={() => void viewer.toggleVideo()}>
         {snapshot?.playing ? "暂停" : "播放"}
       </button>
-      <button onClick={() => ref.current?.toggleVideoMuted()}>
+      <button onClick={() => viewer.toggleVideoMuted()}>
         {snapshot?.muted ? "取消静音" : "静音"}
       </button>
       {snapshot && (
@@ -287,10 +292,10 @@ function VideoExample() {
           min={0}
           max={snapshot.duration}
           value={snapshot.currentTime}
-          onChange={(e) => ref.current?.seekVideo(Number(e.target.value))}
+          onChange={(e) => viewer.seekVideo(Number(e.target.value))}
         />
       )}
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <PanoVideo controls={false} src="/tour.mp4" />
       </PanoViewer>
     </>
@@ -300,32 +305,32 @@ function VideoExample() {
 
 ### 自定义背景音乐控件
 
-`BackgroundAudio` 支持非受控模式 — 省略 `playing`，改用 `defaultPlaying`。通过 viewer ref 驱动。
+`BackgroundAudio` 支持非受控模式 — 省略 `playing`，改用 `defaultPlaying`。通过 `usePanoViewer()` 驱动。
 
 ```tsx
-import { useRef, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   PanoViewer,
   Sphere,
   BackgroundAudio,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function BGMExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   const snapshot = useSyncExternalStore(
-    (cb) => ref.current?.subscribeBackgroundAudio(cb) ?? (() => {}),
-    () => ref.current?.getBackgroundAudio()?.getSnapshot() ?? null,
+    viewer.subscribeBackgroundAudio,
+    () => viewer.getBackgroundAudio()?.getSnapshot() ?? null,
     () => null,
   );
 
   return (
     <>
-      <button onClick={() => ref.current?.toggleBackgroundAudio()}>
+      <button onClick={() => viewer.toggleBackgroundAudio()}>
         {snapshot?.playing ? "暂停 BGM" : "播放 BGM"}
       </button>
-      <button onClick={() => ref.current?.toggleBackgroundAudioMuted()}>
+      <button onClick={() => viewer.toggleBackgroundAudioMuted()}>
         {snapshot?.muted ? "取消静音" : "静音"}
       </button>
       <input
@@ -334,11 +339,9 @@ function BGMExample() {
         max={1}
         step={0.01}
         value={snapshot?.volume ?? 1}
-        onChange={(e) =>
-          ref.current?.setBackgroundAudioVolume(Number(e.target.value))
-        }
+        onChange={(e) => viewer.setBackgroundAudioVolume(Number(e.target.value))}
       />
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <BackgroundAudio defaultPlaying src="/bgm.mp3" />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
@@ -350,29 +353,28 @@ function BGMExample() {
 ### 一站式示例
 
 ```tsx
-import { useRef } from "react";
 import {
   PanoViewer,
   Scenes,
   WebVR,
   PanoVideo,
   BackgroundAudio,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function TourPlayer() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
       <nav>
-        <button onClick={() => ref.current?.previousScene()}>← 上一场景</button>
-        <button onClick={() => ref.current?.nextScene()}>下一场景 →</button>
-        <button onClick={() => void ref.current?.toggleFullscreen()}>全屏</button>
-        <button onClick={() => void ref.current?.enterVR()}>进入 VR</button>
-        <button onClick={() => ref.current?.toggleBackgroundAudio()}>BGM</button>
+        <button onClick={() => viewer.previousScene()}>← 上一场景</button>
+        <button onClick={() => viewer.nextScene()}>下一场景 →</button>
+        <button onClick={() => void viewer.toggleFullscreen()}>全屏</button>
+        <button onClick={() => void viewer.enterVR()}>进入 VR</button>
+        <button onClick={() => viewer.toggleBackgroundAudio()}>BGM</button>
       </nav>
-      <PanoViewer ref={ref} style={{ height: "100vh" }}>
+      <PanoViewer ref={viewer.ref} style={{ height: "100vh" }}>
         <WebVR />
         <BackgroundAudio defaultPlaying src="/bgm.mp3" />
         <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />

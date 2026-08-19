@@ -58,6 +58,8 @@ export type {
 } from "./pano-context-menu";
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
+export { usePanoViewer } from "./use-pano-viewer";
+export type { UsePanoViewerResult } from "./use-pano-viewer";
 export type {
   PanoEventBus,
   PanoEventListener,

@@ -113,6 +113,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 
 ### Hooks and helpers
 
+- `usePanoViewer` — wrap the viewer ref in reusable parent-side commands
 - `usePanoEvents` — subscribe to viewer events inside a custom child ([`PanoEvents`](#panoevents))
 - Coordinate helpers — `normalizePanoPosition`, `normalizePanoYaw`, `clampPanoPitch`, `panoPositionToVector3`, `vector3ToPanoPosition` ([Panorama coordinate events](#panorama-coordinate-events))
 - `cycleSceneId` — wrap previous/next scene ids ([`KeyboardControls`](#keyboardcontrols))
@@ -126,25 +127,24 @@ the stylesheet, the overlays still mount, but they render unstyled.
 Angles are public degrees. Positive yaw looks right and positive pitch looks up.
 
 ```tsx
-import { useRef } from "react";
 import "@ericchen1990/pano-view/styles.css";
 import {
   PanoViewer,
   Sphere,
   AutoRotate,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 export function ControlledExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
-      <button onClick={() => ref.current?.setView({ yaw: 90, fov: 55 })}>
+      <button onClick={() => viewer.setView({ yaw: 90, fov: 55 })}>
         Look right
       </button>
       <PanoViewer
-        ref={ref}
+        ref={viewer.ref}
         controls={{
           inertia: true,
           rotateDamping: 14,
@@ -183,18 +183,17 @@ Methods that depend on an unmounted child component (e.g. `enterVR` without `<We
 ### Fullscreen
 
 ```tsx
-import { useRef } from "react";
-import { PanoViewer, Sphere, type PanoViewerHandle } from "@ericchen1990/pano-view";
+import { PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
 
 function FullscreenExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
-      <button onClick={() => void ref.current?.enterFullscreen()}>Enter fullscreen</button>
-      <button onClick={() => void ref.current?.exitFullscreen()}>Exit fullscreen</button>
-      <button onClick={() => console.log(ref.current?.isFullscreen())}>Is fullscreen?</button>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <button onClick={() => void viewer.enterFullscreen()}>Enter fullscreen</button>
+      <button onClick={() => void viewer.exitFullscreen()}>Exit fullscreen</button>
+      <button onClick={() => console.log(viewer.isFullscreen())}>Is fullscreen?</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
     </>
@@ -204,14 +203,14 @@ function FullscreenExample() {
 
 ### Imperative scene switching
 
-Use `defaultActiveSceneId` for uncontrolled mode — imperative calls update the internal state directly. For controlled mode keep passing `activeSceneId`; imperative calls invoke `onActiveSceneIdChange` so the parent can update its state.
+Use `usePanoViewer()` to shorten parent-side commands to `viewer.setScene("roof")`. Keep using controlled `activeSceneId` when the host UI needs to render the current scene id reactively. For uncontrolled mode, `defaultActiveSceneId` still lets imperative calls update the internal state directly.
 
 ```tsx
-import { useRef } from "react";
+import { useState } from "react";
 import {
   PanoViewer,
   Scenes,
-  type PanoViewerHandle,
+  usePanoViewer,
   type Scene,
 } from "@ericchen1990/pano-view";
 
@@ -221,16 +220,23 @@ const scenes: Scene[] = [
 ];
 
 function SceneExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
     <>
-      <button onClick={() => ref.current?.setScene("roof")}>Go to roof</button>
-      <button onClick={() => ref.current?.nextScene()}>Next</button>
-      <button onClick={() => ref.current?.previousScene()}>Previous</button>
-      <p>Current: {ref.current?.getActiveSceneId()}</p>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
-        <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
+      <button onClick={() => setActiveSceneId("roof")}>Go to roof</button>
+      <button onClick={() => viewer.nextScene()}>Next</button>
+      <button onClick={() => viewer.previousScene()}>Previous</button>
+      <button onClick={() => viewer.setScene("roof")}>Jump via hook</button>
+      <p>Current: {activeSceneId}</p>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+        <Scenes
+          activeSceneId={activeSceneId}
+          onActiveSceneIdChange={setActiveSceneId}
+          scenes={scenes}
+          transition="dissolve"
+        />
       </PanoViewer>
     </>
   );
@@ -242,25 +248,24 @@ function SceneExample() {
 `enterVR` and `requestVRPermission` must be called from a user gesture.
 
 ```tsx
-import { useRef } from "react";
-import { PanoViewer, Sphere, WebVR, type PanoViewerHandle } from "@ericchen1990/pano-view";
+import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
       <button
         onClick={async () => {
-          await ref.current?.requestVRPermission();
-          await ref.current?.enterVR();
+          await viewer.requestVRPermission();
+          await viewer.enterVR();
         }}
       >
         Enter VR
       </button>
-      <button onClick={() => void ref.current?.exitVR()}>Exit VR</button>
-      <button onClick={() => console.log(ref.current?.getVRMode())}>Mode?</button>
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <button onClick={() => void viewer.exitVR()}>Exit VR</button>
+      <button onClick={() => console.log(viewer.getVRMode())}>Mode?</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
@@ -271,31 +276,31 @@ function VRExample() {
 
 ### Custom video controls
 
-Set `controls={false}` on `PanoVideo` and drive playback from the viewer ref. Use `subscribeVideo` with `useSyncExternalStore` for reactive snapshots.
+Set `controls={false}` on `PanoVideo` and drive playback from `usePanoViewer()`. Use `subscribeVideo` with `useSyncExternalStore` for reactive snapshots.
 
 ```tsx
-import { useRef, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   PanoViewer,
   PanoVideo,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function VideoExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   const snapshot = useSyncExternalStore(
-    (cb) => ref.current?.subscribeVideo(cb) ?? (() => {}),
-    () => ref.current?.getVideo()?.getSnapshot() ?? null,
+    viewer.subscribeVideo,
+    () => viewer.getVideo()?.getSnapshot() ?? null,
     () => null,
   );
 
   return (
     <>
-      <button onClick={() => void ref.current?.toggleVideo()}>
+      <button onClick={() => void viewer.toggleVideo()}>
         {snapshot?.playing ? "Pause" : "Play"}
       </button>
-      <button onClick={() => ref.current?.toggleVideoMuted()}>
+      <button onClick={() => viewer.toggleVideoMuted()}>
         {snapshot?.muted ? "Unmute" : "Mute"}
       </button>
       {snapshot && (
@@ -304,10 +309,10 @@ function VideoExample() {
           min={0}
           max={snapshot.duration}
           value={snapshot.currentTime}
-          onChange={(e) => ref.current?.seekVideo(Number(e.target.value))}
+          onChange={(e) => viewer.seekVideo(Number(e.target.value))}
         />
       )}
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <PanoVideo controls={false} src="/tour.mp4" />
       </PanoViewer>
     </>
@@ -317,32 +322,32 @@ function VideoExample() {
 
 ### Custom background audio controls
 
-`BackgroundAudio` supports uncontrolled mode — omit `playing` and use `defaultPlaying` instead. Drive it from the viewer ref.
+`BackgroundAudio` supports uncontrolled mode — omit `playing` and use `defaultPlaying` instead. Drive it from `usePanoViewer()`.
 
 ```tsx
-import { useRef, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   PanoViewer,
   Sphere,
   BackgroundAudio,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function BGMExample() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   const snapshot = useSyncExternalStore(
-    (cb) => ref.current?.subscribeBackgroundAudio(cb) ?? (() => {}),
-    () => ref.current?.getBackgroundAudio()?.getSnapshot() ?? null,
+    viewer.subscribeBackgroundAudio,
+    () => viewer.getBackgroundAudio()?.getSnapshot() ?? null,
     () => null,
   );
 
   return (
     <>
-      <button onClick={() => ref.current?.toggleBackgroundAudio()}>
+      <button onClick={() => viewer.toggleBackgroundAudio()}>
         {snapshot?.playing ? "Pause BGM" : "Play BGM"}
       </button>
-      <button onClick={() => ref.current?.toggleBackgroundAudioMuted()}>
+      <button onClick={() => viewer.toggleBackgroundAudioMuted()}>
         {snapshot?.muted ? "Unmute" : "Mute"}
       </button>
       <input
@@ -351,11 +356,9 @@ function BGMExample() {
         max={1}
         step={0.01}
         value={snapshot?.volume ?? 1}
-        onChange={(e) =>
-          ref.current?.setBackgroundAudioVolume(Number(e.target.value))
-        }
+        onChange={(e) => viewer.setBackgroundAudioVolume(Number(e.target.value))}
       />
-      <PanoViewer ref={ref} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <BackgroundAudio defaultPlaying src="/bgm.mp3" />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
       </PanoViewer>
@@ -367,29 +370,28 @@ function BGMExample() {
 ### All-in-one example
 
 ```tsx
-import { useRef } from "react";
 import {
   PanoViewer,
   Scenes,
   WebVR,
   PanoVideo,
   BackgroundAudio,
-  type PanoViewerHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 function TourPlayer() {
-  const ref = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
 
   return (
     <>
       <nav>
-        <button onClick={() => ref.current?.previousScene()}>← Prev</button>
-        <button onClick={() => ref.current?.nextScene()}>Next →</button>
-        <button onClick={() => void ref.current?.toggleFullscreen()}>Fullscreen</button>
-        <button onClick={() => void ref.current?.enterVR()}>Enter VR</button>
-        <button onClick={() => ref.current?.toggleBackgroundAudio()}>BGM</button>
+        <button onClick={() => viewer.previousScene()}>← Prev</button>
+        <button onClick={() => viewer.nextScene()}>Next →</button>
+        <button onClick={() => void viewer.toggleFullscreen()}>Fullscreen</button>
+        <button onClick={() => void viewer.enterVR()}>Enter VR</button>
+        <button onClick={() => viewer.toggleBackgroundAudio()}>BGM</button>
       </nav>
-      <PanoViewer ref={ref} style={{ height: "100vh" }}>
+      <PanoViewer ref={viewer.ref} style={{ height: "100vh" }}>
         <WebVR />
         <BackgroundAudio defaultPlaying src="/bgm.mp3" />
         <Scenes defaultActiveSceneId="lobby" scenes={scenes} transition="dissolve" />
