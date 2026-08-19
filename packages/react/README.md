@@ -104,6 +104,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 - [`GraphicHotspot`](#graphichotspot) — built-in shapes or SVG at a position
 - [`SequenceHotspot`](#sequencehotspot) — sprite-sheet animation
 - [`VideoHotspot`](#videohotspot) — HTML video texture
+- [`AudioHotspot`](#audiohotspot) — directional sound at a spherical position
 - [`TextHotspot`](#texthotspot) — rasterized plain text at a position
 - [`IframeHotspot`](#iframehotspot) — embedded document overlay at a position
 - [`PolygonHotspot`](#polygonhotspot) — closed spherical area
@@ -996,8 +997,8 @@ color, border, corner radius, shadow, padding, and font size.
 
 For persistence or a host-owned editor, use the exported discriminated
 `HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
-exhaustive switches; handle `text` and `iframe` alongside the existing point
-and path categories:
+exhaustive switches; handle `audio` alongside the existing point and path
+categories:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -1007,6 +1008,7 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "audio", id: "fountain", position: { yaw: -30, pitch: -8 }, src: "/hotspots/fountain.mp3", range: 90 },
   { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
   { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
@@ -1280,6 +1282,51 @@ explicit user action.
 Video reports media and poster failures through `onError`. Like
 `SequenceHotspot`, it does not change `playing` by itself. This keeps source
 changes, unmounts, and React StrictMode lifecycles deterministic.
+
+## AudioHotspot
+
+`AudioHotspot` plays a directional sound at a spherical position. Stereo
+panning follows the camera look direction; `range` is the look-away angle in
+degrees at which volume reaches silence. The default `360` disables look
+attenuation (stereo pan only). Use a smaller `range` such as `90` for a
+spot source.
+
+Playback uses Web Audio via Howler.js (bundled; hosts do not install
+`howler`). The file must decode before play starts — MP3 is the recommended
+format. `src` may be a string or an array of fallback URLs. Do not use HTML5
+streaming (`html5`); it drops stereo panning.
+
+`playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
+`muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
+when the tab is hidden, resume if `playing` is still true). A first user
+gesture unlocks audio; if autoplay is blocked, the hotspot reports
+`"blocked"` and retries `play()` after the next pointer or key event while
+`playing` remains true.
+
+The default marker is a built-in speaker icon. Pass `icon` for a custom
+image, or `marker={false}` for an invisible ambient source.
+
+```tsx
+import { AudioHotspot } from "@ericchen1990/pano-view";
+
+<AudioHotspot
+  id="fountain"
+  ariaLabel="Fountain"
+  position={{ yaw: -30, pitch: -8 }}
+  src="/hotspots/fountain.mp3"
+  playing={isFountainPlaying}
+  loop
+  volume={0.8}
+  range={90}
+  onClick={() => setFountainPlaying((playing) => !playing)}
+  onEnded={() => setFountainPlaying(false)}
+  onPlaybackStateChange={(state) => console.log(state)}
+  onPlaybackError={(error) => console.error(error)}
+/>;
+```
+
+Like the other media hotspots, `AudioHotspot` does not change `playing` by
+itself.
 
 ## TextHotspot
 

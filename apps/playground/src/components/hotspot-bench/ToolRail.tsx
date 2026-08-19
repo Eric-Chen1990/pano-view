@@ -32,7 +32,7 @@ export function ToolRail() {
   return (
     <aside
       aria-label="Hotspot tools"
-      className="min-h-full border-r border-[#27454d] bg-[#071316]/70 p-[17px] max-[760px]:grid max-[760px]:min-h-0 max-[760px]:grid-flow-col max-[760px]:auto-cols-[minmax(112px,1fr)] max-[760px]:grid-cols-[repeat(10,minmax(112px,1fr))] max-[760px]:gap-1.5 max-[760px]:overflow-x-auto max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:border-[#27454d] max-[760px]:p-2.5"
+      className="min-h-full border-r border-[#27454d] bg-[#071316]/70 p-[17px] max-[760px]:grid max-[760px]:min-h-0 max-[760px]:grid-flow-col max-[760px]:auto-cols-[minmax(112px,1fr)] max-[760px]:grid-cols-[repeat(11,minmax(112px,1fr))] max-[760px]:gap-1.5 max-[760px]:overflow-x-auto max-[760px]:border-r-0 max-[760px]:border-b max-[760px]:border-[#27454d] max-[760px]:p-2.5"
     >
       <p className={panelLabelClassName}>MODE</p>
       <ToolButton
@@ -71,6 +71,12 @@ export function ToolRail() {
         detail="WebM"
         label="Video"
         onClick={() => selectTool("video", "Click the panorama to place a video hotspot.")}
+      />
+      <ToolButton
+        active={tool === "audio"}
+        detail="MP3"
+        label="Audio"
+        onClick={() => selectTool("audio", "Click the panorama to place a directional audio hotspot.")}
       />
       <ToolButton
         active={tool === "text"}

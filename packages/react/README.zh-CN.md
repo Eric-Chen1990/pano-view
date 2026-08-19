@@ -87,6 +87,7 @@ import "@ericchen1990/pano-view/styles.css";
 - [`GraphicHotspot`](#graphichotspot) — 内置形状或 SVG
 - [`SequenceHotspot`](#sequencehotspot) — 精灵图动画
 - [`VideoHotspot`](#videohotspot) — HTML 视频纹理
+- [`AudioHotspot`](#audiohotspot) — 球面位置上的定向声源
 - [`TextHotspot`](#texthotspot) — 球面位置上的栅格化纯文本
 - [`IframeHotspot`](#iframehotspot) — 球面位置上的嵌入文档叠加层
 - [`PolygonHotspot`](#polygonhotspot) — 闭合球面区域
@@ -818,7 +819,7 @@ import {
 />
 ```
 
-持久化或宿主编辑器可使用导出的判别联合类型 `HotspotDefinition`。新增变体会破坏 exhaustive switch 的类型兼容；除现有点与路径类别外，还需处理 `text` 与 `iframe`：
+持久化或宿主编辑器可使用导出的判别联合类型 `HotspotDefinition`。新增变体会破坏 exhaustive switch 的类型兼容；除现有点与路径类别外，还需处理 `audio`：
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -828,6 +829,7 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "audio", id: "fountain", position: { yaw: -30, pitch: -8 }, src: "/hotspots/fountain.mp3", range: 90 },
   { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
   { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
@@ -1046,6 +1048,37 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
 
 视频通过 `onError` 报告媒体与 poster 失败。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
+
+## AudioHotspot
+
+`AudioHotspot` 在球面位置播放定向声音。立体声像跟随相机朝向；`range` 为看离声源多少度后音量降到静音。默认 `360` 表示不因视角衰减（仅左右声像）。定点声源可使用较小值，例如 `90`。
+
+播放走 Howler.js 的 Web Audio（已打进本包，宿主不必安装 `howler`）。文件需先解码再起播，推荐 MP3。`src` 可以是字符串或回退 URL 数组。不要用 HTML5 流式播放，否则会失去立体声像。
+
+`playing` 与 `VideoHotspot` 一样受控。`loop` 默认 `false`，`muted` 默认 `false`，`volume` 默认 `1`，`pauseWhenHidden` 默认 `true`（标签页隐藏时暂停，仍为 `playing` 则回来后恢复）。首次用户手势会解锁音频；若自动播放被拦，会报告 `"blocked"`，并在 `playing` 仍为 true 时于下一次指针或按键后重试 `play()`。
+
+默认标记为内置扬声器图标。可用 `icon` 换成自定义图，或 `marker={false}` 作为无视觉的环境声。
+
+```tsx
+import { AudioHotspot } from "@ericchen1990/pano-view";
+
+<AudioHotspot
+  id="fountain"
+  ariaLabel="Fountain"
+  position={{ yaw: -30, pitch: -8 }}
+  src="/hotspots/fountain.mp3"
+  playing={isFountainPlaying}
+  loop
+  volume={0.8}
+  range={90}
+  onClick={() => setFountainPlaying((playing) => !playing)}
+  onEnded={() => setFountainPlaying(false)}
+  onPlaybackStateChange={(state) => console.log(state)}
+  onPlaybackError={(error) => console.error(error)}
+/>;
+```
+
+与其他媒体热点相同，`AudioHotspot` 不会自行改变 `playing`。
 
 ## TextHotspot
 

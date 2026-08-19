@@ -148,6 +148,12 @@ export type {
   VideoHotspotProps,
   VideoPlaybackState,
 } from "./hotspot/video-hotspot";
+export { AudioHotspot } from "./hotspot/audio-hotspot";
+export type {
+  AudioHotspotErrorEvent,
+  AudioHotspotProps,
+  AudioPlaybackState,
+} from "./hotspot/audio-hotspot";
 export { TextHotspot } from "./hotspot/text-hotspot";
 export type {
   TextHotspotAlign,
@@ -208,6 +214,7 @@ export type {
   PanoramaPointerEvent,
 } from "./hotspot/types";
 export type {
+  AudioHotspotDefinition,
   GraphicHotspotDefinition,
   HotspotDefinition,
   HotspotDefinitionBase,

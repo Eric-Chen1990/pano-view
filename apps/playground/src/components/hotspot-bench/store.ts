@@ -39,6 +39,9 @@ export type SequencePatch = Partial<
 export type VideoPatch = Partial<
   Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">
 >;
+export type AudioPatch = Partial<
+  Omit<Extract<EditorHotspot, { type: "audio" }>, "id" | "type">
+>;
 export type TextPatch = Partial<
   Omit<Extract<EditorHotspot, { type: "text" }>, "id" | "type">
 >;
@@ -81,6 +84,7 @@ type HotspotBenchActions = {
   updateImageSource: (id: string, src: string) => void;
   updateSequence: (id: string, patch: SequencePatch) => void;
   updateVideo: (id: string, patch: VideoPatch) => void;
+  updateAudio: (id: string, patch: AudioPatch) => void;
   updateText: (id: string, patch: TextPatch) => void;
   updateIframe: (id: string, patch: IframePatch) => void;
   updatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
@@ -100,6 +104,7 @@ function isPlacementTool(tool: EditorTool): boolean {
     tool === "graphic" ||
     tool === "sequence" ||
     tool === "video" ||
+    tool === "audio" ||
     tool === "text" ||
     tool === "iframe"
   );
@@ -227,6 +232,15 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
     set((state) => ({
       hotspots: state.hotspots.map((hotspot) =>
         hotspot.id === id && hotspot.type === "video"
+          ? { ...hotspot, ...patch }
+          : hotspot,
+      ),
+    })),
+
+  updateAudio: (id, patch) =>
+    set((state) => ({
+      hotspots: state.hotspots.map((hotspot) =>
+        hotspot.id === id && hotspot.type === "audio"
           ? { ...hotspot, ...patch }
           : hotspot,
       ),
@@ -458,6 +472,41 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         selectedId: hotspot.id,
         tool: "select",
         lastAction: `Video placed at ${formatPosition(position)}.`,
+      }));
+      return;
+    }
+    if (tool === "audio") {
+      const hotspot: EditorHotspot = {
+        id: createId("audio"),
+        type: "audio",
+        label: "Play fountain sound",
+        position: normalizedPosition,
+        width: 8,
+        height: 8,
+        rotation: 0,
+        scale: 1,
+        mode: "billboard",
+        distance: 10,
+        scaleMode: "fixed",
+        opacity: 1,
+        visible: true,
+        pointerEvents: "auto",
+        src: "/fixtures/hotspots/fountain.mp3",
+        playing: false,
+        loop: true,
+        muted: false,
+        volume: 1,
+        pauseWhenHidden: true,
+        range: 90,
+        icon: "",
+        marker: true,
+        ...defaultEditorTooltip("Play fountain sound"),
+      };
+      set((state) => ({
+        hotspots: [...state.hotspots, hotspot],
+        selectedId: hotspot.id,
+        tool: "select",
+        lastAction: `Audio placed at ${formatPosition(position)}.`,
       }));
       return;
     }

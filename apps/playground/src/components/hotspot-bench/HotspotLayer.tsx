@@ -1,4 +1,5 @@
 import {
+  AudioHotspot,
   GraphicHotspot,
   IframeHotspot,
   ImageHotspot,
@@ -37,6 +38,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
     updateHotspot,
     updateSequence,
     updateVideo,
+    updateAudio,
     updatePolygon,
     updatePolyline,
     setLastAction,
@@ -56,6 +58,7 @@ export const HotspotLayer = memo(function HotspotLayer() {
       updateHotspot: state.updateHotspot,
       updateSequence: state.updateSequence,
       updateVideo: state.updateVideo,
+      updateAudio: state.updateAudio,
       updatePolygon: state.updatePolygon,
       updatePolyline: state.updatePolyline,
       setLastAction: state.setLastAction,
@@ -98,6 +101,9 @@ export const HotspotLayer = memo(function HotspotLayer() {
             }
             if (hotspot.type === "video") {
               updateVideo(hotspot.id, { playing: !hotspot.playing });
+            }
+            if (hotspot.type === "audio") {
+              updateAudio(hotspot.id, { playing: !hotspot.playing });
             }
             setLastAction(`${hotspot.label} selected.`);
           },
@@ -150,6 +156,24 @@ export const HotspotLayer = memo(function HotspotLayer() {
               onEnded={() => updateVideo(hotspot.id, { playing: false })}
               playing={hotspot.playing}
               poster={hotspot.poster}
+              src={hotspot.src}
+              volume={hotspot.volume}
+            />
+          );
+        }
+        if (hotspot.type === "audio") {
+          return (
+            <AudioHotspot
+              key={hotspot.id}
+              {...sharedProps}
+              icon={hotspot.icon || undefined}
+              loop={hotspot.loop}
+              marker={hotspot.marker}
+              muted={hotspot.muted}
+              onEnded={() => updateAudio(hotspot.id, { playing: false })}
+              pauseWhenHidden={hotspot.pauseWhenHidden}
+              playing={hotspot.playing}
+              range={hotspot.range}
               src={hotspot.src}
               volume={hotspot.volume}
             />

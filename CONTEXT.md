@@ -3,7 +3,7 @@
 - **Hotspot**: a rendered, optional interactive object placed in a panorama.
   Its collection, persistence, and business action are owned by the host.
 - **Point Hotspot**: a hotspot anchored by exactly one `HotspotPosition`
-  (`yaw` and `pitch`). Image, graphic, sequence, video, text, and iframe
+  (`yaw` and `pitch`). Image, graphic, sequence, video, audio, text, and iframe
   hotspots are point hotspots.
 - **Image Hotspot**: a point hotspot whose visual content is a URL texture.
 - **Graphic Hotspot**: a point hotspot rendered from a built-in shape, SVG URL,
@@ -13,6 +13,10 @@
   URLs.
 - **Video Hotspot**: a point hotspot whose visual content is an HTML video
   element exposed as a Three.js video texture.
+- **Audio Hotspot**: a point hotspot that plays a directional sound at its
+  spherical position. Look-away `range` (degrees) fades volume to silence;
+  stereo panning follows the camera yaw. Playback is controlled `playing`
+  state, decoded with Web Audio (not HTML5 streaming).
 - **Text Hotspot**: a point hotspot whose visual content is plain text
   rasterized to a canvas texture. It does not accept HTML.
 - **Iframe Hotspot**: a point hotspot whose visual content is an embedded
