@@ -26,13 +26,13 @@ import {
 import { BlendSelect } from "./BlendSelect";
 import { SiteHeader } from "../SiteHeader";
 
-const FOUNTAIN_BGM = "/fixtures/hotspots/fountain.mp3";
+const BGM_SHARED = "/fixtures/bgm/ambient-light.mp3";
 
-const PER_SCENE_BACKGROUND = {
-  "sphere-1": FOUNTAIN_BGM,
-  "sphere-2": "",
-  "tile-3": FOUNTAIN_BGM,
-  "tile-4": "",
+const PER_SCENE_SOURCES = {
+  "sphere-1": "/fixtures/bgm/ambient-light.mp3",
+  "sphere-2": "/fixtures/bgm/death-scene.mp3",
+  "tile-3": "/fixtures/bgm/building-scene.mp3",
+  "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
 } as const;
 
 export function SceneTransitionPage() {
@@ -81,18 +81,33 @@ export function SceneTransitionPage() {
             <BlendSelect onChange={setPreset} value={preset} />
           </div>
           <div className={controlLabelClassName}>
-            Background
+            BGM
             <div
               className="flex flex-wrap gap-1.5"
               role="group"
-              aria-label="Background audio mode"
+              aria-label="Background music"
             >
               <button
                 className={cn(
                   segmentedButtonClassName,
-                  backgroundMode === "shared" && segmentedButtonActiveClassName,
+                  !backgroundPlaying && segmentedButtonActiveClassName,
                 )}
-                onClick={() => setBackgroundMode("shared")}
+                onClick={() => setBackgroundPlaying(false)}
+                type="button"
+              >
+                Off
+              </button>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  backgroundPlaying &&
+                    backgroundMode === "shared" &&
+                    segmentedButtonActiveClassName,
+                )}
+                onClick={() => {
+                  setBackgroundMode("shared");
+                  setBackgroundPlaying(true);
+                }}
                 type="button"
               >
                 Shared
@@ -100,28 +115,19 @@ export function SceneTransitionPage() {
               <button
                 className={cn(
                   segmentedButtonClassName,
-                  backgroundMode === "per-scene" &&
+                  backgroundPlaying &&
+                    backgroundMode === "per-scene" &&
                     segmentedButtonActiveClassName,
                 )}
-                onClick={() => setBackgroundMode("per-scene")}
+                onClick={() => {
+                  setBackgroundMode("per-scene");
+                  setBackgroundPlaying(true);
+                }}
                 type="button"
               >
                 Per scene
               </button>
             </div>
-          </div>
-          <div className={controlLabelClassName}>
-            BGM
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                backgroundPlaying && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setBackgroundPlaying((playing) => !playing)}
-              type="button"
-            >
-              {backgroundPlaying ? "Playing" : "Paused"}
-            </button>
           </div>
         </div>
         <div className="bg-[#020607] p-0">
@@ -149,9 +155,9 @@ export function SceneTransitionPage() {
                 backgroundMode === "per-scene" ? activeSceneId : undefined
               }
               sources={
-                backgroundMode === "per-scene" ? PER_SCENE_BACKGROUND : undefined
+                backgroundMode === "per-scene" ? PER_SCENE_SOURCES : undefined
               }
-              src={backgroundMode === "shared" ? FOUNTAIN_BGM : undefined}
+              src={backgroundMode === "shared" ? BGM_SHARED : undefined}
             />
             <Scenes
               activeSceneId={activeSceneId}
