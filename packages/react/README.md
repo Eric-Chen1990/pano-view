@@ -81,6 +81,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 - [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
 - [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`BackgroundAudio`](#backgroundaudio) — one shared track, or a different track per scene
 - [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
 
 ### Controls
@@ -104,6 +105,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 - [`GraphicHotspot`](#graphichotspot) — built-in shapes or SVG at a position
 - [`SequenceHotspot`](#sequencehotspot) — sprite-sheet animation
 - [`VideoHotspot`](#videohotspot) — HTML video texture
+- [`AudioHotspot`](#audiohotspot) — directional sound at a spherical position
 - [`TextHotspot`](#texthotspot) — rasterized plain text at a position
 - [`IframeHotspot`](#iframehotspot) — embedded document overlay at a position
 - [`PolygonHotspot`](#polygonhotspot) — closed spherical area
@@ -499,6 +501,71 @@ Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enab
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
+
+## BackgroundAudio
+
+`BackgroundAudio` plays background music or ambience for the viewer. It is not
+a hotspot: there is no spherical position, no marker, and volume does not
+follow the camera. Render it as a child of `PanoViewer`, **alongside** `Scenes`,
+`Sphere`, or `Tile`. Do not put it in `Scenes`' `renderHotspots` — hotspots
+unmount during scene transitions and would stop the audio.
+
+`playing` is controlled by the host; the component does not change it. `loop`
+defaults to `true`. Browsers may block autoplay; `onPlaybackStateChange` then
+receives `"blocked"`, and the component retries `play()` after the next click
+or keypress while `playing` remains true.
+
+Pick one of the two patterns.
+
+**One track for every scene** — pass `src` only; omit `sources`. Scene changes
+do not restart the audio.
+
+```tsx
+import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio src="/bgm/tour.mp3" playing={isBgmPlaying} />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+**A different track per scene** — pass `sources` (keys are `Scene.id`) and the
+current `sceneId`. Omitting `sceneId` throws. When the file changes, playback
+crossfades over `fadeMs` (default 400 ms; `0` is a hard cut). When two scenes
+point at the same file, playback continues without restarting.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio
+    sources={{
+      lobby: "/bgm/lobby.mp3",
+      terrace: "/bgm/terrace.mp3",
+    }}
+    sceneId={activeSceneId}
+    playing={isBgmPlaying}
+  />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+Optional: also pass `src` as the default for scenes missing from `sources`. To
+silence a scene, set that id to `""` (this overrides `src`; it does not fall
+back to the default track).
+
+```tsx
+<BackgroundAudio
+  src="/bgm/default.mp3"
+  sources={{ lobby: "/bgm/courtyard.mp3", terrace: "" }}
+  sceneId={activeSceneId}
+  playing={isBgmPlaying}
+/>;
+```
+
+In that example, `lobby` plays the courtyard clip, `terrace` is silent, and
+every other scene plays `default.mp3`.
+
+For a sound attached to a point in the panorama that pans with the view, use
+`AudioHotspot`, not `BackgroundAudio`.
 
 ## Gyro
 
@@ -996,8 +1063,8 @@ color, border, corner radius, shadow, padding, and font size.
 
 For persistence or a host-owned editor, use the exported discriminated
 `HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
-exhaustive switches; handle `text` and `iframe` alongside the existing point
-and path categories:
+exhaustive switches; handle `audio` alongside the existing point and path
+categories:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -1007,6 +1074,7 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "audio", id: "fountain", position: { yaw: -30, pitch: -8 }, src: "/hotspots/fountain.mp3", range: 90 },
   { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
   { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
@@ -1280,6 +1348,55 @@ explicit user action.
 Video reports media and poster failures through `onError`. Like
 `SequenceHotspot`, it does not change `playing` by itself. This keeps source
 changes, unmounts, and React StrictMode lifecycles deterministic.
+
+## AudioHotspot
+
+`AudioHotspot` plays a directional sound at a spherical position. Stereo
+panning follows the camera look direction; `range` is the look-away angle in
+degrees at which volume reaches silence. The default `360` disables look
+attenuation (stereo pan only). Use a smaller `range` such as `90` for a
+spot source.
+
+Playback uses Web Audio via Howler.js (bundled; hosts do not install
+`howler`). The file must decode before play starts — MP3 is the recommended
+format. `src` may be a string or an array of fallback URLs. Do not use HTML5
+streaming (`html5`); it drops stereo panning.
+
+`playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
+`muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
+when the tab is hidden, resume if `playing` is still true). A first user
+gesture unlocks audio; if autoplay is blocked, the hotspot reports
+`"blocked"` and retries `play()` after the next pointer or key event while
+`playing` remains true.
+
+The default marker switches between a built-in **stopped** icon (speaker)
+and a **playing** icon (speaker plus sound waves). Pass `icon`
+for a custom stopped image and `playingIcon` for a custom playing image.
+If only `icon` is set, it is used for both states. `marker={false}` hides
+the visual for an invisible positional source. For a
+non-spatial tour or per-scene soundtrack, use [`BackgroundAudio`](#backgroundaudio).
+
+```tsx
+import { AudioHotspot } from "@ericchen1990/pano-view";
+
+<AudioHotspot
+  id="fountain"
+  ariaLabel="Fountain"
+  position={{ yaw: -30, pitch: -8 }}
+  src="/hotspots/fountain.mp3"
+  playing={isFountainPlaying}
+  loop
+  volume={0.8}
+  range={90}
+  onClick={() => setFountainPlaying((playing) => !playing)}
+  onEnded={() => setFountainPlaying(false)}
+  onPlaybackStateChange={(state) => console.log(state)}
+  onPlaybackError={(error) => console.error(error)}
+/>;
+```
+
+Like the other media hotspots, `AudioHotspot` does not change `playing` by
+itself.
 
 ## TextHotspot
 

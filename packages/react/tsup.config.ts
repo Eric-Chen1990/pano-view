@@ -16,6 +16,7 @@ export default defineConfig({
     "three",
   ],
   format: ["esm", "cjs"],
+  noExternal: ["howler"],
   outExtension({ format }) {
     return {
       js: format === "esm" ? ".mjs" : ".cjs",

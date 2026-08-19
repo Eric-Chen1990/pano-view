@@ -1,5 +1,12 @@
 # @ericchen1990/pano-view
 
+## 2.3.0
+
+### Minor Changes
+
+- e6bd44f: Add `AudioHotspot` for directional panorama sound sources. Playback uses bundled Howler.js (hosts do not install `howler`); look-away `range` fades volume and stereo pan follows the camera. Hosts with exhaustive switches over `HotspotDefinition` need to handle `audio`.
+- 55776b8: Add `BackgroundAudio` for a non-spatial tour or per-scene soundtrack. `src` is the shared track; `sources` plus `sceneId` select per-scene audio, with crossfade on track changes. Render it beside `Scenes`, not inside `renderHotspots`.
+
 ## 2.2.2
 
 ### Patch Changes

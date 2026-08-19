@@ -79,6 +79,21 @@ export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };
 
+export type AudioHotspotDefinition = PointHotspotDefinitionBase & {
+  type: "audio";
+  src: string | string[];
+  playing?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  volume?: number;
+  pauseWhenHidden?: boolean;
+  range?: number;
+  icon?: string;
+  playingIcon?: string;
+  marker?: boolean;
+  crossOrigin?: "" | "anonymous" | "use-credentials";
+};
+
 export type TextHotspotDefinition = PointHotspotDefinitionBase &
   TextHotspotStyle & {
     type: "text";
@@ -125,6 +140,7 @@ export type PointHotspotDefinition =
   | GraphicHotspotDefinition
   | SequenceHotspotDefinition
   | VideoHotspotDefinition
+  | AudioHotspotDefinition
   | TextHotspotDefinition
   | IframeHotspotDefinition;
 

@@ -16,6 +16,7 @@ import {
   listRowClassName,
   panelLabelClassName,
 } from "../../ui";
+import { AudioFields } from "./fields/AudioFields";
 import { GraphicFields } from "./fields/GraphicFields";
 import { IframeFields } from "./fields/IframeFields";
 import { PolygonDraftFields } from "./fields/PolygonDraftFields";
@@ -38,6 +39,7 @@ import {
   type TextPatch,
   type IframePatch,
   type VideoPatch,
+  type AudioPatch,
 } from "./store";
 
 export function Inspector() {
@@ -58,6 +60,7 @@ export function Inspector() {
     updateImageSource,
     updateSequence,
     updateVideo,
+    updateAudio,
     updateText,
     updateIframe,
     updatePolygon,
@@ -83,6 +86,7 @@ export function Inspector() {
       updateImageSource: state.updateImageSource,
       updateSequence: state.updateSequence,
       updateVideo: state.updateVideo,
+      updateAudio: state.updateAudio,
       updateText: state.updateText,
       updateIframe: state.updateIframe,
       updatePolygon: state.updatePolygon,
@@ -139,6 +143,7 @@ export function Inspector() {
           onUpdateImageSource={updateImageSource}
           onUpdateSequence={updateSequence}
           onUpdateVideo={updateVideo}
+          onUpdateAudio={updateAudio}
           onUpdateText={updateText}
           onUpdateIframe={updateIframe}
           onDelete={deleteSelected}
@@ -246,6 +251,7 @@ function SelectedHotspotFields({
   onUpdateImageSource,
   onUpdateSequence,
   onUpdateVideo,
+  onUpdateAudio,
   onUpdateText,
   onUpdateIframe,
   onDelete,
@@ -256,6 +262,7 @@ function SelectedHotspotFields({
   onUpdateImageSource: (id: string, src: string) => void;
   onUpdateSequence: (id: string, patch: SequencePatch) => void;
   onUpdateVideo: (id: string, patch: VideoPatch) => void;
+  onUpdateAudio: (id: string, patch: AudioPatch) => void;
   onUpdateText: (id: string, patch: TextPatch) => void;
   onUpdateIframe: (id: string, patch: IframePatch) => void;
   onDelete: () => void;
@@ -464,6 +471,11 @@ function SelectedHotspotFields({
         <VideoFields
           hotspot={selected}
           onChange={(patch) => onUpdateVideo(selected.id, patch)}
+        />
+      ) : selected.type === "audio" ? (
+        <AudioFields
+          hotspot={selected}
+          onChange={(patch) => onUpdateAudio(selected.id, patch)}
         />
       ) : selected.type === "text" ? (
         <TextFields

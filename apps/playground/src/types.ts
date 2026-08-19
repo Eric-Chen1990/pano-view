@@ -23,6 +23,7 @@ export type EditorTool =
   | "graphic"
   | "sequence"
   | "video"
+  | "audio"
   | "text"
   | "iframe"
   | "polygon"
@@ -75,6 +76,19 @@ export type EditorHotspot =
       loop: boolean;
       muted: boolean;
       volume: number;
+    })
+  | (EditorPointHotspotBase & {
+      type: "audio";
+      src: string;
+      playing: boolean;
+      loop: boolean;
+      muted: boolean;
+      volume: number;
+      pauseWhenHidden: boolean;
+      range: number;
+      icon: string;
+      playingIcon: string;
+      marker: boolean;
     })
   | (EditorPointHotspotBase & {
       type: "text";

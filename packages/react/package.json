@@ -1,6 +1,6 @@
 {
   "name": "@ericchen1990/pano-view",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "description": "React components for panoramic viewing experiences.",
   "author": "Eric Chen",
   "license": "MIT",
@@ -40,7 +40,8 @@
     "./styles.css": "./dist/styles.css"
   },
   "dependencies": {
-    "@types/three": "^0.185.0"
+    "@types/three": "^0.185.0",
+    "howler": "^2.2.4"
   },
   "peerDependencies": {
     "@react-three/drei": "^10.0.0",
@@ -58,6 +59,7 @@
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.7.0",
     "@react-three/xr": "^6.6.30",
+    "@types/howler": "^2.2.13",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "react": "^19.2.8",

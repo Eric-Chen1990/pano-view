@@ -59,6 +59,8 @@ export function hotspotTypeCode(type: EditorHotspot["type"]): string {
       return "SEQ";
     case "video":
       return "VID";
+    case "audio":
+      return "AUD";
     case "text":
       return "TXT";
     case "iframe":

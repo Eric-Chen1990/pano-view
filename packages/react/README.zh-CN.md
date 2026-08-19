@@ -64,6 +64,7 @@ import "@ericchen1990/pano-view/styles.css";
 - [`PanoVideo`](#panovideo) — 全景球面上的 2:1 等距圆柱视频
 - [`Tile`](#tile) — krpano 风格多分辨率立方体 tile
 - [`Scenes`](#scenes) — 受控多场景过渡
+- [`BackgroundAudio`](#backgroundaudio) — 全部场景共用、或按场景切换的背景声
 - [`PanoFilter`](#panofilter) — 对全景源应用色彩与艺术滤镜
 
 ### 控件
@@ -87,6 +88,7 @@ import "@ericchen1990/pano-view/styles.css";
 - [`GraphicHotspot`](#graphichotspot) — 内置形状或 SVG
 - [`SequenceHotspot`](#sequencehotspot) — 精灵图动画
 - [`VideoHotspot`](#videohotspot) — HTML 视频纹理
+- [`AudioHotspot`](#audiohotspot) — 球面位置上的定向声源
 - [`TextHotspot`](#texthotspot) — 球面位置上的栅格化纯文本
 - [`IframeHotspot`](#iframehotspot) — 球面位置上的嵌入文档叠加层
 - [`PolygonHotspot`](#polygonhotspot) — 闭合球面区域
@@ -417,6 +419,56 @@ const scenes: Scene[] = [
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
+
+## BackgroundAudio
+
+`BackgroundAudio` 在查看器里播放背景音乐或环境声。它不是热点：没有球面位置、没有标记、音量也不随视角变化。必须作为 `PanoViewer` 的子组件，与 `Scenes`、`Sphere` 或 `Tile` **并列**。不要写进 `Scenes` 的 `renderHotspots`：场景过渡时热点会卸载，背景声也会被停掉。
+
+`playing` 由宿主控制，组件不会自行改这个值。`loop` 默认 `true`。浏览器可能拦住自动播放；此时 `onPlaybackStateChange` 收到 `"blocked"`，在 `playing` 仍为 true 时会于下一次点击或按键后重试。
+
+有两种用法，选一种即可。
+
+**全部场景共用一条音轨** — 只传 `src`，不要传 `sources`。切换场景时音频继续播放，不会重头开始。
+
+```tsx
+import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio src="/bgm/tour.mp3" playing={isBgmPlaying} />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+**每个场景一条音轨** — 传 `sources`（键为 `Scene.id`）和当前的 `sceneId`。省略 `sceneId` 会抛错。切换场景时，若文件变了会按 `fadeMs` 交叉淡化（默认 400 毫秒；`0` 为硬切）；若两个场景指向同一文件则继续播，不会重启。
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <BackgroundAudio
+    sources={{
+      lobby: "/bgm/lobby.mp3",
+      terrace: "/bgm/terrace.mp3",
+    }}
+    sceneId={activeSceneId}
+    playing={isBgmPlaying}
+  />
+  <Scenes scenes={scenes} activeSceneId={activeSceneId} />
+</PanoViewer>;
+```
+
+可选：同时传 `src` 作为未列出场景的默认音轨。某个场景要静音时，把该 id 写成 `""`（会覆盖 `src`，而不是回退到默认轨）。
+
+```tsx
+<BackgroundAudio
+  src="/bgm/default.mp3"
+  sources={{ lobby: "/bgm/courtyard.mp3", terrace: "" }}
+  sceneId={activeSceneId}
+  playing={isBgmPlaying}
+/>;
+```
+
+上例中：`lobby` 播院子声，`terrace` 静音，其它场景播 `default.mp3`。
+
+需要绑在全景某一点、随视角左右移动的声音，请用 `AudioHotspot`，不要用 `BackgroundAudio`。
 
 ## Gyro
 
@@ -818,7 +870,7 @@ import {
 />
 ```
 
-持久化或宿主编辑器可使用导出的判别联合类型 `HotspotDefinition`。新增变体会破坏 exhaustive switch 的类型兼容；除现有点与路径类别外，还需处理 `text` 与 `iframe`：
+持久化或宿主编辑器可使用导出的判别联合类型 `HotspotDefinition`。新增变体会破坏 exhaustive switch 的类型兼容；除现有点与路径类别外，还需处理 `audio`：
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -828,6 +880,7 @@ const hotspots: HotspotDefinition[] = [
   { type: "graphic", id: "marker", position: { yaw: -18, pitch: 9 }, graphic: { kind: "ring" } },
   { type: "sequence", id: "pulse", position: { yaw: -42, pitch: -7 }, src: "/hotspots/pulse.png", frameCount: 20 },
   { type: "video", id: "clip", position: { yaw: 48, pitch: 6 }, src: "/hotspots/clip.webm" },
+  { type: "audio", id: "fountain", position: { yaw: -30, pitch: -8 }, src: "/hotspots/fountain.mp3", range: 90 },
   { type: "text", id: "caption", position: { yaw: 0, pitch: -16 }, text: "Courtyard overlook" },
   { type: "iframe", id: "guide", position: { yaw: -62, pitch: 4 }, src: "/hotspots/embed.html" },
   { type: "polygon", id: "zone", vertices: [{ yaw: 12, pitch: 4 }, { yaw: 22, pitch: 4 }, { yaw: 18, pitch: 14 }] },
@@ -1046,6 +1099,37 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
 
 视频通过 `onError` 报告媒体与 poster 失败。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
+
+## AudioHotspot
+
+`AudioHotspot` 在球面位置播放定向声音。立体声像跟随相机朝向；`range` 为看离声源多少度后音量降到静音。默认 `360` 表示不因视角衰减（仅左右声像）。定点声源可使用较小值，例如 `90`。
+
+播放走 Howler.js 的 Web Audio（已打进本包，宿主不必安装 `howler`）。文件需先解码再起播，推荐 MP3。`src` 可以是字符串或回退 URL 数组。不要用 HTML5 流式播放，否则会失去立体声像。
+
+`playing` 与 `VideoHotspot` 一样受控。`loop` 默认 `false`，`muted` 默认 `false`，`volume` 默认 `1`，`pauseWhenHidden` 默认 `true`（标签页隐藏时暂停，仍为 `playing` 则回来后恢复）。首次用户手势会解锁音频；若自动播放被拦，会报告 `"blocked"`，并在 `playing` 仍为 true 时于下一次指针或按键后重试 `play()`。
+
+默认标记在 **停止**（扬声器）与 **播放**（扬声器 + 声波）之间切换。可用 `icon` 自定义停止图标、`playingIcon` 自定义播放图标。只设 `icon` 时两种状态共用该图。`marker={false}` 则无视觉，仍作为定点声源。非空间的全 tour 或按场景背景声请使用 [`BackgroundAudio`](#backgroundaudio)。
+
+```tsx
+import { AudioHotspot } from "@ericchen1990/pano-view";
+
+<AudioHotspot
+  id="fountain"
+  ariaLabel="Fountain"
+  position={{ yaw: -30, pitch: -8 }}
+  src="/hotspots/fountain.mp3"
+  playing={isFountainPlaying}
+  loop
+  volume={0.8}
+  range={90}
+  onClick={() => setFountainPlaying((playing) => !playing)}
+  onEnded={() => setFountainPlaying(false)}
+  onPlaybackStateChange={(state) => console.log(state)}
+  onPlaybackError={(error) => console.error(error)}
+/>;
+```
+
+与其他媒体热点相同，`AudioHotspot` 不会自行改变 `playing`。
 
 ## TextHotspot
 

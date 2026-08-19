@@ -4,6 +4,12 @@ export { DEFAULT_PANO_CURSORS } from "./pano-cursor";
 export type { PanoCursor, PanoCursors } from "./pano-cursor";
 export { AutoRotate } from "./auto-rotate";
 export type { AutoRotateProps } from "./auto-rotate";
+export { BackgroundAudio } from "./background-audio";
+export type {
+  BackgroundAudioErrorEvent,
+  BackgroundAudioProps,
+  BackgroundAudioSource,
+} from "./background-audio";
 export { PanoFilter } from "./pano-filter/pano-filter";
 export type { PanoFilterProps } from "./pano-filter/pano-filter";
 export { PANO_FILTER_PRESETS } from "./pano-filter/presets";
@@ -148,6 +154,12 @@ export type {
   VideoHotspotProps,
   VideoPlaybackState,
 } from "./hotspot/video-hotspot";
+export { AudioHotspot } from "./hotspot/audio-hotspot";
+export type {
+  AudioHotspotErrorEvent,
+  AudioHotspotProps,
+  AudioPlaybackState,
+} from "./hotspot/audio-hotspot";
 export { TextHotspot } from "./hotspot/text-hotspot";
 export type {
   TextHotspotAlign,
@@ -208,6 +220,7 @@ export type {
   PanoramaPointerEvent,
 } from "./hotspot/types";
 export type {
+  AudioHotspotDefinition,
   GraphicHotspotDefinition,
   HotspotDefinition,
   HotspotDefinitionBase,
