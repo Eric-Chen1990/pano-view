@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 2.5.1
+
+### Patch Changes
+
+- Forward video and background-audio playback snapshots through `subscribeVideo` / `subscribeBackgroundAudio`, persist imperative background-audio volume across scene changes, and reset uncontrolled playing state when a track ends.
+
 ## 2.5.0
 
 ### Minor Changes
