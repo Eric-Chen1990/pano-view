@@ -158,7 +158,7 @@ export function SceneTransitionPage() {
             </button>
             <button
               className={segmentedButtonClassName}
-              onClick={() => viewer.toggleBackgroundAudio()}
+              onClick={() => setBackgroundPlaying((playing) => !playing)}
               type="button"
             >
               Toggle BGM
@@ -197,6 +197,7 @@ export function SceneTransitionPage() {
             />
             <Scenes
               activeSceneId={activeSceneId}
+              onActiveSceneIdChange={setActiveSceneId}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
               scenes={TRANSITION_SCENES}

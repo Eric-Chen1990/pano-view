@@ -53,3 +53,22 @@ export function subscribeBackgroundAudioHost(
     host.listeners.delete(listener);
   };
 }
+
+/** Host registration plus the active controller's playback snapshot. */
+export function subscribeBackgroundAudioStore(
+  host: BackgroundAudioHost,
+  onStoreChange: () => void,
+): () => void {
+  let unsubscribeController =
+    host.controller?.subscribe(onStoreChange) ?? (() => {});
+  const unsubscribeHost = subscribeBackgroundAudioHost(host, () => {
+    unsubscribeController();
+    unsubscribeController =
+      host.controller?.subscribe(onStoreChange) ?? (() => {});
+    onStoreChange();
+  });
+  return () => {
+    unsubscribeController();
+    unsubscribeHost();
+  };
+}

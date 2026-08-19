@@ -18,7 +18,7 @@ import type {
 import {
   BackgroundAudioHostContext,
   createBackgroundAudioHost,
-  subscribeBackgroundAudioHost,
+  subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
 import { AutoRotate } from "./auto-rotate";
@@ -88,7 +88,7 @@ import {
 import {
   createPanoVideoHost,
   PanoVideoHostContext,
-  subscribePanoVideoHost,
+  subscribePanoVideoStore,
 } from "./video/host";
 import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
 import { WebVRChromeBridge } from "./webvr/chrome";
@@ -544,7 +544,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         // -- Video --
         getVideo: () => videoHost.controller,
         subscribeVideo: (onStoreChange) =>
-          subscribePanoVideoHost(videoHost, onStoreChange),
+          subscribePanoVideoStore(videoHost, onStoreChange),
         playVideo: () =>
           videoHost.controller?.play() ?? Promise.resolve(),
         pauseVideo: () => videoHost.controller?.pause(),
@@ -557,7 +557,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         // -- Background Audio --
         getBackgroundAudio: () => bgmHost.controller,
         subscribeBackgroundAudio: (onStoreChange) =>
-          subscribeBackgroundAudioHost(bgmHost, onStoreChange),
+          subscribeBackgroundAudioStore(bgmHost, onStoreChange),
         playBackgroundAudio: () => {
           bgmHost.controller?.play();
           return Promise.resolve();

@@ -54,6 +54,25 @@ export function subscribePanoVideoHost(
   };
 }
 
+/** Host registration plus the active controller's playback snapshot. */
+export function subscribePanoVideoStore(
+  host: PanoVideoHost,
+  onStoreChange: () => void,
+): () => void {
+  let unsubscribeController =
+    host.controller?.subscribe(onStoreChange) ?? (() => {});
+  const unsubscribeHost = subscribePanoVideoHost(host, () => {
+    unsubscribeController();
+    unsubscribeController =
+      host.controller?.subscribe(onStoreChange) ?? (() => {});
+    onStoreChange();
+  });
+  return () => {
+    unsubscribeController();
+    unsubscribeHost();
+  };
+}
+
 export function getPanoVideoHostRevision(host: PanoVideoHost): number {
   return host.revision;
 }

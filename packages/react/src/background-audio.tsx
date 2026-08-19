@@ -134,6 +134,8 @@ export function BackgroundAudio({
   const loopRef = useRef(loop);
   const mutedRef = useRef(muted);
   const volumeRef = useRef(volume);
+  const mutedPropRef = useRef(muted);
+  const volumePropRef = useRef(volume);
   const fadeMsRef = useRef(resolveFadeMs(fadeMs));
   const onPlaybackStateChangeRef = useRef(onPlaybackStateChange);
   const onPlaybackErrorRef = useRef(onPlaybackError);
@@ -142,9 +144,15 @@ export function BackgroundAudio({
 
   playingRef.current = playing;
   loopRef.current = loop;
-  mutedRef.current = muted;
-  volumeRef.current = volume;
   fadeMsRef.current = resolveFadeMs(fadeMs);
+  if (mutedPropRef.current !== muted) {
+    mutedPropRef.current = muted;
+    mutedRef.current = muted;
+  }
+  if (volumePropRef.current !== volume) {
+    volumePropRef.current = volume;
+    volumeRef.current = volume;
+  }
   onPlaybackStateChangeRef.current = onPlaybackStateChange;
   onPlaybackErrorRef.current = onPlaybackError;
   onEndedRef.current = onEnded;
@@ -203,20 +211,17 @@ export function BackgroundAudio({
         if (isControlledRef.current) {
           return;
         }
-        const howl = currentRef.current?.handle.howl;
-        if (howl) {
-          howl.volume(clampAudioVolume(vol));
-        }
-        notifySnapshot({ volume: clampAudioVolume(vol) });
+        const next = clampAudioVolume(vol);
+        volumeRef.current = next;
+        currentRef.current?.handle.howl.volume(next);
+        notifySnapshot({ volume: next });
       },
       setMuted: (m) => {
         if (isControlledRef.current) {
           return;
         }
-        const howl = currentRef.current?.handle.howl;
-        if (howl) {
-          howl.mute(m);
-        }
+        mutedRef.current = m;
+        currentRef.current?.handle.howl.mute(m);
         notifySnapshot({ muted: m });
       },
       toggleMuted: () => {
@@ -224,10 +229,8 @@ export function BackgroundAudio({
           return;
         }
         const next = !snapshotRef.current.muted;
-        const howl = currentRef.current?.handle.howl;
-        if (howl) {
-          howl.mute(next);
-        }
+        mutedRef.current = next;
+        currentRef.current?.handle.howl.mute(next);
         notifySnapshot({ muted: next });
       },
     }),
@@ -305,6 +308,9 @@ export function BackgroundAudio({
             currentRef.current?.key === trackKey && playingRef.current,
           onEnded: () => {
             notifySnapshot({ playing: false, ended: true });
+            if (!isControlledRef.current) {
+              setInternalPlaying(false);
+            }
             onPlaybackStateChangeRef.current?.("ended");
             onEndedRef.current?.();
           },
@@ -379,7 +385,9 @@ export function BackgroundAudio({
     }
     if (!playing) {
       fadingInRef.current = false;
-      howl.pause();
+      if (howl.playing()) {
+        howl.pause();
+      }
       for (const slot of outgoingRef.current) {
         slot.handle.dispose();
       }
@@ -395,11 +403,14 @@ export function BackgroundAudio({
       return;
     }
     slot.handle.howl.loop(loop);
-    slot.handle.howl.mute(muted);
+    slot.handle.howl.mute(mutedRef.current);
     if (!fadingInRef.current) {
-      slot.handle.howl.volume(clampAudioVolume(volume));
+      slot.handle.howl.volume(clampAudioVolume(volumeRef.current));
     }
-    notifySnapshot({ muted, volume: clampAudioVolume(volume) });
+    notifySnapshot({
+      muted: mutedRef.current,
+      volume: clampAudioVolume(volumeRef.current),
+    });
   }, [loop, muted, trackKey, volume]);
 
   useEffect(() => {
