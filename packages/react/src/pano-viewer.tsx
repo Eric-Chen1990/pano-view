@@ -15,6 +15,11 @@ import type {
   CSSProperties,
   ReactNode,
 } from "react";
+import {
+  BackgroundAudioHostContext,
+  createBackgroundAudioHost,
+  subscribeBackgroundAudioStore,
+} from "./background-audio-host";
 import { cn } from "./cn";
 import { AutoRotate } from "./auto-rotate";
 import {
@@ -71,6 +76,10 @@ import {
   type PanoramaViewRuntimeHandle,
 } from "./panorama-view-runtime";
 import { clampPanoPitch } from "./hotspot/coordinates";
+import {
+  createScenesHost,
+  ScenesHostContext,
+} from "./scenes-host";
 import { TouchControls } from "./touch-controls";
 import {
   PanoChromeOverlayContext,
@@ -79,11 +88,13 @@ import {
 import {
   createPanoVideoHost,
   PanoVideoHostContext,
+  subscribePanoVideoStore,
 } from "./video/host";
 import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
 import { WebVRChromeBridge } from "./webvr/chrome";
 import {
   createWebVRHost,
+  subscribeWebVRHost,
   WebVRRuntimeContext,
 } from "./webvr/host";
 import { createWebVRStereoView } from "./webvr/stereo-view";
@@ -272,6 +283,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const videoHost = useMemo(() => createPanoVideoHost(), []);
     const filterHost = useMemo(() => createPanoFilterHost(), []);
     const webVRHost = useMemo(() => createWebVRHost(), []);
+    const scenesHost = useMemo(() => createScenesHost(), []);
+    const bgmHost = useMemo(() => createBackgroundAudioHost(), []);
     const stereoView = useMemo(() => createWebVRStereoView(), []);
     const xrStore = useMemo(
       () =>
@@ -366,6 +379,30 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       [controlOptions.keyboard],
     );
 
+    const enterFullscreen = useCallback(async () => {
+      if (typeof document === "undefined") {
+        return;
+      }
+      if (getFullscreenElement()) {
+        return;
+      }
+      const root = rootRef.current;
+      if (!root) {
+        return;
+      }
+      await requestElementFullscreen(root);
+    }, []);
+
+    const exitFullscreen = useCallback(async () => {
+      if (typeof document === "undefined") {
+        return;
+      }
+      if (!getFullscreenElement()) {
+        return;
+      }
+      await exitElementFullscreen();
+    }, []);
+
     const toggleFullscreen = useCallback(async () => {
       if (typeof document === "undefined") {
         return;
@@ -458,9 +495,13 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       setLegacyAutoRotate(legacyAutoRotateOptions.autoRotate ?? false);
     }, [legacyAutoRotateOptions.autoRotate]);
 
+    const isFullscreenRef = useRef(false);
+    isFullscreenRef.current = isViewerFullscreen;
+
     useImperativeHandle(
       ref,
       () => ({
+        // -- View --
         getView: () =>
           controlsRef.current?.getView() ?? { ...fallbackViewRef.current },
         setView: (view, options) => {
@@ -469,15 +510,83 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         reset: () => {
           controlsRef.current?.reset();
         },
+
+        // -- Fullscreen --
+        enterFullscreen,
+        exitFullscreen,
+        toggleFullscreen,
+        isFullscreen: () => isFullscreenRef.current,
+
+        // -- Scenes --
+        setScene: (id) => scenesHost.controller?.setScene(id) ?? false,
+        nextScene: () => scenesHost.controller?.nextScene() ?? false,
+        previousScene: () => scenesHost.controller?.previousScene() ?? false,
+        getActiveSceneId: () =>
+          scenesHost.controller?.getActiveSceneId() ?? null,
+        getSceneIds: () => scenesHost.controller?.getSceneIds() ?? [],
+        isSceneTransitioning: () =>
+          scenesHost.controller?.isTransitioning() ?? false,
+
+        // -- WebVR --
+        enterVR: () =>
+          webVRHost.controller?.enterVR() ?? Promise.resolve(false),
+        exitVR: () =>
+          webVRHost.controller?.exitVR() ?? Promise.resolve(),
+        toggleVR: () =>
+          webVRHost.controller?.toggleVR() ?? Promise.resolve(false),
+        isVRAvailable: () => webVRHost.snapshot.available,
+        isVREnabled: () => webVRHost.snapshot.mode !== null,
+        getVRMode: () => webVRHost.snapshot.mode,
+        requestVRPermission: () =>
+          webVRHost.controller?.requestPermission() ??
+          Promise.resolve(false),
+
+        // -- Video --
+        getVideo: () => videoHost.controller,
+        subscribeVideo: (onStoreChange) =>
+          subscribePanoVideoStore(videoHost, onStoreChange),
+        playVideo: () =>
+          videoHost.controller?.play() ?? Promise.resolve(),
+        pauseVideo: () => videoHost.controller?.pause(),
+        toggleVideo: () => videoHost.controller?.togglePlay(),
+        seekVideo: (time) => videoHost.controller?.seek(time),
+        setVideoVolume: (vol) => videoHost.controller?.setVolume(vol),
+        setVideoMuted: (m) => videoHost.controller?.setMuted(m),
+        toggleVideoMuted: () => videoHost.controller?.toggleMuted(),
+
+        // -- Background Audio --
+        getBackgroundAudio: () => bgmHost.controller,
+        subscribeBackgroundAudio: (onStoreChange) =>
+          subscribeBackgroundAudioStore(bgmHost, onStoreChange),
+        playBackgroundAudio: () => {
+          bgmHost.controller?.play();
+          return Promise.resolve();
+        },
+        pauseBackgroundAudio: () => bgmHost.controller?.pause(),
+        toggleBackgroundAudio: () => bgmHost.controller?.togglePlay(),
+        setBackgroundAudioVolume: (vol) =>
+          bgmHost.controller?.setVolume(vol),
+        setBackgroundAudioMuted: (m) => bgmHost.controller?.setMuted(m),
+        toggleBackgroundAudioMuted: () =>
+          bgmHost.controller?.toggleMuted(),
+
+        // -- Deprecated --
         startAutoRotate: () => {
           setLegacyAutoRotate(true);
         },
         stopAutoRotate: () => {
           setLegacyAutoRotate(false);
         },
-        toggleFullscreen,
       }),
-      [toggleFullscreen],
+      [
+        bgmHost,
+        enterFullscreen,
+        exitFullscreen,
+        scenesHost,
+        toggleFullscreen,
+        videoHost,
+        webVRHost,
+      ],
     );
 
     const rootStyle = useMemo<CSSProperties>(
@@ -537,6 +646,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   <PanoContextMenuActionsContext.Provider
                     value={contextMenuActions}
                   >
+                  <ScenesHostContext.Provider value={scenesHost}>
+                  <BackgroundAudioHostContext.Provider value={bgmHost}>
                   <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={controlsRef}
@@ -575,6 +686,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                       userControlsEnabled={userControlsEnabled}
                     />
                   </ControlClaimsContext.Provider>
+                  </BackgroundAudioHostContext.Provider>
+                  </ScenesHostContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
                   </PanoFilterHostContext.Provider>
                   </PanoVideoHostContext.Provider>

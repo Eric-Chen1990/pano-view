@@ -1,9 +1,15 @@
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createUnlockingHowl,
   sourceList,
   type UnlockingHowlHandle,
 } from "./audio/howl";
+import {
+  BackgroundAudioHostContext,
+  notifyBackgroundAudioHost,
+  type BackgroundAudioController,
+  type BackgroundAudioSnapshot,
+} from "./background-audio-host";
 import type { AudioPlaybackState } from "./hotspot/audio-hotspot";
 import { clampAudioVolume } from "./hotspot/audio-spatial";
 import { PanoramaViewContext } from "./panorama-view-runtime";
@@ -23,7 +29,14 @@ export type BackgroundAudioProps = {
   sources?: Readonly<Record<string, BackgroundAudioSource>>;
   /** Current scene id. Required when `sources` is set. */
   sceneId?: string;
-  playing: boolean;
+  /**
+   * Controlled playing state. When provided, the parent owns play/pause.
+   * When omitted, the component manages its own state and imperative
+   * `playBackgroundAudio` / `pauseBackgroundAudio` work directly.
+   */
+  playing?: boolean;
+  /** Initial playing state when `playing` is omitted. Defaults to false. */
+  defaultPlaying?: boolean;
   /** Defaults to true. */
   loop?: boolean;
   muted?: boolean;
@@ -88,7 +101,8 @@ export function BackgroundAudio({
   src,
   sources,
   sceneId,
-  playing,
+  playing: controlledPlaying,
+  defaultPlaying = false,
   loop = true,
   muted = false,
   volume = 1,
@@ -105,6 +119,10 @@ export function BackgroundAudio({
     throw new Error("<BackgroundAudio> must be rendered inside <PanoViewer>.");
   }
 
+  const isControlled = controlledPlaying !== undefined;
+  const [internalPlaying, setInternalPlaying] = useState(defaultPlaying);
+  const playing = isControlled ? controlledPlaying : internalPlaying;
+
   const urls = resolveBackgroundAudioUrls(src, sources, sceneId);
   const trackKey = urls.join("\0");
 
@@ -116,6 +134,8 @@ export function BackgroundAudio({
   const loopRef = useRef(loop);
   const mutedRef = useRef(muted);
   const volumeRef = useRef(volume);
+  const mutedPropRef = useRef(muted);
+  const volumePropRef = useRef(volume);
   const fadeMsRef = useRef(resolveFadeMs(fadeMs));
   const onPlaybackStateChangeRef = useRef(onPlaybackStateChange);
   const onPlaybackErrorRef = useRef(onPlaybackError);
@@ -124,13 +144,114 @@ export function BackgroundAudio({
 
   playingRef.current = playing;
   loopRef.current = loop;
-  mutedRef.current = muted;
-  volumeRef.current = volume;
   fadeMsRef.current = resolveFadeMs(fadeMs);
+  if (mutedPropRef.current !== muted) {
+    mutedPropRef.current = muted;
+    mutedRef.current = muted;
+  }
+  if (volumePropRef.current !== volume) {
+    volumePropRef.current = volume;
+    volumeRef.current = volume;
+  }
   onPlaybackStateChangeRef.current = onPlaybackStateChange;
   onPlaybackErrorRef.current = onPlaybackError;
   onEndedRef.current = onEnded;
   onErrorRef.current = onError;
+
+  // -- Snapshot & controller for host registration --
+  const snapshotRef = useRef<BackgroundAudioSnapshot>({
+    ready: false,
+    playing: false,
+    blocked: false,
+    ended: false,
+    muted,
+    volume,
+  });
+  const snapshotListenersRef = useRef(new Set<() => void>());
+
+  const notifySnapshot = (patch: Partial<BackgroundAudioSnapshot>) => {
+    const prev = snapshotRef.current;
+    snapshotRef.current = { ...prev, ...patch };
+    for (const listener of snapshotListenersRef.current) {
+      listener();
+    }
+  };
+
+  const isControlledRef = useRef(isControlled);
+  isControlledRef.current = isControlled;
+
+  const controller = useMemo<BackgroundAudioController>(
+    () => ({
+      subscribe: (onStoreChange) => {
+        snapshotListenersRef.current.add(onStoreChange);
+        return () => {
+          snapshotListenersRef.current.delete(onStoreChange);
+        };
+      },
+      getSnapshot: () => snapshotRef.current,
+      play: () => {
+        if (isControlledRef.current) {
+          return;
+        }
+        setInternalPlaying(true);
+      },
+      pause: () => {
+        if (isControlledRef.current) {
+          return;
+        }
+        setInternalPlaying(false);
+      },
+      togglePlay: () => {
+        if (isControlledRef.current) {
+          return;
+        }
+        setInternalPlaying((prev) => !prev);
+      },
+      setVolume: (vol) => {
+        if (isControlledRef.current) {
+          return;
+        }
+        const next = clampAudioVolume(vol);
+        volumeRef.current = next;
+        currentRef.current?.handle.howl.volume(next);
+        notifySnapshot({ volume: next });
+      },
+      setMuted: (m) => {
+        if (isControlledRef.current) {
+          return;
+        }
+        mutedRef.current = m;
+        currentRef.current?.handle.howl.mute(m);
+        notifySnapshot({ muted: m });
+      },
+      toggleMuted: () => {
+        if (isControlledRef.current) {
+          return;
+        }
+        const next = !snapshotRef.current.muted;
+        mutedRef.current = next;
+        currentRef.current?.handle.howl.mute(next);
+        notifySnapshot({ muted: next });
+      },
+    }),
+    [],
+  );
+
+  const bgmHost = useContext(BackgroundAudioHostContext);
+
+  useEffect(() => {
+    if (!bgmHost) {
+      return;
+    }
+    bgmHost.controller = controller;
+    notifyBackgroundAudioHost(bgmHost);
+    return () => {
+      if (bgmHost.controller === controller) {
+        bgmHost.controller = null;
+        notifyBackgroundAudioHost(bgmHost);
+      }
+    };
+  }, [bgmHost, controller]);
 
   useEffect(() => {
     return () => {
@@ -186,6 +307,10 @@ export function BackgroundAudio({
           shouldRetryPlay: () =>
             currentRef.current?.key === trackKey && playingRef.current,
           onEnded: () => {
+            notifySnapshot({ playing: false, ended: true });
+            if (!isControlledRef.current) {
+              setInternalPlaying(false);
+            }
             onPlaybackStateChangeRef.current?.("ended");
             onEndedRef.current?.();
           },
@@ -197,15 +322,18 @@ export function BackgroundAudio({
                 durationMs,
               );
             }
+            notifySnapshot({ ready: true, playing: true, blocked: false, ended: false });
             onPlaybackStateChangeRef.current?.("playing");
           },
           onPause: () => {
+            notifySnapshot({ playing: false });
             onPlaybackStateChangeRef.current?.("paused");
           },
           onLoadError: (error) => {
             onErrorRef.current?.({ error });
           },
           onPlayError: (error) => {
+            notifySnapshot({ blocked: true });
             onPlaybackStateChangeRef.current?.("blocked");
             onPlaybackErrorRef.current?.(error);
           },
@@ -257,7 +385,9 @@ export function BackgroundAudio({
     }
     if (!playing) {
       fadingInRef.current = false;
-      howl.pause();
+      if (howl.playing()) {
+        howl.pause();
+      }
       for (const slot of outgoingRef.current) {
         slot.handle.dispose();
       }
@@ -273,10 +403,14 @@ export function BackgroundAudio({
       return;
     }
     slot.handle.howl.loop(loop);
-    slot.handle.howl.mute(muted);
+    slot.handle.howl.mute(mutedRef.current);
     if (!fadingInRef.current) {
-      slot.handle.howl.volume(clampAudioVolume(volume));
+      slot.handle.howl.volume(clampAudioVolume(volumeRef.current));
     }
+    notifySnapshot({
+      muted: mutedRef.current,
+      volume: clampAudioVolume(volumeRef.current),
+    });
   }, [loop, muted, trackKey, volume]);
 
   useEffect(() => {

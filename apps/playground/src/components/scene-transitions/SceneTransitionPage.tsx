@@ -5,6 +5,7 @@ import {
   Scenes,
   PanoViewer,
   cycleSceneId,
+  usePanoViewer,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
@@ -36,6 +37,7 @@ const PER_SCENE_SOURCES = {
 } as const;
 
 export function SceneTransitionPage() {
+  const viewer = usePanoViewer();
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
@@ -130,8 +132,42 @@ export function SceneTransitionPage() {
             </div>
           </div>
         </div>
+        <div className={controlLabelClassName}>
+          Ref API
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ref-driven controls">
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => viewer.previousScene()}
+              type="button"
+            >
+              ← Prev
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => viewer.nextScene()}
+              type="button"
+            >
+              Next →
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => void viewer.toggleFullscreen()}
+              type="button"
+            >
+              Fullscreen
+            </button>
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => setBackgroundPlaying((playing) => !playing)}
+              type="button"
+            >
+              Toggle BGM
+            </button>
+          </div>
+        </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
+            ref={viewer.ref}
             aria-label="Panorama scene transition demo"
             style={{ height: 540 }}
           >
@@ -161,6 +197,7 @@ export function SceneTransitionPage() {
             />
             <Scenes
               activeSceneId={activeSceneId}
+              onActiveSceneIdChange={setActiveSceneId}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
               scenes={TRANSITION_SCENES}

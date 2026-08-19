@@ -4,8 +4,8 @@ import {
   PanoViewer,
   Sphere,
   Tile,
-  type PanoViewerHandle,
   type GyroHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -66,7 +66,7 @@ function ToolbarSwitch({
 }
 
 export function CanvasPanel() {
-  const viewerRef = useRef<PanoViewerHandle>(null);
+  const viewer = usePanoViewer();
   const gyroRef = useRef<GyroHandle>(null);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const {
@@ -193,14 +193,14 @@ export function CanvasPanel() {
           />
           <button
             className={segmentedButtonClassName}
-            onClick={() => viewerRef.current?.reset()}
+            onClick={() => viewer.reset()}
             type="button"
           >
             Reset view
           </button>
           <button
             className={segmentedButtonClassName}
-            onClick={() => void viewerRef.current?.toggleFullscreen()}
+            onClick={() => void viewer.toggleFullscreen()}
             type="button"
           >
             Fullscreen
@@ -245,7 +245,7 @@ export function CanvasPanel() {
       >
         <PanoViewer
           key={mode}
-          ref={viewerRef}
+          ref={viewer.ref}
           aria-label={`${mode} panorama hotspot editor`}
           className={cn("h-full w-full", (placementTool || drawingPath) && "cursor-crosshair")}
           controls={placementTool || drawingPath ? false : VIEWER_CONTROLS}

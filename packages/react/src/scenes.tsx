@@ -8,16 +8,22 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ReactNode } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import {
   LinearSRGBColorSpace,
   LinearFilter,
   WebGLRenderTarget,
 } from "three";
+import { cycleSceneId } from "./keyboard-controls";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { Snapshot } from "./scene-transitions/overlay-utils";
 import { resolveTransition } from "./scene-transitions/presets";
 import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
+import {
+  notifyScenesHost,
+  ScenesHostContext,
+  type ScenesController,
+} from "./scenes-host";
 import { TransitionOverlay } from "./scene-transitions/transition-overlay";
 import { Sphere } from "./sphere";
 import {
@@ -66,7 +72,19 @@ export type SceneTransitionErrorEvent = {
 
 export type ScenesProps = {
   scenes: readonly Scene[];
-  activeSceneId: string;
+  /**
+   * Controlled scene id. When provided, the parent owns the active scene.
+   * Imperative `setScene` / `nextScene` / `previousScene` will call
+   * `onActiveSceneIdChange` so the parent can update its state.
+   */
+  activeSceneId?: string;
+  /**
+   * Uncontrolled initial scene id. Used when `activeSceneId` is omitted.
+   * Imperative calls update the internal state directly.
+   */
+  defaultActiveSceneId?: string;
+  /** Called when imperative scene methods request a scene change in controlled mode. */
+  onActiveSceneIdChange?: (id: string) => void;
   transition?: SceneTransition;
   /** Rendered only after a scene has finished transitioning in. */
   renderHotspots?: (scene: Scene) => ReactNode;
@@ -200,6 +218,17 @@ function SnapshotCapture({
   return null;
 }
 
+type ScenesControllerProps = Omit<
+  ScenesProps,
+  | "maxTextureMemoryMb"
+  | "maxConcurrentTileLoads"
+  | "defaultActiveSceneId"
+  | "onActiveSceneIdChange"
+> & {
+  activeSceneId: string;
+  phaseRef?: MutableRefObject<Phase>;
+};
+
 function ScenesController({
   scenes,
   activeSceneId,
@@ -208,7 +237,8 @@ function ScenesController({
   onTransitionEnd,
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
-}: Omit<ScenesProps, "maxTextureMemoryMb" | "maxConcurrentTileLoads">) {
+  phaseRef: externalPhaseRef,
+}: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
@@ -241,6 +271,9 @@ function ScenesController({
   const transitionFromRef = useRef<Scene | null>(initialScene);
   slotsRef.current = slots;
   phaseRef.current = phase;
+  if (externalPhaseRef) {
+    externalPhaseRef.current = phase;
+  }
   liveSlotRef.current = liveSlot;
 
   const releaseInteraction = useCallback(() => {
@@ -456,14 +489,102 @@ function ScenesController({
 export function Scenes({
   maxTextureMemoryMb,
   maxConcurrentTileLoads,
-  ...props
+  activeSceneId: controlledId,
+  defaultActiveSceneId,
+  onActiveSceneIdChange,
+  scenes,
+  ...rest
 }: ScenesProps) {
+  const isControlled = controlledId !== undefined;
+  const [internalId, setInternalId] = useState(
+    () => controlledId ?? defaultActiveSceneId ?? scenes[0]?.id ?? "",
+  );
+
+  const resolvedId = isControlled ? controlledId : internalId;
+
+  const requestSceneChange = useCallback(
+    (id: string) => {
+      if (isControlled) {
+        onActiveSceneIdChange?.(id);
+      } else {
+        setInternalId(id);
+      }
+    },
+    [isControlled, onActiveSceneIdChange],
+  );
+
+  const scenesRef = useRef(scenes);
+  scenesRef.current = scenes;
+  const resolvedIdRef = useRef(resolvedId);
+  resolvedIdRef.current = resolvedId;
+
+  const host = useContext(ScenesHostContext);
+  const phaseRef = useRef<Phase>("idle");
+
+  useEffect(() => {
+    if (!host) {
+      return;
+    }
+
+    const controller: ScenesController = {
+      setScene: (id) => {
+        const match = scenesRef.current.find((s) => s.id === id);
+        if (!match) {
+          return false;
+        }
+        requestSceneChange(id);
+        return true;
+      },
+      nextScene: () => {
+        const next = cycleSceneId(
+          scenesRef.current,
+          resolvedIdRef.current,
+          1,
+        );
+        if (next === null) {
+          return false;
+        }
+        requestSceneChange(next);
+        return true;
+      },
+      previousScene: () => {
+        const next = cycleSceneId(
+          scenesRef.current,
+          resolvedIdRef.current,
+          -1,
+        );
+        if (next === null) {
+          return false;
+        }
+        requestSceneChange(next);
+        return true;
+      },
+      getActiveSceneId: () => resolvedIdRef.current,
+      getSceneIds: () => scenesRef.current.map((s) => s.id),
+      isTransitioning: () => phaseRef.current !== "idle",
+    };
+
+    host.controller = controller;
+    notifyScenesHost(host);
+    return () => {
+      if (host.controller === controller) {
+        host.controller = null;
+        notifyScenesHost(host);
+      }
+    };
+  }, [host, requestSceneChange]);
+
   return (
     <TileTextureManagerProvider
       maxTextureMemoryMb={maxTextureMemoryMb}
       maxConcurrentLoads={maxConcurrentTileLoads}
     >
-      <ScenesController {...props} />
+      <ScenesController
+        {...rest}
+        scenes={scenes}
+        activeSceneId={resolvedId}
+        phaseRef={phaseRef}
+      />
     </TileTextureManagerProvider>
   );
 }

@@ -1,4 +1,7 @@
+import type { BackgroundAudioController } from "./background-audio-host";
 import type { KeyboardControlsProps } from "./keyboard-controls";
+import type { PanoVideoController } from "./video/types";
+import type { WebVRMode } from "./webvr/types";
 
 export type PanoViewerState = {
   /** Horizontal look angle in degrees. Positive values look right. */
@@ -15,17 +18,62 @@ export type SetPanoViewerOptions = {
 };
 
 export type PanoViewerHandle = {
+  // -- View --
   getView: () => PanoViewerState;
   setView: (
     view: Partial<PanoViewerState>,
     options?: SetPanoViewerOptions,
   ) => void;
   reset: () => void;
+
+  // -- Fullscreen --
+  enterFullscreen: () => Promise<void>;
+  exitFullscreen: () => Promise<void>;
+  toggleFullscreen: () => Promise<void>;
+  isFullscreen: () => boolean;
+
+  // -- Scenes (no-op / null without <Scenes />) --
+  setScene: (id: string) => boolean;
+  nextScene: () => boolean;
+  previousScene: () => boolean;
+  getActiveSceneId: () => string | null;
+  getSceneIds: () => readonly string[];
+  isSceneTransitioning: () => boolean;
+
+  // -- WebVR (no-op / false / null without <WebVR />) --
+  enterVR: () => Promise<boolean>;
+  exitVR: () => Promise<void>;
+  toggleVR: () => Promise<boolean>;
+  isVRAvailable: () => boolean;
+  isVREnabled: () => boolean;
+  getVRMode: () => WebVRMode | null;
+  requestVRPermission: () => Promise<boolean>;
+
+  // -- Video (no-op / null without <PanoVideo />) --
+  getVideo: () => PanoVideoController | null;
+  subscribeVideo: (onStoreChange: () => void) => () => void;
+  playVideo: () => Promise<void>;
+  pauseVideo: () => void;
+  toggleVideo: () => void;
+  seekVideo: (time: number) => void;
+  setVideoVolume: (volume: number) => void;
+  setVideoMuted: (muted: boolean) => void;
+  toggleVideoMuted: () => void;
+
+  // -- Background Audio (no-op / null without <BackgroundAudio />) --
+  getBackgroundAudio: () => BackgroundAudioController | null;
+  subscribeBackgroundAudio: (onStoreChange: () => void) => () => void;
+  playBackgroundAudio: () => Promise<void>;
+  pauseBackgroundAudio: () => void;
+  toggleBackgroundAudio: () => void;
+  setBackgroundAudioVolume: (volume: number) => void;
+  setBackgroundAudioMuted: (muted: boolean) => void;
+  toggleBackgroundAudioMuted: () => void;
+
   /** @deprecated Control an AutoRotate component's enabled prop instead. */
   startAutoRotate: () => void;
   /** @deprecated Control an AutoRotate component's enabled prop instead. */
   stopAutoRotate: () => void;
-  toggleFullscreen: () => Promise<void>;
 };
 
 export type MouseControlButton = "left" | "middle" | "right";
