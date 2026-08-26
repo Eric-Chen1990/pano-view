@@ -2,4 +2,4 @@
 "@ericchen1990/pano-view": patch
 ---
 
-Do not treat sticky user activation or a running Web Audio context as autoplay permission. Keep waiting for a real gesture if unmuted video playback is still blocked.
+Do not treat sticky user activation as autoplay permission. Optimistically activate when Web Audio is already running, but keep waiting for a real gesture if this attempt requested unmuted video and it stayed blocked.
