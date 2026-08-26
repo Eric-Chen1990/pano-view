@@ -389,12 +389,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         window.removeEventListener("keydown", handleGesture, true);
       };
 
-      const completeIfUnlocked = () => {
+      const completeIfUnlocked = (requestedVideo: boolean, videoOk: boolean) => {
         if (cancelled || !isPanoAudioUnlocked()) {
           return;
         }
-        const snapshot = videoHost.controller?.getSnapshot();
-        if (snapshot && !snapshot.muted && snapshot.blocked) {
+        if (requestedVideo && videoHost.controller && !videoOk) {
           return;
         }
         removeListeners();
@@ -419,9 +418,14 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         try {
           const resume = controls.resumeAudio();
           mediaActivationOptions?.onActivate?.(controls);
-          void Promise.all([resume, videoPlay ?? Promise.resolve()]).then(
-            completeIfUnlocked,
-            completeIfUnlocked,
+          const requestedVideo = videoPlay !== undefined;
+          void Promise.all([resume, videoPlay ?? Promise.resolve(true)]).then(
+            ([, videoOk]) => {
+              completeIfUnlocked(requestedVideo, videoOk);
+            },
+            () => {
+              completeIfUnlocked(requestedVideo, false);
+            },
           );
         } finally {
           activating = false;
