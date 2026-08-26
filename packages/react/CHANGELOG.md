@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.1.0
+
+### Minor Changes
+
+- Add `lookTo`, `moveTo`, `zoomTo`, and `lookToHotspot` to the PanoViewer handle for animated navigation. Existing `setView` and `reset` remain immediate.
+
 ## 3.0.0
 
 ### Major Changes
