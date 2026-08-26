@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.0.0
+
+### Major Changes
+
+- 36b3b88: Add default media-activation entry UI for children that begin playback, with host-controlled audio activation controls, mobile safe-area chrome, and inline iPhone video safeguards. Set `mediaActivation={false}` to retain the 2.x entry behavior.
+
 ## 2.5.1
 
 ### Patch Changes
