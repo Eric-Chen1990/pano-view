@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 3.0.0
+
+### Major Changes
+
+- 36b3b88: Add default media-activation entry UI for children that begin playback, with host-controlled audio activation controls, mobile safe-area chrome, and inline iPhone video safeguards. Set `mediaActivation={false}` to retain the 2.x entry behavior.
+
+## 2.5.1
+
+### Patch Changes
+
+- Forward video and background-audio playback snapshots through `subscribeVideo` / `subscribeBackgroundAudio`, persist imperative background-audio volume across scene changes, and reset uncontrolled playing state when a track ends.
+
 ## 2.5.0
 
 ### Minor Changes

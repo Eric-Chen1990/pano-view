@@ -17,6 +17,7 @@ function createPanoViewerHandle(
     reset: () => {
       ref.current?.reset();
     },
+    activateMedia: () => ref.current?.activateMedia() ?? Promise.resolve(),
     enterFullscreen: () => ref.current?.enterFullscreen() ?? Promise.resolve(),
     exitFullscreen: () => ref.current?.exitFullscreen() ?? Promise.resolve(),
     toggleFullscreen: () =>

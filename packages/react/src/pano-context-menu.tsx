@@ -493,6 +493,20 @@ function PositionedMenuShell({
 }) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ left: 0, top: 0 });
+  const [viewportRevision, setViewportRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setViewportRevision((revision) => revision + 1);
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", refresh);
+    window.addEventListener("orientationchange", refresh);
+    viewport?.addEventListener("resize", refresh);
+    return () => {
+      window.removeEventListener("resize", refresh);
+      window.removeEventListener("orientationchange", refresh);
+      viewport?.removeEventListener("resize", refresh);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -517,7 +531,7 @@ function PositionedMenuShell({
       left: Math.min(Math.max(rawLeft, MENU_EDGE_PADDING), maxLeft),
       top: Math.min(Math.max(rawTop, MENU_EDGE_PADDING), maxTop),
     });
-  }, [clientX, clientY, overlayElement, children]);
+  }, [clientX, clientY, overlayElement, children, viewportRevision]);
 
   return (
     <div

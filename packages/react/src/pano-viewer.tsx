@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   ComponentPropsWithoutRef,
@@ -21,6 +22,7 @@ import {
   subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
+import { resumePanoAudio } from "./audio/howl";
 import { AutoRotate } from "./auto-rotate";
 import {
   ControlClaimsContext,
@@ -48,6 +50,16 @@ import {
   createPanoFilterHost,
   PanoFilterHostContext,
 } from "./pano-filter/host";
+import {
+  createPanoMediaActivationHost,
+  getPanoMediaActivationRevision,
+  hasPanoMediaActivationIntent,
+  PanoMediaActivationHostContext,
+  PanoMediaActivationOverlay,
+  subscribePanoMediaActivation,
+  type PanoMediaActivationControls,
+  type PanoMediaActivationOptions,
+} from "./media-activation";
 import {
   PanoContextMenu,
   PanoContextMenuActionsContext,
@@ -145,6 +157,11 @@ export type PanoViewerProps = Omit<
    * context menu is always suppressed on the viewer, including overlays.
    */
   contextMenu?: boolean | PanoContextMenuProps;
+  /**
+   * Defaults to enabled when a mounted child intends to begin playing media.
+   * Set false to retain the 2.x behavior with no first-interaction prompt.
+   */
+  mediaActivation?: false | PanoMediaActivationOptions;
   onViewChange?: (view: PanoViewerState) => void;
   onPanoramaClick?: (event: PanoramaPointerEvent) => void;
   onPanoramaDoubleClick?: (event: PanoramaPointerEvent) => void;
@@ -260,6 +277,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       controls = true,
       cursors,
       contextMenu = true,
+      mediaActivation,
       onViewChange,
       onPanoramaClick,
       onPanoramaDoubleClick,
@@ -285,6 +303,18 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const webVRHost = useMemo(() => createWebVRHost(), []);
     const scenesHost = useMemo(() => createScenesHost(), []);
     const bgmHost = useMemo(() => createBackgroundAudioHost(), []);
+    const mediaActivationHost = useMemo(() => createPanoMediaActivationHost(), []);
+    const mediaActivationOptions = useMemo<PanoMediaActivationOptions | null>(
+      () => (mediaActivation === false ? null : mediaActivation ?? {}),
+      [mediaActivation],
+    );
+    const mediaActivationRevision = useSyncExternalStore(
+      (onStoreChange) =>
+        subscribePanoMediaActivation(mediaActivationHost, onStoreChange),
+      () => getPanoMediaActivationRevision(mediaActivationHost),
+      () => getPanoMediaActivationRevision(mediaActivationHost),
+    );
+    const [mediaActivated, setMediaActivated] = useState(false);
     const stereoView = useMemo(() => createWebVRStereoView(), []);
     const xrStore = useMemo(
       () =>
@@ -303,6 +333,36 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         }),
       [],
     );
+    const mediaActivationControls = useMemo<PanoMediaActivationControls>(
+      () => ({
+        resumeAudio: () => resumePanoAudio(),
+        playVideo: async ({ unmute = false } = {}) => {
+          const controller = videoHost.controller;
+          if (!controller) {
+            return false;
+          }
+          if (unmute) {
+            controller.setMuted(false);
+          }
+          await controller.play();
+          return !controller.getSnapshot().blocked;
+        },
+        playBackgroundAudio: () => bgmHost.controller?.play() ?? false,
+      }),
+      [bgmHost, videoHost],
+    );
+    const activateMedia = useCallback(() => {
+      setMediaActivated(true);
+      const resume = mediaActivationControls.resumeAudio();
+      mediaActivationOptions?.onActivate?.(mediaActivationControls);
+      return resume;
+    }, [mediaActivationControls, mediaActivationOptions]);
+    const hasMediaActivationIntent =
+      mediaActivationRevision >= 0 && hasPanoMediaActivationIntent(mediaActivationHost);
+    const shouldShowMediaActivation =
+      mediaActivationOptions !== null &&
+      hasMediaActivationIntent &&
+      !mediaActivated;
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -510,6 +570,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         reset: () => {
           controlsRef.current?.reset();
         },
+        activateMedia,
 
         // -- Fullscreen --
         enterFullscreen,
@@ -580,6 +641,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       }),
       [
         bgmHost,
+        activateMedia,
         enterFullscreen,
         exitFullscreen,
         scenesHost,
@@ -648,6 +710,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   >
                   <ScenesHostContext.Provider value={scenesHost}>
                   <BackgroundAudioHostContext.Provider value={bgmHost}>
+                  <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={controlsRef}
@@ -686,6 +749,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                       userControlsEnabled={userControlsEnabled}
                     />
                   </ControlClaimsContext.Provider>
+                  </PanoMediaActivationHostContext.Provider>
                   </BackgroundAudioHostContext.Provider>
                   </ScenesHostContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
@@ -714,6 +778,14 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
+        {shouldShowMediaActivation ? (
+          <PanoMediaActivationOverlay
+            {...mediaActivationOptions}
+            onActivate={() => {
+              void activateMedia();
+            }}
+          />
+        ) : null}
       </div>
     );
   },

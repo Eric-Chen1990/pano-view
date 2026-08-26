@@ -12,7 +12,8 @@ export type BackgroundAudioSnapshot = {
 export type BackgroundAudioController = {
   subscribe: (onStoreChange: () => void) => () => void;
   getSnapshot: () => BackgroundAudioSnapshot;
-  play: () => void;
+  /** Returns false when playback is controlled by the host application. */
+  play: () => boolean;
   pause: () => void;
   togglePlay: () => void;
   setVolume: (volume: number) => void;

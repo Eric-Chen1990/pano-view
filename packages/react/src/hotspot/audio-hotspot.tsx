@@ -11,6 +11,7 @@ import {
   TextureLoader,
 } from "three";
 import { createUnlockingHowl, sourceList } from "../audio/howl";
+import { usePanoMediaActivationIntent } from "../media-activation";
 import {
   audioSpatialFromView,
   clampAudioVolume,
@@ -318,6 +319,7 @@ export function AudioHotspot({
   onError,
   ...anchorProps
 }: AudioHotspotProps) {
+  usePanoMediaActivationIntent(playing);
   const camera = useThree((state) => state.camera);
   const howl = useAudioHowl({
     crossOrigin,

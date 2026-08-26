@@ -12,6 +12,7 @@ import {
 } from "./background-audio-host";
 import type { AudioPlaybackState } from "./hotspot/audio-hotspot";
 import { clampAudioVolume } from "./hotspot/audio-spatial";
+import { usePanoMediaActivationIntent } from "./media-activation";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 
 const DEFAULT_FADE_MS = 400;
@@ -124,6 +125,7 @@ export function BackgroundAudio({
   const playing = isControlled ? controlledPlaying : internalPlaying;
 
   const urls = resolveBackgroundAudioUrls(src, sources, sceneId);
+  usePanoMediaActivationIntent(playing && urls.length > 0);
   const trackKey = urls.join("\0");
 
   const currentRef = useRef<AudioSlot | null>(null);
@@ -191,9 +193,11 @@ export function BackgroundAudio({
       getSnapshot: () => snapshotRef.current,
       play: () => {
         if (isControlledRef.current) {
-          return;
+          return false;
         }
+        currentRef.current?.handle.howl.play();
         setInternalPlaying(true);
+        return true;
       },
       pause: () => {
         if (isControlledRef.current) {
@@ -394,7 +398,9 @@ export function BackgroundAudio({
       outgoingRef.current = [];
       return;
     }
-    howl.play();
+    if (!howl.playing()) {
+      howl.play();
+    }
   }, [playing, trackKey]);
 
   useEffect(() => {

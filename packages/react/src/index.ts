@@ -1,5 +1,9 @@
 export { PanoViewer } from "./pano-viewer";
 export type { PanoViewerProps } from "./pano-viewer";
+export type {
+  PanoMediaActivationControls,
+  PanoMediaActivationOptions,
+} from "./media-activation";
 export { DEFAULT_PANO_CURSORS } from "./pano-cursor";
 export type { PanoCursor, PanoCursors } from "./pano-cursor";
 export { AutoRotate } from "./auto-rotate";

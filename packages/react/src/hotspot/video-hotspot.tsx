@@ -11,6 +11,7 @@ import {
 } from "three";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
+import { usePanoMediaActivationIntent } from "../media-activation";
 import type { HotspotCommonProps } from "./types";
 
 export type VideoPlaybackState = "playing" | "paused" | "ended" | "blocked";
@@ -149,7 +150,12 @@ function useVideoResource({
     if (crossOrigin !== undefined) {
       video.crossOrigin = crossOrigin;
     }
-    video.playsInline = playsInline ?? true;
+    const inline = playsInline ?? true;
+    video.playsInline = inline;
+    if (inline) {
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+    }
     video.poster = poster ?? "";
     const texture = new VideoTexture(video);
     texture.colorSpace = SRGBColorSpace;
@@ -234,6 +240,7 @@ export function VideoHotspot({
   onError,
   ...anchorProps
 }: VideoHotspotProps) {
+  usePanoMediaActivationIntent(playing);
   const resource = useVideoResource({
     crossOrigin,
     id,
@@ -258,6 +265,13 @@ export function VideoHotspot({
     resource.video.muted = muted;
     resource.video.volume = clampVolume(volume);
     resource.video.playsInline = playsInline;
+    if (playsInline) {
+      resource.video.setAttribute("playsinline", "true");
+      resource.video.setAttribute("webkit-playsinline", "true");
+    } else {
+      resource.video.removeAttribute("playsinline");
+      resource.video.removeAttribute("webkit-playsinline");
+    }
     resource.video.preload = preload;
   }, [loop, muted, playsInline, preload, resource, volume]);
 
