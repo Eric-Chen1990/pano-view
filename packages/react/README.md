@@ -4,7 +4,7 @@
 
 Composable React components for equirectangular and krpano-style multiresolution panorama viewers.
 
-Try the components in the [live playground](https://pano-view-playground.vercel.app/).
+Try the components in the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground).
 
 ## krpano-compatible tile output
 
@@ -71,6 +71,29 @@ Or from CSS:
 Skip this import only if you do not use those overlays, or if you restyle
 them entirely through `className`, `style`, and appearance props. Without
 the stylesheet, the overlays still mount, but they render unstyled.
+
+## Start with a panorama
+
+Give PanoViewer an explicit size and render one panorama source inside it.
+Import the stylesheet once when you use built-in HTML overlays such as video
+controls, captions, tooltips, the context menu, or WebVR UI.
+
+~~~tsx
+import "@ericchen1990/pano-view/styles.css";
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function Panorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}
+~~~
+
+For existing krpano tile pyramids, read the [migration
+guide](../../docs/krpano-migration.md) before replacing Sphere with Tile. The
+guide documents the XML-to-prop mapping and the relative-path rules.
 
 ## Exported components
 
@@ -203,7 +226,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 ### Mobile media activation
 
-By default, the viewer shows a **Tap to enable sound** entry layer only when a child has an initial playback intent (`PanoVideo autoPlay`, an active `BackgroundAudio`, `VideoHotspot`, or `AudioHotspot`). Muted video can still preview inline. The same user gesture resumes Web Audio and gives the host the final choice of which media becomes audible, so video, music, and positional sound never all start by assumption. Pass `mediaActivation={false}` to retain the 2.x no-entry-layer behavior.
+By default, when a child has an initial playback intent (`PanoVideo autoPlay`, an active `BackgroundAudio`, `VideoHotspot`, or `AudioHotspot`), the viewer silently unlocks audible playback on the first user gesture when the browser requires one, or immediately when autoplay policy already allows it. Muted video can still preview inline. The same gesture resumes Web Audio and gives the host the final choice of which media becomes audible, so video, music, and positional sound never all start by assumption. Pass `mediaActivation={false}` to retain the 2.x no-automatic-activation behavior.
 
 ```tsx
 <PanoViewer
@@ -219,7 +242,7 @@ By default, the viewer shows a **Tap to enable sound** entry layer only when a c
 </PanoViewer>
 ```
 
-The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom entry button reuse the same path.
+The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom control reuse the same path.
 
 Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
 

@@ -1,6 +1,5 @@
+import { Howler } from "howler";
 import { createContext, useContext, useEffect, useRef } from "react";
-import type { ReactNode } from "react";
-import { cn } from "./cn";
 
 export type PanoMediaActivationControls = {
   /** Resume the shared Web Audio context while a user gesture is still active. */
@@ -12,11 +11,6 @@ export type PanoMediaActivationControls = {
 };
 
 export type PanoMediaActivationOptions = {
-  /** Message shown on the first-interaction button. Defaults to "Tap to enable sound". */
-  message?: ReactNode;
-  /** Accessible name for the first-interaction button. */
-  ariaLabel?: string;
-  className?: string;
   /**
    * Runs synchronously from the activation gesture. Start only the media your
    * experience intends to make audible; do not await before starting it.
@@ -62,6 +56,22 @@ export function hasPanoMediaActivationIntent(host: PanoMediaActivationHost): boo
   return host.intents.size > 0;
 }
 
+/**
+ * Returns true when audible playback still needs a user gesture to unlock.
+ * Skips waiting only while transient user activation is current, or Web Audio
+ * is already running. Sticky activation (`hasBeenActive`) is not autoplay
+ * permission: a prior unrelated click does not unlock unmuted playback.
+ */
+export function needsMediaGesture(): boolean {
+  if (typeof navigator !== "undefined" && navigator.userActivation?.isActive) {
+    return false;
+  }
+  if (Howler.ctx?.state === "running") {
+    return false;
+  }
+  return true;
+}
+
 /** Registers media that intends to start playing when this Viewer mounts. */
 export function usePanoMediaActivationIntent(required: boolean): void {
   const host = useContext(PanoMediaActivationHostContext);
@@ -82,24 +92,4 @@ export function usePanoMediaActivationIntent(required: boolean): void {
       notify(host);
     };
   }, [host, required]);
-}
-
-export function PanoMediaActivationOverlay({
-  ariaLabel = "Enable sound",
-  className,
-  message = "Tap to enable sound",
-  onActivate,
-}: PanoMediaActivationOptions & { onActivate: () => void }) {
-  return (
-    <div className={cn("pano-media-activation", className)}>
-      <button
-        aria-label={ariaLabel}
-        className="pano-media-activation-button"
-        onClick={onActivate}
-        type="button"
-      >
-        {message}
-      </button>
-    </div>
-  );
 }

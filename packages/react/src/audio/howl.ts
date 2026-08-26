@@ -1,4 +1,5 @@
 import { Howl, Howler } from "howler";
+import { isMediaActivationEvent } from "../media-activation-event";
 
 Howler.autoUnlock = true;
 
@@ -33,6 +34,11 @@ export function resumePanoAudio(): Promise<void> {
   return Howler.ctx.resume();
 }
 
+/** True when Web Audio is already running, or no shared context exists yet. */
+export function isPanoAudioUnlocked(): boolean {
+  return !Howler.ctx || Howler.ctx.state === "running";
+}
+
 export function sourceList(
   src: AudioSourceList | undefined | null,
 ): string[] {
@@ -64,8 +70,8 @@ export function createUnlockingHowl({
   let disposed = false;
   let blockedNotified = false;
   const unlockListeners: Array<{
-    type: "pointerdown" | "keydown";
-    listener: () => void;
+    type: "pointerdown" | "pointerup" | "keydown";
+    listener: (event: Event) => void;
   }> = [];
 
   const removeUnlockListeners = () => {
@@ -113,7 +119,10 @@ export function createUnlockingHowl({
         blockedNotified = true;
         onPlayError?.(error);
       }
-      const retry = () => {
+      const retry = (event: Event) => {
+        if (!isMediaActivationEvent(event)) {
+          return;
+        }
         removeUnlockListeners();
         if (!disposed && isActive() && shouldRetryPlay()) {
           void resumePanoAudio();
@@ -122,8 +131,10 @@ export function createUnlockingHowl({
       };
       removeUnlockListeners();
       unlockListeners.push({ type: "pointerdown", listener: retry });
+      unlockListeners.push({ type: "pointerup", listener: retry });
       unlockListeners.push({ type: "keydown", listener: retry });
       window.addEventListener("pointerdown", retry, { capture: true });
+      window.addEventListener("pointerup", retry, { capture: true });
       window.addEventListener("keydown", retry, { capture: true });
     },
   });

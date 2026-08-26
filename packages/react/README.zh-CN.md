@@ -4,7 +4,7 @@
 
 用于等距圆柱（equirectangular）与 krpano 风格多分辨率全景查看器的可组合 React 组件。
 
-在[在线 playground](https://pano-view-playground.vercel.app/) 中试用这些组件。
+在[在线 playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground) 中试用这些组件。
 
 ## 兼容 krpano 的 tile 输出
 
@@ -54,6 +54,28 @@ import "@ericchen1990/pano-view/styles.css";
 ```
 
 仅当你不使用这些叠加层，或完全通过 `className`、`style` 与外观属性重设样式时，可跳过该导入。若不导入样式表，叠加层仍会挂载，但会无样式显示。
+
+## 快速渲染一个全景图
+
+为 PanoViewer 提供明确尺寸，并在其内部渲染一个全景源。使用内置 HTML 叠加层
+（例如视频控件、字幕、tooltip、右键菜单或 WebVR UI）时，需导入一次样式表。
+
+~~~tsx
+import "@ericchen1990/pano-view/styles.css";
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function Panorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}
+~~~
+
+如需复用现有 krpano tile 金字塔，请在将 Sphere 换成 Tile 前阅读
+[迁移指南](../../docs/krpano-migration.zh-CN.md)。指南说明 XML 到 prop 的映射与
+相对路径规则。
 
 ## 导出组件
 
@@ -184,7 +206,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 ### 移动端媒体激活
 
-默认情况下，只要子组件带有初始播放意图（`PanoVideo autoPlay`、播放中的 `BackgroundAudio`、`VideoHotspot` 或 `AudioHotspot`），查看器就会显示「Tap to enable sound」首触层。静音视频仍会内联预览；首触在同一用户手势内恢复 Web Audio，再把播放选择交给宿主，避免视频、BGM 与定点声同时出声。传 `mediaActivation={false}` 可保留 2.x 的无首触层行为。
+默认情况下，只要子组件带有初始播放意图（`PanoVideo autoPlay`、播放中的 `BackgroundAudio`、`VideoHotspot` 或 `AudioHotspot`），查看器会在浏览器需要用户手势时于首次交互静默解锁有声播放；若自动播放策略已允许，则立即激活。静音视频仍会内联预览；激活在同一用户手势内恢复 Web Audio，再把播放选择交给宿主，避免视频、BGM 与定点声同时出声。传 `mediaActivation={false}` 可保留 2.x 的无自动激活行为。
 
 ```tsx
 <PanoViewer
@@ -200,7 +222,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 </PanoViewer>
 ```
 
-`onActivate` 的 `media` 提供 `resumeAudio()`、`playVideo({ unmute })` 和 `playBackgroundAudio()`。背景音乐若使用受控 `playing`，仍由宿主在回调内更新该状态；`viewer.activateMedia()` 可供自定义入场按钮复用同一流程。
+`onActivate` 的 `media` 提供 `resumeAudio()`、`playVideo({ unmute })` 和 `playBackgroundAudio()`。背景音乐若使用受控 `playing`，仍由宿主在回调内更新该状态；`viewer.activateMedia()` 可供自定义控件复用同一流程。
 
 依赖未挂载子组件的方法（如无 `<WebVR />` 时调 `enterVR`）安全空操作，返回 `false`、`void` 或 `null`。
 

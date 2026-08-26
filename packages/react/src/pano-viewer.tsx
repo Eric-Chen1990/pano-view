@@ -22,7 +22,7 @@ import {
   subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
-import { resumePanoAudio } from "./audio/howl";
+import { isPanoAudioUnlocked, resumePanoAudio } from "./audio/howl";
 import { AutoRotate } from "./auto-rotate";
 import {
   ControlClaimsContext,
@@ -58,12 +58,13 @@ import {
   createPanoMediaActivationHost,
   getPanoMediaActivationRevision,
   hasPanoMediaActivationIntent,
+  needsMediaGesture,
   PanoMediaActivationHostContext,
-  PanoMediaActivationOverlay,
   subscribePanoMediaActivation,
   type PanoMediaActivationControls,
   type PanoMediaActivationOptions,
 } from "./media-activation";
+import { isMediaActivationEvent } from "./media-activation-event";
 import {
   PanoContextMenu,
   PanoContextMenuActionsContext,
@@ -163,7 +164,9 @@ export type PanoViewerProps = Omit<
   contextMenu?: boolean | PanoContextMenuProps;
   /**
    * Defaults to enabled when a mounted child intends to begin playing media.
-   * Set false to retain the 2.x behavior with no first-interaction prompt.
+   * Unlocks audible playback on the first user gesture when the browser
+   * requires one, or immediately when autoplay policy already allows it.
+   * Set false to retain the 2.x behavior with no automatic activation.
    */
   mediaActivation?: false | PanoMediaActivationOptions;
   onViewChange?: (view: PanoViewerState) => void;
@@ -356,18 +359,77 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       }),
       [bgmHost, videoHost],
     );
-    const activateMedia = useCallback(() => {
-      setMediaActivated(true);
+    const runMediaActivation = useCallback(() => {
       const resume = mediaActivationControls.resumeAudio();
       mediaActivationOptions?.onActivate?.(mediaActivationControls);
       return resume;
     }, [mediaActivationControls, mediaActivationOptions]);
+    const activateMedia = useCallback(() => {
+      setMediaActivated(true);
+      return runMediaActivation();
+    }, [runMediaActivation]);
     const hasMediaActivationIntent =
       mediaActivationRevision >= 0 && hasPanoMediaActivationIntent(mediaActivationHost);
-    const shouldShowMediaActivation =
+    const shouldActivateMedia =
       mediaActivationOptions !== null &&
       hasMediaActivationIntent &&
       !mediaActivated;
+
+    useEffect(() => {
+      if (!shouldActivateMedia) {
+        return;
+      }
+
+      let cancelled = false;
+      let activating = false;
+
+      const removeListeners = () => {
+        window.removeEventListener("pointerdown", handleGesture, true);
+        window.removeEventListener("pointerup", handleGesture, true);
+        window.removeEventListener("keydown", handleGesture, true);
+      };
+
+      const completeIfUnlocked = () => {
+        if (cancelled || !isPanoAudioUnlocked()) {
+          return;
+        }
+        removeListeners();
+        setMediaActivated(true);
+      };
+
+      const tryActivate = () => {
+        if (activating || cancelled) {
+          return;
+        }
+        activating = true;
+        try {
+          const resume = runMediaActivation();
+          void resume.then(completeIfUnlocked, completeIfUnlocked);
+        } finally {
+          activating = false;
+        }
+      };
+
+      const handleGesture = (event: Event) => {
+        if (!isMediaActivationEvent(event)) {
+          return;
+        }
+        tryActivate();
+      };
+
+      window.addEventListener("pointerdown", handleGesture, { capture: true });
+      window.addEventListener("pointerup", handleGesture, { capture: true });
+      window.addEventListener("keydown", handleGesture, { capture: true });
+
+      if (!needsMediaGesture()) {
+        tryActivate();
+      }
+
+      return () => {
+        cancelled = true;
+        removeListeners();
+      };
+    }, [runMediaActivation, shouldActivateMedia]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -802,14 +864,6 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
-        {shouldShowMediaActivation ? (
-          <PanoMediaActivationOverlay
-            {...mediaActivationOptions}
-            onActivate={() => {
-              void activateMedia();
-            }}
-          />
-        ) : null}
       </div>
     );
   },

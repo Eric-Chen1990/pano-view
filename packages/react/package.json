@@ -1,6 +1,6 @@
 {
   "name": "@ericchen1990/pano-view",
-  "version": "3.1.0",
+  "version": "3.1.2",
   "description": "React components for panoramic viewing experiences.",
   "author": "Eric Chen",
   "license": "MIT",
@@ -9,7 +9,16 @@
     "360",
     "react",
     "viewer",
-    "webgl"
+    "webgl",
+    "react-three-fiber",
+    "r3f",
+    "360-image",
+    "virtual-tour",
+    "equirectangular",
+    "cubemap",
+    "webxr",
+    "krpano",
+    "panoramic-video"
   ],
   "repository": {
     "type": "git",
@@ -18,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/Eric-Chen1990/pano-view/issues"
   },
-  "homepage": "https://github.com/Eric-Chen1990/pano-view#readme",
+  "homepage": "https://pano-view-playground.vercel.app/",
   "sideEffects": [
     "*.css"
   ],

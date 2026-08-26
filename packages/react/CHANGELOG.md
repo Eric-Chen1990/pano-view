@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 3.1.2
+
+### Patch Changes
+
+- bf0cf45: Unlock audible media on the HTML activation-triggering event (`pointerup` for touch/pen, `pointerdown` for mouse) and keep waiting if the first gesture is blocked.
+
+## 3.1.1
+
+### Patch Changes
+
+- 7a5c55b: Replace the default visible "Tap to enable sound" entry layer with silent media activation on the first user gesture when the browser requires one. The `onActivate` callback and `viewer.activateMedia()` API are unchanged.
+
 ## 3.1.0
 
 ### Minor Changes
