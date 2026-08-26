@@ -17,6 +17,18 @@ function createPanoViewerHandle(
     reset: () => {
       ref.current?.reset();
     },
+    lookTo: (position, options) =>
+      ref.current?.lookTo(position, options) ??
+      Promise.resolve({ status: "cancelled" }),
+    moveTo: (position, options) =>
+      ref.current?.moveTo(position, options) ??
+      Promise.resolve({ status: "cancelled" }),
+    zoomTo: (fov, options) =>
+      ref.current?.zoomTo(fov, options) ??
+      Promise.resolve({ status: "cancelled" }),
+    lookToHotspot: (id, options) =>
+      ref.current?.lookToHotspot(id, options) ??
+      Promise.resolve({ status: "not-found" }),
     activateMedia: () => ref.current?.activateMedia() ?? Promise.resolve(),
     enterFullscreen: () => ref.current?.enterFullscreen() ?? Promise.resolve(),
     exitFullscreen: () => ref.current?.exitFullscreen() ?? Promise.resolve(),

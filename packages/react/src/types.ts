@@ -1,5 +1,6 @@
 import type { BackgroundAudioController } from "./background-audio-host";
 import type { KeyboardControlsProps } from "./keyboard-controls";
+import type { HotspotPosition } from "./hotspot/types";
 import type { PanoVideoController } from "./video/types";
 import type { WebVRMode } from "./webvr/types";
 
@@ -17,6 +18,29 @@ export type SetPanoViewerOptions = {
   immediate?: boolean;
 };
 
+/** Built-in interpolation curves for imperative panorama navigation. */
+export type PanoViewEasing = "linear" | "easeInOutCubic";
+
+/** Common options for timed imperative panorama navigation. */
+export type PanoViewNavigationOptions = {
+  /** Animation time in milliseconds. Defaults to 700. Pass 0 to apply immediately. */
+  duration?: number;
+  /** Interpolation curve. Defaults to "easeInOutCubic". */
+  easing?: PanoViewEasing;
+  /** Whether yaw crosses the ±180° seam through the shorter path. Defaults to true. */
+  shortestPath?: boolean;
+};
+
+/** Navigation options that may also change the field of view. */
+export type PanoViewLookToOptions = PanoViewNavigationOptions & {
+  /** Target vertical field of view in degrees. Omit to preserve the current FOV. */
+  fov?: number;
+};
+
+export type PanoViewNavigationResult = {
+  status: "completed" | "cancelled" | "not-found";
+};
+
 export type PanoViewerHandle = {
   // -- View --
   getView: () => PanoViewerState;
@@ -25,6 +49,26 @@ export type PanoViewerHandle = {
     options?: SetPanoViewerOptions,
   ) => void;
   reset: () => void;
+  /** Animate to a yaw/pitch position, optionally changing FOV. */
+  lookTo: (
+    position: HotspotPosition,
+    options?: PanoViewLookToOptions,
+  ) => Promise<PanoViewNavigationResult>;
+  /** Animate yaw and pitch while preserving the current FOV. */
+  moveTo: (
+    position: HotspotPosition,
+    options?: PanoViewNavigationOptions,
+  ) => Promise<PanoViewNavigationResult>;
+  /** Animate FOV while preserving the current yaw and pitch. */
+  zoomTo: (
+    fov: number,
+    options?: Omit<PanoViewNavigationOptions, "shortestPath">,
+  ) => Promise<PanoViewNavigationResult>;
+  /** Animate to the representative position of a mounted hotspot. */
+  lookToHotspot: (
+    id: string,
+    options?: PanoViewLookToOptions,
+  ) => Promise<PanoViewNavigationResult>;
 
   /** Runs the same first-interaction media activation used by PanoViewer. */
   activateMedia: () => Promise<void>;

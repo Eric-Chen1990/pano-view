@@ -41,6 +41,7 @@ import {
   resolveHotspotTooltipContent,
   resolveHotspotTooltipOffset,
 } from "./hotspot-tooltip";
+import { HotspotTargetRegistryContext } from "./target-registry";
 import {
   acceptsHotspotPointerEvents,
   type HotspotCommonProps,
@@ -525,6 +526,7 @@ export function HotspotAnchor({
   onDragEnd,
 }: HotspotAnchorProps) {
   const controlsRef = useContext(PanoramaViewContext);
+  const hotspotTargetRegistry = useContext(HotspotTargetRegistryContext);
   const eventBus = useContext(PanoEventBusContext);
   const cursorApi = usePanoCursor();
   const { camera, size } = useThree();
@@ -540,6 +542,13 @@ export function HotspotAnchor({
     [tooltip],
   );
   const normalizedPosition = normalizePanoPosition(position);
+
+  useEffect(() => {
+    if (!hotspotTargetRegistry) {
+      return;
+    }
+    return hotspotTargetRegistry.register(id, normalizedPosition);
+  }, [hotspotTargetRegistry, id, normalizedPosition.pitch, normalizedPosition.yaw]);
   const rendering =
     internalOrientation && internalPlacement
       ? { orientation: internalOrientation, placement: internalPlacement }

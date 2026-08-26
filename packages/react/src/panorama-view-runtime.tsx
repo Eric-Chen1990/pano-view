@@ -13,9 +13,13 @@ import type { GyroPose, GyroTouchMode } from "./gyro-types";
 import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
+  PanoViewLookToOptions,
+  PanoViewNavigationOptions,
+  PanoViewNavigationResult,
   PanoViewerState,
   SetPanoViewerOptions,
 } from "./types";
+import type { HotspotPosition } from "./hotspot/types";
 
 const MAX_PITCH = 90;
 const BOUNCE_OVERSHOOT_PITCH = 12;
@@ -26,6 +30,7 @@ const DEFAULT_ROTATE_DAMPING = 14;
 const DEFAULT_ZOOM_DAMPING = 16;
 const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
+const DEFAULT_NAVIGATION_DURATION = 700;
 
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
@@ -43,6 +48,18 @@ export type PanoramaViewRuntimeHandle = {
     options?: SetPanoViewerOptions,
   ) => void;
   reset: () => void;
+  lookTo: (
+    position: HotspotPosition,
+    options?: PanoViewLookToOptions,
+  ) => Promise<PanoViewNavigationResult>;
+  moveTo: (
+    position: HotspotPosition,
+    options?: PanoViewNavigationOptions,
+  ) => Promise<PanoViewNavigationResult>;
+  zoomTo: (
+    fov: number,
+    options?: Omit<PanoViewNavigationOptions, "shortestPath">,
+  ) => Promise<PanoViewNavigationResult>;
   /**
    * Adjusts the target view by relative deltas without snapping the current
    * view. Returns false while an interaction lock is held.
@@ -76,6 +93,16 @@ export const PanoramaViewContext = createContext<
   RefObject<PanoramaViewRuntimeHandle | null> | null
 >(null);
 
+type ActiveNavigation = {
+  from: PanoViewerState;
+  target: PanoViewerState;
+  yawDelta: number;
+  startedAt: number;
+  duration: number;
+  easing: PanoViewNavigationOptions["easing"];
+  resolve: (result: PanoViewNavigationResult) => void;
+};
+
 type PanoramaViewRuntimeProps = {
   initialView: PanoViewerState;
   minFov: number;
@@ -106,6 +133,24 @@ function resolveDamping(value: number | undefined, fallback: number): number {
 
 function resolveFrictionStop(value: number | undefined): number {
   return Number.isFinite(value) && value! >= 0 ? value! : DEFAULT_FRICTION_STOP;
+}
+
+function resolveNavigationDuration(value: number | undefined): number {
+  return Number.isFinite(value) && value! >= 0
+    ? value!
+    : DEFAULT_NAVIGATION_DURATION;
+}
+
+function applyNavigationEasing(
+  progress: number,
+  easing: PanoViewNavigationOptions["easing"],
+): number {
+  if (easing === "linear") {
+    return progress;
+  }
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 }
 
 function viewsEqual(a: PanoViewerState, b: PanoViewerState): boolean {
@@ -152,6 +197,7 @@ export const PanoramaViewRuntime = forwardRef<
   const xrEulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
   const minFovRef = useRef(minFov);
   const maxFovRef = useRef(maxFov);
+  const activeNavigationRef = useRef<ActiveNavigation | null>(null);
 
   optionsRef.current = options;
   eventBusRef.current = eventBus;
@@ -171,6 +217,7 @@ export const PanoramaViewRuntime = forwardRef<
     gyroActiveRef.current ||
     interactionLockCountRef.current > 0 ||
     xrSessionRef.current != null ||
+    activeNavigationRef.current != null ||
     hasInertia();
 
   const syncInteracting = () => {
@@ -225,6 +272,15 @@ export const PanoramaViewRuntime = forwardRef<
     lastVelocitySampleAtRef.current = null;
   };
 
+  const cancelNavigation = () => {
+    const navigation = activeNavigationRef.current;
+    if (!navigation) {
+      return;
+    }
+    activeNavigationRef.current = null;
+    navigation.resolve({ status: "cancelled" });
+  };
+
   const markDirty = () => {
     dirtyRef.current = true;
     settledRef.current = false;
@@ -243,6 +299,7 @@ export const PanoramaViewRuntime = forwardRef<
   };
 
   const acquireInteractionLock = () => {
+    cancelNavigation();
     interactionLockCountRef.current += 1;
     stopVelocity();
     if (mouseActiveRef.current) {
@@ -272,6 +329,7 @@ export const PanoramaViewRuntime = forwardRef<
     view: Partial<PanoViewerState>,
     setOptions?: SetPanoViewerOptions,
   ) => {
+    cancelNavigation();
     const nextView = hardConstrainView(view);
     if (gyroActiveRef.current) {
       gyroOffsetRef.current = {
@@ -287,10 +345,110 @@ export const PanoramaViewRuntime = forwardRef<
     markDirty();
   };
 
+  const startNavigation = (
+    targetInput: Partial<PanoViewerState>,
+    options?: PanoViewNavigationOptions,
+  ): Promise<PanoViewNavigationResult> => {
+    cancelNavigation();
+    if (
+      xrSessionRef.current != null ||
+      gyroActiveRef.current ||
+      interactionLockCountRef.current > 0
+    ) {
+      return Promise.resolve({ status: "cancelled" });
+    }
+
+    const from = { ...viewRef.current };
+    const safeTargetInput = {
+      yaw:
+        targetInput.yaw !== undefined && Number.isFinite(targetInput.yaw)
+          ? targetInput.yaw
+          : from.yaw,
+      pitch:
+        targetInput.pitch !== undefined && Number.isFinite(targetInput.pitch)
+          ? targetInput.pitch
+          : from.pitch,
+      fov:
+        targetInput.fov !== undefined && Number.isFinite(targetInput.fov)
+          ? targetInput.fov
+          : from.fov,
+    };
+    const target = hardConstrainView(safeTargetInput, from);
+    const duration = resolveNavigationDuration(options?.duration);
+    const rawYawDelta =
+      targetInput.yaw !== undefined && Number.isFinite(targetInput.yaw)
+        ? safeTargetInput.yaw - from.yaw
+        : 0;
+    const yawDelta =
+      options?.shortestPath === false
+        ? rawYawDelta
+        : shortestYawDelta(from.yaw, target.yaw);
+    stopVelocity();
+    targetViewRef.current = target;
+    markDirty();
+
+    if (duration === 0) {
+      viewRef.current = target;
+      return Promise.resolve({ status: "completed" });
+    }
+
+    return new Promise((resolve) => {
+      activeNavigationRef.current = {
+        from,
+        target,
+        yawDelta,
+        startedAt: performance.now(),
+        duration,
+        easing: options?.easing,
+        resolve,
+      };
+    });
+  };
+
+  const lookTo = (
+    position: HotspotPosition,
+    options?: PanoViewLookToOptions,
+  ) =>
+    startNavigation(
+      {
+        yaw: position.yaw,
+        pitch: position.pitch,
+        fov: options?.fov ?? viewRef.current.fov,
+      },
+      options,
+    );
+
+  const moveTo = (
+    position: HotspotPosition,
+    options?: PanoViewNavigationOptions,
+  ) =>
+    startNavigation(
+      {
+        yaw: position.yaw,
+        pitch: position.pitch,
+        fov: viewRef.current.fov,
+      },
+      options,
+    );
+
+  const zoomTo = (
+    fov: number,
+    options?: Omit<PanoViewNavigationOptions, "shortestPath">,
+  ) =>
+    startNavigation(
+      {
+        yaw: viewRef.current.yaw,
+        pitch: viewRef.current.pitch,
+        fov,
+      },
+      options,
+    );
+
   const applyViewDelta = (
     delta: Partial<PanoViewerState>,
     applyOptions?: ApplyViewDeltaOptions,
   ): boolean => {
+    cancelNavigation();
     if (
       interactionLockCountRef.current > 0 ||
       xrSessionRef.current != null
@@ -370,10 +528,16 @@ export const PanoramaViewRuntime = forwardRef<
       getTargetView: () => ({ ...targetViewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
+      lookTo,
+      moveTo,
+      zoomTo,
       applyViewDelta,
       setKeyboardActive: (active: boolean) => {
         const wasActive = keyboardActiveRef.current;
         keyboardActiveRef.current = active;
+        if (active) {
+          cancelNavigation();
+        }
         if (active && !wasActive) {
           eventBusRef.current.emit("viewinteractionstart", {
             source: "keyboard",
@@ -394,6 +558,9 @@ export const PanoramaViewRuntime = forwardRef<
         } else {
           touchActiveRef.current = active;
         }
+        if (active) {
+          cancelNavigation();
+        }
         syncInteracting();
         if (active && !wasActive) {
           eventBusRef.current.emit("viewinteractionstart", { source });
@@ -410,6 +577,9 @@ export const PanoramaViewRuntime = forwardRef<
       isInteractionLocked: () => interactionLockCountRef.current > 0,
       isUserInteracting,
       setGyroActive: (active: boolean) => {
+        if (active) {
+          cancelNavigation();
+        }
         gyroActiveRef.current = active;
         gyroOffsetRef.current = { yaw: 0, pitch: 0 };
         stopVelocity();
@@ -462,6 +632,7 @@ export const PanoramaViewRuntime = forwardRef<
         if (
           !Number.isFinite(yawDelta) ||
           xrSessionRef.current != null ||
+          activeNavigationRef.current != null ||
           gyroActiveRef.current ||
           interactionLockCountRef.current > 0 ||
           interactingRef.current ||
@@ -479,6 +650,13 @@ export const PanoramaViewRuntime = forwardRef<
     [],
   );
 
+  useEffect(
+    () => () => {
+      cancelNavigation();
+    },
+    [],
+  );
+
   useEffect(() => {
     initialViewRef.current = { ...initialView };
     setView(initialView);
@@ -489,6 +667,7 @@ export const PanoramaViewRuntime = forwardRef<
       return;
     }
     if (xrSessionRef.current && gl.xr.isPresenting) {
+      cancelNavigation();
       const xrCamera = gl.xr.getCamera();
       xrEulerRef.current.setFromQuaternion(xrCamera.quaternion, "YXZ");
       const nextView = {
@@ -506,6 +685,55 @@ export const PanoramaViewRuntime = forwardRef<
       if (!lastEmitted || !viewsEqual(lastEmitted, nextView)) {
         lastEmittedViewRef.current = { ...nextView };
         eventBusRef.current.emit("viewchange", { ...nextView });
+      }
+      return;
+    }
+
+    const navigation = activeNavigationRef.current;
+    if (navigation) {
+      const progress = Math.min(
+        1,
+        Math.max(0, (performance.now() - navigation.startedAt) / navigation.duration),
+      );
+      const easedProgress = applyNavigationEasing(progress, navigation.easing);
+      const nextView = {
+        yaw: normalizeYaw(navigation.from.yaw + navigation.yawDelta * easedProgress),
+        pitch:
+          navigation.from.pitch +
+          (navigation.target.pitch - navigation.from.pitch) * easedProgress,
+        fov:
+          navigation.from.fov +
+          (navigation.target.fov - navigation.from.fov) * easedProgress,
+      };
+      const completed = progress === 1;
+      viewRef.current = completed ? { ...navigation.target } : nextView;
+      eulerRef.current.set(
+        MathUtils.degToRad(viewRef.current.pitch),
+        MathUtils.degToRad(-viewRef.current.yaw),
+        MathUtils.degToRad(cameraRollRef.current),
+        "YXZ",
+      );
+      camera.quaternion.setFromEuler(eulerRef.current);
+      camera.fov = viewRef.current.fov;
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
+
+      const emittedView = { ...viewRef.current };
+      const lastEmitted = lastEmittedViewRef.current;
+      if (!lastEmitted || !viewsEqual(lastEmitted, emittedView)) {
+        lastEmittedViewRef.current = emittedView;
+        eventBusRef.current.emit("viewchange", emittedView);
+      }
+
+      if (completed) {
+        activeNavigationRef.current = null;
+        settledRef.current = true;
+        eventBusRef.current.emit("viewsettled", emittedView);
+        navigation.resolve({ status: "completed" });
+        dirtyRef.current = false;
+      } else {
+        settledRef.current = false;
+        dirtyRef.current = true;
       }
       return;
     }
