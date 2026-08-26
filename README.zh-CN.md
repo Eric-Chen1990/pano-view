@@ -2,43 +2,83 @@
 
 [English](./README.md) | **简体中文**
 
-用于构建单图球面与六面体多分辨率全景浏览体验的可组合 React 组件。
+用于等距圆柱图像、360 视频与 krpano 风格多分辨率立方体瓦片的可组合
+React 组件。在你的应用中构建全景体验，并保留自己的 React UI、控件、路由与数据。
 
-`@ericchen1990/pano-view` 是一个轻量级 React 方案，适用于需要在自定义应用中展示等距圆柱全景或 krpano 风格立方体瓦片输出的项目。将 krpano `<cube>` 的 `url` 与 `multires` 属性复制到 `urlTemplate` 与 `multires`，并将 `<preview url>` 复制到 `previewUrl`；这些值与本包的默认路径布局不同，只有传入正确值才能在不使用 krpano 查看器运行时的情况下复用现有瓦片金字塔。
+在[在线 Playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) 中试用热点、场景过渡、
+360 视频、WebXR、滤镜与立方体瓦片场景。
 
-在[在线 Playground](https://pano-view-playground.vercel.app/) 中试用组件。
+## 30 秒开始使用
 
-本仓库是一个 `pnpm` workspace，包含可发布的 `@ericchen1990/pano-view` 包和本地 Vite playground。
+~~~bash
+pnpm add @ericchen1990/pano-view
+~~~
+
+~~~tsx
+import "@ericchen1990/pano-view/styles.css";
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function Panorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}
+~~~
+
+请在宿主应用中安装兼容版本的 React、Three.js、React Three Fiber、Drei 与 XR
+对等依赖。支持范围、样式表、Next.js 使用方式和完整 API 见包 README。
+
+## 复用既有 krpano tile 输出
+
+Pano View 可在 React 应用中渲染 krpano 风格立方体 tile 金字塔。请从 krpano XML
+复制实际值，不要假设它使用本包的默认路径布局：
+
+| krpano XML | Pano View prop |
+| --- | --- |
+| cube url | urlTemplate |
+| cube multires | multires |
+| preview url | previewUrl |
+| preview striporder | previewFaceOrder |
+
+阅读[英文 krpano 迁移指南](./docs/krpano-migration.md)或[中文迁移指南](./docs/krpano-migration.zh-CN.md)。
+Pano View 支持这种 tile 输出格式，但不是 krpano 的插件、包装器、替代品或关联项目。
+
+## 组件与指南
+
+包导出 PanoViewer、Sphere、PanoVideo、Tile、Scenes、热点、控件、Hook 与辅助函数。
+从[完整包 README](./packages/react/README.zh-CN.md)、[360 视频指南](./docs/react-360-video.zh-CN.md)
+或[英文 360 视频指南](./docs/react-360-video.md)开始。
+
+本仓库是 pnpm workspace，包含可发布的包和 Vite Playground。Playground 直接导入
+组件源码，因此本地修改组件后无需重新构建包即可看到效果。
 
 ## 本地开发
 
-```bash
+~~~bash
 pnpm install
 pnpm dev
-```
-
-Playground 通过 Vite 启动，并直接导入组件包源码，因此修改组件后无需重新构建包即可看到效果。
+~~~
 
 ## 验证
 
-```bash
-pnpm build
+~~~bash
 pnpm typecheck
+pnpm build
 pnpm pack:check
-```
+git diff --check
+~~~
 
 ## 发布
 
-在首次公开发布前，请确认你拥有 `@ericchen1990` npm scope，然后登录并在包目录中发布：
+本仓库通过 Changesets 发布。不要直接运行 npm version 或 npm publish。
 
-```bash
-npm login
-cd packages/react
-npm publish --access public
-```
-
-该包导出可组合的全景查看器组件，例如 `PanoViewer`、`Sphere`、`PanoVideo`、`Tile` 和 `Scenes`。完整列表见 [`@ericchen1990/pano-view` README](./packages/react/README.zh-CN.md#导出组件) 中的[导出组件](./packages/react/README.zh-CN.md#导出组件)，涵盖控件、事件、热点、Hooks、辅助函数、krpano 兼容瓦片布局、无障碍与 Next.js 用法。领域术语见 [CONTEXT.md](./CONTEXT.md)。
+1. 运行 pnpm changeset 并描述包变更。
+2. 运行 pnpm version-packages 生成版本和 changelog。
+3. 仅在确认 changeset、changelog、typecheck 和 build 后运行 pnpm release。
 
 ## 维护与支持
 
-由 [Eric Chen](https://github.com/Eric-Chen1990) 维护。请通过 [GitHub issue tracker](https://github.com/Eric-Chen1990/pano-view/issues) 报告 bug 和功能请求。
+由 [Eric Chen](https://github.com/Eric-Chen1990) 维护。请通过
+[GitHub issue tracker](https://github.com/Eric-Chen1990/pano-view/issues) 报告 bug 和功能请求。

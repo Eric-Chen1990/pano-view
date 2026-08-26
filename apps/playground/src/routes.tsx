@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { FilterPage } from "./components/filters/FilterPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
+import { LandingPage } from "./components/landing/LandingPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
@@ -12,8 +13,15 @@ export type PlaygroundRoute = {
   Component: ComponentType;
 };
 
+export const HOME_ROUTE: PlaygroundRoute = {
+  path: "/",
+  navLabel: "Home",
+  Component: LandingPage,
+};
+
 /**
- * Add playground pages here. App matching and SiteHeader nav both read from this list.
+ * Add interactive examples here. The landing page is intentionally excluded from
+ * this list so the demo navigation remains focused on runnable feature examples.
  */
 export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
   {
@@ -48,11 +56,13 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
   },
 ];
 
-export const DEFAULT_PLAYGROUND_ROUTE = PLAYGROUND_ROUTES[0]!;
+const ALL_PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [HOME_ROUTE, ...PLAYGROUND_ROUTES];
+
+export function isKnownPlaygroundRoute(pathname: string): boolean {
+  return ALL_PLAYGROUND_ROUTES.some((route) => route.path === pathname);
+}
 
 export function matchPlaygroundRoute(pathname: string): PlaygroundRoute {
-  const normalized = pathname === "/" || pathname === "" ? DEFAULT_PLAYGROUND_ROUTE.path : pathname;
-  return (
-    PLAYGROUND_ROUTES.find((route) => route.path === normalized) ?? DEFAULT_PLAYGROUND_ROUTE
-  );
+  const normalized = pathname === "" ? HOME_ROUTE.path : pathname;
+  return ALL_PLAYGROUND_ROUTES.find((route) => route.path === normalized) ?? HOME_ROUTE;
 }

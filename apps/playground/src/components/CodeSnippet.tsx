@@ -6,11 +6,13 @@ export function CodeSnippet({
   code,
   label,
   language = "tsx",
+  onCopy,
 }: {
   blurb: string;
   code: string;
   label: string;
   language?: string;
+  onCopy?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<number>(0);
@@ -37,6 +39,7 @@ export function CodeSnippet({
             onClick={() => {
               void navigator.clipboard.writeText(code).then(() => {
                 setCopied(true);
+                onCopy?.();
                 window.clearTimeout(copiedTimerRef.current);
                 copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1600);
               });

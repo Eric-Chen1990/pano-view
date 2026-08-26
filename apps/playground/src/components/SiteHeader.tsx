@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { cn } from "../cn";
-import { DEFAULT_PLAYGROUND_ROUTE, matchPlaygroundRoute, PLAYGROUND_ROUTES } from "../routes";
+import { HOME_ROUTE, matchPlaygroundRoute, PLAYGROUND_ROUTES } from "../routes";
 
 const NAV_BREAKPOINT_PX = 960;
 
@@ -120,7 +120,7 @@ export function SiteHeader() {
       <a
         aria-label="Pano View home"
         className="text-base font-extrabold tracking-[-0.06em] text-[#f5fbfc] no-underline"
-        href={DEFAULT_PLAYGROUND_ROUTE.path}
+        href={HOME_ROUTE.path}
       >
         PANO<span className="mx-[0.08em] text-[#df6b42]">/</span>VIEW
       </a>

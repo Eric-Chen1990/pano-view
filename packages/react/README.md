@@ -4,7 +4,7 @@
 
 Composable React components for equirectangular and krpano-style multiresolution panorama viewers.
 
-Try the components in the [live playground](https://pano-view-playground.vercel.app/).
+Try the components in the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground).
 
 ## krpano-compatible tile output
 
@@ -71,6 +71,29 @@ Or from CSS:
 Skip this import only if you do not use those overlays, or if you restyle
 them entirely through `className`, `style`, and appearance props. Without
 the stylesheet, the overlays still mount, but they render unstyled.
+
+## Start with a panorama
+
+Give PanoViewer an explicit size and render one panorama source inside it.
+Import the stylesheet once when you use built-in HTML overlays such as video
+controls, captions, tooltips, the context menu, or WebVR UI.
+
+~~~tsx
+import "@ericchen1990/pano-view/styles.css";
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function Panorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}
+~~~
+
+For existing krpano tile pyramids, read the [migration
+guide](../../docs/krpano-migration.md) before replacing Sphere with Tile. The
+guide documents the XML-to-prop mapping and the relative-path rules.
 
 ## Exported components
 

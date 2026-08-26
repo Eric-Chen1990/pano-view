@@ -4,7 +4,7 @@
 
 用于等距圆柱（equirectangular）与 krpano 风格多分辨率全景查看器的可组合 React 组件。
 
-在[在线 playground](https://pano-view-playground.vercel.app/) 中试用这些组件。
+在[在线 playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground) 中试用这些组件。
 
 ## 兼容 krpano 的 tile 输出
 
@@ -54,6 +54,28 @@ import "@ericchen1990/pano-view/styles.css";
 ```
 
 仅当你不使用这些叠加层，或完全通过 `className`、`style` 与外观属性重设样式时，可跳过该导入。若不导入样式表，叠加层仍会挂载，但会无样式显示。
+
+## 快速渲染一个全景图
+
+为 PanoViewer 提供明确尺寸，并在其内部渲染一个全景源。使用内置 HTML 叠加层
+（例如视频控件、字幕、tooltip、右键菜单或 WebVR UI）时，需导入一次样式表。
+
+~~~tsx
+import "@ericchen1990/pano-view/styles.css";
+import { PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+export function Panorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}
+~~~
+
+如需复用现有 krpano tile 金字塔，请在将 Sphere 换成 Tile 前阅读
+[迁移指南](../../docs/krpano-migration.zh-CN.md)。指南说明 XML 到 prop 的映射与
+相对路径规则。
 
 ## 导出组件
 
