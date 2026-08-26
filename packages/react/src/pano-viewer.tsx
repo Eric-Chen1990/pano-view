@@ -58,8 +58,8 @@ import {
   createPanoMediaActivationHost,
   getPanoMediaActivationRevision,
   hasPanoMediaActivationIntent,
+  needsMediaGesture,
   PanoMediaActivationHostContext,
-  PanoMediaActivationOverlay,
   subscribePanoMediaActivation,
   type PanoMediaActivationControls,
   type PanoMediaActivationOptions,
@@ -163,7 +163,9 @@ export type PanoViewerProps = Omit<
   contextMenu?: boolean | PanoContextMenuProps;
   /**
    * Defaults to enabled when a mounted child intends to begin playing media.
-   * Set false to retain the 2.x behavior with no first-interaction prompt.
+   * Unlocks audible playback on the first user gesture when the browser
+   * requires one, or immediately when autoplay policy already allows it.
+   * Set false to retain the 2.x behavior with no automatic activation.
    */
   mediaActivation?: false | PanoMediaActivationOptions;
   onViewChange?: (view: PanoViewerState) => void;
@@ -364,10 +366,36 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     }, [mediaActivationControls, mediaActivationOptions]);
     const hasMediaActivationIntent =
       mediaActivationRevision >= 0 && hasPanoMediaActivationIntent(mediaActivationHost);
-    const shouldShowMediaActivation =
+    const shouldActivateMedia =
       mediaActivationOptions !== null &&
       hasMediaActivationIntent &&
       !mediaActivated;
+
+    useEffect(() => {
+      if (!shouldActivateMedia) {
+        return;
+      }
+
+      if (!needsMediaGesture()) {
+        void activateMedia();
+        return;
+      }
+
+      const handleGesture = () => {
+        removeListeners();
+        void activateMedia();
+      };
+
+      const removeListeners = () => {
+        window.removeEventListener("pointerdown", handleGesture, true);
+        window.removeEventListener("keydown", handleGesture, true);
+      };
+
+      window.addEventListener("pointerdown", handleGesture, { capture: true });
+      window.addEventListener("keydown", handleGesture, { capture: true });
+
+      return removeListeners;
+    }, [activateMedia, shouldActivateMedia]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -802,14 +830,6 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
-        {shouldShowMediaActivation ? (
-          <PanoMediaActivationOverlay
-            {...mediaActivationOptions}
-            onActivate={() => {
-              void activateMedia();
-            }}
-          />
-        ) : null}
       </div>
     );
   },

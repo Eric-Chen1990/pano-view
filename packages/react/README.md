@@ -226,7 +226,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 ### Mobile media activation
 
-By default, the viewer shows a **Tap to enable sound** entry layer only when a child has an initial playback intent (`PanoVideo autoPlay`, an active `BackgroundAudio`, `VideoHotspot`, or `AudioHotspot`). Muted video can still preview inline. The same user gesture resumes Web Audio and gives the host the final choice of which media becomes audible, so video, music, and positional sound never all start by assumption. Pass `mediaActivation={false}` to retain the 2.x no-entry-layer behavior.
+By default, when a child has an initial playback intent (`PanoVideo autoPlay`, an active `BackgroundAudio`, `VideoHotspot`, or `AudioHotspot`), the viewer silently unlocks audible playback on the first user gesture when the browser requires one, or immediately when autoplay policy already allows it. Muted video can still preview inline. The same gesture resumes Web Audio and gives the host the final choice of which media becomes audible, so video, music, and positional sound never all start by assumption. Pass `mediaActivation={false}` to retain the 2.x no-automatic-activation behavior.
 
 ```tsx
 <PanoViewer
@@ -242,7 +242,7 @@ By default, the viewer shows a **Tap to enable sound** entry layer only when a c
 </PanoViewer>
 ```
 
-The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom entry button reuse the same path.
+The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom control reuse the same path.
 
 Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
 

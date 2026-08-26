@@ -206,7 +206,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 ### 移动端媒体激活
 
-默认情况下，只要子组件带有初始播放意图（`PanoVideo autoPlay`、播放中的 `BackgroundAudio`、`VideoHotspot` 或 `AudioHotspot`），查看器就会显示「Tap to enable sound」首触层。静音视频仍会内联预览；首触在同一用户手势内恢复 Web Audio，再把播放选择交给宿主，避免视频、BGM 与定点声同时出声。传 `mediaActivation={false}` 可保留 2.x 的无首触层行为。
+默认情况下，只要子组件带有初始播放意图（`PanoVideo autoPlay`、播放中的 `BackgroundAudio`、`VideoHotspot` 或 `AudioHotspot`），查看器会在浏览器需要用户手势时于首次交互静默解锁有声播放；若自动播放策略已允许，则立即激活。静音视频仍会内联预览；激活在同一用户手势内恢复 Web Audio，再把播放选择交给宿主，避免视频、BGM 与定点声同时出声。传 `mediaActivation={false}` 可保留 2.x 的无自动激活行为。
 
 ```tsx
 <PanoViewer
@@ -222,7 +222,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 </PanoViewer>
 ```
 
-`onActivate` 的 `media` 提供 `resumeAudio()`、`playVideo({ unmute })` 和 `playBackgroundAudio()`。背景音乐若使用受控 `playing`，仍由宿主在回调内更新该状态；`viewer.activateMedia()` 可供自定义入场按钮复用同一流程。
+`onActivate` 的 `media` 提供 `resumeAudio()`、`playVideo({ unmute })` 和 `playBackgroundAudio()`。背景音乐若使用受控 `playing`，仍由宿主在回调内更新该状态；`viewer.activateMedia()` 可供自定义控件复用同一流程。
 
 依赖未挂载子组件的方法（如无 `<WebVR />` 时调 `enterVR`）安全空操作，返回 `false`、`void` 或 `null`。
 

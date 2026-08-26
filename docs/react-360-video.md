@@ -34,8 +34,9 @@ headers when files are remote, and HTTP Range support.
 
 ## Let the host choose what becomes audible
 
-When a child has initial playback intent, PanoViewer shows its media activation
-entry layer by default. The user gesture unlocks audio, then the host decides
+When a child has initial playback intent, PanoViewer silently unlocks audible
+playback by default on the first user gesture when the browser requires one, or
+immediately when autoplay policy already allows it. The host then decides
 whether video, background audio, or positional sound should start. Do not start
 all media sources by assumption.
 
@@ -62,7 +63,7 @@ Build and type checks cannot verify browser autoplay policy or touch behavior.
 Before release, verify on current iPhone/iPad Safari and Android Chrome:
 
 - Inline video remains in the page instead of opening a native player.
-- The activation layer unlocks the selected audible source.
+- The first user gesture unlocks the selected audible source when required.
 - Captions and playback controls remain reachable by touch.
 - Safe areas, portrait/landscape changes, and short landscape viewports keep
   controls usable.
