@@ -15,3 +15,13 @@ export function isMediaActivationEvent(event: Event): boolean {
       return false;
   }
 }
+
+/** True when `HTMLMediaElement.play()` was rejected by autoplay policy. */
+export function isAutoplayPolicyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "NotAllowedError"
+  );
+}

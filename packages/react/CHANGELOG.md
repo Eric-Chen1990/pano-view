@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.1.3
+
+### Patch Changes
+
+- dc8c043: Do not treat sticky user activation as autoplay permission. Optimistically activate when Web Audio is already running, but keep waiting for a real gesture only if this attempt requested video and autoplay policy still blocked it.
+
 ## 3.1.2
 
 ### Patch Changes

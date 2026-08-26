@@ -58,9 +58,11 @@ export function hasPanoMediaActivationIntent(host: PanoMediaActivationHost): boo
 
 /**
  * Returns true when audible playback still needs a user gesture to unlock.
- * Skips waiting only while transient user activation is current, or Web Audio
- * is already running. Sticky activation (`hasBeenActive`) is not autoplay
- * permission: a prior unrelated click does not unlock unmuted playback.
+ * Skips waiting while transient user activation is current, or Web Audio is
+ * already running (background-audio-only hosts can start immediately).
+ * Sticky activation (`hasBeenActive`) is not a substitute for either.
+ * A running context is not HTML video autoplay permission; the viewer keeps
+ * gesture listeners when this attempt requested video and it stayed blocked.
  */
 export function needsMediaGesture(): boolean {
   if (typeof navigator !== "undefined" && navigator.userActivation?.isActive) {
