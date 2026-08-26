@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.1.1
+
+### Patch Changes
+
+- 7a5c55b: Replace the default visible "Tap to enable sound" entry layer with silent media activation on the first user gesture when the browser requires one. The `onActivate` callback and `viewer.activateMedia()` API are unchanged.
+
 ## 3.1.0
 
 ### Minor Changes
