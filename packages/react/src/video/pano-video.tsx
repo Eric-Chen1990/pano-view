@@ -20,6 +20,7 @@ import {
   VideoTexture,
 } from "three";
 import type { VideoPlaybackState } from "../hotspot/video-hotspot";
+import { usePanoMediaActivationIntent } from "../media-activation";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { PanoChromeOverlayContext } from "./chrome-overlay";
@@ -315,6 +316,7 @@ export function PanoVideo({
   onVariantChange,
   onTrackChange,
 }: PanoVideoProps) {
+  usePanoMediaActivationIntent(autoPlay);
   const gl = useThree((state) => state.gl);
   const host = useContext(PanoVideoHostContext);
   const overlay = useContext(PanoChromeOverlayContext);
@@ -759,6 +761,13 @@ export function PanoVideo({
       video.volume = clampVolume(volume);
     }
     video.playsInline = playsInline;
+    if (playsInline) {
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("webkit-playsinline", "true");
+    } else {
+      video.removeAttribute("playsinline");
+      video.removeAttribute("webkit-playsinline");
+    }
     video.preload = preload;
   }, [loop, muted, playsInline, preload, resource, volume]);
 

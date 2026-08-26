@@ -178,6 +178,26 @@ The handle exposes view, fullscreen, scene, VR, video, and background-audio cont
 
 **Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to host changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` now accepts an optional `playing` prop (controlled) or uses `defaultPlaying` (uncontrolled).
 
+### Mobile media activation
+
+By default, the viewer shows a **Tap to enable sound** entry layer only when a child has an initial playback intent (`PanoVideo autoPlay`, an active `BackgroundAudio`, `VideoHotspot`, or `AudioHotspot`). Muted video can still preview inline. The same user gesture resumes Web Audio and gives the host the final choice of which media becomes audible, so video, music, and positional sound never all start by assumption. Pass `mediaActivation={false}` to retain the 2.x no-entry-layer behavior.
+
+```tsx
+<PanoViewer
+  mediaActivation={{
+    onActivate: (media) => {
+      // Do not await: start audible media in this gesture's synchronous stack.
+      void media.playVideo({ unmute: true });
+    },
+  }}
+  style={{ height: "min(560px, 68dvh)" }}
+>
+  <PanoVideo autoPlay src="/tour.mp4" />
+</PanoViewer>
+```
+
+The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom entry button reuse the same path.
+
 Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
 
 ### Fullscreen
@@ -517,9 +537,13 @@ export function VideoExample() {
 ```
 
 `muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
-rules. Unmuted playback still needs a user gesture; `onPlaybackStateChange`
-receives `"blocked"` when `play()` is rejected. Remote videos and VTT files
-that are not same-origin should set `crossOrigin` (usually `"anonymous"`).
+rules. `playsInline` also defaults to true and writes both `playsinline` and
+`webkit-playsinline`, keeping the default 360-video path inline on iPhone
+instead of entering the native player. Unmuted playback still needs a user
+gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
+rejected. Remote videos and VTT files that are not same-origin should set
+`crossOrigin` (usually `"anonymous"`). For mobile delivery, provide an H.264 +
+AAC MP4 fallback, poster, CORS, and Range support.
 
 ## Tile
 

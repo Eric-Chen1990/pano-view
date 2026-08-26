@@ -25,6 +25,14 @@ export type UnlockingHowlHandle = {
   dispose: () => void;
 };
 
+/** Resume Howler's shared audio context from a direct user gesture. */
+export function resumePanoAudio(): Promise<void> {
+  if (!Howler.ctx || Howler.ctx.state === "running") {
+    return Promise.resolve();
+  }
+  return Howler.ctx.resume();
+}
+
 export function sourceList(
   src: AudioSourceList | undefined | null,
 ): string[] {
@@ -108,7 +116,7 @@ export function createUnlockingHowl({
       const retry = () => {
         removeUnlockListeners();
         if (!disposed && isActive() && shouldRetryPlay()) {
-          void Howler.ctx?.resume();
+          void resumePanoAudio();
           instance.play();
         }
       };

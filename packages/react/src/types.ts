@@ -26,6 +26,9 @@ export type PanoViewerHandle = {
   ) => void;
   reset: () => void;
 
+  /** Runs the same first-interaction media activation used by PanoViewer. */
+  activateMedia: () => Promise<void>;
+
   // -- Fullscreen --
   enterFullscreen: () => Promise<void>;
   exitFullscreen: () => Promise<void>;

@@ -161,6 +161,26 @@ export function ControlledExample() {
 
 **背景音乐**（需 `<BackgroundAudio />`）— `getBackgroundAudio` 返回 `BackgroundAudioController`，`subscribeBackgroundAudio` 订阅宿主变更，另有快捷方法 `playBackgroundAudio`、`pauseBackgroundAudio`、`toggleBackgroundAudio`、`setBackgroundAudioVolume`、`setBackgroundAudioMuted`、`toggleBackgroundAudioMuted`。`BackgroundAudio` 现支持可选 `playing`（受控）或 `defaultPlaying`（非受控）。
 
+### 移动端媒体激活
+
+默认情况下，只要子组件带有初始播放意图（`PanoVideo autoPlay`、播放中的 `BackgroundAudio`、`VideoHotspot` 或 `AudioHotspot`），查看器就会显示「Tap to enable sound」首触层。静音视频仍会内联预览；首触在同一用户手势内恢复 Web Audio，再把播放选择交给宿主，避免视频、BGM 与定点声同时出声。传 `mediaActivation={false}` 可保留 2.x 的无首触层行为。
+
+```tsx
+<PanoViewer
+  mediaActivation={{
+    onActivate: (media) => {
+      // 不要 await；必须在这次点击的同步调用栈内启动有声媒体。
+      void media.playVideo({ unmute: true });
+    },
+  }}
+  style={{ height: "min(560px, 68dvh)" }}
+>
+  <PanoVideo autoPlay src="/tour.mp4" />
+</PanoViewer>
+```
+
+`onActivate` 的 `media` 提供 `resumeAudio()`、`playVideo({ unmute })` 和 `playBackgroundAudio()`。背景音乐若使用受控 `playing`，仍由宿主在回调内更新该状态；`viewer.activateMedia()` 可供自定义入场按钮复用同一流程。
+
 依赖未挂载子组件的方法（如无 `<WebVR />` 时调 `enterVR`）安全空操作，返回 `false`、`void` 或 `null`。
 
 ### 全屏
@@ -477,7 +497,7 @@ export function VideoExample() {
 }
 ```
 
-`muted` 默认为 `true`，以便在浏览器自动播放规则下有机会自动播放。非静音播放仍需要用户手势；`play()` 被拒绝时 `onPlaybackStateChange` 会收到 `"blocked"`。非同源的远程视频与 VTT 文件应设置 `crossOrigin`（通常为 `"anonymous"`）。
+`muted` 默认为 `true`，以便在浏览器自动播放规则下有机会自动播放；`playsInline` 也默认开启，并同时写入 `playsinline` / `webkit-playsinline`，避免 iPhone 将默认的 360 视频提取为原生全屏播放器。非静音播放仍需要用户手势；`play()` 被拒绝时 `onPlaybackStateChange` 会收到 `"blocked"`。非同源的远程视频与 VTT 文件应设置 `crossOrigin`（通常为 `"anonymous"`）。移动端请提供 H.264 + AAC 的 MP4 备选源、poster、CORS 与 Range 支持。
 
 ## Tile
 

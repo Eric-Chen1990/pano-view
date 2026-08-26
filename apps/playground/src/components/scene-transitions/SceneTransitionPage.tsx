@@ -169,7 +169,12 @@ export function SceneTransitionPage() {
           <PanoViewer
             ref={viewer.ref}
             aria-label="Panorama scene transition demo"
-            style={{ height: 540 }}
+            mediaActivation={{
+              onActivate: () => {
+                setBackgroundPlaying(true);
+              },
+            }}
+            style={{ height: "min(540px, 68dvh)" }}
           >
             <KeyboardControls
               onNextScene={() => {

@@ -72,8 +72,16 @@ function buildVideoSnippet(
       : `{ fontSize: ${fontSize}, color: "${captionColor}" }`;
   return `import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
 
-<PanoViewer style={{ height: 540 }}>
+<PanoViewer
+  mediaActivation={{
+    onActivate: (media) => {
+      void media.playVideo({ unmute: true });
+    },
+  }}
+  style={{ height: "min(540px, 68dvh)" }}
+>
   <PanoVideo
+    autoPlay
     defaultVariantId="1024"
     loop={${loop}}
     captions={${captionsProp}}
@@ -202,9 +210,15 @@ export function VideoPage() {
         <div className="bg-[#020607]">
           <PanoViewer
             aria-label="360 panorama video demo"
-            style={{ height: 540 }}
+            mediaActivation={{
+              onActivate: (media) => {
+                void media.playVideo({ unmute: true });
+              },
+            }}
+            style={{ height: "min(540px, 68dvh)" }}
           >
             <PanoVideo
+              autoPlay
               captions={captions}
               defaultVariantId="1024"
               loop={loop}
