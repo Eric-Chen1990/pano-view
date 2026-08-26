@@ -21,6 +21,7 @@ import {
 } from "three";
 import type { VideoPlaybackState } from "../hotspot/video-hotspot";
 import { usePanoMediaActivationIntent } from "../media-activation";
+import { isAutoplayPolicyError } from "../media-activation-event";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { PanoChromeOverlayContext } from "./chrome-overlay";
@@ -669,8 +670,10 @@ export function PanoVideo({
         try {
           await video.play();
         } catch (error) {
-          blockedRef.current = true;
-          onPlaybackStateChangeRef.current?.("blocked");
+          if (isAutoplayPolicyError(error)) {
+            blockedRef.current = true;
+            onPlaybackStateChangeRef.current?.("blocked");
+          }
           onErrorRef.current?.({ source: "video", error });
           emitSnapshot();
         }
