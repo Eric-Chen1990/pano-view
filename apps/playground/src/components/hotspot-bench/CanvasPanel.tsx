@@ -86,6 +86,7 @@ export function CanvasPanel() {
     selectMode,
     toggleAutoRotate,
     setView,
+    setLastAction,
     setLevel,
     setProgress,
     incrementTileErrors,
@@ -111,6 +112,7 @@ export function CanvasPanel() {
       selectMode: state.selectMode,
       toggleAutoRotate: state.toggleAutoRotate,
       setView: state.setView,
+      setLastAction: state.setLastAction,
       setLevel: state.setLevel,
       setProgress: state.setProgress,
       incrementTileErrors: state.incrementTileErrors,
@@ -197,6 +199,30 @@ export function CanvasPanel() {
             type="button"
           >
             Reset view
+          </button>
+          <button
+            className={segmentedButtonClassName}
+            onClick={() => {
+              setLastAction("Navigating to visitor guide…");
+              void viewer
+                .lookToHotspot("visitor-guide", { fov: 55 })
+                .then(({ status }) => setLastAction(`Visitor guide navigation ${status}.`));
+            }}
+            type="button"
+          >
+            Look to hotspot
+          </button>
+          <button
+            className={segmentedButtonClassName}
+            onClick={() => {
+              setLastAction("Navigating to the north view…");
+              void viewer
+                .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
+                .then(({ status }) => setLastAction(`North view navigation ${status}.`));
+            }}
+            type="button"
+          >
+            Look north
           </button>
           <button
             className={segmentedButtonClassName}

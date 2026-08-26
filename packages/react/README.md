@@ -143,6 +143,9 @@ export function ControlledExample() {
       <button onClick={() => viewer.setView({ yaw: 90, fov: 55 })}>
         Look right
       </button>
+      <button onClick={() => void viewer.lookTo({ yaw: -45, pitch: 8 })}>
+        Animate left
+      </button>
       <PanoViewer
         ref={viewer.ref}
         controls={{
@@ -166,7 +169,27 @@ export function ControlledExample() {
 
 The handle exposes view, fullscreen, scene, VR, video, and background-audio controls so custom UIs can drive the viewer from a single ref:
 
-**View** — `getView`, `setView`, `reset`.
+**View** — `getView`, `setView`, `reset`, `lookTo`, `moveTo`, `zoomTo`, `lookToHotspot`.
+
+`setView` and `reset` remain immediate. The navigation methods return a Promise
+with `{ status: "completed" | "cancelled" | "not-found" }`; each new navigation
+or user interaction cancels the previous one. They default to 700 ms with
+`easeInOutCubic` and take the shortest yaw path. `lookTo` and `lookToHotspot`
+preserve the current FOV unless `fov` is provided.
+
+```tsx
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+
+if (result.status === "not-found") {
+  // The hotspot is not mounted in this PanoViewer.
+}
+
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.zoomTo(48, { duration: 400, easing: "linear" });
+```
+
+Every mounted hotspot type can be targeted, including polygons and polylines,
+which use their spherical center. Hotspot ids must be unique within a viewer.
 
 **Fullscreen** — `enterFullscreen`, `exitFullscreen`, `toggleFullscreen`, `isFullscreen`.
 

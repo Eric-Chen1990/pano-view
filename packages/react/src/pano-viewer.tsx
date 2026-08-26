@@ -40,6 +40,10 @@ import {
   HotspotAccessibilityContext,
   useHotspotAccessibilityLayer,
 } from "./hotspot/accessibility";
+import {
+  createHotspotTargetRegistry,
+  HotspotTargetRegistryContext,
+} from "./hotspot/target-registry";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import {
   KeyboardControls,
@@ -294,6 +298,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const eventBus = useMemo(() => createPanoEventBus(), []);
     const { controls: hotspotAccessibilityControls, registry } =
       useHotspotAccessibilityLayer();
+    const hotspotTargetRegistry = useMemo(() => createHotspotTargetRegistry(), []);
     const { api: contextMenuOverlayApi, overlay: contextMenuOverlay } =
       usePanoContextMenuOverlay();
     const { api: chromeOverlayApi, setOverlayNode, overlayElement } =
@@ -570,6 +575,22 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         reset: () => {
           controlsRef.current?.reset();
         },
+        lookTo: (position, options) =>
+          controlsRef.current?.lookTo(position, options) ??
+          Promise.resolve({ status: "cancelled" }),
+        moveTo: (position, options) =>
+          controlsRef.current?.moveTo(position, options) ??
+          Promise.resolve({ status: "cancelled" }),
+        zoomTo: (fov, options) =>
+          controlsRef.current?.zoomTo(fov, options) ??
+          Promise.resolve({ status: "cancelled" }),
+        lookToHotspot: (id, options) => {
+          const position = hotspotTargetRegistry.getPosition(id);
+          return position
+            ? controlsRef.current?.lookTo(position, options) ??
+              Promise.resolve({ status: "cancelled" })
+            : Promise.resolve({ status: "not-found" });
+        },
         activateMedia,
 
         // -- Fullscreen --
@@ -645,6 +666,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         enterFullscreen,
         exitFullscreen,
         scenesHost,
+        hotspotTargetRegistry,
         toggleFullscreen,
         videoHost,
         webVRHost,
@@ -696,6 +718,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           >
           <PanoramaXROrigin />
           <HotspotAccessibilityContext.Provider value={registry}>
+            <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
             <PanoEventBusContext.Provider value={eventBus}>
               <PanoCursorTree cursors={resolvedCursors}>
               <PanoramaViewContext.Provider value={controlsRef}>
@@ -760,6 +783,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
               </PanoramaViewContext.Provider>
               </PanoCursorTree>
             </PanoEventBusContext.Provider>
+            </HotspotTargetRegistryContext.Provider>
           </HotspotAccessibilityContext.Provider>
           </WebVRRuntimeContext.Provider>
           </XR>

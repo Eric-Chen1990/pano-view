@@ -126,6 +126,9 @@ export function ControlledExample() {
       <button onClick={() => viewer.setView({ yaw: 90, fov: 55 })}>
         Look right
       </button>
+      <button onClick={() => void viewer.lookTo({ yaw: -45, pitch: 8 })}>
+        Animate left
+      </button>
       <PanoViewer
         ref={viewer.ref}
         controls={{
@@ -149,7 +152,25 @@ export function ControlledExample() {
 
 句柄从单个 `ref` 暴露视图、全屏、场景、VR、视频与背景音乐控制，方便宿主自绘 UI：
 
-**视图** — `getView`、`setView`、`reset`。
+**视图** — `getView`、`setView`、`reset`、`lookTo`、`moveTo`、`zoomTo`、`lookToHotspot`。
+
+`setView` 与 `reset` 仍立即生效。导航方法返回
+`Promise<{ status: "completed" | "cancelled" | "not-found" }>`；新的导航或用户操作会取消前一个导航。默认时长为 700ms，缓动为
+`easeInOutCubic`，YAW 默认走最短路径。`lookTo` 与 `lookToHotspot`
+未传 `fov` 时保持当前 FOV。
+
+```tsx
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+
+if (result.status === "not-found") {
+  // 该热点尚未挂载在这个 PanoViewer 中。
+}
+
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.zoomTo(48, { duration: 400, easing: "linear" });
+```
+
+所有已挂载热点都可作为目标，包括使用球面中心点的多边形与折线。每个 viewer 内的热点 `id` 必须唯一。
 
 **全屏** — `enterFullscreen`、`exitFullscreen`、`toggleFullscreen`、`isFullscreen`。
 
