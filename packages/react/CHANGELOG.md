@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.1.2
+
+### Patch Changes
+
+- bf0cf45: Unlock audible media on the HTML activation-triggering event (`pointerup` for touch/pen, `pointerdown` for mouse) and keep waiting if the first gesture is blocked.
+
 ## 3.1.1
 
 ### Patch Changes
