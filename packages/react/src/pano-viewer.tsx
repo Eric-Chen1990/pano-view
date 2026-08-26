@@ -22,7 +22,7 @@ import {
   subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
-import { resumePanoAudio } from "./audio/howl";
+import { isPanoAudioUnlocked, resumePanoAudio } from "./audio/howl";
 import { AutoRotate } from "./auto-rotate";
 import {
   ControlClaimsContext,
@@ -64,6 +64,7 @@ import {
   type PanoMediaActivationControls,
   type PanoMediaActivationOptions,
 } from "./media-activation";
+import { isMediaActivationEvent } from "./media-activation-event";
 import {
   PanoContextMenu,
   PanoContextMenuActionsContext,
@@ -358,12 +359,15 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       }),
       [bgmHost, videoHost],
     );
-    const activateMedia = useCallback(() => {
-      setMediaActivated(true);
+    const runMediaActivation = useCallback(() => {
       const resume = mediaActivationControls.resumeAudio();
       mediaActivationOptions?.onActivate?.(mediaActivationControls);
       return resume;
     }, [mediaActivationControls, mediaActivationOptions]);
+    const activateMedia = useCallback(() => {
+      setMediaActivated(true);
+      return runMediaActivation();
+    }, [runMediaActivation]);
     const hasMediaActivationIntent =
       mediaActivationRevision >= 0 && hasPanoMediaActivationIntent(mediaActivationHost);
     const shouldActivateMedia =
@@ -381,21 +385,43 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         return;
       }
 
-      const handleGesture = () => {
-        removeListeners();
-        void activateMedia();
-      };
+      let cancelled = false;
+      let activating = false;
 
       const removeListeners = () => {
         window.removeEventListener("pointerdown", handleGesture, true);
+        window.removeEventListener("pointerup", handleGesture, true);
         window.removeEventListener("keydown", handleGesture, true);
       };
 
+      const handleGesture = (event: Event) => {
+        if (!isMediaActivationEvent(event) || activating || cancelled) {
+          return;
+        }
+        activating = true;
+        try {
+          const resume = runMediaActivation();
+          void resume.then(() => {
+            if (cancelled || !isPanoAudioUnlocked()) {
+              return;
+            }
+            removeListeners();
+            setMediaActivated(true);
+          });
+        } finally {
+          activating = false;
+        }
+      };
+
       window.addEventListener("pointerdown", handleGesture, { capture: true });
+      window.addEventListener("pointerup", handleGesture, { capture: true });
       window.addEventListener("keydown", handleGesture, { capture: true });
 
-      return removeListeners;
-    }, [activateMedia, shouldActivateMedia]);
+      return () => {
+        cancelled = true;
+        removeListeners();
+      };
+    }, [activateMedia, runMediaActivation, shouldActivateMedia]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
