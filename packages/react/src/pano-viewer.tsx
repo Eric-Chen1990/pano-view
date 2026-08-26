@@ -393,6 +393,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         if (cancelled || !isPanoAudioUnlocked()) {
           return;
         }
+        const snapshot = videoHost.controller?.getSnapshot();
+        if (snapshot && !snapshot.muted && snapshot.blocked) {
+          return;
+        }
         removeListeners();
         setMediaActivated(true);
       };
@@ -402,9 +406,23 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           return;
         }
         activating = true;
+        let videoPlay: Promise<boolean> | undefined;
+        const controls: PanoMediaActivationControls = {
+          resumeAudio: mediaActivationControls.resumeAudio,
+          playVideo: (options) => {
+            const result = mediaActivationControls.playVideo(options);
+            videoPlay = result;
+            return result;
+          },
+          playBackgroundAudio: mediaActivationControls.playBackgroundAudio,
+        };
         try {
-          const resume = runMediaActivation();
-          void resume.then(completeIfUnlocked, completeIfUnlocked);
+          const resume = controls.resumeAudio();
+          mediaActivationOptions?.onActivate?.(controls);
+          void Promise.all([resume, videoPlay ?? Promise.resolve()]).then(
+            completeIfUnlocked,
+            completeIfUnlocked,
+          );
         } finally {
           activating = false;
         }
@@ -429,7 +447,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         cancelled = true;
         removeListeners();
       };
-    }, [runMediaActivation, shouldActivateMedia]);
+    }, [
+      mediaActivationControls,
+      mediaActivationOptions,
+      shouldActivateMedia,
+      videoHost,
+    ]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(

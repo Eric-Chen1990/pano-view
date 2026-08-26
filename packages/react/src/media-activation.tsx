@@ -1,4 +1,3 @@
-import { Howler } from "howler";
 import { createContext, useContext, useEffect, useRef } from "react";
 
 export type PanoMediaActivationControls = {
@@ -58,15 +57,12 @@ export function hasPanoMediaActivationIntent(host: PanoMediaActivationHost): boo
 
 /**
  * Returns true when audible playback still needs a user gesture to unlock.
- * Skips waiting only while transient user activation is current, or Web Audio
- * is already running. Sticky activation (`hasBeenActive`) is not autoplay
- * permission: a prior unrelated click does not unlock unmuted playback.
+ * Skips waiting only while transient user activation is current. A running
+ * Web Audio context is not HTML media autoplay permission, and sticky
+ * activation (`hasBeenActive`) is not a substitute for a current gesture.
  */
 export function needsMediaGesture(): boolean {
   if (typeof navigator !== "undefined" && navigator.userActivation?.isActive) {
-    return false;
-  }
-  if (Howler.ctx?.state === "running") {
     return false;
   }
   return true;
