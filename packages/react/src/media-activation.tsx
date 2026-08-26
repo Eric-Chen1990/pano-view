@@ -58,10 +58,12 @@ export function hasPanoMediaActivationIntent(host: PanoMediaActivationHost): boo
 
 /**
  * Returns true when audible playback still needs a user gesture to unlock.
- * Skips waiting when the page already has user activation or Web Audio is running.
+ * Skips waiting only while transient user activation is current, or Web Audio
+ * is already running. Sticky activation (`hasBeenActive`) is not autoplay
+ * permission: a prior unrelated click does not unlock unmuted playback.
  */
 export function needsMediaGesture(): boolean {
-  if (typeof navigator !== "undefined" && navigator.userActivation?.hasBeenActive) {
+  if (typeof navigator !== "undefined" && navigator.userActivation?.isActive) {
     return false;
   }
   if (Howler.ctx?.state === "running") {

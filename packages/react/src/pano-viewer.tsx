@@ -380,11 +380,6 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         return;
       }
 
-      if (!needsMediaGesture()) {
-        void activateMedia();
-        return;
-      }
-
       let cancelled = false;
       let activating = false;
 
@@ -394,34 +389,47 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         window.removeEventListener("keydown", handleGesture, true);
       };
 
-      const handleGesture = (event: Event) => {
-        if (!isMediaActivationEvent(event) || activating || cancelled) {
+      const completeIfUnlocked = () => {
+        if (cancelled || !isPanoAudioUnlocked()) {
+          return;
+        }
+        removeListeners();
+        setMediaActivated(true);
+      };
+
+      const tryActivate = () => {
+        if (activating || cancelled) {
           return;
         }
         activating = true;
         try {
           const resume = runMediaActivation();
-          void resume.then(() => {
-            if (cancelled || !isPanoAudioUnlocked()) {
-              return;
-            }
-            removeListeners();
-            setMediaActivated(true);
-          });
+          void resume.then(completeIfUnlocked, completeIfUnlocked);
         } finally {
           activating = false;
         }
+      };
+
+      const handleGesture = (event: Event) => {
+        if (!isMediaActivationEvent(event)) {
+          return;
+        }
+        tryActivate();
       };
 
       window.addEventListener("pointerdown", handleGesture, { capture: true });
       window.addEventListener("pointerup", handleGesture, { capture: true });
       window.addEventListener("keydown", handleGesture, { capture: true });
 
+      if (!needsMediaGesture()) {
+        tryActivate();
+      }
+
       return () => {
         cancelled = true;
         removeListeners();
       };
-    }, [activateMedia, runMediaActivation, shouldActivateMedia]);
+    }, [runMediaActivation, shouldActivateMedia]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
