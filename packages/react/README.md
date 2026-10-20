@@ -35,8 +35,8 @@ this library. npm 7+ and pnpm install them automatically; Yarn Classic and npm
 
 | Package | Supported range |
 | --- | --- |
-| `react` | `>=19.0.0 <19.3.0` |
-| `react-dom` | `>=19.0.0 <19.3.0` |
+| `react` | `^19.0.0` |
+| `react-dom` | `^19.0.0` |
 | `three` | `^0.185.1` |
 | `@react-three/fiber` | `^9.7.0` |
 | `@react-three/drei` | `^10.0.0` |
@@ -46,8 +46,6 @@ Keep a **single copy** of React, Three.js, and the React Three Fiber packages
 in the host app. Duplicate `three` trees are a common cause of blank canvases
 and context errors (`R3F: Hooks can only be used within the Canvas component`).
 If that happens, check `npm ls three` / `pnpm why three` and dedupe.
-
-React 19.3 and later are outside the supported range.
 
 ### Stylesheet (HTML chrome)
 
