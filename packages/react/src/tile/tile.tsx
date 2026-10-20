@@ -12,6 +12,11 @@ import {
 import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
+  publishSceneDetail,
+  useSceneDetailReporter,
+  viewTilesAreDrawable,
+} from "../scene-detail";
+import {
   CUBE_FACES,
   CUBE_RADIUS,
   PREVIEW_FACE_ORDER,
@@ -39,6 +44,46 @@ const MAX_LOD_UPDATE_INTERVAL_MS = 100;
 const FAST_ROTATION_THRESHOLD_RADIANS = Math.PI / 180;
 const FAST_FOV_THRESHOLD_DEGREES = 0.5;
 const VIEW_CHANGE_EPSILON = 0.0001;
+
+export function decideTileLodUpdate(input: {
+  loadMode: "full" | "preview" | "base";
+  trackedLoadMode: "full" | "preview" | "base";
+  now: number;
+  lastUpdateAt: number;
+  visibilityDirty: boolean;
+  viewportChanged: boolean;
+  rotationDelta: number;
+  fovDelta: number;
+}): boolean {
+  if (input.loadMode === "preview") {
+    return false;
+  }
+  const loadModeChanged = input.loadMode !== input.trackedLoadMode;
+  const viewChanged =
+    input.visibilityDirty ||
+    loadModeChanged ||
+    input.viewportChanged ||
+    input.rotationDelta > VIEW_CHANGE_EPSILON ||
+    input.fovDelta > VIEW_CHANGE_EPSILON;
+  if (!viewChanged) {
+    return false;
+  }
+  const movingQuickly =
+    input.rotationDelta >= FAST_ROTATION_THRESHOLD_RADIANS ||
+    input.fovDelta >= FAST_FOV_THRESHOLD_DEGREES;
+  const immediate =
+    input.visibilityDirty ||
+    loadModeChanged ||
+    input.viewportChanged ||
+    movingQuickly;
+  if (
+    !immediate &&
+    input.now - input.lastUpdateAt < MAX_LOD_UPDATE_INTERVAL_MS
+  ) {
+    return false;
+  }
+  return true;
+}
 const VISIBILITY_FOV_PADDING_DEGREES = 8;
 const PREVIEW_RADIUS = CUBE_RADIUS + 0.05;
 const SHARED_TILE_GEOMETRY = new PlaneGeometry(1, 1);
@@ -128,7 +173,7 @@ const TileMesh = memo(function TileMesh({
   resolveUrl,
 }: {
   address: TileAddress;
-  manager: TileTextureManager;
+  manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   renderOrder: number;
   resolveUrl: (address: TileAddress) => string;
 }) {
@@ -170,7 +215,7 @@ const TileLayerMeshes = memo(function TileLayerMeshes({
   resolveUrl,
 }: {
   layer: TileLayer;
-  manager: TileTextureManager;
+  manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   resolveUrl: (address: TileAddress) => string;
 }) {
   return layer.addresses.map((address) => (
@@ -485,6 +530,12 @@ export function Tile({
   const frustumRef = useRef(new Frustum());
   const projectionMatrixRef = useRef(new Matrix4());
   const visibilityCameraRef = useRef(new PerspectiveCamera());
+  const trackedLoadModeRef = useRef(loadMode);
+  const targetKeysRef = useRef<string[]>([]);
+  const detailTokenRef = useRef("");
+  const detailReporter = useSceneDetailReporter();
+  const detailReporterRef = useRef(detailReporter);
+  detailReporterRef.current = detailReporter;
 
   useEffect(() => {
     currentLevelRef.current = 1;
@@ -510,10 +561,15 @@ export function Tile({
   };
 
   useFrame(() => {
-    if (loadMode === "preview") {
+    if (!(camera instanceof PerspectiveCamera)) {
       return;
     }
-    if (!(camera instanceof PerspectiveCamera)) {
+    // Preview has no tile LOD. Remember it so the next base/full frame refreshes
+    // even when the camera has not moved.
+    if (loadMode === "preview") {
+      trackedLoadModeRef.current = "preview";
+      targetKeysRef.current = [];
+      publishSceneDetail(detailReporterRef.current, detailTokenRef, false);
       return;
     }
 
@@ -530,75 +586,83 @@ export function Tile({
       lastViewport.width !== size.width ||
       lastViewport.height !== size.height ||
       lastViewport.dpr !== pixelRatio;
-    const viewChanged =
-      visibilityDirtyRef.current ||
-      viewportChanged ||
-      rotationDelta > VIEW_CHANGE_EPSILON ||
-      fovDelta > VIEW_CHANGE_EPSILON;
-    const movingQuickly =
-      rotationDelta >= FAST_ROTATION_THRESHOLD_RADIANS ||
-      fovDelta >= FAST_FOV_THRESHOLD_DEGREES;
+    const updateLod = decideTileLodUpdate({
+      loadMode,
+      trackedLoadMode: trackedLoadModeRef.current,
+      now,
+      lastUpdateAt: lastUpdateAtRef.current,
+      visibilityDirty: visibilityDirtyRef.current,
+      viewportChanged,
+      rotationDelta,
+      fovDelta,
+    });
 
-    if (!viewChanged) {
-      return;
+    if (updateLod) {
+      trackedLoadModeRef.current = loadMode;
+      lastUpdateAtRef.current = now;
+
+      const targetLevel =
+        loadMode === "base"
+          ? 1
+          : getPreferredLevel(
+              levels,
+              size.height,
+              pixelRatio,
+              camera.fov,
+              currentLevelRef.current,
+            );
+      if (targetLevel !== currentLevelRef.current) {
+        currentLevelRef.current = targetLevel;
+        levelChangeRef.current?.(targetLevel);
+      }
+
+      const visibilityCamera = visibilityCameraRef.current;
+      visibilityCamera.copy(camera, false);
+      visibilityCamera.fov = Math.min(
+        179,
+        camera.fov + VISIBILITY_FOV_PADDING_DEGREES,
+      );
+      visibilityCamera.aspect = camera.aspect;
+      updateVisibilityFrustum(
+        visibilityCamera,
+        projectionMatrixRef.current,
+        frustumRef.current,
+      );
+
+      const nextLayers = buildLayers(
+        targetLevel,
+        levels,
+        tileSize,
+        frustumRef.current,
+        camera,
+        candidatesByLevel,
+      );
+      visibilityDirtyRef.current = false;
+      lastVisibilityQuaternionRef.current.copy(camera.quaternion);
+      lastVisibilityFovRef.current = camera.fov;
+      lastViewportRef.current = {
+        width: size.width,
+        height: size.height,
+        dpr: pixelRatio,
+      };
+      const targetLayer = nextLayers.find((layer) => layer.level === targetLevel);
+      targetKeysRef.current =
+        loadMode === "full"
+          ? (targetLayer?.addresses ?? []).map(
+              (address) => `${resolveUrl(address)}\u0000${tileKey(address)}`,
+            )
+          : [];
+      commitLayers(nextLayers);
     }
 
-    const needsImmediateUpdate =
-      visibilityDirtyRef.current || viewportChanged || movingQuickly;
-    if (
-      !needsImmediateUpdate &&
-      now - lastUpdateAtRef.current < MAX_LOD_UPDATE_INTERVAL_MS
-    ) {
-      return;
-    }
-
-    lastUpdateAtRef.current = now;
-
-    const targetLevel =
-      loadMode === "base"
-        ? 1
-        : getPreferredLevel(
-            levels,
-            size.height,
-            pixelRatio,
-            camera.fov,
-            currentLevelRef.current,
-          );
-    if (targetLevel !== currentLevelRef.current) {
-      currentLevelRef.current = targetLevel;
-      levelChangeRef.current?.(targetLevel);
-    }
-
-    const visibilityCamera = visibilityCameraRef.current;
-    visibilityCamera.copy(camera, false);
-    visibilityCamera.fov = Math.min(
-      179,
-      camera.fov + VISIBILITY_FOV_PADDING_DEGREES,
+    publishSceneDetail(
+      detailReporterRef.current,
+      detailTokenRef,
+      loadMode === "full" &&
+        viewTilesAreDrawable(
+          targetKeysRef.current.map((key) => manager.getSnapshot(key).texture),
+        ),
     );
-    visibilityCamera.aspect = camera.aspect;
-    updateVisibilityFrustum(
-      visibilityCamera,
-      projectionMatrixRef.current,
-      frustumRef.current,
-    );
-
-    const nextLayers = buildLayers(
-      targetLevel,
-      levels,
-      tileSize,
-      frustumRef.current,
-      camera,
-      candidatesByLevel,
-    );
-    visibilityDirtyRef.current = false;
-    lastVisibilityQuaternionRef.current.copy(camera.quaternion);
-    lastVisibilityFovRef.current = camera.fov;
-    lastViewportRef.current = {
-      width: size.width,
-      height: size.height,
-      dpr: pixelRatio,
-    };
-    commitLayers(nextLayers);
   });
 
   return (

@@ -782,6 +782,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       >
         <Canvas
           aria-label={`${ariaLabel} canvas`}
+          // Container-only resizes also use react-use-measure's scroll debounce.
+          resize={{ debounce: 0 }}
           camera={{
             far: DEFAULT_PANORAMA_CAMERA_FAR,
             fov: normalizedInitialView.fov,

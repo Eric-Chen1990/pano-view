@@ -702,11 +702,14 @@ a single non-stereo cube panorama.
 
 ## Scenes
 
-`Scenes` switches controlled sphere and cube-tile scenes with GPU-only
-snapshot blending. The target scene loads its sphere or tile preview first;
-once ready, the current framebuffer becomes a temporary GPU texture, its source
-textures are released, and the target scene blends in. This avoids holding two
-high-resolution tile scenes in WebGL memory at once.
+`Scenes` switches controlled sphere, cube-tile, and equirectangular-tile scenes with GPU-only
+snapshot blending. The incoming scene stays hidden while it preloads its preview and base
+tiles. Once that preview can be drawn, the current framebuffer becomes a temporary GPU
+texture and the outgoing source textures are released. The incoming scene then switches to
+full detail immediately: tiles that are already sharp replace the preview during the blend,
+and tiles that are still loading keep the coarser parent tile or the preview. The viewer
+does not keep two high-resolution tile sets resident, and it does not preload tiles outside
+the current view.
 
 ```tsx
 import {
@@ -749,7 +752,25 @@ GPU framebuffer snapshot over the incoming panorama; they do not mix two full
 360 textures. Pass `{ preset: "crossfade", duration: 0.6 }` to override a
 preset duration.
 
-While a transition runs, panorama drag/zoom input is locked and
+`transitionWaitForDetailMs` defaults to `0`. The blend starts as soon as the incoming
+scene can paint, and detail keeps loading during that blend. A positive value such as
+`200` starts only after the outgoing snapshot is stored and the incoming scene is in
+`full`. The blend starts early when the current view is already sharp, and otherwise
+waits at most that many milliseconds. This wait is timed separately from the blend
+duration. During the wait the outgoing snapshot stays fully visible while the incoming
+scene draws and uploads underneath. For a normal `Sphere`, sharp means the full image
+can be drawn. For cube and sphere tiles, sharp means every in-view tile at the level
+chosen from viewport size, device pixel ratio, field of view, and the existing memory
+budget can be drawn. Tiles outside the view are not required. Negative and non-finite
+values are treated as `0`. `transition="none"` uses the same condition and then cuts
+over directly. A new target, an interrupt, unmount, or a lost WebGL context cancels a
+pending wait so a stale readiness report cannot affect the next scene.
+
+`onReady` still means a source can paint for the first time. `onSceneReady` still fires
+for the first paintable scene and when an incoming scene takes over after the outgoing
+snapshot. It does not mean the current view's full detail has finished loading.
+
+While a detail wait or transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
 is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
 apply to the whole `Scenes` viewer rather than to each tile scene.
@@ -1834,8 +1855,43 @@ if the preview failed. `onPreviewError`, `onTileError`, `onLoadProgress`, and
 `onLevelChange` expose failures/progress; levels in callbacks start at 0.
 Unmounting disposes owned textures and ignores late results.
 
-Use `SphereTile` directly as a `PanoViewer` child; `Scenes` currently accepts
-`sphere` and cube `tile` definitions only.
+Use `SphereTile` directly as a `PanoViewer` child, or define a `SphereTileScene`
+with `type: "sphereTile"` inside `Scenes`. All transition presets, including
+`dissolve`, work across `sphere`, cube `tile`, and `sphereTile` scenes:
+
+```tsx
+import { Scenes, type Scene } from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  {
+    id: "courtyard",
+    type: "sphereTile",
+    baseUrl: "/panoramas/courtyard/",
+    multires: "512,500x250,1000x500,2000x1000",
+    previewUrl: "previews/400.webp",
+    urlTemplate: "tiles/%l/%h_%v.webp",
+    indexBase: 1,
+  },
+  // Add sphere, tile, or other sphereTile scenes here.
+];
+
+<Scenes scenes={scenes} activeSceneId={activeSceneId} transition="dissolve" />;
+```
+
+`onSceneReady(sceneId)` fires when the first scene becomes paintable and when an
+incoming scene takes over after the outgoing snapshot is captured. The transition
+may still be running; use this callback to apply the incoming camera view without
+changing the outgoing snapshot. Full detail loads after that handoff, including during
+the blend. `transitionWaitForDetailMs` can hold the outgoing snapshot until the current
+view is sharp; it does not change when `onSceneReady` fires. `onTransitionEnd` marks
+completion of the blend.
+
+`SphereTileScene` accepts the source options of `SphereTile`, including
+`indexBase`, `resolveTileUrl`, and `yawOffset`. `Scenes` owns visibility,
+preloading, readiness, and transitions. Use `onTransitionEnd` and
+`onTransitionError` on `Scenes`; its shared texture budget and request limit
+apply to both cube and equirectangular tiles. Standalone `SphereTile` retains
+its own cache, callbacks, and loading options.
 
 ## Accessibility matrices and tooltip typography
 

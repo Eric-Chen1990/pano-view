@@ -13,7 +13,7 @@ import type {
 
 type Listener = (snapshot: TextureEntrySnapshot) => void;
 
-type TextureAddress = { width: number; height: number };
+export type TextureAddress = { width: number; height: number };
 
 type TextureEntry<TAddress extends TextureAddress> = TextureEntrySnapshot & {
   key: string;
@@ -55,6 +55,10 @@ export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
 
   constructor(options: TextureManagerOptions<TAddress>) {
     this.options = options;
+  }
+
+  get memoryBudgetBytes() {
+    return this.options.maxBytes;
   }
 
   resume() {
@@ -138,7 +142,7 @@ export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
   }
 
   /**
-   * Releases textures that are no longer rendered by any Tile instance.
+   * Releases textures that are no longer rendered by any tile source.
    * Scene transitions call this after the outgoing panorama has been
    * snapshotted, so the incoming scene never competes with stale GPU tiles.
    */

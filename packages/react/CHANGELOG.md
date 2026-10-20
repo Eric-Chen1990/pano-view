@@ -1,5 +1,25 @@
 # @ericchen1990/pano-view
 
+## 3.4.0
+
+### Minor Changes
+
+- 16e58fa: Load incoming panorama detail during scene transitions instead of waiting until the blend finishes. Add optional `transitionWaitForDetailMs` to hold the outgoing snapshot until the current view is sharp or the limit elapses.
+
+## 3.3.0
+
+### Minor Changes
+
+- Add SphereTileScene support to Scenes so equirectangular multiresolution tiles can use dissolve and every existing scene transition alongside sphere and cube-tile scenes. Share tile texture memory and request concurrency across both tiled projections, and document the new scene type.
+
+  Expose onSceneReady for first-scene readiness and incoming-camera setup after the outgoing snapshot has been captured.
+
+## 3.2.3
+
+### Patch Changes
+
+- Update the panorama canvas throughout container resizing instead of waiting for the default measurement debounce after panel dragging stops.
+
 ## 3.2.2
 
 ### Patch Changes
