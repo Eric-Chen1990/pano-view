@@ -1493,3 +1493,56 @@ import "@ericchen1990/pano-view/styles.css";
 ```
 
 见 [样式表（HTML 叠加层）](#样式表html-叠加层)。
+
+## 球面多分辨率瓦片
+
+`SphereTile` 直接渲染完整的 2:1 等距柱状全景瓦片，不拼接高分辨率整图：
+
+```tsx
+import { PanoViewer, SphereTile } from "@ericchen1990/pano-view";
+
+<PanoViewer>
+  <SphereTile
+    baseUrl="/panoramas/legacy"
+    multires="512,257x129,513x257,1025x513,2050x1025,4100x2050"
+    urlTemplate="tiles/%l/%h_%v.webp"
+    previewUrl="previews/400.webp"
+    indexBase={0}
+  />
+</PanoViewer>;
+```
+
+格式对应 Sharp Deep Zoom 的 `size: 512`、`depth: "onetile"`、`layout: "dz"`、
+无重叠瓦片。Sharp 原始输出使用 `indexBase={0}`，支持不足一块的边缘瓦片。
+默认的 `indexBase={1}` 兼容层级、列、行都从 **1** 开始的存量 krpano 球面资源。
+回调与 `resolveTileUrl` 接收的逻辑地址始终从 0 开始，`indexBase` 只作用于 URL 模板。`multires` 也可传 `{ tileSize, levels: [{ width, height }] }`。
+应使用资源的真实层级尺寸，奇数尺寸逐级取整，不能简单乘二推导。每级应为完整的
+2:1 全景，允许最多两像素的取整误差。
+
+相对路径基于 `baseUrl`，绝对路径与 URL 保持原样。`resolveTileUrl(address)` 优先于
+模板。模板支持 `%l`、横向 `%h`/`%x`/`%u`/`%c`、纵向 `%v`/`%y`/`%w`/`%r`，
+以及 `%00h` 等补零。`yawOffset` 旋转图像；图像中心为 yaw 0，向右为正 yaw，向上为正 pitch。
+
+`maxTextureMemoryMb`（默认 128）、`maxConcurrentLoads`（4）、`retryCount`（1）
+控制单个组件的瓦片缓存。预览图内存单独计算。当可见细节与回退层级超出预算时，
+采用较粗层级，预览始终作为底图。`loadMode` 支持 `full`（默认）、`base` 和 `preview`；
+`visible={false}` 仅预加载。`onReady` 在一个源的首个可绘制预览或瓦片就绪时触发一次，
+预览失败时仍可通过瓦片就绪。错误与进度通过 `onPreviewError`、`onTileError`、
+`onLoadProgress`、`onLevelChange` 提供；回调中的层级同样从 0 开始。
+卸载时释放组件纹理，丢弃迟到的加载结果。
+
+将 `SphereTile` 直接放在 `PanoViewer` 下；当前 `Scenes` 仍只接受 `sphere` 和立方体
+`tile` 场景定义。
+
+## 无障碍颜色矩阵与标签排版
+
+`PanoFilter.colorMatrix` 接收只读的行优先 4×5 RGBA 矩阵（20 个有限数值，与 SVG
+`feColorMatrix` 一致），在预设滤镜之后、显示/sRGB 颜色空间中应用。`intensity`
+控制效果混合比例，`enabled={false}` 关闭预设和矩阵。`colorMatrixScope="all"`
+将矩阵同时应用于热点纹理；默认 `"panorama"` 保持原有行为。艺术预设始终仅作用于
+全景。HTML 标签、iframe 和其他 DOM 界面仍由宿主设置样式。
+
+热点的 `tooltipAppearance` 新增 `fontFamily`、`lineHeight`、`letterSpacing`，
+配合原有的 `fontSize` 使用。数字 `lineHeight` 为无单位倍数，数字 `letterSpacing` 为 CSS 像素。
+
+回归验证：`pnpm --filter @ericchen1990/pano-view test`（Node 22+）。

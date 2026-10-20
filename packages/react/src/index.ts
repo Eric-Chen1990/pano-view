@@ -21,7 +21,7 @@ export type {
 export { PanoFilter } from "./pano-filter/pano-filter";
 export type { PanoFilterProps } from "./pano-filter/pano-filter";
 export { PANO_FILTER_PRESETS } from "./pano-filter/presets";
-export type { PanoFilterPreset } from "./pano-filter/presets";
+export type { PanoColorMatrix, PanoFilterPreset } from "./pano-filter/presets";
 export { Gyro } from "./gyro";
 export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
 export { WebVR } from "./webvr/webvr";
@@ -84,6 +84,14 @@ export { MouseControls } from "./mouse-controls";
 export type { MouseControlsProps } from "./mouse-controls";
 export { TouchControls } from "./touch-controls";
 export type { TouchControlsProps } from "./touch-controls";
+export { SphereTile } from "./sphere-tile/sphere-tile";
+export type {
+  SphereTileProps,
+  SphereTileAddress,
+  SphereTileLevel,
+  SphereTileMultiresConfig,
+  SphereTileLoadError,
+} from "./sphere-tile/types";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
 export { PanoVideo } from "./video/pano-video";
@@ -126,7 +134,10 @@ export type {
   PolygonValidationIssue,
   PolygonVerticesChangeEvent,
 } from "./hotspot/polygon-hotspot";
-export { PolylineHotspot, validatePolylineVertices } from "./hotspot/polyline-hotspot";
+export {
+  PolylineHotspot,
+  validatePolylineVertices,
+} from "./hotspot/polyline-hotspot";
 export type {
   PolylineHotspotProps,
   PolylineValidationIssue,

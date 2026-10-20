@@ -1791,3 +1791,66 @@ import "@ericchen1990/pano-view/styles.css";
 ```
 
 See [Stylesheet (HTML chrome)](#stylesheet-html-chrome).
+
+## Spherical multiresolution tiles
+
+`SphereTile` renders full 2:1 equirectangular pyramids without assembling a full-resolution texture:
+
+```tsx
+import { PanoViewer, SphereTile } from "@ericchen1990/pano-view";
+
+<PanoViewer>
+  <SphereTile
+    baseUrl="/panoramas/legacy"
+    multires="512,257x129,513x257,1025x513,2050x1025,4100x2050"
+    urlTemplate="tiles/%l/%h_%v.webp"
+    previewUrl="previews/400.webp"
+    indexBase={0}
+  />
+</PanoViewer>;
+```
+
+This layout matches Sharp Deep Zoom with `size: 512`, `depth: "onetile"`,
+`layout: "dz"`, and no overlap. Set `indexBase={0}` for that raw Sharp output, including partial edge tiles.
+The default `indexBase={1}` matches existing krpano sphere resources whose
+level, column and row all start at **1**. Logical addresses passed to callbacks
+and `resolveTileUrl` always start at 0; `indexBase` only affects URL templates.
+`multires` accepts the string above or `{ tileSize, levels: [{ width, height }] }`.
+Copy actual dimensions rather than deriving each level by multiplying by two:
+odd dimensions round independently. Each level must describe a full 2:1 image
+(with up to two pixels of rounding tolerance).
+
+Relative paths resolve under `baseUrl`; absolute paths/URLs remain absolute.
+`resolveTileUrl(address)` overrides the template. Templates support `%l`,
+horizontal `%h`/`%x`/`%u`/`%c`, vertical `%v`/`%y`/`%w`/`%r`, and padding such as
+`%00h`. `yawOffset` rotates the source; the source image center faces yaw 0,
+right is positive yaw, and top is positive pitch.
+
+`maxTextureMemoryMb` (128), `maxConcurrentLoads` (4), and `retryCount` (1)
+configure the per-component tile cache. The preview uses separate memory. If the
+visible detail and its fallback levels exceed the tile budget, the viewer uses a
+coarser level; the preview stays underneath. `loadMode` is `full` (default),
+`base`, or `preview`. `visible={false}` preloads without drawing.
+`onReady` fires once per source when a preview or tile becomes paintable, even
+if the preview failed. `onPreviewError`, `onTileError`, `onLoadProgress`, and
+`onLevelChange` expose failures/progress; levels in callbacks start at 0.
+Unmounting disposes owned textures and ignores late results.
+
+Use `SphereTile` directly as a `PanoViewer` child; `Scenes` currently accepts
+`sphere` and cube `tile` definitions only.
+
+## Accessibility matrices and tooltip typography
+
+`PanoFilter` also accepts `colorMatrix`, a readonly row-major 4×5 RGBA matrix
+(20 finite numbers, matching SVG `feColorMatrix`). The matrix is applied in
+display/sRGB space after the panorama preset. `intensity` mixes each effect
+with the original; `enabled={false}` disables both. Set
+`colorMatrixScope="all"` to include hotspot textures; the default `"panorama"`
+keeps existing behavior. Artistic presets always affect only the panorama.
+HTML tooltips, iframes and other DOM chrome remain host-styled.
+
+Hotspot `tooltipAppearance` now accepts `fontFamily`, `lineHeight`, and
+`letterSpacing`, in addition to `fontSize` and existing paint options.
+`lineHeight` numbers are unitless; numeric `letterSpacing` values are CSS pixels.
+
+Regression checks: `pnpm --filter @ericchen1990/pano-view test` (Node 22+).
