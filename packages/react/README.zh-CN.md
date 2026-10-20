@@ -26,16 +26,14 @@ pnpm 与 Yarn 用法相同（`pnpm add` / `yarn add`）。
 
 | 包 | 支持范围 |
 | --- | --- |
-| `react` | `>=19.0.0 <19.3.0` |
-| `react-dom` | `>=19.0.0 <19.3.0` |
+| `react` | `^19.0.0` |
+| `react-dom` | `^19.0.0` |
 | `three` | `^0.185.1` |
 | `@react-three/fiber` | `^9.7.0` |
 | `@react-three/drei` | `^10.0.0` |
 | `@react-three/xr` | `^6.6.0` |
 
 在宿主应用中保持 React、Three.js 与 React Three Fiber 相关包的**单一副本**。重复的 `three` 树是空白画布与上下文错误（`R3F: Hooks can only be used within the Canvas component`）的常见原因。若出现该问题，请检查 `npm ls three` / `pnpm why three` 并去重。
-
-React 19.3 及更高版本不在支持范围内。
 
 ### 样式表（HTML 叠加层）
 

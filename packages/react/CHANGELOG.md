@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.2.1
+
+### Patch Changes
+
+- Accept the full React 19 line as peer dependencies. The previous upper bound stopped before 19.3 even though this package has no dependency on that cutoff.
+
 ## 3.2.0
 
 ### Minor Changes
