@@ -3,6 +3,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture } from "three";
 import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
+import {
+  publishSceneDetail,
+  useSceneDetailReporter,
+  viewTilesAreDrawable,
+} from "../scene-detail";
 import { TileTextureManager } from "../tile/texture-manager";
 import { useSharedTileTextureManager } from "../tile/texture-manager-context";
 import { useManagedTexture, usePreviewTexture } from "../tile/texture-hooks";
@@ -23,6 +28,21 @@ import type {
 } from "./types";
 
 type Layer = { level: number; addresses: SphereTileAddress[] };
+
+export function sphereTileViewShouldRefresh(input: {
+  loadModeChanged: boolean;
+  managerChanged: boolean;
+  elapsedMs: number;
+  viewUnchanged: boolean;
+}): boolean {
+  if (input.loadModeChanged || input.managerChanged) {
+    return true;
+  }
+  if (input.elapsedMs < 100 || input.viewUnchanged) {
+    return false;
+  }
+  return true;
+}
 
 function SpherePatch({
   address,
@@ -201,6 +221,11 @@ function SphereTileSource({
     [],
   );
   const [layers, setLayers] = useState<Layer[]>([]);
+  const detailReporter = useSceneDetailReporter();
+  const detailReporterRef = useRef(detailReporter);
+  detailReporterRef.current = detailReporter;
+  const detailTokenRef = useRef("");
+  const targetKeysRef = useRef<string[]>([]);
   const scratch = useMemo(
     () => ({
       camera: new PerspectiveCamera(),
@@ -226,68 +251,89 @@ function SphereTileSource({
     if (!(camera instanceof PerspectiveCamera)) return;
     const now = performance.now(),
       dpr = gl.getPixelRatio();
-    const reset = scratch.manager !== manager || scratch.loadMode !== loadMode;
+    const managerChanged = scratch.manager !== manager;
+    const loadModeChanged = scratch.loadMode !== loadMode;
+    const viewUnchanged =
+      scratch.fov === camera.fov &&
+      scratch.width === size.width &&
+      scratch.height === size.height &&
+      scratch.dpr === dpr &&
+      scratch.quaternion.angleTo(camera.quaternion) < 0.0001;
     if (
-      !reset &&
-      (now - scratch.time < 100 ||
-        (scratch.fov === camera.fov &&
-          scratch.width === size.width &&
-          scratch.height === size.height &&
-          scratch.dpr === dpr &&
-          scratch.quaternion.angleTo(camera.quaternion) < 0.0001))
-    )
-      return;
-    scratch.time = now;
-    scratch.fov = camera.fov;
-    scratch.width = size.width;
-    scratch.height = size.height;
-    scratch.dpr = dpr;
-    scratch.quaternion.copy(camera.quaternion);
-    scratch.manager = manager;
-    scratch.loadMode = loadMode;
-    scratch.camera.copy(camera, false);
-    scratch.camera.fov = Math.min(179, camera.fov + 8);
-    scratch.camera.updateProjectionMatrix();
-    scratch.camera.updateMatrixWorld();
-    scratch.matrix.multiplyMatrices(
-      scratch.camera.projectionMatrix,
-      scratch.camera.matrixWorldInverse,
-    );
-    scratch.frustum.setFromProjectionMatrix(scratch.matrix);
-    let level =
-      loadMode === "preview"
-        ? -1
-        : loadMode === "base"
-          ? 0
-          : preferredSphereLevel(config.levels, size.height, dpr, camera.fov);
-    const next: Layer[] = [];
-    let residentBytes = 0;
-    for (let index = 0; index <= level; index++) {
-      const addresses = candidates[index]!.filter(({ bounds }) =>
-        scratch.frustum.intersectsBox(bounds),
-      ).map(({ address }) => address);
-      const bytes = addresses.reduce(
-        (total, address) => total + address.width * address.height * 4,
-        0,
+      sphereTileViewShouldRefresh({
+        loadModeChanged,
+        managerChanged,
+        elapsedMs: now - scratch.time,
+        viewUnchanged,
+      })
+    ) {
+      const reset = managerChanged || loadModeChanged;
+      scratch.time = now;
+      scratch.fov = camera.fov;
+      scratch.width = size.width;
+      scratch.height = size.height;
+      scratch.dpr = dpr;
+      scratch.quaternion.copy(camera.quaternion);
+      scratch.manager = manager;
+      scratch.loadMode = loadMode;
+      scratch.camera.copy(camera, false);
+      scratch.camera.fov = Math.min(179, camera.fov + 8);
+      scratch.camera.updateProjectionMatrix();
+      scratch.camera.updateMatrixWorld();
+      scratch.matrix.multiplyMatrices(
+        scratch.camera.projectionMatrix,
+        scratch.camera.matrixWorldInverse,
       );
-      if (residentBytes + bytes > budget) {
-        level = index - 1;
-        break;
+      scratch.frustum.setFromProjectionMatrix(scratch.matrix);
+      let level =
+        loadMode === "preview"
+          ? -1
+          : loadMode === "base"
+            ? 0
+            : preferredSphereLevel(config.levels, size.height, dpr, camera.fov);
+      const next: Layer[] = [];
+      let residentBytes = 0;
+      for (let index = 0; index <= level; index++) {
+        const addresses = candidates[index]!.filter(({ bounds }) =>
+          scratch.frustum.intersectsBox(bounds),
+        ).map(({ address }) => address);
+        const bytes = addresses.reduce(
+          (total, address) => total + address.width * address.height * 4,
+          0,
+        );
+        if (residentBytes + bytes > budget) {
+          level = index - 1;
+          break;
+        }
+        residentBytes += bytes;
+        next.push({ level: index, addresses });
       }
-      residentBytes += bytes;
-      next.push({ level: index, addresses });
+      const targetLayer = loadMode === "full" ? next[next.length - 1] : undefined;
+      targetKeysRef.current = targetLayer
+        ? targetLayer.addresses.map(
+            (address) => `${resolveUrl(address)}\u0000${sphereTileKey(address)}`,
+          )
+        : [];
+      if (level !== scratch.level) {
+        scratch.level = level;
+        if (level >= 0) callbacks.current.onLevelChange?.(level);
+      }
+      const token = next
+        .map((layer) => layer.addresses.map(sphereTileKey).join(","))
+        .join(";");
+      if (token !== scratch.token || reset) {
+        scratch.token = token;
+        setLayers(next);
+      }
     }
-    if (level !== scratch.level) {
-      scratch.level = level;
-      if (level >= 0) callbacks.current.onLevelChange?.(level);
-    }
-    const token = next
-      .map((layer) => layer.addresses.map(sphereTileKey).join(","))
-      .join(";");
-    if (token !== scratch.token || reset) {
-      scratch.token = token;
-      setLayers(next);
-    }
+    publishSceneDetail(
+      detailReporterRef.current,
+      detailTokenRef,
+      loadMode === "full" &&
+        viewTilesAreDrawable(
+          targetKeysRef.current.map((key) => manager.getSnapshot(key).texture),
+        ),
+    );
   });
   return (
     <group visible={visible}>

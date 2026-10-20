@@ -637,7 +637,7 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 
 ## Scenes
 
-`Scenes` 在受控的普通球面、立方体瓦片与球面多级瓦片场景之间切换，采用纯 GPU 快照混合。目标场景先加载其球面或 tile 预览；就绪后，当前帧缓冲成为临时 GPU 纹理，释放其源纹理，目标场景再混合进入。这样避免在 WebGL 内存中同时持有两个高分辨率 tile 场景。
+`Scenes` 在受控的普通球面、立方体瓦片与球面多级瓦片场景之间切换，采用纯 GPU 快照混合。目标场景在隐藏状态下预加载预览和基础层。预览可绘制后，当前帧缓冲成为临时 GPU 纹理，并释放旧场景的源纹理。目标随即进入 `full`：转场期间已经清晰的瓦片立刻盖住预览，尚未就绪的区域继续显示父层瓦片或预览。查看器不会同时保留两套高清瓦片，也不会预加载当前视野之外的瓦片。
 
 ```tsx
 import {
@@ -671,7 +671,11 @@ const scenes: Scene[] = [
 
 可用的 KRpano 风格预设包括 `none`、`crossfade`、`zoom`、`blackout`、`whiteFlash`、`slideRightToLeft`、`slideTopToBottom`、`slideDiagonal`、`circleOpen`、`verticalOpen`、`horizontalOpen`、`ellipticZoomOpen`。网格类预设为 `pixelate`、`gridWipe`、`gridWipeUp`、`gridWipeRight`、`gridWipeDiagonal`、`gridWipeCenter`、`gridWipeChecker`、`hexDissolve`。电影感预设为 `dissolve`、`shatter`、`particles`、`glitch`、`swirl`、`clockWipe`、`ripple`、`zoomBlur`、`filmBurn`。它们均在入画全景之上混合 GPU 帧缓冲快照，不会混合两个完整 360 纹理。传 `{ preset: "crossfade", duration: 0.6 }` 可覆盖预设时长。
 
-过渡进行时，全景拖拽/缩放输入被锁定，`renderHotspots` 被隐藏。新的 `activeSceneId` 会取代仍在准备中的目标。`maxTextureMemoryMb` 与 `maxConcurrentTileLoads` 作用于整个 `Scenes` 查看器，而非每个 tile 场景单独计算。
+`transitionWaitForDetailMs` 默认为 `0`：目标一旦可绘制就开始转场，高清在转场期间继续加载。正数（例如 `200`）从旧画面快照完成、目标进入 `full` 之后开始计时；当前视野已经清晰就提前转场，否则最多再等待指定毫秒。该等待与转场动画时长分开计算。等待期间完整显示旧快照，目标在其下正常绘制并上传纹理。普通球面的“清晰”指完整图片可绘制；立方体和球面瓦片指按视口尺寸、设备像素比、FOV 和现有内存预算选出的当前视野目标层级全部可绘制，不要求视野外瓦片。负值或非有限值按 `0` 处理。`transition="none"` 使用同一条件，满足后直接切换。新的目标、中断、卸载或 WebGL 上下文丢失会取消尚未结束的等待，避免过期的就绪通知影响下一个场景。
+
+`onReady` 仍表示源第一次可绘制。`onSceneReady` 仍在首个场景可绘制，或旧画面快照完成且新场景接管时触发，并不表示当前视野的高清已经到齐。
+
+清晰等待或转场进行时，全景拖拽/缩放输入被锁定，`renderHotspots` 被隐藏。新的 `activeSceneId` 会取代仍在准备中的目标。`maxTextureMemoryMb` 与 `maxConcurrentTileLoads` 作用于整个 `Scenes` 查看器，而非每个 tile 场景单独计算。
 
 ## PanoFilter
 
@@ -1553,7 +1557,9 @@ const scenes: Scene[] = [
 ```
 
 `onSceneReady(sceneId)` 在首个场景可绘制、或旧画面截图完成且新场景接管时触发。
-此时过渡可能仍在进行，可在该回调中设置新场景视角而不改变旧画面快照；
+此时过渡可能仍在进行，可在该回调中设置新场景视角而不改变旧画面快照。
+高清在这次交接之后加载，转场期间也会继续加载。`transitionWaitForDetailMs`
+可以让旧快照多停留到当前视野清晰，但不会改变 `onSceneReady` 的触发时机。
 `onTransitionEnd` 表示混合效果播放完成。
 
 `SphereTileScene` 保留 `SphereTile` 的资源选项，包括 `indexBase`、`resolveTileUrl`

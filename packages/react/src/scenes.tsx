@@ -16,9 +16,24 @@ import {
 } from "three";
 import { cycleSceneId } from "./keyboard-controls";
 import { PanoramaViewContext } from "./panorama-view-runtime";
+import {
+  SceneDetailContext,
+  type SceneDetailReporter,
+} from "./scene-detail";
 import type { Snapshot } from "./scene-transitions/overlay-utils";
 import { resolveTransition } from "./scene-transitions/presets";
 import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
+import { SnapshotHold } from "./scene-transitions/snapshot-hold";
+import {
+  acceptDetailWait,
+  normalizeTransitionWaitMs,
+  pendingSceneUsesBaseLayer,
+  phaseAfterSnapshot,
+  planDetailHold,
+  type DetailWait,
+  type DetailWaitSignal,
+  type SceneRuntimePhase,
+} from "./scene-transition-policy";
 import {
   notifyScenesHost,
   ScenesHostContext,
@@ -105,9 +120,20 @@ export type ScenesProps = {
   /** Rendered only after a scene has finished transitioning in. */
   renderHotspots?: (scene: Scene) => ReactNode;
   /** First paintable scene, or an incoming scene taking over after snapshot capture.
-   * The transition may still be running. Safe to apply the incoming camera view here.
+   * The transition may still be running, and full detail may still be loading.
+   * Safe to apply the incoming camera view here.
    */
   onSceneReady?: (sceneId: string) => void;
+  /**
+   * Extra milliseconds to hold the outgoing snapshot after it is captured and the
+   * incoming scene has switched to full detail. `0` (default) starts the blend
+   * immediately and keeps loading detail during it. A positive value starts the
+   * blend early when the current view is already sharp, otherwise it waits at
+   * most this long. The wait is separate from the blend duration. Negative and
+   * non-finite values are treated as `0`. `transition="none"` cuts over directly
+   * once the same condition is met.
+   */
+  transitionWaitForDetailMs?: number;
   onTransitionEnd?: (event: SceneTransitionEndEvent) => void;
   onTransitionError?: (event: SceneTransitionErrorEvent) => void;
   /** Viewer-wide budget shared by every tile scene. Defaults to 128 MiB. */
@@ -118,7 +144,7 @@ export type ScenesProps = {
   snapshotMaxPixels?: number;
 };
 
-type Phase = "idle" | "preloading" | "capturing" | "recapturing" | "transitioning";
+type Phase = SceneRuntimePhase;
 
 export function SceneSource({
   scene,
@@ -270,6 +296,7 @@ function ScenesController({
   onTransitionEnd,
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
+  transitionWaitForDetailMs,
   phaseRef: externalPhaseRef,
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
@@ -303,6 +330,13 @@ function ScenesController({
   const liveSlotRef = useRef(liveSlot);
   const transitionFromRef = useRef<Scene | null>(initialScene);
   const readySceneRef = useRef<Scene | null>(null);
+  const waitRef = useRef<DetailWait | null>(null);
+  const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detailGenerationRef = useRef(0);
+  const [detailGeneration, setDetailGeneration] = useState(0);
+  const mountedRef = useRef(true);
+  const waitForDetailMsRef = useRef(0);
+  waitForDetailMsRef.current = normalizeTransitionWaitMs(transitionWaitForDetailMs);
   slotsRef.current = slots;
   phaseRef.current = phase;
   if (externalPhaseRef) {
@@ -319,7 +353,38 @@ function ScenesController({
     onTransitionError?.({ sceneId, error });
   }, [onTransitionError]);
 
+  const clearDetailWait = useCallback((bumpGeneration: boolean) => {
+    if (waitTimerRef.current !== null) {
+      clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+    const generation = waitRef.current?.generation;
+    if (generation === undefined) {
+      waitRef.current = null;
+    } else {
+      waitRef.current = acceptDetailWait(waitRef.current, {
+        kind: "cancel",
+        generation,
+      }).wait;
+    }
+    if (!bumpGeneration || !mountedRef.current) {
+      return;
+    }
+    const nextGeneration = detailGenerationRef.current + 1;
+    detailGenerationRef.current = nextGeneration;
+    setDetailGeneration(nextGeneration);
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearDetailWait(false);
+    };
+  }, [clearDetailWait]);
+
   const startPreload = useCallback((scene: Scene) => {
+    clearDetailWait(true);
     const nextSlot = 1 - liveSlotRef.current;
     requestedSceneIdRef.current = scene.id;
     setSlots((current) => {
@@ -329,7 +394,7 @@ function ScenesController({
     });
     setPendingSlot(nextSlot);
     setPhase("preloading");
-  }, []);
+  }, [clearDetailWait]);
 
   useEffect(() => {
     const requested = sceneMap.get(activeSceneId);
@@ -351,18 +416,23 @@ function ScenesController({
       requestedSceneIdRef.current = requested.id;
       return;
     }
-    if (phaseRef.current === "transitioning" || phaseRef.current === "capturing") {
+    if (
+      phaseRef.current === "transitioning" ||
+      phaseRef.current === "capturing" ||
+      phaseRef.current === "awaitingDetail"
+    ) {
       // Readiness callbacks may rerender the parent with new callback/array identities.
       // Only a genuinely new target should interrupt the blend already in progress.
       if (requestedSceneIdRef.current === requested.id) return;
       requestedSceneIdRef.current = requested.id;
       captureReasonRef.current = "interrupt";
+      clearDetailWait(true);
       setPhase("recapturing");
       setCaptureRequestId((current) => current + 1);
       return;
     }
     startPreload(requested);
-  }, [activeSceneId, pendingSlot, reportError, sceneMap, startPreload]);
+  }, [activeSceneId, clearDetailWait, pendingSlot, reportError, sceneMap, startPreload]);
 
   const notifySceneReady = useCallback((scene: Scene | null) => {
     if (!scene || readySceneRef.current === scene) return;
@@ -378,7 +448,7 @@ function ScenesController({
     if (slot !== pendingSlot || phaseRef.current !== "preloading") {
       return;
     }
-    if (transition.preset === "none") {
+    if (transition.preset === "none" && waitForDetailMsRef.current === 0) {
       const previousScene = slotsRef.current[liveSlotRef.current];
       const nextScene = slotsRef.current[slot];
       setSlots((current) => {
@@ -407,32 +477,6 @@ function ScenesController({
     setCaptureRequestId((current) => current + 1);
   }, [controlsRef, notifySceneReady, onTransitionEnd, pendingSlot, transition.preset]);
 
-  const handleCaptured = useCallback((nextSnapshot: Snapshot) => {
-    setSnapshot((current) => {
-      current?.dispose();
-      return nextSnapshot;
-    });
-
-    if (captureReasonRef.current === "interrupt") {
-      startPreload(sceneMap.get(requestedSceneIdRef.current)!);
-      return;
-    }
-
-    const sourceSlot = liveSlotRef.current;
-    setSlots((current) => {
-      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
-      next[sourceSlot] = null;
-      return next;
-    });
-    manager?.releaseUnused();
-    if (pendingSlot !== null) {
-      notifySceneReady(slotsRef.current[pendingSlot]);
-      setLiveSlot(pendingSlot);
-    }
-    setPhase("transitioning");
-    setTransitionRunId((current) => current + 1);
-  }, [manager, notifySceneReady, pendingSlot, sceneMap, startPreload]);
-
   const finishTransition = useCallback(() => {
     const nextSlot = pendingSlot;
     const previousScene = transitionFromRef.current;
@@ -459,10 +503,144 @@ function ScenesController({
     }
   }, [onTransitionEnd, pendingSlot, releaseInteraction, snapshot, transition.preset]);
 
+  const finishTransitionRef = useRef(finishTransition);
+  finishTransitionRef.current = finishTransition;
+  const transitionRef = useRef(transition);
+  transitionRef.current = transition;
+
+  const consumeDetailSignal = useCallback((signal: DetailWaitSignal) => {
+    const decision = acceptDetailWait(waitRef.current, signal);
+    waitRef.current = decision.wait;
+    if (!decision.start) {
+      return;
+    }
+    if (waitTimerRef.current !== null) {
+      clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+    if (!mountedRef.current) {
+      return;
+    }
+    if (transitionRef.current.preset === "none") {
+      finishTransitionRef.current();
+      return;
+    }
+    setPhase("transitioning");
+    setTransitionRunId((current) => current + 1);
+  }, []);
+
+  const handleCaptured = useCallback((nextSnapshot: Snapshot) => {
+    if (captureReasonRef.current === "interrupt") {
+      setSnapshot((current) => {
+        current?.dispose();
+        return nextSnapshot;
+      });
+      startPreload(sceneMap.get(requestedSceneIdRef.current)!);
+      return;
+    }
+
+    const sourceSlot = liveSlotRef.current;
+    const incoming = pendingSlot === null ? null : slotsRef.current[pendingSlot];
+    setSlots((current) => {
+      const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
+      next[sourceSlot] = null;
+      return next;
+    });
+    manager?.releaseUnused();
+    if (pendingSlot !== null && incoming) {
+      notifySceneReady(incoming);
+      setLiveSlot(pendingSlot);
+    }
+
+    if (waitTimerRef.current !== null) {
+      clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+    waitRef.current = null;
+    let hold: DetailWait | null = null;
+    if (incoming && waitForDetailMsRef.current > 0) {
+      const now = performance.now();
+      const generation = detailGenerationRef.current + 1;
+      detailGenerationRef.current = generation;
+      hold = planDetailHold({
+        waitMs: waitForDetailMsRef.current,
+        now,
+        generation,
+        sceneId: incoming.id,
+      });
+      if (hold) {
+        const deadline = hold.deadline;
+        waitRef.current = hold;
+        setDetailGeneration(generation);
+        waitTimerRef.current = setTimeout(() => {
+          consumeDetailSignal({
+            kind: "timeout",
+            generation,
+            now: deadline,
+          });
+        }, Math.max(0, deadline - performance.now()));
+      }
+    }
+
+    const nextPhase = phaseAfterSnapshot(transition.preset, hold);
+    if (nextPhase === "awaitingDetail") {
+      setSnapshot((current) => {
+        current?.dispose();
+        return nextSnapshot;
+      });
+      setPhase("awaitingDetail");
+      return;
+    }
+    if (nextPhase === "idle") {
+      nextSnapshot.dispose();
+      setSnapshot((current) => {
+        current?.dispose();
+        return null;
+      });
+      if (pendingSlot !== null) {
+        setActiveSlot(pendingSlot);
+      }
+      setPendingSlot(null);
+      setPhase("idle");
+      releaseInteraction();
+      const previousScene = transitionFromRef.current;
+      if (previousScene && incoming) {
+        onTransitionEnd?.({
+          previousSceneId: previousScene.id,
+          sceneId: incoming.id,
+          preset: "none",
+        });
+      }
+      return;
+    }
+
+    setSnapshot((current) => {
+      current?.dispose();
+      return nextSnapshot;
+    });
+    setPhase("transitioning");
+    setTransitionRunId((current) => current + 1);
+  }, [
+    consumeDetailSignal,
+    manager,
+    notifySceneReady,
+    onTransitionEnd,
+    pendingSlot,
+    releaseInteraction,
+    sceneMap,
+    startPreload,
+    transition.preset,
+  ]);
+
+  const snapshotRef = useRef<Snapshot | null>(snapshot);
+  snapshotRef.current = snapshot;
   useEffect(() => () => {
+    // Snapshot identity changes while the blend or detail wait is still running.
+    // Releasing here would unlock the camera as soon as the outgoing frame is stored.
     releaseInteraction();
-    snapshot?.dispose();
-  }, [releaseInteraction, snapshot]);
+    snapshotRef.current?.dispose();
+    snapshotRef.current = null;
+  }, [releaseInteraction]);
 
   const { gl } = useThree();
   useEffect(() => {
@@ -470,6 +648,7 @@ function ScenesController({
     const onContextLost = (event: Event) => {
       event.preventDefault();
       releaseInteraction();
+      clearDetailWait(true);
       manager?.dispose();
       snapshot?.dispose();
       setSnapshot(null);
@@ -487,7 +666,7 @@ function ScenesController({
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [gl, manager, releaseInteraction, snapshot]);
+  }, [clearDetailWait, gl, manager, releaseInteraction, snapshot]);
 
   const renderedScene = slots[liveSlot];
   const snapshotVisible = snapshot !== null && (
@@ -495,6 +674,24 @@ function ScenesController({
     phase === "recapturing" ||
     phase === "preloading"
   );
+  const slotSceneKey = `${slots[0]?.id ?? ""}\n${slots[1]?.id ?? ""}`;
+  const detailReporters = useMemo((): [SceneDetailReporter, SceneDetailReporter] => {
+    const [firstSceneId = "", secondSceneId = ""] = slotSceneKey.split("\n");
+    const sceneIds = [firstSceneId, secondSceneId];
+    return sceneIds.map((sceneId) => ({
+      generation: detailGeneration,
+      report: (ready: boolean) => {
+        if (!ready || sceneId === "") {
+          return;
+        }
+        consumeDetailSignal({
+          kind: "ready",
+          generation: detailGeneration,
+          sceneId,
+        });
+      },
+    })) as [SceneDetailReporter, SceneDetailReporter];
+  }, [consumeDetailSignal, detailGeneration, slotSceneKey]);
 
   return (
     <Fragment>
@@ -508,20 +705,27 @@ function ScenesController({
         const isLive = slot === liveSlot;
         const isPending = slot === pendingSlot;
         return (
-          <SceneSource
+          <SceneDetailContext.Provider
             key={`${slot}:${source?.id ?? "empty"}:${recoveryKey}`}
-            scene={source}
-            visible={isLive}
-            baseOnly={isPending && phase !== "idle"}
-            onReady={() => handleReady(slot)}
-            onError={(error) => {
-              if (source) {
-                reportError(source.id, error);
-              }
-            }}
-          />
+            value={detailReporters[slot]}
+          >
+            <SceneSource
+              scene={source}
+              visible={isLive}
+              baseOnly={pendingSceneUsesBaseLayer(phase, isPending)}
+              onReady={() => handleReady(slot)}
+              onError={(error) => {
+                if (source) {
+                  reportError(source.id, error);
+                }
+              }}
+            />
+          </SceneDetailContext.Provider>
         );
       })}
+      {snapshot !== null && phase === "awaitingDetail" ? (
+        <SnapshotHold snapshot={snapshot} />
+      ) : null}
       {snapshotVisible ? (
         <TransitionOverlay
           snapshot={snapshot}

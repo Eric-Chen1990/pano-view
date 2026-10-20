@@ -13,6 +13,7 @@ import {
 import { resolveUrlAgainstFile } from "./asset-url";
 import { PanoBasicMaterial } from "./pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
+import { useSceneDetailReporter } from "./scene-detail";
 
 export type SphereProps = {
   src: string;
@@ -136,10 +137,21 @@ export function Sphere({
   );
   const displayTexture = texture ?? previewTexture;
   const readyRef = useRef(false);
+  const detailReporter = useSceneDetailReporter();
 
   useEffect(() => {
     readyRef.current = false;
   }, [resolvedPreviewUrl, src]);
+
+  useEffect(() => {
+    if (!detailReporter) {
+      return;
+    }
+    detailReporter.report(texture != null);
+    return () => {
+      detailReporter.report(false);
+    };
+  }, [detailReporter, texture]);
 
   useEffect(() => {
     if (!displayTexture || readyRef.current) {
