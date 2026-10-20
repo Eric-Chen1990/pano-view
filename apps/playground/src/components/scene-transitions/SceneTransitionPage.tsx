@@ -44,7 +44,7 @@ export function SceneTransitionPage() {
   const [backgroundMode, setBackgroundMode] = useState<"shared" | "per-scene">(
     "shared",
   );
-  const [backgroundPlaying, setBackgroundPlaying] = useState(true);
+  const [backgroundPlaying, setBackgroundPlaying] = useState(false);
 
   return (
     <main className={shellClassName}>
@@ -169,11 +169,6 @@ export function SceneTransitionPage() {
           <PanoViewer
             ref={viewer.ref}
             aria-label="Panorama scene transition demo"
-            mediaActivation={{
-              onActivate: () => {
-                setBackgroundPlaying(true);
-              },
-            }}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <KeyboardControls
