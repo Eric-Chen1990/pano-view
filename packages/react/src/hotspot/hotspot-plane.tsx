@@ -146,7 +146,6 @@ export function HotspotPlane({
       <PanoBasicMaterial
         target="hotspot"
         alphaTest={HOTSPOT_ALPHA_CUTOFF}
-        alphaToCoverage
         map={map}
         opacity={map ? clampOpacity(opacity) : 0}
         side={DoubleSide}
