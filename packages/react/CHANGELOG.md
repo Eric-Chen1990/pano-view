@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.2.3
+
+### Patch Changes
+
+- Update the panorama canvas throughout container resizing instead of waiting for the default measurement debounce after panel dragging stops.
+
 ## 3.2.2
 
 ### Patch Changes
