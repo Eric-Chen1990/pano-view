@@ -8,6 +8,7 @@ import {
 import {
   resolvePanoFilterSnapshot,
   type PanoFilterPreset,
+  type PanoColorMatrix,
 } from "./presets";
 
 export type PanoFilterProps = {
@@ -15,19 +16,25 @@ export type PanoFilterProps = {
   preset?: PanoFilterPreset;
   /** Mix with the original panorama, 0–1. Defaults to 1. */
   intensity?: number;
+  /** Display-space RGBA matrix applied after the artistic preset. */
+  colorMatrix?: PanoColorMatrix | null;
+  /** `all` also filters hotspot textures. HTML tooltips/chrome remain host-styled. */
+  colorMatrixScope?: "panorama" | "all";
   /** When false, the panorama renders without a filter. Defaults to true. */
   enabled?: boolean;
 };
 
 /**
  * Applies a color or artistic filter to the panorama source of the nearest
- * PanoViewer. Render one instance as a child of PanoViewer. Hotspots and HTML
- * chrome are not filtered.
+ * PanoViewer. Render one instance as a child of PanoViewer. colorMatrixScope
+ * can include hotspot textures; HTML chrome remains host-styled.
  */
 export function PanoFilter({
   preset = "none",
   intensity,
   enabled = true,
+  colorMatrix,
+  colorMatrixScope,
 }: PanoFilterProps) {
   const host = useContext(PanoFilterHostContext);
   if (!host) {
@@ -35,8 +42,15 @@ export function PanoFilter({
   }
 
   const snapshot = useMemo(
-    () => resolvePanoFilterSnapshot({ preset, intensity, enabled }),
-    [enabled, intensity, preset],
+    () =>
+      resolvePanoFilterSnapshot({
+        preset,
+        intensity,
+        enabled,
+        colorMatrix,
+        colorMatrixScope,
+      }),
+    [enabled, intensity, preset, colorMatrix, colorMatrixScope],
   );
 
   useEffect(() => {

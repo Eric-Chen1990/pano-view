@@ -78,6 +78,11 @@ export type HotspotTooltipAppearance = {
   shadow?: string;
   padding?: number | string;
   fontSize?: number | string;
+  fontFamily?: CSSProperties["fontFamily"];
+  /** Unitless line-height, or a CSS length. */
+  lineHeight?: CSSProperties["lineHeight"];
+  /** Numbers are CSS pixels. */
+  letterSpacing?: CSSProperties["letterSpacing"];
 };
 
 export type HotspotCommonProps = {

@@ -1,3 +1,4 @@
+import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   DoubleSide,
   Mesh,
@@ -34,7 +35,10 @@ function isSampleableImage(image: unknown): image is SampleableImage {
   if (image instanceof HTMLCanvasElement) {
     return image.width > 0 && image.height > 0;
   }
-  if (typeof OffscreenCanvas !== "undefined" && image instanceof OffscreenCanvas) {
+  if (
+    typeof OffscreenCanvas !== "undefined" &&
+    image instanceof OffscreenCanvas
+  ) {
     return image.width > 0 && image.height > 0;
   }
   if (typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap) {
@@ -73,7 +77,11 @@ function readImageData(image: SampleableImage): ImageData | null {
   }
 }
 
-function sampleTextureAlpha(texture: Texture, u: number, v: number): number | null {
+function sampleTextureAlpha(
+  texture: Texture,
+  u: number,
+  v: number,
+): number | null {
   if (!isSampleableImage(texture.image)) {
     return null;
   }
@@ -99,7 +107,9 @@ function hotspotPlaneRaycast(
   raycaster: Raycaster,
   intersects: Intersection[],
 ) {
-  const material = Array.isArray(this.material) ? this.material[0] : this.material;
+  const material = Array.isArray(this.material)
+    ? this.material[0]
+    : this.material;
   if (!(material instanceof MeshBasicMaterial)) {
     Mesh.prototype.raycast.call(this, raycaster, intersects);
     return;
@@ -133,7 +143,8 @@ export function HotspotPlane({
   return (
     <mesh raycast={hotspotPlaneRaycast}>
       <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
+      <PanoBasicMaterial
+        target="hotspot"
         alphaTest={HOTSPOT_ALPHA_CUTOFF}
         alphaToCoverage
         map={map}

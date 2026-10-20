@@ -8,29 +8,30 @@ import {
 import type {
   TextureEntrySnapshot,
   TileAddress,
-  TileLoadError,
   TileLoadProgress,
 } from "./types";
 
 type Listener = (snapshot: TextureEntrySnapshot) => void;
 
-type TextureEntry = TextureEntrySnapshot & {
+type TextureAddress = { width: number; height: number };
+
+type TextureEntry<TAddress extends TextureAddress> = TextureEntrySnapshot & {
   key: string;
   url: string;
-  address: TileAddress;
+  address: TAddress;
   refs: number;
   listeners: Set<Listener>;
   lastUsed: number;
   bytes: number;
 };
 
-type TextureManagerOptions = {
+type TextureManagerOptions<TAddress extends TextureAddress> = {
   anisotropy: number;
   maxBytes: number;
   concurrency: number;
   retryCount: number;
   onProgress?: (progress: TileLoadProgress) => void;
-  onError?: (event: TileLoadError) => void;
+  onError?: (event: { address: TAddress; url: string; error: unknown }) => void;
 };
 
 const EMPTY_TEXTURE_SNAPSHOT: TextureEntrySnapshot = {
@@ -39,10 +40,10 @@ const EMPTY_TEXTURE_SNAPSHOT: TextureEntrySnapshot = {
   error: null,
 };
 
-export class TileTextureManager {
+export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
   private readonly loader = new TextureLoader();
-  private readonly entries = new Map<string, TextureEntry>();
-  private readonly queue: TextureEntry[] = [];
+  private readonly entries = new Map<string, TextureEntry<TAddress>>();
+  private readonly queue: TextureEntry<TAddress>[] = [];
   private activeLoads = 0;
   private totalBytes = 0;
   private requested = 0;
@@ -50,9 +51,9 @@ export class TileTextureManager {
   private failed = 0;
   private disposed = false;
   private generation = 0;
-  private options: TextureManagerOptions;
+  private options: TextureManagerOptions<TAddress>;
 
-  constructor(options: TextureManagerOptions) {
+  constructor(options: TextureManagerOptions<TAddress>) {
     this.options = options;
   }
 
@@ -69,7 +70,7 @@ export class TileTextureManager {
   acquire(
     key: string,
     url: string,
-    address: TileAddress,
+    address: TAddress,
     listener: Listener,
   ): () => void {
     let entry = this.entries.get(key);
@@ -153,7 +154,7 @@ export class TileTextureManager {
     this.totalBytes = Math.max(0, this.totalBytes);
   }
 
-  private snapshot(entry: TextureEntry): TextureEntrySnapshot {
+  private snapshot(entry: TextureEntry<TAddress>): TextureEntrySnapshot {
     return {
       status: entry.status,
       texture: entry.texture,
@@ -161,7 +162,7 @@ export class TileTextureManager {
     };
   }
 
-  private notify(entry: TextureEntry) {
+  private notify(entry: TextureEntry<TAddress>) {
     const snapshot = this.snapshot(entry);
     for (const listener of entry.listeners) {
       listener(snapshot);
@@ -199,9 +200,10 @@ export class TileTextureManager {
     }
   }
 
-  private async load(entry: TextureEntry, generation: number) {
+  private async load(entry: TextureEntry<TAddress>, generation: number) {
     let lastError: unknown = null;
     for (let attempt = 0; attempt <= this.options.retryCount; attempt += 1) {
+      if (this.disposed || generation !== this.generation) return;
       try {
         const texture = await this.loader.loadAsync(entry.url);
         if (this.disposed || generation !== this.generation) {
@@ -277,7 +279,7 @@ export class TileTextureManager {
     }
   }
 
-  private async loadAndFinish(entry: TextureEntry) {
+  private async loadAndFinish(entry: TextureEntry<TAddress>) {
     const generation = this.generation;
     try {
       await this.load(entry, generation);

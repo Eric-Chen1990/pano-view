@@ -128,7 +128,8 @@ export function injectPanoFilterShader(
   shader: WebGLProgramParametersWithUniforms,
   preset: AppliedPanoFilterPreset,
 ): void {
-  shader.uniforms.uPanoFilterIntensity = shader.uniforms.uPanoFilterIntensity ?? {
+  shader.uniforms.uPanoFilterIntensity = shader.uniforms
+    .uPanoFilterIntensity ?? {
     value: 1,
   };
 
@@ -157,5 +158,24 @@ ${applyPanoFilterFunction(panoFilterBody(preset))}`,
       "#include <map_fragment>",
       `#include <map_fragment>
 diffuseColor.rgb = mix(diffuseColor.rgb, applyPanoFilter(diffuseColor.rgb), clamp(uPanoFilterIntensity, 0.0, 1.0));`,
+    );
+}
+
+/** Runs after Three.js encodes linear color, preserving display-space accessibility matrices. */
+export function injectPanoColorMatrixShader(
+  shader: WebGLProgramParametersWithUniforms,
+): void {
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+  uniform mat4 uPanoColorMatrix;
+  uniform vec4 uPanoColorOffset;
+  uniform float uPanoColorMatrixIntensity;`,
+    )
+    .replace(
+      "#include <colorspace_fragment>",
+      `#include <colorspace_fragment>
+  gl_FragColor = mix(gl_FragColor, clamp(uPanoColorMatrix * gl_FragColor + uPanoColorOffset, 0.0, 1.0), uPanoColorMatrixIntensity);`,
     );
 }

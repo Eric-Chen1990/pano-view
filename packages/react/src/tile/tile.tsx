@@ -1,22 +1,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box3,
-  ClampToEdgeWrapping,
   Frustum,
-  LinearFilter,
   Matrix4,
   PlaneGeometry,
   PerspectiveCamera,
-  SRGBColorSpace,
   Texture,
-  TextureLoader,
   Vector3,
 } from "three";
 import { resolveAssetUrl } from "../asset-url";
@@ -41,12 +31,9 @@ import {
 } from "./multires";
 import { TileTextureManager } from "./texture-manager";
 import { useSharedTileTextureManager } from "./texture-manager-context";
-import type {
-  CubeFaceCode,
-  TextureEntrySnapshot,
-  TileAddress,
-  TileProps,
-} from "./types";
+import type { CubeFaceCode, TileAddress, TileProps } from "./types";
+
+import { useManagedTexture, usePreviewTexture } from "./texture-hooks";
 
 const MAX_LOD_UPDATE_INTERVAL_MS = 100;
 const FAST_ROTATION_THRESHOLD_RADIANS = Math.PI / 180;
@@ -67,65 +54,6 @@ type TileCandidate = {
   bounds: Box3;
 };
 
-function usePreviewTexture(
-  url: string | null,
-  anisotropy: number,
-  onError?: (error: unknown) => void,
-) {
-  const [texture, setTexture] = useState<Texture | null>(null);
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-
-  useEffect(() => {
-    if (!url) {
-      setTexture(null);
-      return;
-    }
-
-    let active = true;
-    const loader = new TextureLoader();
-    setTexture(null);
-    loader.load(
-      url,
-      (loadedTexture) => {
-        if (!active) {
-          loadedTexture.dispose();
-          return;
-        }
-        loadedTexture.colorSpace = SRGBColorSpace;
-        loadedTexture.wrapS = ClampToEdgeWrapping;
-        loadedTexture.wrapT = ClampToEdgeWrapping;
-        loadedTexture.magFilter = LinearFilter;
-        loadedTexture.minFilter = LinearFilter;
-        loadedTexture.generateMipmaps = false;
-        loadedTexture.anisotropy = Math.min(4, anisotropy);
-        loadedTexture.needsUpdate = true;
-        setTexture(loadedTexture);
-      },
-      undefined,
-      (error) => {
-        if (active) {
-          setTexture(null);
-          onErrorRef.current?.(error);
-        }
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [anisotropy, url]);
-
-  useEffect(
-    () => () => {
-      texture?.dispose();
-    },
-    [texture],
-  );
-
-  return texture;
-}
-
 function PreviewFace({
   face,
   texture,
@@ -145,10 +73,7 @@ function PreviewFace({
     const inset = scale / 512;
     for (let index = 0; index < uv.count; index += 1) {
       const sourceV = uv.getY(index);
-      uv.setY(
-        index,
-        offset + inset + sourceV * Math.max(0, scale - inset * 2),
-      );
+      uv.setY(index, offset + inset + sourceV * Math.max(0, scale - inset * 2));
     }
     uv.needsUpdate = true;
     return nextGeometry;
@@ -194,42 +119,6 @@ function PreviewCube({
       faceOrder={faceOrder}
     />
   ));
-}
-
-function useManagedTexture(
-  manager: TileTextureManager,
-  key: string,
-  url: string,
-  address: TileAddress,
-): TextureEntrySnapshot {
-  const [managedState, setManagedState] = useState(() => ({
-    manager,
-    key,
-    url,
-    snapshot: manager.getSnapshot(key),
-  }));
-
-  const snapshot =
-    managedState.manager === manager &&
-    managedState.key === key &&
-    managedState.url === url
-      ? managedState.snapshot
-      : manager.getSnapshot(key);
-
-  useEffect(
-    () =>
-      manager.acquire(key, url, address, (nextSnapshot) => {
-        setManagedState({
-          manager,
-          key,
-          url,
-          snapshot: nextSnapshot,
-        });
-      }),
-    [key, manager, url],
-  );
-
-  return snapshot;
 }
 
 const TileMesh = memo(function TileMesh({
@@ -484,10 +373,7 @@ function buildLayers(
 
 function layerToken(layers: TileLayer[]): string {
   return layers
-    .map(
-      (layer) =>
-        `${layer.level}:${layer.addresses.map(tileKey).join(",")}`,
-    )
+    .map((layer) => `${layer.level}:${layer.addresses.map(tileKey).join(",")}`)
     .join("|");
 }
 
@@ -658,9 +544,7 @@ export function Tile({
     }
 
     const needsImmediateUpdate =
-      visibilityDirtyRef.current ||
-      viewportChanged ||
-      movingQuickly;
+      visibilityDirtyRef.current || viewportChanged || movingQuickly;
     if (
       !needsImmediateUpdate &&
       now - lastUpdateAtRef.current < MAX_LOD_UPDATE_INTERVAL_MS
@@ -670,15 +554,16 @@ export function Tile({
 
     lastUpdateAtRef.current = now;
 
-    const targetLevel = loadMode === "base"
-      ? 1
-      : getPreferredLevel(
-        levels,
-        size.height,
-        pixelRatio,
-        camera.fov,
-        currentLevelRef.current,
-      );
+    const targetLevel =
+      loadMode === "base"
+        ? 1
+        : getPreferredLevel(
+            levels,
+            size.height,
+            pixelRatio,
+            camera.fov,
+            currentLevelRef.current,
+          );
     if (targetLevel !== currentLevelRef.current) {
       currentLevelRef.current = targetLevel;
       levelChangeRef.current?.(targetLevel);
@@ -719,10 +604,7 @@ export function Tile({
   return (
     <group visible={visible}>
       {previewTexture ? (
-        <PreviewCube
-          texture={previewTexture}
-          faceOrder={previewFaceOrder}
-        />
+        <PreviewCube texture={previewTexture} faceOrder={previewFaceOrder} />
       ) : null}
       {layers.map((layer) => (
         <TileLayerMeshes

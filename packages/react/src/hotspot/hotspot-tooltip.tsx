@@ -12,15 +12,19 @@ const TOOLTIP_IMAGE_MAX_HEIGHT = 120;
 
 export const DEFAULT_HOTSPOT_TOOLTIP_OFFSET = 12;
 
-export const DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE: Required<HotspotTooltipAppearance> = {
-  background: "rgba(22, 22, 22, 0.72)",
-  color: "#f5fbfc",
-  border: "1px solid rgba(46, 46, 46, 0.7)",
-  borderRadius: 8,
-  shadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
-  padding: 8,
-  fontSize: 12,
-};
+export const DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE: Required<HotspotTooltipAppearance> =
+  {
+    background: "rgba(22, 22, 22, 0.72)",
+    color: "#f5fbfc",
+    border: "1px solid rgba(46, 46, 46, 0.7)",
+    borderRadius: 8,
+    shadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+    padding: 8,
+    fontSize: 12,
+    fontFamily: "inherit",
+    lineHeight: 1.4,
+    letterSpacing: "normal",
+  };
 
 const WRAPPER_STYLE: CSSProperties = {
   pointerEvents: "none",
@@ -59,7 +63,9 @@ export function resolveHotspotTooltipContent(
   };
 }
 
-export function resolveHotspotTooltipOffset(offset: number | undefined): number {
+export function resolveHotspotTooltipOffset(
+  offset: number | undefined,
+): number {
   if (!Number.isFinite(offset)) {
     return DEFAULT_HOTSPOT_TOOLTIP_OFFSET;
   }
@@ -115,6 +121,9 @@ export function HotspotTooltip({
       boxShadow: resolvedAppearance.shadow,
       color: resolvedAppearance.color,
       fontSize: toCssLength(resolvedAppearance.fontSize),
+      fontFamily: resolvedAppearance.fontFamily,
+      lineHeight: resolvedAppearance.lineHeight,
+      letterSpacing: resolvedAppearance.letterSpacing,
       padding: toCssLength(resolvedAppearance.padding),
       transform: tooltipBubbleTransform(
         placement,
@@ -129,11 +138,7 @@ export function HotspotTooltip({
 
   return (
     <PanoHtml pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
-      <div
-        className="pano-hotspot-tooltip"
-        role="tooltip"
-        style={bubbleStyle}
-      >
+      <div className="pano-hotspot-tooltip" role="tooltip" style={bubbleStyle}>
         {showImage ? (
           <img
             alt={content.imageAlt ?? content.text ?? ""}
@@ -143,7 +148,14 @@ export function HotspotTooltip({
           />
         ) : null}
         {content.text ? (
-          <p className="pano-hotspot-tooltip-text">
+          <p
+            className="pano-hotspot-tooltip-text"
+            style={{
+              lineHeight: "inherit",
+              letterSpacing: "inherit",
+              fontFamily: "inherit",
+            }}
+          >
             {content.text}
           </p>
         ) : null}
