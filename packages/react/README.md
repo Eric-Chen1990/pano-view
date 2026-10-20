@@ -702,7 +702,7 @@ a single non-stereo cube panorama.
 
 ## Scenes
 
-`Scenes` switches controlled sphere and cube-tile scenes with GPU-only
+`Scenes` switches controlled sphere, cube-tile, and equirectangular-tile scenes with GPU-only
 snapshot blending. The target scene loads its sphere or tile preview first;
 once ready, the current framebuffer becomes a temporary GPU texture, its source
 textures are released, and the target scene blends in. This avoids holding two
@@ -1834,8 +1834,40 @@ if the preview failed. `onPreviewError`, `onTileError`, `onLoadProgress`, and
 `onLevelChange` expose failures/progress; levels in callbacks start at 0.
 Unmounting disposes owned textures and ignores late results.
 
-Use `SphereTile` directly as a `PanoViewer` child; `Scenes` currently accepts
-`sphere` and cube `tile` definitions only.
+Use `SphereTile` directly as a `PanoViewer` child, or define a `SphereTileScene`
+with `type: "sphereTile"` inside `Scenes`. All transition presets, including
+`dissolve`, work across `sphere`, cube `tile`, and `sphereTile` scenes:
+
+```tsx
+import { Scenes, type Scene } from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  {
+    id: "courtyard",
+    type: "sphereTile",
+    baseUrl: "/panoramas/courtyard/",
+    multires: "512,500x250,1000x500,2000x1000",
+    previewUrl: "previews/400.webp",
+    urlTemplate: "tiles/%l/%h_%v.webp",
+    indexBase: 1,
+  },
+  // Add sphere, tile, or other sphereTile scenes here.
+];
+
+<Scenes scenes={scenes} activeSceneId={activeSceneId} transition="dissolve" />;
+```
+
+`onSceneReady(sceneId)` fires when the first scene becomes paintable and when an
+incoming scene takes over after the outgoing snapshot is captured. The transition
+may still be running; use this callback to apply the incoming camera view without
+changing the outgoing snapshot. `onTransitionEnd` marks completion of the blend.
+
+`SphereTileScene` accepts the source options of `SphereTile`, including
+`indexBase`, `resolveTileUrl`, and `yawOffset`. `Scenes` owns visibility,
+preloading, readiness, and transitions. Use `onTransitionEnd` and
+`onTransitionError` on `Scenes`; its shared texture budget and request limit
+apply to both cube and equirectangular tiles. Standalone `SphereTile` retains
+its own cache, callbacks, and loading options.
 
 ## Accessibility matrices and tooltip typography
 

@@ -26,6 +26,8 @@ import {
 } from "./scenes-host";
 import { TransitionOverlay } from "./scene-transitions/transition-overlay";
 import { Sphere } from "./sphere";
+import { SphereTile } from "./sphere-tile/sphere-tile";
+import type { SphereTileProps } from "./sphere-tile/types";
 import {
   TileTextureManagerProvider,
   useSharedTileTextureManager,
@@ -57,7 +59,21 @@ export type TileScene = Omit<
   type: "tile";
 };
 
-export type Scene = SphereScene | TileScene;
+export type SphereTileScene = Omit<
+  SphereTileProps,
+  | "loadMode"
+  | "visible"
+  | "onReady"
+  | "onPreviewError"
+  | "onLoadProgress"
+  | "onTileError"
+  | "onLevelChange"
+> & {
+  id: string;
+  type: "sphereTile";
+};
+
+export type Scene = SphereScene | TileScene | SphereTileScene;
 
 export type SceneTransitionEndEvent = {
   previousSceneId: string;
@@ -88,6 +104,10 @@ export type ScenesProps = {
   transition?: SceneTransition;
   /** Rendered only after a scene has finished transitioning in. */
   renderHotspots?: (scene: Scene) => ReactNode;
+  /** First paintable scene, or an incoming scene taking over after snapshot capture.
+   * The transition may still be running. Safe to apply the incoming camera view here.
+   */
+  onSceneReady?: (sceneId: string) => void;
   onTransitionEnd?: (event: SceneTransitionEndEvent) => void;
   onTransitionError?: (event: SceneTransitionErrorEvent) => void;
   /** Viewer-wide budget shared by every tile scene. Defaults to 128 MiB. */
@@ -100,7 +120,7 @@ export type ScenesProps = {
 
 type Phase = "idle" | "preloading" | "capturing" | "recapturing" | "transitioning";
 
-function SceneSource({
+export function SceneSource({
   scene,
   visible,
   baseOnly,
@@ -133,6 +153,18 @@ function SceneSource({
       const { id: _id, type: _type, ...tileProps } = scene;
       return (
         <Tile
+          {...tileProps}
+          visible={visible}
+          loadMode={baseOnly ? "base" : "full"}
+          onReady={onReady}
+          onPreviewError={onError}
+        />
+      );
+    }
+    case "sphereTile": {
+      const { id: _id, type: _type, ...tileProps } = scene;
+      return (
+        <SphereTile
           {...tileProps}
           visible={visible}
           loadMode={baseOnly ? "base" : "full"}
@@ -234,6 +266,7 @@ function ScenesController({
   activeSceneId,
   transition: transitionInput,
   renderHotspots,
+  onSceneReady,
   onTransitionEnd,
   onTransitionError,
   snapshotMaxPixels = 3_686_400,
@@ -269,6 +302,7 @@ function ScenesController({
   const phaseRef = useRef(phase);
   const liveSlotRef = useRef(liveSlot);
   const transitionFromRef = useRef<Scene | null>(initialScene);
+  const readySceneRef = useRef<Scene | null>(null);
   slotsRef.current = slots;
   phaseRef.current = phase;
   if (externalPhaseRef) {
@@ -318,6 +352,9 @@ function ScenesController({
       return;
     }
     if (phaseRef.current === "transitioning" || phaseRef.current === "capturing") {
+      // Readiness callbacks may rerender the parent with new callback/array identities.
+      // Only a genuinely new target should interrupt the blend already in progress.
+      if (requestedSceneIdRef.current === requested.id) return;
       requestedSceneIdRef.current = requested.id;
       captureReasonRef.current = "interrupt";
       setPhase("recapturing");
@@ -327,7 +364,17 @@ function ScenesController({
     startPreload(requested);
   }, [activeSceneId, pendingSlot, reportError, sceneMap, startPreload]);
 
+  const notifySceneReady = useCallback((scene: Scene | null) => {
+    if (!scene || readySceneRef.current === scene) return;
+    readySceneRef.current = scene;
+    onSceneReady?.(scene.id);
+  }, [onSceneReady]);
+
   const handleReady = useCallback((slot: number) => {
+    if (slot === liveSlotRef.current && pendingSlot === null && phaseRef.current === "idle") {
+      notifySceneReady(slotsRef.current[slot]);
+      return;
+    }
     if (slot !== pendingSlot || phaseRef.current !== "preloading") {
       return;
     }
@@ -343,6 +390,7 @@ function ScenesController({
       setActiveSlot(slot);
       setPendingSlot(null);
       setPhase("idle");
+      notifySceneReady(nextScene);
       if (previousScene && nextScene) {
         onTransitionEnd?.({
           previousSceneId: previousScene.id,
@@ -357,7 +405,7 @@ function ScenesController({
     captureReasonRef.current = "start";
     setPhase("capturing");
     setCaptureRequestId((current) => current + 1);
-  }, [controlsRef, onTransitionEnd, pendingSlot, transition.preset]);
+  }, [controlsRef, notifySceneReady, onTransitionEnd, pendingSlot, transition.preset]);
 
   const handleCaptured = useCallback((nextSnapshot: Snapshot) => {
     setSnapshot((current) => {
@@ -378,11 +426,12 @@ function ScenesController({
     });
     manager?.releaseUnused();
     if (pendingSlot !== null) {
+      notifySceneReady(slotsRef.current[pendingSlot]);
       setLiveSlot(pendingSlot);
     }
     setPhase("transitioning");
     setTransitionRunId((current) => current + 1);
-  }, [manager, pendingSlot, sceneMap, startPreload]);
+  }, [manager, notifySceneReady, pendingSlot, sceneMap, startPreload]);
 
   const finishTransition = useCallback(() => {
     const nextSlot = pendingSlot;
@@ -428,6 +477,7 @@ function ScenesController({
       setPhase("idle");
     };
     const onContextRestored = () => {
+      readySceneRef.current = null;
       manager?.resume();
       setRecoveryKey((current) => current + 1);
     };

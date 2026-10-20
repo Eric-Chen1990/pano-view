@@ -128,7 +128,7 @@ const TileMesh = memo(function TileMesh({
   resolveUrl,
 }: {
   address: TileAddress;
-  manager: TileTextureManager;
+  manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   renderOrder: number;
   resolveUrl: (address: TileAddress) => string;
 }) {
@@ -170,7 +170,7 @@ const TileLayerMeshes = memo(function TileLayerMeshes({
   resolveUrl,
 }: {
   layer: TileLayer;
-  manager: TileTextureManager;
+  manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   resolveUrl: (address: TileAddress) => string;
 }) {
   return layer.addresses.map((address) => (

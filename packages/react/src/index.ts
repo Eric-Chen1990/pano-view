@@ -122,6 +122,7 @@ export type {
   SceneTransitionErrorEvent,
   SceneTransitionPreset,
   SphereScene,
+  SphereTileScene,
   TileScene,
 } from "./scenes";
 export type { ScenesController } from "./scenes-host";

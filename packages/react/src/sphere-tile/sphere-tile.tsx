@@ -4,6 +4,7 @@ import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture } from "three";
 import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { TileTextureManager } from "../tile/texture-manager";
+import { useSharedTileTextureManager } from "../tile/texture-manager-context";
 import { useManagedTexture, usePreviewTexture } from "../tile/texture-hooks";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import {
@@ -68,7 +69,7 @@ const ManagedPatch = memo(function ManagedPatch({
   ready,
 }: {
   address: SphereTileAddress;
-  manager: TileTextureManager<SphereTileAddress>;
+  manager: Pick<TileTextureManager<SphereTileAddress>, "acquire" | "getSnapshot">;
   resolveUrl: (address: SphereTileAddress) => string;
   yawOffset: number;
   ready: () => void;
@@ -125,18 +126,19 @@ function SphereTileSource({
     onLevelChange,
   });
   callbacks.current = { onReady, onLoadProgress, onTileError, onLevelChange };
-  const budget =
+  const sharedManager = useSharedTileTextureManager();
+  const ownedBudget =
     Math.max(
       1,
       Number.isFinite(maxTextureMemoryMb) ? maxTextureMemoryMb : 128,
     ) *
     1024 *
     1024;
-  const manager = useMemo(
+  const ownedManager = useMemo(
     () =>
       new TileTextureManager<SphereTileAddress>({
         anisotropy,
-        maxBytes: budget,
+        maxBytes: ownedBudget,
         concurrency: Math.max(
           1,
           Math.floor(
@@ -150,8 +152,10 @@ function SphereTileSource({
         onProgress: (progress) => callbacks.current.onLoadProgress?.(progress),
         onError: (error) => callbacks.current.onTileError?.(error),
       }),
-    [anisotropy, budget, maxConcurrentLoads, retryCount],
+    [anisotropy, ownedBudget, maxConcurrentLoads, retryCount],
   );
+  const manager = sharedManager ?? ownedManager;
+  const budget = manager.memoryBudgetBytes;
   const readyRef = useRef(false);
   const ready = useCallback(() => {
     if (!readyRef.current) {
@@ -164,8 +168,14 @@ function SphereTileSource({
   }, [preview, ready]);
   useEffect(() => {
     manager.resume();
-    return () => manager.dispose();
-  }, [manager]);
+    return () => {
+      if (manager === ownedManager) {
+        manager.dispose();
+        return;
+      }
+      queueMicrotask(() => manager.releaseUnused());
+    };
+  }, [manager, ownedManager]);
   const resolveUrl = useMemo(
     () => (address: SphereTileAddress) =>
       resolveAssetUrl(
@@ -205,7 +215,10 @@ function SphereTileSource({
       token: "",
       level: -1,
       loadMode: "",
-      manager: null as TileTextureManager<SphereTileAddress> | null,
+      manager: null as Pick<
+        TileTextureManager<SphereTileAddress>,
+        "acquire" | "getSnapshot"
+      > | null,
     }),
     [camera, candidates],
   );
@@ -308,7 +321,7 @@ export function SphereTile({ multires, ...props }: SphereTileProps) {
   const token =
     typeof multires === "string" ? multires : JSON.stringify(multires);
   const config = useMemo(() => parseSphereMultires(multires), [token]);
-  // A new source owns its readiness and cache. Late old-source loads are discarded.
+  // A new source owns its readiness. Shared caches key textures by resource URL.
   const sourceKey = `${props.baseUrl}\u0000${token}\u0000${props.previewUrl}\u0000${props.urlTemplate ?? ""}\u0000${props.indexBase ?? 1}`;
   return <SphereTileSource key={sourceKey} {...props} config={config} />;
 }

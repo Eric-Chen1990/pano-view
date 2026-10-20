@@ -1,5 +1,13 @@
 # @ericchen1990/pano-view
 
+## 3.3.0
+
+### Minor Changes
+
+- Add SphereTileScene support to Scenes so equirectangular multiresolution tiles can use dissolve and every existing scene transition alongside sphere and cube-tile scenes. Share tile texture memory and request concurrency across both tiled projections, and document the new scene type.
+
+  Expose onSceneReady for first-scene readiness and incoming-camera setup after the outgoing snapshot has been captured.
+
 ## 3.2.3
 
 ### Patch Changes

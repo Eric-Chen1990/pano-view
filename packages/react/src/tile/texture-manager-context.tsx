@@ -6,11 +6,11 @@ import {
   useMemo,
 } from "react";
 import type { ReactNode } from "react";
-import { TileTextureManager } from "./texture-manager";
+import { TileTextureManager, type TextureAddress } from "./texture-manager";
 
-const TileTextureManagerContext = createContext<TileTextureManager | null>(
-  null,
-);
+const TileTextureManagerContext = createContext<
+  TileTextureManager<TextureAddress> | null
+>(null);
 
 export type TileTextureManagerProviderProps = {
   children?: ReactNode;
@@ -34,7 +34,7 @@ export function TileTextureManagerProvider({
   const anisotropy = gl.capabilities.getMaxAnisotropy();
   const manager = useMemo(
     () =>
-      new TileTextureManager({
+      new TileTextureManager<TextureAddress>({
         anisotropy,
         maxBytes: Math.max(1, maxTextureMemoryMb) * 1024 * 1024,
         concurrency: Math.max(1, Math.floor(maxConcurrentLoads)),

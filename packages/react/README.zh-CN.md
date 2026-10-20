@@ -637,7 +637,7 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 
 ## Scenes
 
-`Scenes` 在受控的球面与立方体 tile 场景之间切换，采用纯 GPU 快照混合。目标场景先加载其球面或 tile 预览；就绪后，当前帧缓冲成为临时 GPU 纹理，释放其源纹理，目标场景再混合进入。这样避免在 WebGL 内存中同时持有两个高分辨率 tile 场景。
+`Scenes` 在受控的普通球面、立方体瓦片与球面多级瓦片场景之间切换，采用纯 GPU 快照混合。目标场景先加载其球面或 tile 预览；就绪后，当前帧缓冲成为临时 GPU 纹理，释放其源纹理，目标场景再混合进入。这样避免在 WebGL 内存中同时持有两个高分辨率 tile 场景。
 
 ```tsx
 import {
@@ -1529,8 +1529,38 @@ import { PanoViewer, SphereTile } from "@ericchen1990/pano-view";
 `onLoadProgress`、`onLevelChange` 提供；回调中的层级同样从 0 开始。
 卸载时释放组件纹理，丢弃迟到的加载结果。
 
-将 `SphereTile` 直接放在 `PanoViewer` 下；当前 `Scenes` 仍只接受 `sphere` 和立方体
-`tile` 场景定义。
+可以将 `SphereTile` 直接放在 `PanoViewer` 下，也可以在 `Scenes` 中使用
+`type: "sphereTile"` 的 `SphereTileScene`。所有过渡预设（包括 `dissolve`）均支持
+`sphere`、立方体 `tile` 和球面多级瓦片 `sphereTile` 之间的切换：
+
+```tsx
+import { Scenes, type Scene } from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  {
+    id: "courtyard",
+    type: "sphereTile",
+    baseUrl: "/panoramas/courtyard/",
+    multires: "512,500x250,1000x500,2000x1000",
+    previewUrl: "previews/400.webp",
+    urlTemplate: "tiles/%l/%h_%v.webp",
+    indexBase: 1,
+  },
+  // 在此添加 sphere、tile 或其他 sphereTile 场景。
+];
+
+<Scenes scenes={scenes} activeSceneId={activeSceneId} transition="dissolve" />;
+```
+
+`onSceneReady(sceneId)` 在首个场景可绘制、或旧画面截图完成且新场景接管时触发。
+此时过渡可能仍在进行，可在该回调中设置新场景视角而不改变旧画面快照；
+`onTransitionEnd` 表示混合效果播放完成。
+
+`SphereTileScene` 保留 `SphereTile` 的资源选项，包括 `indexBase`、`resolveTileUrl`
+和 `yawOffset`。可见性、预加载、就绪判断与过渡由 `Scenes` 管理；通过其
+`onTransitionEnd` 和 `onTransitionError` 接收结果。`Scenes` 的共享纹理预算与请求
+并发上限同时作用于立方体和球面瓦片。独立使用的 `SphereTile` 仍保留原有缓存、
+回调与加载选项。
 
 ## 无障碍颜色矩阵与标签排版
 

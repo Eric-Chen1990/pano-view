@@ -71,7 +71,7 @@ export function usePreviewTexture(
 export function useManagedTexture<
   TAddress extends { width: number; height: number },
 >(
-  manager: TileTextureManager<TAddress>,
+  manager: Pick<TileTextureManager<TAddress>, "acquire" | "getSnapshot">,
   key: string,
   url: string,
   address: TAddress,
