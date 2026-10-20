@@ -18,7 +18,6 @@ import {
   Object3D,
   Plane,
   PlaneGeometry,
-  PerspectiveCamera,
   Quaternion,
   Ray,
   Vector3,
@@ -42,13 +41,13 @@ import {
   resolveHotspotTooltipOffset,
 } from "./hotspot-tooltip";
 import { HotspotTargetRegistryContext } from "./target-registry";
+import { applyHotspotTransform } from "./transform";
 import {
   acceptsHotspotPointerEvents,
   type HotspotCommonProps,
   type HotspotInteractionEvent,
   type HotspotMode,
   type HotspotPosition,
-  type HotspotScaleMode,
   type HotspotTooltipPlacement,
   type HotspotTooltipTrigger,
 } from "./types";
@@ -61,7 +60,6 @@ const DEFAULT_REFERENCE_FOV = 75;
 const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
-const LOCAL_FORWARD = new Vector3(0, 0, 1);
 const TOOLTIP_WORLD_BOX = new Box3();
 const TOOLTIP_LOCAL_BOX = new Box3();
 const TOOLTIP_CORNER = new Vector3();
@@ -143,36 +141,6 @@ function resolveDistance(
   return MathUtils.clamp(Math.abs(distance!), 0.1, maximumDistance);
 }
 
-function applyHotspotTransform(
-  group: Object3D,
-  camera: Camera,
-  orientation: "billboard" | "surface",
-  surfaceQuaternion: Quaternion,
-  rotation: number,
-  scaleMode: HotspotScaleMode,
-  referenceFov: number,
-  useAngularScale: boolean,
-  worldWidth: number,
-  worldHeight: number,
-) {
-  if (orientation === "billboard") {
-    group.quaternion.copy(camera.quaternion);
-  } else {
-    group.quaternion.copy(surfaceQuaternion);
-  }
-  group.rotateOnAxis(LOCAL_FORWARD, MathUtils.degToRad(-rotation));
-  const scaleFactor =
-    scaleMode === "fixed" && camera instanceof PerspectiveCamera
-      ? fixedScaleFactor(camera.fov, referenceFov)
-      : 1;
-  group.scale.set(
-    (useAngularScale ? worldWidth : 1) * scaleFactor,
-    (useAngularScale ? worldHeight : 1) * scaleFactor,
-    1,
-  );
-  group.updateMatrixWorld();
-}
-
 function maximumHotspotDistance(width: number, height: number): number {
   const safeWidth = MathUtils.clamp(
     Math.abs(Number.isFinite(width) ? width : MIN_ANGULAR_SIZE),
@@ -190,14 +158,6 @@ function maximumHotspotDistance(width: number, height: number): number {
     Math.tan(MathUtils.degToRad(safeHeight) / 2),
   );
   return (PANORAMA_RADIUS - PANORAMA_SURFACE_INSET) / cornerFactor;
-}
-
-function fixedScaleFactor(cameraFov: number, referenceFov: number): number {
-  const safeReferenceFov = MathUtils.clamp(referenceFov, 1, 179);
-  return (
-    Math.tan(MathUtils.degToRad(cameraFov) / 2) /
-    Math.tan(MathUtils.degToRad(safeReferenceFov) / 2)
-  );
 }
 
 function createSurfaceQuaternion(position: HotspotPosition): Quaternion {
@@ -692,6 +652,7 @@ export function HotspotAnchor({
       useAngularScale,
       worldWidth,
       worldHeight,
+      resolvedDistance,
     );
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(
@@ -707,6 +668,7 @@ export function HotspotAnchor({
     camera,
     orientation,
     referenceFov,
+    resolvedDistance,
     rotation,
     scaleMode,
     size,
@@ -734,6 +696,7 @@ export function HotspotAnchor({
       useAngularScale,
       worldWidth,
       worldHeight,
+      resolvedDistance,
     );
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(

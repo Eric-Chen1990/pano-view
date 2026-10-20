@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.2.2
+
+### Patch Changes
+
+- Keep fixed billboard hotspots the same screen size at the viewport edges, preserve translucent image borders, and defer label DOM root disposal until the scene commit completes, including Strict Mode and rapid scene/visibility changes.
+
 ## 3.2.1
 
 ### Patch Changes
