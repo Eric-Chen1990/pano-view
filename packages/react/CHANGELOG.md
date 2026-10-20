@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.4.0
+
+### Minor Changes
+
+- 16e58fa: Load incoming panorama detail during scene transitions instead of waiting until the blend finishes. Add optional `transitionWaitForDetailMs` to hold the outgoing snapshot until the current view is sharp or the limit elapses.
+
 ## 3.3.0
 
 ### Minor Changes
