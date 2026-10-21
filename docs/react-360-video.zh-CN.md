@@ -10,7 +10,7 @@ Playground](https://pano-view-playground.vercel.app/video?utm_source=github&utm_
 ## 从静音内联播放开始
 
 静音播放更容易通过浏览器的自动播放策略。PanoVideo 默认使用内联播放，并写入
-保持 iPhone Safari 不打开原生播放器所需的 WebKit 属性。
+WebKit 与 X5 属性，让视频在 iPhone Safari、微信、QQ 和 UC 中留在页面内。
 
 ~~~tsx
 import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
@@ -58,7 +58,7 @@ export function TourVideo() {
 构建与类型检查无法验证浏览器自动播放策略和触控行为。发布前请在当前版本的
 iPhone/iPad Safari 和 Android Chrome 中确认：
 
-- 视频内联留在页面中，不打开原生播放器。
+- 视频在 iPhone Safari、微信、QQ 和 UC 中内联留在页面内。
 - 需要时，首次用户手势解锁选定的有声媒体。
 - 字幕与播放控制可通过触摸访问。
 - 安全区域、横竖屏切换和短横屏中控制仍可用。

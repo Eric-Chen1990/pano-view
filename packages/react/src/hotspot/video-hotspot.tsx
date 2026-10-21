@@ -1,5 +1,5 @@
 import { useThree } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ClampToEdgeWrapping,
   LinearFilter,
@@ -12,6 +12,10 @@ import {
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
 import { usePanoMediaActivationIntent } from "../media-activation";
+import {
+  applyInlineVideoPlayback,
+  mountTextureVideo,
+} from "../video/inline-playback";
 import type { HotspotCommonProps } from "./types";
 
 export type VideoPlaybackState = "playing" | "paused" | "ended" | "blocked";
@@ -29,6 +33,10 @@ export type VideoHotspotProps = HotspotCommonProps & {
   loop?: boolean;
   muted?: boolean;
   volume?: number;
+  /**
+   * Keep playback in the page. Defaults to true, including the WebKit and
+   * X5 attributes for iPhone Safari, WeChat, QQ, and UC.
+   */
   playsInline?: boolean;
   preload?: "none" | "metadata" | "auto";
   crossOrigin?: "" | "anonymous" | "use-credentials";
@@ -131,6 +139,7 @@ function useVideoResource({
   | "poster"
   | "src"
 >) {
+  const gl = useThree((state) => state.gl);
   const [resource, setResource] = useState<VideoResource | null>(null);
   const onEndedRef = useRef(onEnded);
   const onErrorRef = useRef(onError);
@@ -150,12 +159,7 @@ function useVideoResource({
     if (crossOrigin !== undefined) {
       video.crossOrigin = crossOrigin;
     }
-    const inline = playsInline ?? true;
-    video.playsInline = inline;
-    if (inline) {
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("webkit-playsinline", "true");
-    }
+    applyInlineVideoPlayback(video, playsInline ?? true);
     video.poster = poster ?? "";
     const texture = new VideoTexture(video);
     texture.colorSpace = SRGBColorSpace;
@@ -199,6 +203,7 @@ function useVideoResource({
     video.addEventListener("error", reportError);
     video.addEventListener("pause", handlePause);
     video.addEventListener("play", handlePlay);
+    mountTextureVideo(video, gl.domElement);
     setResource({ video, texture, ready: false });
     video.src = src;
     video.load();
@@ -213,9 +218,20 @@ function useVideoResource({
       video.pause();
       video.removeAttribute("src");
       video.load();
+      video.remove();
       texture.dispose();
     };
-  }, [crossOrigin, id, playsInline, poster, src]);
+  }, [crossOrigin, gl, id, playsInline, poster, src]);
+
+  useLayoutEffect(() => {
+    if (!resource) {
+      return;
+    }
+    mountTextureVideo(resource.video, gl.domElement);
+    return () => {
+      resource.video.remove();
+    };
+  }, [gl, resource]);
 
   return resource;
 }
@@ -257,21 +273,14 @@ export function VideoHotspot({
   onPlaybackErrorRef.current = onPlaybackError;
   onPlaybackStateChangeRef.current = onPlaybackStateChange;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!resource) {
       return;
     }
     resource.video.loop = loop;
     resource.video.muted = muted;
     resource.video.volume = clampVolume(volume);
-    resource.video.playsInline = playsInline;
-    if (playsInline) {
-      resource.video.setAttribute("playsinline", "true");
-      resource.video.setAttribute("webkit-playsinline", "true");
-    } else {
-      resource.video.removeAttribute("playsinline");
-      resource.video.removeAttribute("webkit-playsinline");
-    }
+    applyInlineVideoPlayback(resource.video, playsInline);
     resource.video.preload = preload;
   }, [loop, muted, playsInline, preload, resource, volume]);
 

@@ -24,7 +24,7 @@ import { usePanoMediaActivationIntent } from "../media-activation";
 import { isAutoplayPolicyError } from "../media-activation-event";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
-import { PanoChromeOverlayContext } from "./chrome-overlay";
+import { applyInlineVideoPlayback, mountTextureVideo } from "./inline-playback";
 import {
   DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE,
   PanoVideoCaptions,
@@ -79,6 +79,10 @@ export type PanoVideoProps = {
   muted?: boolean;
   volume?: number;
   autoPlay?: boolean;
+  /**
+   * Keep playback in the page. Defaults to true, including the WebKit and
+   * X5 attributes for iPhone Safari, WeChat, QQ, and UC.
+   */
   playsInline?: boolean;
   preload?: "none" | "metadata" | "auto";
   crossOrigin?: "" | "anonymous" | "use-credentials";
@@ -320,7 +324,6 @@ export function PanoVideo({
   usePanoMediaActivationIntent(autoPlay);
   const gl = useThree((state) => state.gl);
   const host = useContext(PanoVideoHostContext);
-  const overlay = useContext(PanoChromeOverlayContext);
   const variants = useMemo(
     () => resolvePanoVideoVariants({ poster, src, variants: variantsProp }),
     [poster, src, variantsProp],
@@ -393,9 +396,7 @@ export function PanoVideo({
     }
     const video = document.createElement("video");
     video.muted = true;
-    video.playsInline = true;
-    video.setAttribute("playsinline", "true");
-    video.setAttribute("webkit-playsinline", "true");
+    applyInlineVideoPlayback(video, true);
     video.preload = "metadata";
     const texture = new VideoTexture(video);
     applyEquirectangularLayout(texture, 1);
@@ -428,22 +429,15 @@ export function PanoVideo({
     resource.texture.anisotropy = gl.capabilities.getMaxAnisotropy();
   }, [gl, resource]);
 
-  useEffect(() => {
-    if (!resource || !overlay?.overlayElement) {
+  useLayoutEffect(() => {
+    if (!resource) {
       return;
     }
-    const { video } = resource;
-    video.setAttribute("data-pano-video", "");
-    video.style.position = "absolute";
-    video.style.width = "1px";
-    video.style.height = "1px";
-    video.style.opacity = "0";
-    video.style.pointerEvents = "none";
-    overlay.overlayElement.appendChild(video);
+    mountTextureVideo(resource.video, gl.domElement);
     return () => {
-      video.remove();
+      resource.video.remove();
     };
-  }, [overlay?.overlayElement, resource]);
+  }, [gl, resource]);
 
   const resolvedVariantId = resolvePanoVideoVariantId(variants, variantId);
   const activeVariant =
@@ -753,7 +747,7 @@ export function PanoVideo({
     };
   }, [emitSnapshot, resource]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!resource) {
       return;
     }
@@ -763,14 +757,7 @@ export function PanoVideo({
     if (mediaCapabilitiesRef.current.volumeAdjustable) {
       video.volume = clampVolume(volume);
     }
-    video.playsInline = playsInline;
-    if (playsInline) {
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("webkit-playsinline", "true");
-    } else {
-      video.removeAttribute("playsinline");
-      video.removeAttribute("webkit-playsinline");
-    }
+    applyInlineVideoPlayback(video, playsInline);
     video.preload = preload;
   }, [loop, muted, playsInline, preload, resource, volume]);
 
