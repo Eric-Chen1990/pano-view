@@ -17,6 +17,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const TILE_SCENE = {
@@ -221,6 +222,7 @@ export function WebVRPage() {
           </PanoViewer>
         </div>
       </section>
+      <SiteFooter label="@ericchen1990/pano-view · WebVR" />
     </main>
   );
 }
