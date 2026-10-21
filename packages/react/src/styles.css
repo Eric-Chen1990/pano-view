@@ -21,6 +21,12 @@
   position: relative;
 }
 
+/* Keyboard controls focus the WebGL canvas. Hide the browser focus ring. */
+.pano-viewer canvas:focus,
+.pano-viewer canvas:focus-visible {
+  outline: none;
+}
+
 .pano-chrome-overlay {
   inset: 0;
   pointer-events: none;
