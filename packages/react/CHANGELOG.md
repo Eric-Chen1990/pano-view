@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.4.1
+
+### Patch Changes
+
+- Hide the browser focus ring on the WebGL canvas when KeyboardControls focuses it for keyboard navigation.
+
 ## 3.4.0
 
 ### Minor Changes
