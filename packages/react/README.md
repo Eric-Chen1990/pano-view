@@ -581,10 +581,12 @@ export function VideoExample() {
 ```
 
 `muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
-rules. `playsInline` also defaults to true and writes both `playsinline` and
-`webkit-playsinline`, keeping the default 360-video path inline on iPhone
-instead of entering the native player. Unmuted playback still needs a user
-gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
+rules. `playsInline` also defaults to true and writes `playsinline`,
+`webkit-playsinline`, and the X5 `h5-page` attributes, so the video stays in
+the page on iPhone Safari and in WeChat, QQ, and UC. Picture-in-picture and
+remote playback stay disabled so the element can keep feeding the sphere
+texture. The element is mounted inside the viewer at 1×1px. Unmuted playback
+still needs a user gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
 rejected. Remote videos and VTT files that are not same-origin should set
 `crossOrigin` (usually `"anonymous"`). For mobile delivery, provide an H.264 +
 AAC MP4 fallback, poster, CORS, and Range support.
@@ -1641,7 +1643,9 @@ handler, `onEnded`, or playback error.
 `VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
 prop is likewise controlled: toggle it from your click handler or application
 state. On source change or unmount, the element is paused and its texture is
-released. `playsInline` defaults to `true`, `muted` to `true`, `loop` to
+released. `playsInline` defaults to `true` and uses the same inline-playback
+attributes as `PanoVideo`. The element is mounted inside the viewer, hidden,
+so mobile browsers keep it in the page. `muted` defaults to `true`, `loop` to
 `false`, and `preload` to `"metadata"`.
 
 ```tsx

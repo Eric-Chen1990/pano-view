@@ -10,8 +10,8 @@ Playground](https://pano-view-playground.vercel.app/video?utm_source=github&utm_
 ## Start with inline, muted playback
 
 Muted playback gives browsers a better chance to allow autoplay. PanoVideo uses
-inline playback by default, including the WebKit attribute required to keep
-iPhone Safari from opening the native player.
+inline playback by default, including the WebKit and X5 attributes that keep
+the video in the page on iPhone Safari and in WeChat, QQ, and UC.
 
 ~~~tsx
 import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
@@ -62,7 +62,7 @@ host: update its playing state in this callback if that is the media to start.
 Build and type checks cannot verify browser autoplay policy or touch behavior.
 Before release, verify on current iPhone/iPad Safari and Android Chrome:
 
-- Inline video remains in the page instead of opening a native player.
+- Inline video remains in the page on iPhone Safari and in WeChat, QQ, and UC.
 - The first user gesture unlocks the selected audible source when required.
 - Captions and playback controls remain reachable by touch.
 - Safe areas, portrait/landscape changes, and short landscape viewports keep

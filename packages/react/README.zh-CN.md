@@ -538,7 +538,7 @@ export function VideoExample() {
 }
 ```
 
-`muted` 默认为 `true`，以便在浏览器自动播放规则下有机会自动播放；`playsInline` 也默认开启，并同时写入 `playsinline` / `webkit-playsinline`，避免 iPhone 将默认的 360 视频提取为原生全屏播放器。非静音播放仍需要用户手势；`play()` 被拒绝时 `onPlaybackStateChange` 会收到 `"blocked"`。非同源的远程视频与 VTT 文件应设置 `crossOrigin`（通常为 `"anonymous"`）。移动端请提供 H.264 + AAC 的 MP4 备选源、poster、CORS 与 Range 支持。
+`muted` 默认为 `true`，以便在浏览器自动播放规则下有机会自动播放。`playsInline` 也默认开启，并写入 `playsinline`、`webkit-playsinline` 以及 X5 的 `h5-page` 属性，让视频在 iPhone Safari、微信、QQ 和 UC 中留在页面内。画中画和远程播放保持关闭，以便该元素持续作为球面纹理。元素会以 1×1 像素挂在查看器内。非静音播放仍需要用户手势；`play()` 被拒绝时 `onPlaybackStateChange` 会收到 `"blocked"`。非同源的远程视频与 VTT 文件应设置 `crossOrigin`（通常为 `"anonymous"`）。移动端请提供 H.264 + AAC 的 MP4 备选源、poster、CORS 与 Range 支持。
 
 ## Tile
 
@@ -1374,7 +1374,7 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 
 ## VideoHotspot
 
-`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，`muted` 默认 `true`，`loop` 默认 `false`，`preload` 默认 `"metadata"`。
+`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `true`，`loop` 默认 `false`，`preload` 默认 `"metadata"`。
 
 ```tsx
 import { VideoHotspot } from "@ericchen1990/pano-view";

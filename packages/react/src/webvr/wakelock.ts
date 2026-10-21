@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { applyInlineVideoPlayback } from "../video/inline-playback";
 import { WEBVR_WAKELOCK_FALLBACK_VIDEO_BASE64 } from "./wakelock-fallback";
 
 type NavigatorWithWakeLock = Navigator & {
@@ -38,17 +39,12 @@ function decodeBase64(value: string): ArrayBuffer {
 function createFallbackVideo(): HTMLVideoElement {
   const video = document.createElement("video");
   video.autoplay = true;
-  video.controls = false;
   video.defaultMuted = true;
   video.loop = true;
   video.muted = true;
-  video.playsInline = true;
   video.tabIndex = -1;
   video.ariaHidden = "true";
-  video.disablePictureInPicture = true;
-  video.setAttribute("playsinline", "");
-  video.setAttribute("webkit-playsinline", "");
-  video.setAttribute("disablepictureinpicture", "");
+  applyInlineVideoPlayback(video, true);
   video.style.cssText =
     "pointer-events:none;position:fixed;bottom:0;left:0;width:1px;height:1px;opacity:0;";
   const src = URL.createObjectURL(
