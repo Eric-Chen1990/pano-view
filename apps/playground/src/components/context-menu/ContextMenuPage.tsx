@@ -21,6 +21,7 @@ import {
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 function CopyIcon() {
@@ -327,6 +328,7 @@ export function ContextMenuPage() {
           label={snippetMeta.label}
         />
       </section>
+      <SiteFooter label="@ericchen1990/pano-view · context menu" />
     </main>
   );
 }

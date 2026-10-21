@@ -11,7 +11,6 @@ import {
   controlInputClassName,
   controlLabelClassName,
   eyebrowClassName,
-  footerClassName,
   pageControlsClassName,
   pageHeadingStatusClassName,
   pageHeadingTitleClassName,
@@ -20,6 +19,7 @@ import {
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
@@ -249,10 +249,7 @@ export function VideoPage() {
           label="PanoVideo"
         />
       </section>
-      <footer className={footerClassName}>
-        <span>@ericchen1990/pano-view · 360 video sphere</span>
-        <span>Stage 8</span>
-      </footer>
+      <SiteFooter label="@ericchen1990/pano-view · 360 video sphere" />
     </main>
   );
 }

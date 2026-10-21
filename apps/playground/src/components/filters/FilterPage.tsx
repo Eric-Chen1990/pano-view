@@ -14,7 +14,6 @@ import {
   controlInputClassName,
   controlLabelClassName,
   eyebrowClassName,
-  footerClassName,
   pageControlsClassName,
   pageHeadingStatusClassName,
   pageHeadingTitleClassName,
@@ -24,6 +23,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const SPHERE_SCENE = TRANSITION_SCENES[0];
@@ -170,10 +170,7 @@ export function FilterPage() {
           </PanoViewer>
         </div>
       </section>
-      <footer className={footerClassName}>
-        <span>@ericchen1990/pano-view · panorama filters</span>
-        <span>Stage 10 of 10</span>
-      </footer>
+      <SiteFooter label="@ericchen1990/pano-view · panorama filters" />
     </main>
   );
 }

@@ -14,7 +14,6 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   eyebrowClassName,
-  footerClassName,
   pageControlsClassName,
   pageHeadingStatusClassName,
   pageHeadingTitleClassName,
@@ -25,6 +24,7 @@ import {
   shellClassName,
 } from "../../ui";
 import { BlendSelect } from "./BlendSelect";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const BGM_SHARED = "/fixtures/bgm/ambient-light.mp3";
@@ -222,10 +222,7 @@ export function SceneTransitionPage() {
           </PanoViewer>
         </div>
       </section>
-      <footer className={footerClassName}>
-        <span>@ericchen1990/pano-view · panorama scene transitions</span>
-        <span>Stage 6 of 6</span>
-      </footer>
+      <SiteFooter label="@ericchen1990/pano-view · panorama scene transitions" />
     </main>
   );
 }

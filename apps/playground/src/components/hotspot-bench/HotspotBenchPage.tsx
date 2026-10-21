@@ -1,5 +1,6 @@
+import { shellClassName } from "../../ui";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
-import { footerClassName, shellClassName } from "../../ui";
 import { CanvasPanel } from "./CanvasPanel";
 import { Inspector } from "./Inspector";
 import { ToolRail } from "./ToolRail";
@@ -45,10 +46,7 @@ export function HotspotBenchPage() {
         <Inspector />
       </section>
 
-      <footer className={footerClassName}>
-        <span>@ericchen1990/pano-view · point, polygon + polyline hotspots</span>
-        <span>Stage 6 of 6</span>
-      </footer>
+      <SiteFooter label="@ericchen1990/pano-view · point, polygon + polyline hotspots" />
     </main>
   );
 }

@@ -1,31 +1,17 @@
 import { trackCta, trackDemoOpened, trackInstallCopied } from "../../analytics";
+import { LANDING_LINKS } from "../../links";
 import {
   cardClassName,
-  footerClassName,
   monoLabelClassName,
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const installCommand = "pnpm add @ericchen1990/pano-view";
 const peerDependencies =
   "pnpm add three @react-three/fiber @react-three/drei @react-three/xr";
-
-const externalLinks = {
-  github:
-    "https://github.com/Eric-Chen1990/pano-view?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=github",
-  npm:
-    "https://www.npmjs.com/package/@ericchen1990/pano-view?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=npm",
-  krpanoGuide:
-    "https://github.com/Eric-Chen1990/pano-view/blob/main/docs/krpano-migration.md?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=krpano-guide",
-  krpanoGuideChinese:
-    "https://github.com/Eric-Chen1990/pano-view/blob/main/docs/krpano-migration.zh-CN.md?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=krpano-guide-zh",
-  videoGuide:
-    "https://github.com/Eric-Chen1990/pano-view/blob/main/docs/react-360-video.md?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=video-guide",
-  videoGuideChinese:
-    "https://github.com/Eric-Chen1990/pano-view/blob/main/docs/react-360-video.zh-CN.md?utm_source=playground&utm_medium=product&utm_campaign=landing-page&utm_content=video-guide-zh",
-} as const;
 
 const featuredDemos = [
   {
@@ -167,15 +153,15 @@ export function LandingPage() {
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm">
             <a
               className="text-[#75cbd3]"
-              href={externalLinks.krpanoGuide}
-              onClick={() => trackCta("read_krpano_guide", externalLinks.krpanoGuide)}
+              href={LANDING_LINKS.krpanoGuide}
+              onClick={() => trackCta("read_krpano_guide", LANDING_LINKS.krpanoGuide)}
             >
               Read the English migration guide →
             </a>
             <a
               className="text-[#75cbd3]"
-              href={externalLinks.krpanoGuideChinese}
-              onClick={() => trackCta("read_krpano_guide_zh", externalLinks.krpanoGuideChinese)}
+              href={LANDING_LINKS.krpanoGuideChinese}
+              onClick={() => trackCta("read_krpano_guide_zh", LANDING_LINKS.krpanoGuideChinese)}
             >
               阅读中文迁移指南 →
             </a>
@@ -224,28 +210,25 @@ export function LandingPage() {
           Keep exploring in the format you need.
         </h2>
         <div className="mt-7 flex flex-wrap gap-x-6 gap-y-4 text-sm">
-          <a href={externalLinks.github} onClick={() => trackCta("open_github", externalLinks.github)}>
+          <a href={LANDING_LINKS.github} onClick={() => trackCta("open_github", LANDING_LINKS.github)}>
             GitHub repository →
           </a>
-          <a href={externalLinks.npm} onClick={() => trackCta("open_npm", externalLinks.npm)}>
+          <a href={LANDING_LINKS.npm} onClick={() => trackCta("open_npm", LANDING_LINKS.npm)}>
             npm package →
           </a>
-          <a href={externalLinks.videoGuide} onClick={() => trackCta("read_video_guide", externalLinks.videoGuide)}>
+          <a href={LANDING_LINKS.videoGuide} onClick={() => trackCta("read_video_guide", LANDING_LINKS.videoGuide)}>
             English 360 video guide →
           </a>
           <a
-            href={externalLinks.videoGuideChinese}
-            onClick={() => trackCta("read_video_guide_zh", externalLinks.videoGuideChinese)}
+            href={LANDING_LINKS.videoGuideChinese}
+            onClick={() => trackCta("read_video_guide_zh", LANDING_LINKS.videoGuideChinese)}
           >
             中文 360 视频指南 →
           </a>
         </div>
       </section>
 
-      <footer className={footerClassName}>
-        <span>@ericchen1990/pano-view · React panorama components</span>
-        <span>Images · video · cube tiles · hotspots</span>
-      </footer>
+      <SiteFooter label="@ericchen1990/pano-view · React panorama components" />
     </main>
   );
 }

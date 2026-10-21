@@ -182,8 +182,11 @@ export function KeyboardControls({
     // Canvas extra props land on the R3F wrapper, not gl.domElement, and
     // pointerdown preventDefault blocks the default focus — make the canvas
     // focusable and focus it ourselves so keydown can reach these listeners.
+    // The browser focus ring would otherwise frame the whole panorama.
     const previousTabIndex = element.getAttribute("tabindex");
+    const previousOutline = element.style.outline;
     element.tabIndex = 0;
+    element.style.outline = "none";
 
     const syncKeyboardActive = () => {
       let continuous = false;
@@ -284,6 +287,7 @@ export function KeyboardControls({
       } else {
         element.setAttribute("tabindex", previousTabIndex);
       }
+      element.style.outline = previousOutline;
       clearPressed();
     };
   }, [controlsRef, enabled, gl, keyMap]);
