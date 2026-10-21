@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.4.2
+
+### Patch Changes
+
+- 591feed: Keep 360 and hotspot videos inline in WeChat, QQ, and UC, and stop picture-in-picture or remote playback from taking the texture source.
+
 ## 3.4.1
 
 ### Patch Changes
