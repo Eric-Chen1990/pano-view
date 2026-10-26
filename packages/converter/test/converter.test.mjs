@@ -635,7 +635,10 @@ test("CLI help/version, machine-readable errors, conversion, and restore", async
   assert.match(help.stdout, /restore/);
   const version = await cli(["--version"]);
   assert.equal(version.status, 0);
-  assert.match(version.stdout, /^0\.1\.0/);
+  const packageJson = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(version.stdout.trim(), packageJson.version);
   const invalid = await cli(["--unknown", "--json-errors"]);
   assert.equal(invalid.status, 2);
   assert.equal(JSON.parse(invalid.stderr).code, "INVALID_OPTIONS");

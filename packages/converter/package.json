@@ -1,6 +1,6 @@
 {
   "name": "@ericchen1990/pano-converter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Panorama and image tiling, reconstruction, and pano-view configuration for Node.js and the CLI.",
   "author": "Eric Chen",
   "license": "MIT",
