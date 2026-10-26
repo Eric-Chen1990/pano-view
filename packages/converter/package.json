@@ -1,0 +1,71 @@
+{
+  "name": "@ericchen1990/pano-converter",
+  "version": "0.1.0",
+  "description": "Panorama and image tiling, reconstruction, and pano-view configuration for Node.js and the CLI.",
+  "author": "Eric Chen",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eric-Chen1990/pano-view.git",
+    "directory": "packages/converter"
+  },
+  "bugs": {
+    "url": "https://github.com/Eric-Chen1990/pano-view/issues"
+  },
+  "keywords": [
+    "panorama",
+    "cubemap",
+    "equirectangular",
+    "tiles",
+    "deepzoom",
+    "sharp",
+    "cli"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "bin": {
+    "pano-convert": "./dist/cli.mjs"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node --test test/converter.test.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "saxes": "^6.0.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -51,7 +51,9 @@ Pano View 支持这种 tile 输出格式，但不是 krpano 的插件、包装�
 从[完整包 README](./packages/react/README.zh-CN.md)、[360 视频指南](./docs/react-360-video.zh-CN.md)
 或[英文 360 视频指南](./docs/react-360-video.md)开始。
 
-本仓库是 pnpm workspace，包含可发布的包和 Vite Playground。Playground 直接导入
+本仓库是 pnpm workspace，包含查看器、独立的
+[@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) 和 Vite Playground。
+转换器提供 Node.js/CLI 切图与还原，不依赖 React、云存储或数据库。Playground 直接导入
 组件源码，因此本地修改组件后无需重新构建包即可看到效果。
 
 ## 本地开发
@@ -65,6 +67,7 @@ pnpm dev
 
 ~~~bash
 pnpm typecheck
+pnpm test
 pnpm build
 pnpm pack:check
 git diff --check

@@ -1,0 +1,80 @@
+name: Converter
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: converter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20.19.0, 22, 24]
+    env:
+      PANO_REQUIRE_FFMPEG: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: command -v ffmpeg || brew install ffmpeg
+      - name: Install FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg --yes --no-progress
+          }
+      - name: Typecheck viewer compatibility
+        run: pnpm --filter @ericchen1990/pano-converter typecheck
+      - name: Build and test
+        run: pnpm --filter @ericchen1990/pano-converter test
+      - name: Test tarball in an isolated consumer
+        run: node packages/converter/test/pack-smoke.mjs
+
+  musl:
+    name: Linux musl / Node 22
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ericchen1990/pano-converter build
+      - name: Install and convert using the musl Sharp binary
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/converter-musl"
+          pnpm --filter @ericchen1990/pano-converter pack --pack-destination "$RUNNER_TEMP/converter-musl"
+          docker run --rm -v "$RUNNER_TEMP/converter-musl:/artifacts:ro" -v "$PWD/packages/converter/test/consumer.mjs:/consumer.mjs:ro" node:22-alpine sh -ec '
+            mkdir /consumer && cd /consumer
+            npm init -y >/dev/null
+            npm install /artifacts/*.tgz
+            cp /consumer.mjs ./consumer.mjs
+            node consumer.mjs
+          '
