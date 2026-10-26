@@ -358,8 +358,8 @@ export async function convertImage(
       );
       if (faceSize % 2 !== 0)
         throw new ConverterError("INVALID_OPTIONS", "faceSize must be even.");
-      checkProjectionDimensions(faceSize * 3, faceSize * 2);
-      checkPixels(faceSize * 3, faceSize * 2, context.pixelLimit);
+      checkProjectionDimensions(faceSize, faceSize);
+      checkPixels(faceSize, faceSize, context.pixelLimit);
       tileImageSize = { width: faceSize, height: faceSize };
     }
     const levels =
@@ -398,28 +398,25 @@ export async function convertImage(
     validateTileGrid(manifest);
     if (projection === "cubemap") {
       context.progress("project");
-      const atlas = join(context.workDir, "cube.png");
-      await runFfmpeg(
-        normalized,
-        atlas,
-        `v360=input=equirect:output=c3x2:out_forder=frblud:w=${faceSize * 3}:h=${faceSize * 2}`,
-        context,
-      );
-      for (let index = 0; index < CUBE_FACES.length; index++) {
-        const face = CUBE_FACES[index]!;
+      // Project one face at a time. A full c3x2 atlas makes v360 allocate six
+      // interpolation maps together, exceeding small Lambda memory budgets.
+      const views = [
+        { yaw: 0, pitch: 0 },
+        { yaw: 90, pitch: 0 },
+        { yaw: 180, pitch: 0 },
+        { yaw: -90, pitch: 0 },
+        { yaw: 0, pitch: 90 },
+        { yaw: 0, pitch: -90 },
+      ];
+      for (const [index, face] of CUBE_FACES.entries()) {
+        const view = views[index]!;
         const path = join(context.workDir, `${face}.png`);
-        await context
-          .native(
-            sharp(atlas, { limitInputPixels: context.pixelLimit })
-              .extract({
-                left: (index % 3) * faceSize,
-                top: Math.floor(index / 3) * faceSize,
-                width: faceSize,
-                height: faceSize,
-              })
-              .png({ compressionLevel: 0 }),
-          )
-          .toFile(path);
+        await runFfmpeg(
+          normalized,
+          path,
+          `v360=input=equirect:output=flat:w=${faceSize}:h=${faceSize}:h_fov=90:v_fov=90:yaw=${view.yaw}:pitch=${view.pitch}`,
+          context,
+        );
         faces.set(face, path);
       }
     }
@@ -461,9 +458,20 @@ export async function convertImage(
         await customTiles(faces.get(face)!, manifest, quality, context, face);
     } else await customTiles(normalized, manifest, quality, context);
     context.progress("previews");
+    // The largest panorama preview is 800px high. Decode the full source once
+    // for this copy; all smaller previews use it without affecting tile pixels.
+    let previewSource = normalized;
+    if (projection !== "planar") {
+      previewSource = join(context.workDir, "preview-source.png");
+      await context.native(
+        sharp(normalized, { limitInputPixels: context.pixelLimit })
+          .resize({ height: 800, withoutEnlargement: true })
+          .png(),
+      ).toFile(previewSource);
+    }
     Object.assign(
       manifest,
-      await previews(normalized, projection, faces, format, context),
+      await previews(previewSource, projection, faces, format, context),
     );
     await writeFile(
       await context.reserve("manifest.json"),

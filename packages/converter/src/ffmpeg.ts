@@ -19,6 +19,8 @@ export async function runFfmpeg(
         "-loglevel",
         "error",
         "-y",
+        "-filter_threads",
+        "1",
         "-threads",
         "1",
         "-i",
@@ -47,7 +49,7 @@ export async function runFfmpeg(
     child.on("error", (error) => {
       startupError = error;
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       context.signal.removeEventListener("abort", cancel);
       if (timer) clearTimeout(timer);
       try {
@@ -71,7 +73,7 @@ export async function runFfmpeg(
         reject(
           new ConverterError(
             "FFMPEG_FAILED",
-            `FFmpeg exited with ${code}: ${stderr.trim()}`,
+            `FFmpeg exited with ${code ?? signal}: ${stderr.trim()}`,
             "project",
           ),
         );
