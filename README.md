@@ -57,8 +57,10 @@ controls, hooks, and helpers. Start with the [full package
 README](./packages/react/README.md), [360 video guide](./docs/react-360-video.md),
 or [中文 360 视频指南](./docs/react-360-video.zh-CN.md).
 
-This repository is a pnpm workspace containing the publishable package and its
-Vite Playground. The Playground imports component source directly, so local
+This repository is a pnpm workspace containing the viewer, the standalone
+[@ericchen1990/pano-converter](./packages/converter/README.md), and the Vite
+Playground. The converter provides Node.js/CLI tiling and reconstruction without
+React, cloud storage, or database dependencies. The Playground imports component source directly, so local
 component changes are visible without a package rebuild.
 
 ## Local development
@@ -72,6 +74,7 @@ pnpm dev
 
 ~~~bash
 pnpm typecheck
+pnpm test
 pnpm build
 pnpm pack:check
 git diff --check
