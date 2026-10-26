@@ -12,7 +12,8 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import childProcess, { spawn, spawnSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import {
@@ -665,4 +666,47 @@ test("CLI help/version, machine-readable errors, conversion, and restore", async
   ]);
   assert.equal(restored.status, 0, restored.stderr);
   await equalPixels(JSON.parse(restored.stdout).assets[0].absolutePath, input);
+});
+
+
+test("cubemap projection streams six faces with legacy pixel orientation", { skip: !ffmpegAvailable }, async (t) => {
+  const root = await workspace(t);
+  const ffmpeg = process.env.FFMPEG_PATH ?? "ffmpeg";
+  const filters = [];
+  const originalSpawn = childProcess.spawn;
+  // Observe the real FFmpeg process without executing a Unix shebang script,
+  // which Windows cannot launch through spawn(). Sync the ESM binding used by
+  // the built library and restore both module views after this test.
+  const spawnMock = t.mock.method(childProcess, "spawn", (command, args, options) => {
+    if (command === ffmpeg) filters.push(args[args.indexOf("-vf") + 1]);
+    return originalSpawn(command, args, options);
+  });
+  syncBuiltinESMExports();
+  t.after(() => {
+    spawnMock.mock.restore();
+    syncBuiltinESMExports();
+  });
+  const width = 512, height = 256;
+  const data = Buffer.alloc(width * height * 3);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 3;
+    data[i] = Math.round(127 + 100 * Math.sin(x / width * Math.PI * 2));
+    data[i + 1] = Math.round(127 + 100 * Math.cos(x / width * Math.PI * 2));
+    data[i + 2] = Math.round(255 * y / (height - 1));
+  }
+  const input = join(root, "source.png");
+  await sharp(data, { raw: { width, height, channels: 3 } }).png().toFile(input);
+  const baseline = join(root, "atlas.png");
+  const child = spawnSync(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-vf", "v360=input=equirect:output=c3x2:out_forder=frblud:w=384:h=256", "-frames:v", "1", baseline]);
+  assert.equal(child.status, 0, child.stderr?.toString());
+  const result = await convertImage(input, { outputDir: join(root, "cube"), format: "png", faceSize: 128, tileSize: 128, levels: [128], ffmpegPath: ffmpeg });
+  assert.equal(filters.length, 6);
+  assert.ok(filters.every((filter) => filter.includes("output=flat:w=128:h=128")));
+  for (const [index, face] of ["f", "r", "b", "l", "u", "d"].entries()) {
+    const expected = await sharp(baseline).extract({ left: (index % 3) * 128, top: Math.floor(index / 3) * 128, width: 128, height: 128 }).removeAlpha().raw().toBuffer();
+    const actual = await sharp(join(result.outputDir, `tiles/${face}/l1/1/l1_${face}_1_1.png`)).removeAlpha().raw().toBuffer();
+    let total = 0;
+    for (let i = 0; i < actual.length; i++) total += Math.abs(actual[i] - expected[i]);
+    assert.ok(total / actual.length < 0.1, `${face} projection orientation`);
+  }
 });
