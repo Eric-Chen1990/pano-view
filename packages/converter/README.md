@@ -4,6 +4,19 @@ Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or 
 
 [中文说明](./README.zh-CN.md)
 
+## Contents
+
+- [Install](#install)
+- [Node.js](#nodejs)
+- [Output and options](#output-and-options)
+- [JSON examples](#json-examples)
+- [API return values](#api-return-values)
+- [Reconstruction](#reconstruction)
+- [CLI](#cli)
+- [Error codes and troubleshooting](#error-codes-and-troubleshooting)
+- [Existing CMS data](#existing-cms-data)
+- [Development and release](#development-and-release)
+
 ## Install
 
 <details name="pano-converter-install" open>

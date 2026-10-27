@@ -6,6 +6,41 @@ Composable React components for equirectangular and krpano-style multiresolution
 
 Try the components in the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground).
 
+## Contents
+
+- [krpano-compatible tile output](#krpano-compatible-tile-output)
+- [Install](#install)
+- [Examples](#examples)
+- [Exported components](#exported-components)
+- [PanoViewer](#panoviewer)
+- [Sphere](#sphere)
+- [PanoVideo](#panovideo)
+- [Tile](#tile)
+- [Scenes](#scenes)
+- [PanoFilter](#panofilter)
+- [AutoRotate](#autorotate)
+- [BackgroundAudio](#backgroundaudio)
+- [Gyro](#gyro)
+- [WebVR](#webvr)
+- [Mouse, touch, and keyboard controls](#mouse-touch-and-keyboard-controls)
+- [Panorama coordinate events](#panorama-coordinate-events)
+- [PanoEvents](#panoevents)
+- [PanoContextMenu](#panocontextmenu)
+- [Shared hotspot contract and saved definitions](#shared-hotspot-contract-and-saved-definitions)
+- [ImageHotspot](#imagehotspot)
+- [GraphicHotspot](#graphichotspot)
+- [Hotspot mode and zoom behaviour](#hotspot-mode-and-zoom-behaviour)
+- [PolygonHotspot](#polygonhotspot)
+- [PolylineHotspot](#polylinehotspot)
+- [SequenceHotspot](#sequencehotspot)
+- [VideoHotspot](#videohotspot)
+- [AudioHotspot](#audiohotspot)
+- [TextHotspot](#texthotspot)
+- [IframeHotspot](#iframehotspot)
+- [Next.js and SSR](#nextjs-and-ssr)
+- [Spherical multiresolution tiles](#spherical-multiresolution-tiles)
+- [Accessibility matrices and tooltip typography](#accessibility-matrices-and-tooltip-typography)
+
 ## krpano-compatible tile output
 
 Use this package when you want a React-native viewer around equirectangular
@@ -98,11 +133,14 @@ Skip this import only if you do not use those overlays, or if you restyle
 them entirely through `className`, `style`, and appearance props. Without
 the stylesheet, the overlays still mount, but they render unstyled.
 
-## Start with a panorama
+## Examples
 
 Give PanoViewer an explicit size and render one panorama source inside it.
 Import the stylesheet once when you use built-in HTML overlays such as video
-controls, captions, tooltips, the context menu, or WebVR UI.
+controls, captions, tooltips, the context menu, or WebVR UI. Each example
+below is the shortest form; the linked section has the full props.
+
+### Equirectangular image
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -117,9 +155,77 @@ export function Panorama() {
 }
 ~~~
 
-For existing krpano tile pyramids, read the [migration
-guide](../../docs/krpano-migration.md) before replacing Sphere with Tile. The
-guide documents the XML-to-prop mapping and the relative-path rules.
+`previewUrl` is a 2:1 image. See [Sphere](#sphere).
+
+### Cube tiles
+
+Copy `url`, `multires`, and the preview path from krpano XML. Read the
+[migration guide](../../docs/krpano-migration.md) before replacing Sphere with
+Tile.
+
+~~~tsx
+import { PanoViewer, Tile } from "@ericchen1990/pano-view";
+
+export function TilePanorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Tile
+        baseUrl="/panoramas/room"
+        urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg"
+        multires="512,1000,2000"
+        previewUrl="preview.jpg"
+      />
+    </PanoViewer>
+  );
+}
+~~~
+
+Placeholders and preview face order are in [Tile](#tile).
+
+### 360 video
+
+~~~tsx
+import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+
+export function TourVideo() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <PanoVideo autoPlay muted src="/tour.mp4" />
+    </PanoViewer>
+  );
+}
+~~~
+
+Variants, captions, and custom controls are in [PanoVideo](#panovideo).
+
+### Multiple scenes
+
+~~~tsx
+import { useState } from "react";
+import { PanoViewer, Scenes, type Scene } from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  { id: "lobby", type: "sphere", src: "/lobby.webp", previewUrl: "/lobby-preview.webp" },
+  { id: "roof", type: "sphere", src: "/roof.webp", previewUrl: "/roof-preview.webp" },
+];
+
+export function Tour() {
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
+
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Scenes
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={setActiveSceneId}
+        scenes={scenes}
+        transition="dissolve"
+      />
+    </PanoViewer>
+  );
+}
+~~~
+
+Presets and hotspot rendering are in [Scenes](#scenes).
 
 ## Exported components
 
