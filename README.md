@@ -12,6 +12,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 ## Contents
 
 - [Packages](#packages)
+- [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
 - [Examples](#examples)
@@ -34,6 +35,17 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
 The sections below use the viewer. Generate a new tile pyramid with the converter, then pass its `viewerConfig` to `Tile`, `SphereTile`, or `Scenes`.
+
+## Data sources and choosing an approach
+
+The viewer accepts configuration objects or loads JSON over HTTP. Choose where your application stores and serves that configuration:
+
+- **Static JSON + CDN:** serve `project.json` and scene `viewer.json` files from static hosting. Loading configuration requires no database queries; storage, requests and traffic still have costs. Updates require publishing files and managing caches.
+- **Database + backend API:** your backend queries and authorizes the data, then supplies configuration objects or a JSON API response. The viewer does not connect to the database. This suits editing, private content and per-user configuration; backend availability, query costs and cache management belong to your application.
+
+**Prefer JSON + CDN for public, published tours; prefer database + API for editing previews, private content and personalization.** If you need both, keep the database as the editing source and generate a JSON snapshot on publication. Neither path automatically subscribes to configuration changes: the host must reload data and update the viewer in an already-open page.
+
+See [Data sources and choosing an approach](./packages/react/README.md#data-sources-and-choosing-an-approach) for the comparison and database example, and [Caching and publishing updates](./packages/react/README.md#caching-and-publishing-updates) for versioned URLs, cache headers and CDN invalidation.
 
 ## Static multi-scene projects
 

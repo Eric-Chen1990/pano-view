@@ -9,6 +9,7 @@
 ## 目录
 
 - [pano-converter](#pano-converter)
+- [数据来源与选型](#数据来源与选型)
 - [静态项目与 JSON 数据](#静态项目与-json-数据)
 - [常见问题与故障排查](#常见问题与故障排查)
 - [兼容 krpano 的 tile 输出](#兼容-krpano-的-tile-输出)
@@ -47,6 +48,79 @@
 ## pano-converter
 
 [@ericchen1990/pano-converter](../converter/README.zh-CN.md) 是本仓库中的另一个包。它在 Node.js 中，以及通过 `pano-convert` CLI，生成立方体与等距圆柱瓦片金字塔，并返回可供 [`Tile`](#tile)、[`SphereTile`](#球面多分辨率瓦片) 与 [`Scenes`](#scenes) 使用的 `viewerConfig`。转换器不依赖 React。
+
+## 数据来源与选型
+
+查看器接收配置对象，或通过 HTTP 加载 JSON，不直接连接数据库。数据库连接、查询、鉴权和响应映射由宿主后端负责。数据库 API 也可以返回 JSON；这里比较的是静态文件和动态提供的配置，而不是 JSON 格式本身。两种方式的预览图、瓦片和媒体都可以使用对象存储/CDN。
+
+| 维度 | 静态 JSON + CDN | 数据库 + 后端 API |
+| --- | --- | --- |
+| 配置读取 | 无需查询数据库；仍有存储、请求和流量成本 | 到达后端的请求需要处理，可能查询数据库；缓存可以减少这些开销 |
+| 更新 | 生成并发布文件，再管理入口引用和缓存 | 无需发布静态文件；生效时间仍取决于后端和客户端缓存 |
+| 权限与个性化 | 公开文件适合公开内容；私有分发需要托管/CDN 访问控制 | 后端可按用户、组织鉴权并返回不同配置 |
+| 可用性与维护 | 依赖静态托管/CDN；维护发布及缓存更新流程 | 依赖 API 及其数据库/缓存服务；维护查询、鉴权及缓存失效 |
+| 适用场景 | 公开、已发布的导览；更新较少；读取流量大 | 编辑预览、私有内容、频繁更新和个性化 |
+
+**公开、已发布的导览优先使用 JSON + CDN；编辑预览、私有和个性化内容优先使用数据库 + API。** 同时需要两者时，以数据库作为编辑来源，发布时生成 JSON 快照。这种混合方式需要应用自己的发布流程；包不会自动生成或同步快照。
+
+两条路径均不会自动轮询或订阅配置变化。更新已打开的页面时，宿主应用需要重新加载配置，并将新数据传给查看器。未命中缓存的 API 读取可以返回当前数据库值，但不会让已有查看器自动更新。
+
+### 数据库配置接入
+
+后端先查询导览并完成鉴权，再将需要公开给查看器的配置字段映射为项目。下例的 `readAuthorizedTour` 由宿主应用实现，负责数据库读取和访问检查，不是包提供的 API。它返回的场景记录包含转换时保存的精简 `viewerConfig`、资源目录、视角和热点定义：
+
+```ts
+import { loadPanoProject } from "@ericchen1990/pano-view/data";
+import { readAuthorizedTour } from "./tour-repository";
+
+export async function loadTourFromDatabase(tourId: string) {
+  const tour = await readAuthorizedTour(tourId);
+  return loadPanoProject({
+    schemaVersion: 1,
+    initialSceneId: tour.initialSceneId,
+    scenes: tour.scenes.map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      source: {
+        viewerConfig: scene.viewerConfig,
+        baseUrl: scene.assetBaseUrl,
+      },
+      initialView: scene.initialView,
+      hotspots: scene.hotspots,
+    })),
+  }, { baseUrl: tour.assetBaseUrl });
+}
+```
+
+对象入口必须提供 `baseUrl`：这里的 `tour.assetBaseUrl` 是绝对目录 URL，例如 `https://cdn.example.com/tours/123/v12/`。项目中相对的热点地址基于该目录解析；每个场景可用 `source.baseUrl` 覆盖全景瓦片/预览图目录。全部场景内嵌 `source.viewerConfig` 时，该调用不会请求项目或 viewer JSON；渲染时仍会加载预览图、瓦片和媒体。服务端数据工具从 `@ericchen1990/pano-view/data` 导入。
+
+将返回的 `LoadedPanoProject` 传给查看器组件；在 Next.js 中，查看器需位于客户端边界：
+
+```tsx
+"use client";
+
+import {
+  PanoViewer, ProjectScenes, type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function DatabaseTour({ project }: { project: LoadedPanoProject }) {
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+也可以由已鉴权的 JSON 接口返回 `PanoProjectDefinition`，再调用 `loadPanoProject("https://api.example.com/tours/123", { baseUrl: "https://cdn.example.com/tours/123/v12/" })`；地址不必以 `.json` 结尾。单场景可用 `sceneFromViewerConfig` 处理已有配置，或用 `loadSceneFromJson` 加载返回 `schemaVersion: 1` viewer 文档的 API，再通过 `Scenes` 渲染。请求选项与错误处理见 [静态项目与 JSON 数据](#静态项目与-json-数据)。私有图片/媒体需单独保护：JSON 请求的认证信息不会传到纹理请求。
+
+### 缓存与发布更新
+
+`project.json`（场景组织、视角和热点）、各个 `viewer.json`（全景渲染配置）和预览图/瓦片/媒体是分别缓存的资源。只刷新项目文件，不会同步刷新地址不变的场景配置或图片。数据库 API 同样可能被后端、CDN 和客户端缓存，因此两种方式都需要缓存策略。
+
+- **优先使用版本化目录：** 将完整版本发布到新路径，例如 `/tours/123/v12/`，包含 `project.json`、场景配置和资源；全部上传完成后，再切换页面或入口引用。变化的资源也要更新版本，并在旧配置仍可能被使用期间保留旧资源。内容固定的版本化文件可用长期缓存；选择版本的可变页面或入口需要短缓存或重新验证。AWS 也[建议使用版本化文件名或目录](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/UpdatingExistingObjects.html)。
+- **覆盖相同 URL 时：** 等待设定的缓存有效期结束、要求重新验证，或上传后对受影响路径执行 CDN 失效。CDN 失效不会清除浏览器已有文件；新配置的响应头也无法追溯替换仍在有效期内的缓存响应。版本化路径可避免依赖这些副本过期。`?v=12` 等查询参数仅在 CDN 将其纳入缓存键时有效；JSON 的查询参数不会自动继承到引用的资源。
+- **按资源选择响应头：** `Cache-Control: no-cache` 允许存储，但复用前必须验证；`no-store` 要求缓存不存储响应。可变的公开入口可配合 `ETag` 等验证器重新验证；私有/个性化 API 响应应明确配置策略，例如 `private, no-store`，避免在用户间共享。还需要配置托管/CDN 规则以遵循预期策略。参见 [MDN HTTP 缓存](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching)和 [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control)。
+
+这些响应头和 CDN 操作由托管平台/后端配置。loader 的 `requestInit` 仅支持 `headers`、`credentials` 和 `signal`，不提供 Fetch 的 `cache` 选项，也不会使 CDN 缓存失效或自动刷新已加载的项目。
 
 ## 静态项目与 JSON 数据
 

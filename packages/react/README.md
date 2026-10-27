@@ -9,6 +9,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 ## Contents
 
 - [pano-converter](#pano-converter)
+- [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static projects and JSON data](#static-projects-and-json-data)
 - [FAQ and troubleshooting](#faq-and-troubleshooting)
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
@@ -51,6 +52,79 @@ this repository. It generates cube and equirectangular tile pyramids in
 Node.js and through the `pano-convert` CLI, then returns `viewerConfig` for
 [`Tile`](#tile), [`SphereTile`](#spherical-multiresolution-tiles), and
 [`Scenes`](#scenes). It does not depend on React.
+
+## Data sources and choosing an approach
+
+The viewer accepts configuration objects or loads JSON over HTTP. It does not connect to a database: your host backend owns database connections, queries, authorization and response mapping. A database-backed API can also return JSON; the distinction is static files versus dynamically supplied configuration, not the JSON format itself. Preview images, tiles and media can use object storage/CDN with either approach.
+
+| Consideration | Static JSON + CDN | Database + backend API |
+| --- | --- | --- |
+| Configuration reads | No database queries; storage, request and traffic costs still apply | Requests that reach the backend need processing and may query the database; caching can reduce that work |
+| Updates | Generate and publish files, then manage entry references and caches | No static-file publication is required; freshness still depends on backend and client caches |
+| Access and personalization | Public files suit public content; private delivery needs hosting/CDN access control | Backend can authorize users/organizations and return different configurations |
+| Availability and maintenance | Depends on static hosting/CDN; maintain the publication and cache-update process | Depends on the API and its database/cache services; maintain queries, authorization and cache invalidation |
+| Best fit | Public, published tours; infrequent updates; high read traffic | Editing previews, private content, frequent updates and personalization |
+
+**Prefer JSON + CDN for public, published tours; prefer database + API for editing previews, private content and personalization.** If both are needed, use the database as the editing source and generate a JSON snapshot on publication. That hybrid approach needs an application-owned publication process; the package does not generate or synchronize snapshots for you.
+
+Neither path automatically polls or subscribes to configuration changes. To update an already-open page, the host must reload the configuration and pass the new data to the viewer. An uncached API read can return current database values, but does not make an existing viewer update automatically.
+
+### Database-backed configuration
+
+In your backend, query and authorize the tour, then map only the intended configuration fields into a project. The application-owned `readAuthorizedTour` below performs that database read and access check; it is not a package API. Its scene records contain the compact `viewerConfig` saved from conversion, asset directories, views and hotspot definitions:
+
+```ts
+import { loadPanoProject } from "@ericchen1990/pano-view/data";
+import { readAuthorizedTour } from "./tour-repository";
+
+export async function loadTourFromDatabase(tourId: string) {
+  const tour = await readAuthorizedTour(tourId);
+  return loadPanoProject({
+    schemaVersion: 1,
+    initialSceneId: tour.initialSceneId,
+    scenes: tour.scenes.map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      source: {
+        viewerConfig: scene.viewerConfig,
+        baseUrl: scene.assetBaseUrl,
+      },
+      initialView: scene.initialView,
+      hotspots: scene.hotspots,
+    })),
+  }, { baseUrl: tour.assetBaseUrl });
+}
+```
+
+Object input requires `baseUrl`: here `tour.assetBaseUrl` is an absolute directory URL such as `https://cdn.example.com/tours/123/v12/`. Project-relative hotspot URLs resolve against that directory; each scene's optional `source.baseUrl` overrides its panorama tile/preview directory. With every `source.viewerConfig` inline, this call makes no project/viewer JSON requests; rendering still loads previews, tiles and media. On the server, import data helpers from `@ericchen1990/pano-view/data`.
+
+Pass the resulting `LoadedPanoProject` to a viewer component; in Next.js, keep the viewer inside a client boundary:
+
+```tsx
+"use client";
+
+import {
+  PanoViewer, ProjectScenes, type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function DatabaseTour({ project }: { project: LoadedPanoProject }) {
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+Alternatively, return a `PanoProjectDefinition` from an authorized JSON endpoint and use `loadPanoProject("https://api.example.com/tours/123", { baseUrl: "https://cdn.example.com/tours/123/v12/" })`; the URL need not end in `.json`. A single scene can use `sceneFromViewerConfig` with an existing config or `loadSceneFromJson` with an API returning a `schemaVersion: 1` viewer document, then render through `Scenes`. See [Static projects and JSON data](#static-projects-and-json-data) for request options and error handling. Protect private images/media separately: JSON request credentials are not forwarded to texture requests.
+
+### Caching and publishing updates
+
+`project.json` (scene structure, views and hotspots), each `viewer.json` (panorama rendering configuration), and previews/tiles/media are separate cached resources. Refreshing the project alone will not refresh an unchanged scene URL or an image at the same URL. Database-backed APIs can also be cached by the backend, CDN and client, so cache policy matters for both approaches.
+
+- **Prefer versioned directories:** publish a complete release under a new path such as `/tours/123/v12/`, including its `project.json`, scene configs and assets, before switching the page or entry reference. Version changed assets too, and retain old assets while old configurations may still be in use. Immutable versioned files can use long-lived caching; a mutable page or pointer that selects the version needs short caching or revalidation. AWS also [recommends versioned file or directory names](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/UpdatingExistingObjects.html).
+- **When overwriting the same URL:** wait for its configured cache lifetime to expire, require revalidation, or invalidate the affected CDN paths after uploading. CDN invalidation does not clear files already cached in browsers; a newly configured response header cannot retroactively replace an already-fresh cached response. Versioned paths avoid depending on those copies expiring. Query strings such as `?v=12` work only if the CDN includes them in its cache key; JSON query parameters are not inherited by referenced assets.
+- **Choose headers for the resource:** `Cache-Control: no-cache` permits storage but requires validation before reuse; `no-store` tells caches not to store the response. A mutable public entry can use revalidation with validators such as `ETag`, while private/user-specific API responses need an explicit policy such as `private, no-store` and must not be shared between users. Configure hosting/CDN rules to honor the intended policy. See [MDN HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching) and [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control).
+
+These headers and CDN operations belong to your hosting/backend setup. The loader's `requestInit` supports only `headers`, `credentials` and `signal`; it does not expose Fetch's `cache` option, invalidate CDNs or refresh an already-loaded project automatically.
 
 ## Static projects and JSON data
 
