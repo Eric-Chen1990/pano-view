@@ -6,6 +6,7 @@
 
 ## 目录
 
+- [pano-view](#pano-view)
 - [安装](#安装)
 - [Node.js](#nodejs)
 - [上传和保存数据](#上传和保存数据)
@@ -18,6 +19,10 @@
 - [错误码与故障排查](#错误码与故障排查)
 - [CMS 新旧资源兼容](#cms-新旧资源兼容)
 - [开发与发布](#开发与发布)
+
+## pano-view
+
+[@ericchen1990/pano-view](../react/README.zh-CN.md) 是本仓库中的另一个包，也就是渲染 [`convertImage`](#nodejs) 所返回 `viewerConfig` 的 React 查看器。立方体输出对应 `Tile`（`type: "tile"`）；等距圆柱输出对应 `SphereTile`（`type: "sphereTile"`）。把该配置加上应用自己的 `id` 与 `baseUrl` 后传给 `Scenes`。详见[前端使用](#前端使用)。
 
 ## 安装
 
@@ -135,7 +140,7 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 </PanoViewer>;
 ```
 
-立方体配置为 `type: "tile"`；球面为 `type: "sphereTile"`，明确带有 `indexBase: 1`。普通大图的 `viewerConfig` 为 `null`，应交给平面查看器。转换库不依赖 React/pano-view，不抓取或保存业务数据；浏览器无需逐个请求完整清单。两种全景都显式提供实际模板，立方体文件名为先行后列，与 pano-view 的默认模板不同。
+立方体配置为 `type: "tile"`；球面为 `type: "sphereTile"`，明确带有 `indexBase: 1`。普通大图的 `viewerConfig` 为 `null`，应交给平面查看器。渲染由 [@ericchen1990/pano-view](../react/README.zh-CN.md) 完成；本包不抓取或保存业务数据。浏览器无需逐个请求完整清单。两种全景都显式提供实际模板，立方体文件名为先行后列，与 pano-view 的默认模板不同。
 
 ## 配置和输出
 

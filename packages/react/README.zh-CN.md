@@ -8,6 +8,7 @@
 
 ## 目录
 
+- [pano-converter](#pano-converter)
 - [兼容 krpano 的 tile 输出](#兼容-krpano-的-tile-输出)
 - [安装](#安装)
 - [示例](#示例)
@@ -40,6 +41,10 @@
 - [Next.js 与 SSR](#nextjs-与-ssr)
 - [球面多分辨率瓦片](#球面多分辨率瓦片)
 - [无障碍颜色矩阵与标签排版](#无障碍颜色矩阵与标签排版)
+
+## pano-converter
+
+[@ericchen1990/pano-converter](../converter/README.zh-CN.md) 是本仓库中的另一个包。它在 Node.js 中，以及通过 `pano-convert` CLI，生成立方体与等距圆柱瓦片金字塔，并返回可供 [`Tile`](#tile)、[`SphereTile`](#球面多分辨率瓦片) 与 [`Scenes`](#scenes) 使用的 `viewerConfig`。转换器不依赖 React。
 
 ## 兼容 krpano 的 tile 输出
 

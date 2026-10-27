@@ -8,6 +8,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 
 ## Contents
 
+- [pano-converter](#pano-converter)
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
 - [Examples](#examples)
@@ -40,6 +41,14 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [Next.js and SSR](#nextjs-and-ssr)
 - [Spherical multiresolution tiles](#spherical-multiresolution-tiles)
 - [Accessibility matrices and tooltip typography](#accessibility-matrices-and-tooltip-typography)
+
+## pano-converter
+
+[@ericchen1990/pano-converter](../converter/README.md) is the other package in
+this repository. It generates cube and equirectangular tile pyramids in
+Node.js and through the `pano-convert` CLI, then returns `viewerConfig` for
+[`Tile`](#tile), [`SphereTile`](#spherical-multiresolution-tiles), and
+[`Scenes`](#scenes). It does not depend on React.
 
 ## krpano-compatible tile output
 

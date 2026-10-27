@@ -2,8 +2,8 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-Composable React components for equirectangular images, 360 video, and
-krpano-style multiresolution cube tiles. Build the panorama experience inside
+Pano View is a workspace for panoramic images and 360 video. It publishes a
+React viewer and a Node.js converter. Build the panorama experience inside
 your application with your own React UI, controls, routes, and data.
 
 Try the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) to explore
@@ -11,6 +11,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Contents
 
+- [Packages](#packages)
 - [Installation](#installation)
 - [Examples](#examples)
   - [Equirectangular image](#equirectangular-image)
@@ -24,11 +25,22 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 - [Publishing](#publishing)
 - [Maintainer and support](#maintainer-and-support)
 
+## Packages
+
+| Package | What it does |
+| --- | --- |
+| [@ericchen1990/pano-view](./packages/react/README.md) | Composable React components for equirectangular images, 360 video, and krpano-style multiresolution cube tiles. |
+| [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
+
+The sections below use the viewer. Generate a new tile pyramid with the converter, then pass its `viewerConfig` to `Tile`, `SphereTile`, or `Scenes`.
+
 ## Installation
 
-Install the viewer in the host application. npm 7+, pnpm, and Bun also install
-the peer dependencies. Yarn and npm 6 do not, so install those ranges from the
-[package README](./packages/react/README.md#install).
+Install [@ericchen1990/pano-view](./packages/react/README.md) in the host
+application. npm 7+, pnpm, and Bun also install the peer dependencies. Yarn
+and npm 6 do not, so install those ranges from the [package
+README](./packages/react/README.md#install). Converter installation is in
+the [converter README](./packages/converter/README.md#install).
 
 <details name="pano-view-install" open>
 <summary>npm</summary>
@@ -124,6 +136,9 @@ export function TilePanorama() {
 Read the [krpano migration guide](./docs/krpano-migration.md) before replacing
 `Sphere` with `Tile`. The [Tile reference](./packages/react/README.md#tile)
 documents placeholders, preview face order, and custom resolvers.
+[@ericchen1990/pano-converter](./packages/converter/README.md) can generate
+this pyramid and return the same `urlTemplate`, `multires`, and `previewUrl`
+fields on `viewerConfig`.
 
 ### 360 video
 
@@ -201,19 +216,13 @@ project.
 
 ## Guides
 
-The package exports PanoViewer, Sphere, PanoVideo, Tile, Scenes, hotspots,
-controls, hooks, and helpers.
-
-- [Package README](./packages/react/README.md) — installation details and the component API
+- [@ericchen1990/pano-view](./packages/react/README.md) — component API, hotspots, controls, and hooks
+- [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling and reconstruction
 - [360 video guide](./docs/react-360-video.md) — inline playback, captions, and mobile activation
 - [krpano migration guide](./docs/krpano-migration.md) — XML attributes to component props
-- [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling
 
-This repository is a pnpm workspace containing the viewer, the converter, and
-the Vite Playground. The converter provides Node.js/CLI tiling and
-reconstruction without React, cloud storage, or database dependencies. The
-Playground imports component source directly, so local component changes are
-visible without a package rebuild.
+The Vite Playground in this workspace imports viewer source directly, so local
+component changes are visible without a package rebuild.
 
 ## Local development
 

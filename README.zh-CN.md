@@ -2,14 +2,15 @@
 
 [English](./README.md) | **简体中文**
 
-用于等距圆柱图像、360 视频与 krpano 风格多分辨率立方体瓦片的可组合
-React 组件。在你的应用中构建全景体验，并保留自己的 React UI、控件、路由与数据。
+Pano View 是面向全景图像与 360 视频的工作区，发布 React 查看器和 Node.js
+转换器两个包。在你的应用中构建全景体验，并保留自己的 React UI、控件、路由与数据。
 
 在[在线 Playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) 中试用热点、场景过渡、
 360 视频、WebXR、滤镜与立方体瓦片场景。
 
 ## 目录
 
+- [包](#包)
 - [安装](#安装)
 - [示例](#示例)
   - [等距圆柱图像](#等距圆柱图像)
@@ -23,10 +24,20 @@ React 组件。在你的应用中构建全景体验，并保留自己的 React U
 - [发布](#发布)
 - [维护与支持](#维护与支持)
 
+## 包
+
+| 包 | 作用 |
+| --- | --- |
+| [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) | 用于等距圆柱图像、360 视频与 krpano 风格多分辨率立方体瓦片的可组合 React 组件。 |
+| [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) | Node.js 库与 `pano-convert` CLI。生成瓦片金字塔、预览图，以及 React 包渲染所用的 `viewerConfig`。不依赖 React、云存储或数据库。 |
+
+下文示例使用查看器。用转换器生成新的瓦片金字塔，再把它的 `viewerConfig` 交给 `Tile`、`SphereTile` 或 `Scenes`。
+
 ## 安装
 
-在宿主应用中安装查看器。npm 7+、pnpm 与 Bun 会一并安装对等依赖；Yarn 与
+在宿主应用中安装 [@ericchen1990/pano-view](./packages/react/README.zh-CN.md)。npm 7+、pnpm 与 Bun 会一并安装对等依赖；Yarn 与
 npm 6 不会，需按[包 README](./packages/react/README.zh-CN.md#安装)中的版本范围显式安装。
+[@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md#安装) 的安装说明在它自己的 README 中。
 
 <details name="pano-view-install" open>
 <summary>npm</summary>
@@ -111,7 +122,7 @@ export function TilePanorama() {
 }
 ~~~
 
-把 `Sphere` 换成 `Tile` 之前，请阅读[krpano 迁移指南](./docs/krpano-migration.zh-CN.md)。占位符、预览面顺序与自定义解析器见 [Tile 参考](./packages/react/README.zh-CN.md#tile)。
+把 `Sphere` 换成 `Tile` 之前，请阅读[krpano 迁移指南](./docs/krpano-migration.zh-CN.md)。占位符、预览面顺序与自定义解析器见 [Tile 参考](./packages/react/README.zh-CN.md#tile)。[@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) 可以生成这套金字塔，并在 `viewerConfig` 上返回相同的 `urlTemplate`、`multires` 与 `previewUrl`。
 
 ### 360 视频
 
@@ -179,15 +190,12 @@ Pano View 支持这种 tile 输出格式，但不是 krpano 的插件、包装�
 
 ## 指南
 
-包导出 PanoViewer、Sphere、PanoVideo、Tile、Scenes、热点、控件、Hook 与辅助函数。
-
-- [包 README](./packages/react/README.zh-CN.md) — 安装细节与组件 API
+- [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) — 组件 API、热点、控件与 Hook
+- [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) — Node.js 与 CLI 切图和还原
 - [360 视频指南](./docs/react-360-video.zh-CN.md) — 页内播放、字幕与移动端激活
 - [krpano 迁移指南](./docs/krpano-migration.zh-CN.md) — XML 属性到组件 props
-- [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) — Node.js 与 CLI 切图
 
-本仓库是 pnpm workspace，包含查看器、转换器和 Vite Playground。转换器提供
-Node.js/CLI 切图与还原，不依赖 React、云存储或数据库。Playground 直接导入组件源码，因此本地修改组件后无需重新构建包即可看到效果。
+本仓库中的 Vite Playground 直接导入查看器源码，因此本地修改组件后无需重新构建包即可看到效果。
 
 ## 本地开发
 

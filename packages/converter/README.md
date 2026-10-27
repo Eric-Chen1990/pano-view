@@ -6,6 +6,7 @@ Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or 
 
 ## Contents
 
+- [pano-view](#pano-view)
 - [Install](#install)
 - [Node.js](#nodejs)
 - [Output and options](#output-and-options)
@@ -16,6 +17,15 @@ Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or 
 - [Error codes and troubleshooting](#error-codes-and-troubleshooting)
 - [Existing CMS data](#existing-cms-data)
 - [Development and release](#development-and-release)
+
+## pano-view
+
+[@ericchen1990/pano-view](../react/README.md) is the other package in this
+repository. It is the React viewer for the `viewerConfig` returned by
+[`convertImage`](#nodejs). Cubemap output maps to `Tile` (`type: "tile"`);
+equirectangular output maps to `SphereTile` (`type: "sphereTile"`). Pass that
+config, plus your application's `id` and `baseUrl`, to `Scenes`. See
+[Frontend integration](#frontend-integration).
 
 ## Install
 
@@ -131,7 +141,7 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 </PanoViewer>;
 ```
 
-Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. The converter does not require React/pano-view or fetch/store business data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
+Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. Rendering is done by [@ericchen1990/pano-view](../react/README.md); this package does not fetch or store application data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
 
 ## Output and options
 
