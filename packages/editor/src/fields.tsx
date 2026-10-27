@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { fieldValue } from "./hotspot-defaults";
 import type { Translate } from "./i18n";
 import { fieldLabel } from "./i18n";
+import type { ProjectHotspotDefinition } from "@ericchen1990/pano-view";
 
 export function getField(value: unknown, path: string): unknown {
   return path
@@ -28,12 +30,38 @@ export function setField<T>(value: T, path: string, next: unknown): T {
   return copy as T;
 }
 
+export function setHotspotField(
+  hotspot: ProjectHotspotDefinition,
+  name: string,
+  value: unknown,
+): ProjectHotspotDefinition {
+  if (name === "fontWeight" && typeof value === "string" && /^\d+$/.test(value))
+    return setField(hotspot, name, Number(value));
+  if (name === "tooltip.text")
+    return setField(
+      hotspot,
+      "tooltip",
+      typeof hotspot.tooltip === "object"
+        ? { ...hotspot.tooltip, text: value as string | undefined }
+        : value,
+    );
+  if (name.startsWith("tooltip.") && typeof hotspot.tooltip === "string")
+    return setField(
+      { ...hotspot, tooltip: { text: hotspot.tooltip } },
+      name,
+      value,
+    );
+  return setField(hotspot, name, value);
+}
+
 export type FieldSpec = {
   name: string;
   defaultValue?: unknown;
   type?: "number" | "boolean" | "lines" | "json" | "textarea";
   options?: string[];
+  optionLabels?: Record<string, string>;
   label?: string;
+  help?: string;
   asset?: boolean;
 };
 export function Field({
@@ -53,6 +81,8 @@ export function Field({
   onPick?: () => void;
   t: Translate;
 }) {
+  const helpId = useId();
+  const resolvedValue = fieldValue(value, spec.defaultValue);
   const display = (item: unknown) =>
     item === undefined
       ? ""
@@ -61,14 +91,17 @@ export function Field({
         : Array.isArray(item)
           ? item.join("\n")
           : String(item);
-  const [text, setText] = useState(() => display(value));
+  const [text, setText] = useState(() => display(resolvedValue));
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
   const label = t(spec.label ?? fieldLabel(spec.name));
   const apply = (input: string) => {
     setText(input);
     try {
-      if (!input && spec.type !== "textarea") {
+      if (
+        !input &&
+        (spec.type === "number" || spec.type === "json" || spec.type === "lines")
+      ) {
         onChange(undefined);
         setError("");
         return;
@@ -94,9 +127,8 @@ export function Field({
     control = (
       <input
         type="checkbox"
-        checked={
-          typeof value === "boolean" ? value : spec.defaultValue === true
-        }
+        checked={resolvedValue === true}
+        aria-describedby={spec.help ? helpId : undefined}
         onChange={(event) => {
           try {
             onChange(event.currentTarget.checked);
@@ -110,7 +142,8 @@ export function Field({
   else if (spec.options)
     control = (
       <select
-        value={typeof value === "string" ? value : ""}
+        value={typeof resolvedValue === "string" ? resolvedValue : ""}
+        aria-describedby={spec.help ? helpId : undefined}
         onChange={(event) => {
           try {
             onChange(event.currentTarget.value || undefined);
@@ -120,19 +153,21 @@ export function Field({
           }
         }}
       >
-        <option value="">—</option>
+        <option value="">
+          {t(spec.defaultValue === undefined ? "—" : "Use default")}
+        </option>
         {spec.options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {t(spec.optionLabels?.[option] ?? option)}
           </option>
         ))}
       </select>
     );
   else {
     const props = {
-      value: editing ? text : display(value),
+      value: editing ? text : display(resolvedValue),
       onFocus: () => {
-        setText(display(value));
+        setText(display(resolvedValue));
         setEditing(true);
         onBegin();
       },
@@ -140,7 +175,7 @@ export function Field({
         onEnd();
         setEditing(false);
         if (error) {
-          setText(display(value));
+          setText(display(resolvedValue));
           setError("");
         }
       },
@@ -148,6 +183,7 @@ export function Field({
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
       ) => apply(event.currentTarget.value),
       "aria-invalid": Boolean(error),
+      "aria-describedby": spec.help ? helpId : undefined,
     };
     control =
       spec.type === "textarea" ||
@@ -168,6 +204,30 @@ export function Field({
         <span>{label}</span>
         {control}
       </label>
+      {spec.help ? (
+        <p id={helpId} className="pne-field-help">{t(spec.help)}</p>
+      ) : null}
+      {value !== undefined && spec.defaultValue !== undefined && value !== spec.defaultValue ? (
+        <button
+          type="button"
+          className="pne-subtle"
+          aria-label={`${t("Use default")}: ${label}`}
+          onClick={(event) => {
+            try {
+              event.currentTarget.parentElement
+                ?.querySelector<HTMLElement>("input, select, textarea")
+                ?.focus();
+              onChange(undefined);
+              setText(display(spec.defaultValue));
+              setError("");
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : String(cause));
+            }
+          }}
+        >
+          {t("Use default")}
+        </button>
+      ) : null}
       {spec.asset && onPick ? (
         <button type="button" className="pne-subtle" onClick={onPick}>
           {t("Browse assets")}
@@ -179,7 +239,11 @@ export function Field({
 }
 
 export const commonFields: FieldSpec[] = [
-  { name: "label" },
+  {
+    name: "label",
+    label: "Hotspot name",
+    help: "Used in the hotspot list and for accessibility. Not displayed in the panorama.",
+  },
   { name: "visible", type: "boolean", defaultValue: true },
   { name: "interactive", type: "boolean", defaultValue: true },
   { name: "pointerEvents", options: ["auto", "none"] },
@@ -256,7 +320,7 @@ export const contentFields: Record<string, FieldSpec[]> = {
     { name: "crossOrigin", options: ["anonymous", "use-credentials"] },
   ],
   text: [
-    { name: "text", type: "textarea" },
+    { name: "text", label: "Scene text", type: "textarea" },
     { name: "fontFamily" },
     ...numbers("fontSize"),
     { name: "fontWeight" },

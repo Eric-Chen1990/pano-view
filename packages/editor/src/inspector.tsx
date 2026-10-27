@@ -1,9 +1,11 @@
 import { useState } from "react";
-import type {
-  HotspotPosition,
-  ProjectHotspotDefinition,
-  PanoProjectSceneDefinition,
+import {
+  DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+  type HotspotPosition,
+  type ProjectHotspotDefinition,
+  type PanoProjectSceneDefinition,
 } from "@ericchen1990/pano-view";
+import { hotspotFieldDefault } from "./hotspot-defaults";
 import {
   Field,
   commonFields,
@@ -11,6 +13,7 @@ import {
   contentFields,
   getField,
   setField,
+  setHotspotField,
   type FieldSpec,
 } from "./fields";
 import type { Translate } from "./i18n";
@@ -49,39 +52,17 @@ export function HotspotInspector({
           ? { kind, path: "M0 0H100V100H0Z", viewBox: [0, 0, 100, 100] }
           : { kind, fill: "#df6b42", stroke: "#ffffff" };
       next = setField(next, "graphic", graphic);
-    } else if (
-      name === "fontWeight" &&
-      typeof value === "string" &&
-      /^\d+$/.test(value)
-    )
-      next = setField(next, name, Number(value));
-    else if (name === "tooltip.text") {
-      const tooltip =
-        typeof hotspot.tooltip === "object"
-          ? { ...hotspot.tooltip, text: value as string | undefined }
-          : value;
-      next = setField(next, "tooltip", tooltip);
-    } else if (
-      name.startsWith("tooltip.") &&
-      typeof hotspot.tooltip === "string"
-    )
-      next = setField(
-        { ...hotspot, tooltip: { text: hotspot.tooltip } },
-        name,
-        value,
-      );
-    else next = setField(next, name, value);
+    } else next = setHotspotField(next, name, value);
     onChange(next);
   };
   const fields = (specs: FieldSpec[]) =>
     specs.map((spec) => (
       <Field
         key={spec.name}
-        spec={
-          hotspot.type === "video" && spec.name === "muted"
-            ? { ...spec, defaultValue: true }
-            : spec
-        }
+        spec={{
+          ...spec,
+          defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
+        }}
         value={
           spec.name === "tooltip.text" && typeof hotspot.tooltip === "string"
             ? hotspot.tooltip
@@ -149,6 +130,48 @@ export function HotspotInspector({
           </label>
         </div>
       </details>
+      <details open>
+        <summary>{t("Tooltip")}</summary>
+        <div className="pne-fields">
+          <p className="pne-field-help">
+            {t("Text or images shown to visitors beside the hotspot. Clear both to hide the tooltip. The name is copied only when a hotspot is created.")}
+          </p>
+          {fields([
+            { name: "tooltip.text", label: "Tooltip text", type: "textarea" },
+            { name: "tooltip.image", label: "Tooltip image", asset: true },
+            { name: "tooltip.imageAlt", label: "Tooltip image alt" },
+            {
+              name: "tooltipTrigger",
+              options: ["always", "hover", "click"],
+              optionLabels: {
+                always: "Always visible",
+                hover: "On hover or focus",
+                click: "On click",
+              },
+            },
+            {
+              name: "tooltipPlacement",
+              options: ["top", "bottom", "left", "right"],
+              optionLabels: {
+                top: "Above", bottom: "Below", left: "Left", right: "Right",
+              },
+            },
+            { name: "tooltipOffset", label: "Tooltip offset (px)", type: "number" },
+          ])}
+          <p className="pne-field-help">
+            {t(hotspot.tooltipAppearance === undefined ? "Using default style" : "Using custom style")}
+          </p>
+          <details>
+            <summary>{t("Custom tooltip style (JSON)")}</summary>
+            {fields([
+              {
+                name: "tooltipAppearance", label: "Appearance", type: "json",
+                defaultValue: DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+              },
+            ])}
+          </details>
+        </div>
+      </details>
       {"position" in hotspot ? (
         <details open>
           <summary>{t("Position and size")}</summary>
@@ -213,23 +236,6 @@ export function HotspotInspector({
         <div className="pne-fields">
           {fields(contentFields[hotspot.type] ?? [])}
           {fields(graphicFields)}
-        </div>
-      </details>
-      <details>
-        <summary>{t("Tooltip")}</summary>
-        <div className="pne-fields">
-          {fields([
-            { name: "tooltip.text", label: "Tooltip text", type: "textarea" },
-            { name: "tooltip.image", label: "Tooltip image", asset: true },
-            { name: "tooltip.imageAlt", label: "Tooltip image alt" },
-            { name: "tooltipTrigger", options: ["always", "hover", "click"] },
-            {
-              name: "tooltipPlacement",
-              options: ["top", "bottom", "left", "right"],
-            },
-            { name: "tooltipOffset", type: "number" },
-            { name: "tooltipAppearance", label: "Appearance", type: "json" },
-          ])}
         </div>
       </details>
       <details

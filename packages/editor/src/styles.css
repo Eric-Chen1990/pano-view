@@ -205,6 +205,12 @@
 .pne-field {
   min-width: 0;
 }
+.pne-root .pne-field-help {
+  margin: 5px 0 0;
+  color: var(--pne-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .pne-field small {
   display: block;
   margin-top: 5px;

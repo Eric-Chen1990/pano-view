@@ -457,7 +457,7 @@ export function PanoEditor(props: PanoEditorProps) {
             updateHotspot(assetHotspot(hotspot, dialog.field, dialog.selected));
         } else if (dialog.hotspotKind) {
           setPlacement(
-            createHotspot(
+            newHotspot(
               dialog.hotspotKind,
               { yaw: 0, pitch: 0 },
               dialog.selected,
@@ -538,7 +538,7 @@ export function PanoEditor(props: PanoEditorProps) {
       const token = generation.current;
       const sceneId = active.id;
       const hotspot = hotspotKind
-        ? createHotspot(hotspotKind, { yaw: 0, pitch: 0 })
+        ? newHotspot(hotspotKind, { yaw: 0, pitch: 0 })
         : selected;
       const request: PanoAssetRequest = {
         kind:
@@ -587,6 +587,9 @@ export function PanoEditor(props: PanoEditorProps) {
         selected: "",
       });
   }
+  function newHotspot(kind: HotspotKind, position: HotspotPosition, src = "") {
+    return createHotspot(kind, position, src, { hotspots: active?.hotspots, t });
+  }
   function chooseTool(kind: HotspotKind) {
     history.end();
     setDraft([]);
@@ -599,7 +602,7 @@ export function PanoEditor(props: PanoEditorProps) {
     } else {
       setTool(kind);
       if (kind !== "polygon" && kind !== "polyline")
-        setPlacement(createHotspot(kind, { yaw: 0, pitch: 0 }));
+        setPlacement(newHotspot(kind, { yaw: 0, pitch: 0 }));
     }
   }
   function selectHotspot(id: string) {
@@ -628,7 +631,7 @@ export function PanoEditor(props: PanoEditorProps) {
   function finishDrawing() {
     if (tool !== "polygon" && tool !== "polyline") return;
     const hotspot = {
-      ...createHotspot(tool, { yaw: 0, pitch: 0 }),
+      ...newHotspot(tool, { yaw: 0, pitch: 0 }),
       vertices: draft,
     } as ProjectHotspotDefinition;
     const issue = geometryIssue(hotspot);

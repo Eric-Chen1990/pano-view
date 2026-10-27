@@ -6,8 +6,10 @@ import {
 import {
   validatePolygonVertices,
   validatePolylineVertices,
+  DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
   type HotspotPosition,
 } from "@ericchen1990/pano-view";
+import { translator, type Translate } from "./i18n";
 
 export const emptyProject = (): PanoProjectDefinition => ({
   schemaVersion: 1,
@@ -144,8 +146,24 @@ export function createHotspot(
   kind: HotspotKind,
   position: HotspotPosition,
   src = "",
+  options: { hotspots?: ProjectHotspotDefinition[]; t?: Translate } = {},
 ): ProjectHotspotDefinition {
-  const common = { id: newId(), label: kind, position, width: 12, height: 12 };
+  const t = options.t ?? translator("en");
+  const typeName = t(kind);
+  const name = typeName.charAt(0).toUpperCase() + typeName.slice(1);
+  const names = new Set(options.hotspots?.map((hotspot) => hotspot.label));
+  let index = 1;
+  while (names.has(`${name} ${index}`)) index += 1;
+  const label = `${name} ${index}`;
+  const metadata = {
+    id: newId(),
+    label,
+    ...(kind === "text" ? {} : { tooltip: label }),
+    tooltipTrigger: "always" as const,
+    tooltipPlacement: "top" as const,
+    tooltipOffset: DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+  };
+  const common = { ...metadata, position, width: 12, height: 12 };
   switch (kind) {
     case "graphic":
       return {
@@ -162,7 +180,7 @@ export function createHotspot(
       return {
         ...common,
         type: kind,
-        text: "Text",
+        text: t("Text"),
         width: 30,
         height: 10,
         fontSize: 32,
@@ -187,8 +205,7 @@ export function createHotspot(
       };
     case "polygon":
       return {
-        id: common.id,
-        label: kind,
+        ...metadata,
         type: kind,
         vertices: [],
         fill: "#df6b42",
@@ -198,8 +215,7 @@ export function createHotspot(
       };
     case "polyline":
       return {
-        id: common.id,
-        label: kind,
+        ...metadata,
         type: kind,
         vertices: [],
         stroke: "#75cbd3",
