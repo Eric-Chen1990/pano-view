@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ericchen1990/pano-editor": "workspace:*",
     "@ericchen1990/pano-view": "workspace:*",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^9.7.0",

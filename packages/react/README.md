@@ -2065,6 +2065,8 @@ Playback uses Web Audio via Howler.js (bundled; hosts do not install
 format. `src` may be a string or an array of fallback URLs. The component uses Web Audio rather than HTML5
 streaming to retain stereo panning.
 
+For extensionless sources such as `blob:` URLs, pass `format="mp3"` (or an array of container hints in source order). The optional `format` field is also supported by audio definitions in `project.json`.
+
 `playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
 `muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
 when the tab is hidden, resume if `playing` is still true). A first user

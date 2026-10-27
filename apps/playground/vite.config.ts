@@ -10,7 +10,33 @@ export default defineConfig({
     host: true,
   },
   resolve: {
+    dedupe: [
+      "react",
+      "react-dom",
+      "three",
+      "@react-three/fiber",
+      "@react-three/drei",
+      "@react-three/xr",
+    ],
     alias: [
+      {
+        find: /^@ericchen1990\/pano-editor\/styles\.css$/,
+        replacement: fileURLToPath(
+          new URL("../../packages/editor/src/styles.css", import.meta.url),
+        ),
+      },
+      {
+        find: /^@ericchen1990\/pano-editor$/,
+        replacement: fileURLToPath(
+          new URL("../../packages/editor/src/index.ts", import.meta.url),
+        ),
+      },
+      {
+        find: /^@ericchen1990\/pano-view\/data$/,
+        replacement: fileURLToPath(
+          new URL("../../packages/react/src/data.ts", import.meta.url),
+        ),
+      },
       {
         find: /^@ericchen1990\/pano-view\/styles\.css$/,
         replacement: fileURLToPath(

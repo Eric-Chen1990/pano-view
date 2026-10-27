@@ -2,7 +2,7 @@
 
 [English](./README.md) | **简体中文**
 
-Pano View 提供用于全景图像与 360 视频的 React 查看器和 Node.js 转换器。
+Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器和 Node.js 转换器。
 宿主应用通过 React 组件构建全景体验，并管理界面、控件、路由与数据。
 
 在[在线 Playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) 中试用热点、场景过渡、
@@ -28,8 +28,11 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器和 Node.js �
 
 ## 包
 
+[可嵌入的全景编辑器](./packages/editor/README.zh-CN.md) 支持读取本地项目目录、编辑场景与热点并导出 JSON。运行 `pnpm dev` 后访问 `/editor`，文件不上传、不持久保存；嵌入时通过回调接入宿主的保存、素材库和转换服务。
+
 | 包 | 作用 |
 | --- | --- |
+| [@ericchen1990/pano-editor](./packages/editor/README.zh-CN.md) | 可嵌入的场景与热点编辑器，支持本地目录预览、JSON 导出和宿主转换、保存回调。 |
 | [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) | 用于等距圆柱图像、360 视频与 krpano 风格多分辨率立方体瓦片的可组合 React 组件。 |
 | [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) | Node.js 库与 `pano-convert` CLI。生成瓦片金字塔、预览图，以及 React 包渲染所用的 `viewerConfig`。不依赖 React、云存储或数据库。 |
 

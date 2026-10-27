@@ -1761,6 +1761,8 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 
 音频通过 Howler.js 的 Web Audio 模式播放（Howler.js 已包含在本包构建产物中，宿主无需另行安装）。文件需完成解码后才能开始播放，可使用 MP3 格式。`src` 可以是字符串或回退 URL 数组。组件不使用 HTML5 流式音频模式，以保留立体声像控制。
 
+对于 `blob:` 等没有扩展名的音频地址，可传 `format="mp3"`，或按素材顺序传格式数组。`project.json` 中的音频定义也支持可选 `format` 字段。
+
 `playing` 与 `VideoHotspot` 一样受控。`loop` 默认 `false`，`muted` 默认 `false`，`volume` 默认 `1`，`pauseWhenHidden` 默认 `true`（标签页隐藏时暂停，`playing` 仍为 `true` 时，在标签页恢复可见后继续播放）。首次用户手势会解锁音频；若自动播放被阻止，会报告 `"blocked"`，并在 `playing` 仍为 true 时于下一次指针或按键后重试 `play()`。
 
 默认标记在 **停止**（扬声器）与 **播放**（扬声器 + 声波）之间切换。可用 `icon` 自定义停止图标、`playingIcon` 自定义播放图标。只设 `icon` 时两种状态共用该图。`marker={false}` 隐藏标记，仍保留定点声源。整个导览共用或按场景切换的非空间背景音频请使用 [`BackgroundAudio`](#backgroundaudio)。

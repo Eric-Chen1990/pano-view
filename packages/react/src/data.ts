@@ -17,6 +17,7 @@ export type {
   LoadPanoProjectOptions,
 } from "./data/project";
 export type { ProjectHotspotDefinition } from "./data/hotspots";
+export { resolveHotspotAssets as resolveProjectHotspotAssets } from "./data/hotspots";
 export type {
   ViewerConfig,
   ViewerDocument,

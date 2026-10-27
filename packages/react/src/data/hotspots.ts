@@ -50,6 +50,7 @@ const fields = {
   ],
   audio: [
     "src",
+    "format",
     "playing",
     "loop",
     "muted",
@@ -339,9 +340,14 @@ export function parseHotspot(
         result[key] = n;
       } else if (key === "fontWeight" && typeof item === "number")
         result[key] = finite(item, key);
-      else if (key === "src" && kind === "audio" && Array.isArray(item)) {
-        if (!item.length) throw new Error("src: expected audio sources");
-        result[key] = item.map((src, i) => requiredString(src, `src[${i}]`));
+      else if (
+        (key === "src" || key === "format") &&
+        kind === "audio" &&
+        Array.isArray(item)
+      ) {
+        if (!item.length)
+          throw new Error(`${key}: expected audio ${key === "src" ? "sources" : "formats"}`);
+        result[key] = item.map((entry, i) => requiredString(entry, `${key}[${i}]`));
       } else {
         if (typeof item !== "string")
           throw new Error(`${key}: expected a string`);

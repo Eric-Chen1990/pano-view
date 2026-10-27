@@ -17,6 +17,7 @@ export type UnlockingHowlCallbacks = {
 
 export type CreateUnlockingHowlOptions = UnlockingHowlCallbacks & {
   src: readonly string[];
+  format?: readonly string[];
   loop: boolean;
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };
@@ -57,6 +58,7 @@ export function sourcesKey(src: AudioSourceList | undefined | null): string {
 
 export function createUnlockingHowl({
   src,
+  format,
   loop,
   crossOrigin,
   isActive,
@@ -83,6 +85,7 @@ export function createUnlockingHowl({
 
   const instance = new Howl({
     src: [...src],
+    format: format ? [...format] : undefined,
     html5: false,
     preload: true,
     loop,

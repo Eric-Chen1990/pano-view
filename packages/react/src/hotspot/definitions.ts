@@ -82,6 +82,7 @@ export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
 export type AudioHotspotDefinition = PointHotspotDefinitionBase & {
   type: "audio";
   src: string | string[];
+  format?: string | string[];
   playing?: boolean;
   loop?: boolean;
   muted?: boolean;

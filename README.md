@@ -2,7 +2,7 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-Pano View provides a React viewer and a Node.js converter for panoramic images
+Pano View provides a React viewer, an editor and a Node.js converter for panoramic images
 and 360 video. Host applications compose the panorama experience with React
 components and manage their own UI, controls, routes, and data.
 
@@ -29,8 +29,11 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Packages
 
+The [embeddable panorama editor](./packages/editor/README.md) provides local-directory scene and hotspot authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
+
 | Package | What it does |
 | --- | --- |
+| [@ericchen1990/pano-editor](./packages/editor/README.md) | Embeddable scene and hotspot editing, local directory previews, JSON export, and host-owned conversion and saving callbacks. |
 | [@ericchen1990/pano-view](./packages/react/README.md) | Composable React components for equirectangular images, 360 video, and krpano-style multiresolution cube tiles. |
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
