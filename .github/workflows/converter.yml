@@ -2,8 +2,26 @@ name: Converter
 
 on:
   pull_request:
+    paths:
+      - "packages/converter/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".changeset/config.json"
+      - ".github/workflows/converter.yml"
+      - "!**/*.md"
   push:
     branches: [main]
+    paths:
+      - "packages/converter/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".changeset/config.json"
+      - ".github/workflows/converter.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read

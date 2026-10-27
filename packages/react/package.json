@@ -22,7 +22,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Eric-Chen1990/pano-view.git"
+    "url": "git+https://github.com/Eric-Chen1990/pano-view.git",
+    "directory": "packages/react"
   },
   "bugs": {
     "url": "https://github.com/Eric-Chen1990/pano-view/issues"

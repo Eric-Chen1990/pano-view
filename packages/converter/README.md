@@ -1,14 +1,66 @@
-# @ericchen1990/pano-converter
+# @ericchen1990/pano-converter · [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm version](https://img.shields.io/npm/v/%40ericchen1990%2Fpano-converter.svg?style=flat)](https://www.npmjs.com/package/@ericchen1990/pano-converter) [![Converter](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml/badge.svg?branch=main)](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Eric-Chen1990/pano-view/pulls)
 
 Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or the CLI. Cloud uploads, database writes, IDs, and URLs belong to your application.
 
 [中文说明](./README.zh-CN.md)
 
+## Contents
+
+- [pano-view](#pano-view)
+- [Install](#install)
+- [Node.js](#nodejs)
+- [Output and options](#output-and-options)
+- [JSON examples](#json-examples)
+- [API return values](#api-return-values)
+- [Reconstruction](#reconstruction)
+- [CLI](#cli)
+- [Error codes and troubleshooting](#error-codes-and-troubleshooting)
+- [Existing CMS data](#existing-cms-data)
+- [Development and release](#development-and-release)
+
+## pano-view
+
+[@ericchen1990/pano-view](../react/README.md) is the other package in this
+repository. It is the React viewer for the `viewerConfig` returned by
+[`convertImage`](#nodejs). Cubemap output maps to `Tile` (`type: "tile"`);
+equirectangular output maps to `SphereTile` (`type: "sphereTile"`). Pass that
+config, plus your application's `id` and `baseUrl`, to `Scenes`. See
+[Frontend integration](#frontend-integration).
+
 ## Install
+
+<details name="pano-converter-install" open>
+<summary>npm</summary>
+
+```sh
+npm install @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>pnpm</summary>
 
 ```sh
 pnpm add @ericchen1990/pano-converter
 ```
+
+</details>
+<details name="pano-converter-install">
+<summary>yarn</summary>
+
+```sh
+yarn add @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>bun</summary>
+
+```sh
+bun add @ericchen1990/pano-converter
+```
+
+</details>
 
 Requires Node.js >=20.19. Cubemap conversion and cubemap-to-equirectangular reconstruction additionally require an external FFmpeg executable with the `v360` filter. Install it with your OS package manager; set `ffmpegPath` or `FFMPEG_PATH` if it is not on `PATH`. Equirectangular and planar operations do not use FFmpeg.
 
@@ -89,7 +141,7 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 </PanoViewer>;
 ```
 
-Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. The converter does not require React/pano-view or fetch/store business data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
+Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. Rendering is done by [@ericchen1990/pano-view](../react/README.md); this package does not fetch or store application data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
 
 ## Output and options
 
@@ -323,7 +375,77 @@ Lossless PNG tiling can preserve normalized pixels. Lossy encoding, downsizing, 
 
 ## CLI
 
-After a local install, use `pnpm exec pano-convert`. To use the bare command below, install globally with `pnpm add -g @ericchen1990/pano-converter`.
+After a project install, run it with your package manager:
+
+<details name="pano-converter-run" open>
+<summary>npm</summary>
+
+```sh
+npx pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>pnpm</summary>
+
+```sh
+pnpm exec pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>yarn</summary>
+
+```sh
+yarn pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>bun</summary>
+
+```sh
+bunx pano-convert --help
+```
+
+</details>
+
+To use the bare `pano-convert` command below, install it globally:
+
+<details name="pano-converter-global" open>
+<summary>npm</summary>
+
+```sh
+npm install -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>pnpm</summary>
+
+```sh
+pnpm add -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>yarn</summary>
+
+```sh
+yarn global add @ericchen1990/pano-converter
+```
+
+Yarn Berry has no global install. Use `yarn dlx @ericchen1990/pano-converter`, or `yarn pano-convert` after a project install.
+
+</details>
+<details name="pano-converter-global">
+<summary>bun</summary>
+
+```sh
+bun add -g @ericchen1990/pano-converter
+```
+
+</details>
 
 ```sh
 pano-convert room.jpg --projection cubemap --output ./room
@@ -396,7 +518,7 @@ Common integration symptoms:
 | High reconstruction memory         | Choose a lower level or smaller cubemap outputWidth. Concurrency bounds active work, not the full RGBA canvas allocation.                   |
 | Job does not finish                | Check that upload callbacks settle; forward the signal and set client timeouts. The library waits for active callbacks before safe cleanup. |
 | Reconstruction dimensions rejected | WebP limits each side to 16383, JPEG to 65535, and FFmpeg v360 output to 32767. Select PNG, a lower level or smaller projection dimensions. |
-| Shell cannot find the command      | Use pnpm exec pano-convert --help after a local install, or follow the global installation instructions.                                    |
+| Shell cannot find the command      | Open the command for your package manager in the command-line section, or install the CLI globally. |
 
 ## Existing CMS data
 

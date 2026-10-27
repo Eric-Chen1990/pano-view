@@ -2,9 +2,29 @@ name: CI
 
 on:
   pull_request:
+    paths:
+      - "packages/react/**"
+      - "apps/playground/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".changeset/config.json"
+      - ".github/workflows/ci.yml"
+      - "!**/*.md"
   push:
     branches:
       - main
+    paths:
+      - "packages/react/**"
+      - "apps/playground/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - ".changeset/config.json"
+      - ".github/workflows/ci.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read
@@ -35,13 +55,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck
 
       - name: Build
-        run: pnpm build
+        run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-view-playground build
 
       - name: Pack check
-        run: pnpm pack:check
+        run: pnpm --filter @ericchen1990/pano-view exec npm pack --dry-run
 
       - name: Check conflict markers and whitespace
         run: git diff --check

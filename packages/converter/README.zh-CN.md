@@ -1,14 +1,63 @@
-# @ericchen1990/pano-converter
+# @ericchen1990/pano-converter · [![许可证](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm 版本](https://img.shields.io/npm/v/%40ericchen1990%2Fpano-converter.svg?style=flat)](https://www.npmjs.com/package/@ericchen1990/pano-converter) [![Converter](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml/badge.svg?branch=main)](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml) [![欢迎 PR](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Eric-Chen1990/pano-view/pulls)
 
 在 Node.js 或命令行中生成全景/普通大图瓦片，并将本地瓦片还原成图片。云存储上传、数据库、业务 ID 和访问地址由调用方管理。
 
 [English](./README.md)
 
+## 目录
+
+- [pano-view](#pano-view)
+- [安装](#安装)
+- [Node.js](#nodejs)
+- [上传和保存数据](#上传和保存数据)
+- [前端使用](#前端使用)
+- [配置和输出](#配置和输出)
+- [JSON 清单示例](#json-清单示例)
+- [API 返回值](#api-返回值)
+- [还原图片](#还原图片)
+- [命令行](#命令行)
+- [错误码与故障排查](#错误码与故障排查)
+- [CMS 新旧资源兼容](#cms-新旧资源兼容)
+- [开发与发布](#开发与发布)
+
+## pano-view
+
+[@ericchen1990/pano-view](../react/README.zh-CN.md) 是本仓库中的另一个包，也就是渲染 [`convertImage`](#nodejs) 所返回 `viewerConfig` 的 React 查看器。立方体输出对应 `Tile`（`type: "tile"`）；等距圆柱输出对应 `SphereTile`（`type: "sphereTile"`）。把该配置加上应用自己的 `id` 与 `baseUrl` 后传给 `Scenes`。详见[前端使用](#前端使用)。
+
 ## 安装
+
+<details name="pano-converter-install" open>
+<summary>npm</summary>
+
+```sh
+npm install @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>pnpm</summary>
 
 ```sh
 pnpm add @ericchen1990/pano-converter
 ```
+
+</details>
+<details name="pano-converter-install">
+<summary>yarn</summary>
+
+```sh
+yarn add @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>bun</summary>
+
+```sh
+bun add @ericchen1990/pano-converter
+```
+
+</details>
 
 需要 Node.js >=20.19。立方体转换和立方体还原为球面需要外部 FFmpeg，且必须包含 `v360` 滤镜。通过系统包管理器安装；可用 `ffmpegPath` 或 `FFMPEG_PATH` 指定程序路径。球面和平面操作无需 FFmpeg。
 
@@ -91,7 +140,7 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 </PanoViewer>;
 ```
 
-立方体配置为 `type: "tile"`；球面为 `type: "sphereTile"`，明确带有 `indexBase: 1`。普通大图的 `viewerConfig` 为 `null`，应交给平面查看器。转换库不依赖 React/pano-view，不抓取或保存业务数据；浏览器无需逐个请求完整清单。两种全景都显式提供实际模板，立方体文件名为先行后列，与 pano-view 的默认模板不同。
+立方体配置为 `type: "tile"`；球面为 `type: "sphereTile"`，明确带有 `indexBase: 1`。普通大图的 `viewerConfig` 为 `null`，应交给平面查看器。渲染由 [@ericchen1990/pano-view](../react/README.zh-CN.md) 完成；本包不抓取或保存业务数据。浏览器无需逐个请求完整清单。两种全景都显式提供实际模板，立方体文件名为先行后列，与 pano-view 的默认模板不同。
 
 ## 配置和输出
 
@@ -325,7 +374,77 @@ PNG 无损切图可以保留规范化后的像素。有损编码、缩放、透�
 
 ## 命令行
 
-在项目中安装后使用 `pnpm exec pano-convert`。如果需要直接运行下面的命令，先通过 `pnpm add -g @ericchen1990/pano-converter` 全局安装。
+在项目中安装后，用你的包管理器运行：
+
+<details name="pano-converter-run" open>
+<summary>npm</summary>
+
+```sh
+npx pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>pnpm</summary>
+
+```sh
+pnpm exec pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>yarn</summary>
+
+```sh
+yarn pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>bun</summary>
+
+```sh
+bunx pano-convert --help
+```
+
+</details>
+
+如果需要直接运行下面的命令，先全局安装：
+
+<details name="pano-converter-global" open>
+<summary>npm</summary>
+
+```sh
+npm install -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>pnpm</summary>
+
+```sh
+pnpm add -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>yarn</summary>
+
+```sh
+yarn global add @ericchen1990/pano-converter
+```
+
+Yarn Berry 没有全局安装。请用 `yarn dlx @ericchen1990/pano-converter`，或在项目内运行 `yarn pano-convert`。
+
+</details>
+<details name="pano-converter-global">
+<summary>bun</summary>
+
+```sh
+bun add -g @ericchen1990/pano-converter
+```
+
+</details>
 
 ```sh
 pano-convert room.jpg --projection cubemap --output ./room
@@ -398,7 +517,7 @@ try {
 | 还原内存占用高         | 选择较低 `level`；立方体可减小 `outputWidth`。并发数只限制在途任务，不能消除完整 RGBA 画布的内存。              |
 | 任务长时间不结束       | 检查上传回调是否真正结束，并为上传客户端传递信号和设置超时；库需要等待活跃回调后才能安全清理。                  |
 | 还原目标尺寸被拒绝     | WebP 每边上限 16383，JPEG 为 65535，FFmpeg v360 输出每边为 32767；选择 PNG、较低层级或更小的投影尺寸。          |
-| Shell 找不到命令       | 项目内安装后运行 `pnpm exec pano-convert --help`，或按命令行章节全局安装。                                      |
+| Shell 找不到命令       | 在命令行章节展开你的包管理器对应的命令，或全局安装。 |
 
 ## CMS 新旧资源兼容
 

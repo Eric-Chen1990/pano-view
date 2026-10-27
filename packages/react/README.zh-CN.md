@@ -1,10 +1,50 @@
-# @ericchen1990/pano-view
+# @ericchen1990/pano-view · [![许可证](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm 版本](https://img.shields.io/npm/v/%40ericchen1990%2Fpano-view.svg?style=flat)](https://www.npmjs.com/package/@ericchen1990/pano-view) [![CI](https://github.com/Eric-Chen1990/pano-view/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Eric-Chen1990/pano-view/actions/workflows/ci.yml) [![欢迎 PR](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Eric-Chen1990/pano-view/pulls)
 
 [English](./README.md) | **简体中文**
 
 用于等距圆柱（equirectangular）与 krpano 风格多分辨率全景查看器的可组合 React 组件。
 
 在[在线 playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=package-readme&utm_content=playground) 中试用这些组件。
+
+## 目录
+
+- [pano-converter](#pano-converter)
+- [兼容 krpano 的 tile 输出](#兼容-krpano-的-tile-输出)
+- [安装](#安装)
+- [示例](#示例)
+- [导出组件](#导出组件)
+- [PanoViewer](#panoviewer)
+- [Sphere](#sphere)
+- [PanoVideo](#panovideo)
+- [Tile](#tile)
+- [Scenes](#scenes)
+- [PanoFilter](#panofilter)
+- [AutoRotate](#autorotate)
+- [BackgroundAudio](#backgroundaudio)
+- [Gyro](#gyro)
+- [WebVR](#webvr)
+- [鼠标、触控与键盘控件](#鼠标触控与键盘控件)
+- [全景坐标事件](#全景坐标事件)
+- [PanoEvents](#panoevents)
+- [PanoContextMenu](#panocontextmenu)
+- [共享热点约定与保存的定义](#共享热点约定与保存的定义)
+- [ImageHotspot](#imagehotspot)
+- [GraphicHotspot](#graphichotspot)
+- [热点模式与缩放行为](#热点模式与缩放行为)
+- [PolygonHotspot](#polygonhotspot)
+- [PolylineHotspot](#polylinehotspot)
+- [SequenceHotspot](#sequencehotspot)
+- [VideoHotspot](#videohotspot)
+- [AudioHotspot](#audiohotspot)
+- [TextHotspot](#texthotspot)
+- [IframeHotspot](#iframehotspot)
+- [Next.js 与 SSR](#nextjs-与-ssr)
+- [球面多分辨率瓦片](#球面多分辨率瓦片)
+- [无障碍颜色矩阵与标签排版](#无障碍颜色矩阵与标签排版)
+
+## pano-converter
+
+[@ericchen1990/pano-converter](../converter/README.zh-CN.md) 是本仓库中的另一个包。它在 Node.js 中，以及通过 `pano-convert` CLI，生成立方体与等距圆柱瓦片金字塔，并返回可供 [`Tile`](#tile)、[`SphereTile`](#球面多分辨率瓦片) 与 [`Scenes`](#scenes) 使用的 `viewerConfig`。转换器不依赖 React。
 
 ## 兼容 krpano 的 tile 输出
 
@@ -14,15 +54,42 @@
 
 ### 包
 
+<details name="pano-view-install" open>
+<summary>npm</summary>
+
 ```bash
 npm install @ericchen1990/pano-view
 ```
 
-pnpm 与 Yarn 用法相同（`pnpm add` / `yarn add`）。
+</details>
+<details name="pano-view-install">
+<summary>pnpm</summary>
+
+```bash
+pnpm add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>yarn</summary>
+
+```bash
+yarn add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>bun</summary>
+
+```bash
+bun add @ericchen1990/pano-view
+```
+
+</details>
 
 ### 对等依赖
 
-这些包必须安装在**宿主应用**中，而不是嵌套在本库之下。npm 7+ 与 pnpm 会自动安装；Yarn Classic 与 npm 6 不会，需显式安装。
+这些包必须安装在**宿主应用**中，而不是嵌套在本库之下。npm 7+、pnpm 与 Bun 会自动安装；Yarn 与 npm 6 不会，需显式安装。
 
 | 包 | 支持范围 |
 | --- | --- |
@@ -33,7 +100,7 @@ pnpm 与 Yarn 用法相同（`pnpm add` / `yarn add`）。
 | `@react-three/drei` | `^10.0.0` |
 | `@react-three/xr` | `^6.6.0` |
 
-在宿主应用中保持 React、Three.js 与 React Three Fiber 相关包的**单一副本**。重复的 `three` 树是空白画布与上下文错误（`R3F: Hooks can only be used within the Canvas component`）的常见原因。若出现该问题，请检查 `npm ls three` / `pnpm why three` 并去重。
+在宿主应用中保持 React、Three.js 与 React Three Fiber 相关包的**单一副本**。重复的 `three` 树是空白画布与上下文错误（`R3F: Hooks can only be used within the Canvas component`）的常见原因。若出现该问题，请检查 `npm ls three`、`pnpm why three`、`yarn why three` 或 `bun pm ls` 并去重。
 
 ### 样式表（HTML 叠加层）
 
@@ -53,10 +120,13 @@ import "@ericchen1990/pano-view/styles.css";
 
 仅当你不使用这些叠加层，或完全通过 `className`、`style` 与外观属性重设样式时，可跳过该导入。若不导入样式表，叠加层仍会挂载，但会无样式显示。
 
-## 快速渲染一个全景图
+## 示例
 
 为 PanoViewer 提供明确尺寸，并在其内部渲染一个全景源。使用内置 HTML 叠加层
 （例如视频控件、字幕、tooltip、右键菜单或 WebVR UI）时，需导入一次样式表。
+下面是每种源的最短写法，完整 props 见对应章节。
+
+### 等距圆柱图像
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -71,9 +141,76 @@ export function Panorama() {
 }
 ~~~
 
-如需复用现有 krpano tile 金字塔，请在将 Sphere 换成 Tile 前阅读
-[迁移指南](../../docs/krpano-migration.zh-CN.md)。指南说明 XML 到 prop 的映射与
-相对路径规则。
+`previewUrl` 须为 2:1 图像。详见 [Sphere](#sphere)。
+
+### 立方体瓦片
+
+从 krpano XML 复制 `url`、`multires` 与预览路径。把 Sphere 换成 Tile 之前，请阅读
+[迁移指南](../../docs/krpano-migration.zh-CN.md)。
+
+~~~tsx
+import { PanoViewer, Tile } from "@ericchen1990/pano-view";
+
+export function TilePanorama() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Tile
+        baseUrl="/panoramas/room"
+        urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg"
+        multires="512,1000,2000"
+        previewUrl="preview.jpg"
+      />
+    </PanoViewer>
+  );
+}
+~~~
+
+占位符与预览面顺序见 [Tile](#tile)。
+
+### 360 视频
+
+~~~tsx
+import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+
+export function TourVideo() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <PanoVideo autoPlay muted src="/tour.mp4" />
+    </PanoViewer>
+  );
+}
+~~~
+
+多档画质、字幕与自定义控件见 [PanoVideo](#panovideo)。
+
+### 多场景
+
+~~~tsx
+import { useState } from "react";
+import { PanoViewer, Scenes, type Scene } from "@ericchen1990/pano-view";
+
+const scenes: Scene[] = [
+  { id: "lobby", type: "sphere", src: "/lobby.webp", previewUrl: "/lobby-preview.webp" },
+  { id: "roof", type: "sphere", src: "/roof.webp", previewUrl: "/roof-preview.webp" },
+];
+
+export function Tour() {
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
+
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Scenes
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={setActiveSceneId}
+        scenes={scenes}
+        transition="dissolve"
+      />
+    </PanoViewer>
+  );
+}
+~~~
+
+过渡预设与热点渲染见 [Scenes](#scenes)。
 
 ## 导出组件
 
