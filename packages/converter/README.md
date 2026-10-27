@@ -485,17 +485,156 @@ bun add -g @ericchen1990/pano-converter
 
 </details>
 
-```sh
-pano-convert room.jpg --projection cubemap --output ./room
-pano-convert sphere.jpg --projection equirectangular --output ./sphere
-pano-convert scan.png --projection planar --output ./scan
-pano-convert room.jpg --levels 512,1024,2048 --output ./custom
-pano-convert restore ./room/manifest.json --output ./restored --export-faces
-pano-convert restore ./scan/image.dzi --output ./scan-restored --level 10
-pano-convert --help
+### Usage and prerequisites
+
+```text
+pano-convert <image> --output <directory> [options]
+pano-convert restore <manifest.json|image.dzi> --output <directory> [options]
 ```
 
-Success prints the result JSON to stdout. TTY progress is on stderr; `--quiet` disables progress. `--json-errors` serializes `{name,code,stage,message}` to stderr. Exit codes: 0 success, 1 processing/dependency failure, 2 invalid arguments, 130 cancellation. Errors are `ConverterError` instances with stable `code`, `stage`, readable `message` and an internal `cause`.
+Each invocation processes one local file. URLs, stdin and directory/batch inputs are not supported; use a shell loop for multiple files with a separate output directory for each. Relative paths resolve from the current working directory. Quote paths containing spaces and tile templates. For a project installation, prefix the examples below with your package manager's runner, such as `pnpm exec pano-convert`.
+
+Use Node.js >=20.19 with Sharp installed for your platform. Cubemap conversion and restoration require an external FFmpeg build containing `v360`. Check it before running:
+
+```sh
+node --version
+ffmpeg -version
+ffmpeg -filters
+```
+
+Look for `v360` in the filter list. If FFmpeg is outside `PATH`, use `--ffmpeg-path /absolute/path/to/ffmpeg` or set `FFMPEG_PATH`; the CLI option takes precedence. Equirectangular and planar operations do not need FFmpeg.
+
+Input images must be static, single-frame raster files supported by Sharp. `cubemap` and `equirectangular` both take a complete 2:1 equirectangular panorama (1% input tolerance); `cubemap` generates six tiled faces, while `equirectangular` tiles the panorama without cube projection. Use `planar` for ordinary photographs, scans and other aspect ratios.
+
+`--output` is required for both operations and must be nonexistent or empty. Existing nonempty directories are rejected rather than overwritten. Use a new directory when rerunning a command. Jobs use staging and commit their output after success; the output directory is not an incremental progress feed.
+
+### Conversion examples
+
+```sh
+# Default cubemap: WebP tiles, 512px tiles, automatic levels, quality 95.
+pano-convert ./room.jpg --output ./output/room
+
+# Preserve equirectangular tiles; no FFmpeg required.
+pano-convert ./sphere.jpg --projection equirectangular --output ./output/sphere
+
+# Ordinary image: standard Deep Zoom, JPEG tiles and image.dzi.
+pano-convert ./scan.png --projection planar --output ./output/scan
+
+# Cube face size 2048px; store exactly three levels, smallest first.
+pano-convert ./room.jpg --face-size 2048 --levels 512,1024,2048 \
+  --format jpeg --quality 90 --output ./output/room-custom
+
+# For a 4096x2048 source: explicit equirectangular level dimensions.
+pano-convert ./sphere.jpg --projection equirectangular \
+  --levels 1024x512,2048x1024,4096x2048 --output ./output/sphere-custom
+
+# For a 4096x2048 planar source: custom levels/paths require --layout custom.
+pano-convert ./scan.png --projection planar --layout custom --format png \
+  --levels 1024x512,4096x2048 --tile-template 'tiles/%l/%0v_%0h.%e' \
+  --output ./output/scan-custom
+
+# Automatic custom pyramid with a different reduction factor; do not add --levels.
+pano-convert ./room.jpg --pyramid-downscale 3 --output ./output/room-factor3
+```
+
+### Conversion options
+
+These flags are rejected by `restore`.
+
+| Flag | Default and rules |
+| --- | --- |
+| `--projection <name>` | `cubemap`; also `equirectangular` or `planar`. |
+| `--layout <name>` | `custom` for panoramas, `deepzoom` for planar. `deepzoom` is planar only. |
+| `--tile-size <pixels>` | Integer 1–8192; default 512. Edge tiles may be smaller. |
+| `--levels <list>` | Custom layout only. Comma-separated cube face edges (`512,1024,2048`) or lowercase `widthxheight` pairs (`1024x512,2048x1024`) for other projections. Use 1–64 ascending sizes without duplicates; preserve the source aspect ratio and do not exceed the processed source/face size. Quote the list if adding spaces. |
+| `--pyramid-downscale <factor>` | Custom layout only; finite number >1, default 2. Automatically generates levels by dividing and rounding upward. Cannot be combined with `--levels`. |
+| `--tile-template <template>` | Custom layout only. Cube default: `tiles/%s/l%l/%v/l%l_%s_%v_%h.%e`; other custom modes: `tiles/%l/%h_%v.%e`. See placeholders below. |
+| `--face-size <pixels>` | Cubemap only; even integer 2–12288. Default approximately input width / 4, rounded to an even edge and capped at 12288. Custom cube levels cannot exceed this edge. |
+
+Deep Zoom fixes its levels, scale and tile paths: do not pass `--levels`, `--pyramid-downscale` or `--tile-template`, even with their usual defaults. Choose `--projection planar --layout custom` to customize them. Custom output uses 1-based level/row/column indices; standard Deep Zoom uses 0-based indices. Read the actual layout from `manifest.json`.
+
+Tile templates use relative paths inside the output directory:
+
+| Placeholder | Meaning |
+| --- | --- |
+| `%s` | Cube face: `f`, `r`, `b`, `l`, `u`, `d`; cubemap only. |
+| `%l` | Stored level number, ordered smallest to largest. |
+| `%h` / `%v` | Column / row respectively. The default cube filename places row before column. |
+| `%e` | Selected encoding extension: `webp`, `jpeg` or `png`. |
+| `%0h` / `%00v` | Zero-padded column / row, with minimum widths of 2 / 3 digits. |
+
+The extension must match `--format` (`.jpg` also works for JPEG). Templates must produce unique, safe paths for every tile. For example, keep `%s` for multiple cube faces and `%l` for multiple levels. Quote templates as shown above; in Windows `.bat` files, escape literal `%` as `%%`.
+
+### Restore examples and options
+
+Keep the manifest/DZI and its referenced tiles in their original relative layout. Restore reads local files; it does not download missing tiles. `viewer.json` contains rendering fields and cannot replace `manifest.json` as restore input.
+
+```sh
+# Highest stored level; writes panorama.png and six faces/*.png.
+pano-convert restore ./output/room/manifest.json \
+  --output ./restored/room --export-faces
+
+# Cube only: use stored level 1 and request a 2048x1024 JPEG panorama.
+pano-convert restore ./output/room/manifest.json --level 1 \
+  --output-width 2048 --format jpeg --quality 90 --output ./restored/room-small
+
+# Restore a standard DZI at its actual stored level 10.
+pano-convert restore ./output/scan/image.dzi --level 10 --output ./restored/scan
+```
+
+| Flag | Default and rules |
+| --- | --- |
+| `--level <number>` | Highest stored level by default. This is the actual `tiles.levels[].level`, not an array offset or requested width. DZI uses its standard level numbers; the requested level must exist. |
+| `--output-width <pixels>` | Cubemap only. Positive even panorama width; height is half the width. Default 4 × selected face edge. A larger width cannot recover missing detail. |
+| `--export-faces` | Cubemap only. Also writes `faces/{f,r,b,l,u,d}.<format>` at the selected level's face size. The panorama is still generated. |
+
+Restored planar images are named `image.<format>`; both cube and equirectangular panoramas are named `panorama.<format>`. Restoration defaults to PNG, regardless of the tile format. Lossy tiles, resizing and cube reprojection cannot recover the original pixels. See [Reconstruction](#reconstruction) for memory and encoder limits.
+
+### Shared options
+
+| Flag | Default and rules |
+| --- | --- |
+| `-o, --output <directory>` | Required, nonexistent or empty output directory. |
+| `--format <name>` | `webp`, `jpeg` or `png`. Default: WebP for custom conversion, JPEG for Deep Zoom conversion, PNG for restore. Use `jpeg`, not `jpg`, as the flag value. |
+| `--quality <number>` | Integer 1–100; default 95. Affects JPEG/WebP output, not PNG; generated previews use quality 90. |
+| `--ffmpeg-path <path>` | Executable path, with precedence over `FFMPEG_PATH`, then `ffmpeg` on `PATH`. Only cube operations invoke it. |
+| `--concurrency <number>` | Integer 1–32; default 4. Bounds active image tasks; it is not a total memory limit. |
+| `--timeout <milliseconds>` | Integer 1–2147483647; default 600000 (10 minutes). Sets the job deadline; in-flight native work must settle before cleanup. |
+| `--limit-input-pixels <number>` | Positive integer; default 268402689. Also bounds restore canvases. Choose a lower restore level when memory is limited; raising this does not allocate more memory. |
+| `--quiet` | Suppresses TTY progress on stderr. Success JSON and errors are still written. |
+| `--json-errors` | Writes errors as JSON on stderr with public fields `{name,code,stage,message}`. |
+| `-h, --help` | Prints usage, options and examples; no conversion. Also works with `restore --help`. |
+| `-v, --version` | Prints the package version; no conversion. |
+
+### Output files and script integration
+
+| Operation | Files inside `--output` |
+| --- | --- |
+| Cubemap conversion | Face tiles, panorama previews, cube strip preview, `manifest.json`, `viewer.json`. |
+| Equirectangular conversion | Panorama tiles, previews, `manifest.json`, `viewer.json`. |
+| Planar conversion | Tiles, thumbnail, `manifest.json`; standard Deep Zoom also has `image.dzi` and `image_files/`. No `viewer.json`. |
+| Restore | `image.<format>` or `panorama.<format>`, plus cube faces when requested. No new conversion manifest. |
+
+Success writes one JSON result followed by a newline to stdout. Conversion returns `{outputDir, manifest, viewerConfig, assets}`; restore returns `{outputDir, width, height, projection, assets}`. `outputDir` and asset `absolutePath` values are local absolute paths; use `relativePath` and manifest references when copying assets to storage. See [API return values](#api-return-values).
+
+Progress is written to stderr only when it is a TTY. For scripts, use `--quiet --json-errors` and redirect the streams separately. Keep redirected files **outside** the output directory: the shell opens them before the CLI runs, which would otherwise make the output directory nonempty.
+
+```sh
+pano-convert ./room.jpg --output ./output/room-script \
+  --quiet --json-errors >result.json 2>error.json
+status=$?
+# Inspect status before parsing result.json; error.json is empty on success.
+echo "Exit code: $status"
+```
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Success, or help/version printed. |
+| `1` | Processing, filesystem, dependency or timeout failure. |
+| `2` | Invalid arguments or incompatible options (`INVALID_OPTIONS`). |
+| `130` | Cancellation (`ABORTED`). Ctrl+C/SIGINT or SIGTERM requests cancellation; cleanup may wait for active native work. |
+
+Use the error `code` to distinguish failures sharing an exit code. See [Error codes and troubleshooting](#error-codes-and-troubleshooting) for actions such as resolving `OUTPUT_CONFLICT`, missing FFmpeg or missing tiles.
 
 ## Error codes and troubleshooting
 
