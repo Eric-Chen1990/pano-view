@@ -11,9 +11,38 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Start in 30 seconds
 
-~~~bash
+<details name="pano-view-install" open>
+<summary>npm</summary>
+
+```bash
+npm install @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>pnpm</summary>
+
+```bash
 pnpm add @ericchen1990/pano-view
-~~~
+```
+
+</details>
+<details name="pano-view-install">
+<summary>yarn</summary>
+
+```bash
+yarn add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>bun</summary>
+
+```bash
+bun add @ericchen1990/pano-view
+```
+
+</details>
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";

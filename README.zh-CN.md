@@ -10,9 +10,38 @@ React 组件。在你的应用中构建全景体验，并保留自己的 React U
 
 ## 30 秒开始使用
 
-~~~bash
+<details name="pano-view-install" open>
+<summary>npm</summary>
+
+```bash
+npm install @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>pnpm</summary>
+
+```bash
 pnpm add @ericchen1990/pano-view
-~~~
+```
+
+</details>
+<details name="pano-view-install">
+<summary>yarn</summary>
+
+```bash
+yarn add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>bun</summary>
+
+```bash
+bun add @ericchen1990/pano-view
+```
+
+</details>
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";

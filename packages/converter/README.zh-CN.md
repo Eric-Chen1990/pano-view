@@ -6,9 +6,38 @@
 
 ## 安装
 
+<details name="pano-converter-install" open>
+<summary>npm</summary>
+
+```sh
+npm install @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>pnpm</summary>
+
 ```sh
 pnpm add @ericchen1990/pano-converter
 ```
+
+</details>
+<details name="pano-converter-install">
+<summary>yarn</summary>
+
+```sh
+yarn add @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-install">
+<summary>bun</summary>
+
+```sh
+bun add @ericchen1990/pano-converter
+```
+
+</details>
 
 需要 Node.js >=20.19。立方体转换和立方体还原为球面需要外部 FFmpeg，且必须包含 `v360` 滤镜。通过系统包管理器安装；可用 `ffmpegPath` 或 `FFMPEG_PATH` 指定程序路径。球面和平面操作无需 FFmpeg。
 
@@ -325,7 +354,77 @@ PNG 无损切图可以保留规范化后的像素。有损编码、缩放、透�
 
 ## 命令行
 
-在项目中安装后使用 `pnpm exec pano-convert`。如果需要直接运行下面的命令，先通过 `pnpm add -g @ericchen1990/pano-converter` 全局安装。
+在项目中安装后，用你的包管理器运行：
+
+<details name="pano-converter-run" open>
+<summary>npm</summary>
+
+```sh
+npx pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>pnpm</summary>
+
+```sh
+pnpm exec pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>yarn</summary>
+
+```sh
+yarn pano-convert --help
+```
+
+</details>
+<details name="pano-converter-run">
+<summary>bun</summary>
+
+```sh
+bunx pano-convert --help
+```
+
+</details>
+
+如果需要直接运行下面的命令，先全局安装：
+
+<details name="pano-converter-global" open>
+<summary>npm</summary>
+
+```sh
+npm install -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>pnpm</summary>
+
+```sh
+pnpm add -g @ericchen1990/pano-converter
+```
+
+</details>
+<details name="pano-converter-global">
+<summary>yarn</summary>
+
+```sh
+yarn global add @ericchen1990/pano-converter
+```
+
+Yarn Berry 没有全局安装。请用 `yarn dlx @ericchen1990/pano-converter`，或在项目内运行 `yarn pano-convert`。
+
+</details>
+<details name="pano-converter-global">
+<summary>bun</summary>
+
+```sh
+bun add -g @ericchen1990/pano-converter
+```
+
+</details>
 
 ```sh
 pano-convert room.jpg --projection cubemap --output ./room
@@ -398,7 +497,7 @@ try {
 | 还原内存占用高         | 选择较低 `level`；立方体可减小 `outputWidth`。并发数只限制在途任务，不能消除完整 RGBA 画布的内存。              |
 | 任务长时间不结束       | 检查上传回调是否真正结束，并为上传客户端传递信号和设置超时；库需要等待活跃回调后才能安全清理。                  |
 | 还原目标尺寸被拒绝     | WebP 每边上限 16383，JPEG 为 65535，FFmpeg v360 输出每边为 32767；选择 PNG、较低层级或更小的投影尺寸。          |
-| Shell 找不到命令       | 项目内安装后运行 `pnpm exec pano-convert --help`，或按命令行章节全局安装。                                      |
+| Shell 找不到命令       | 在命令行章节展开你的包管理器对应的命令，或全局安装。 |
 
 ## CMS 新旧资源兼容
 

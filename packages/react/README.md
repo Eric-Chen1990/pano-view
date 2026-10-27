@@ -21,17 +21,44 @@ not affiliated with krpano.
 
 ### Package
 
+<details name="pano-view-install" open>
+<summary>npm</summary>
+
 ```bash
 npm install @ericchen1990/pano-view
 ```
 
-pnpm and Yarn work the same way (`pnpm add` / `yarn add`).
+</details>
+<details name="pano-view-install">
+<summary>pnpm</summary>
+
+```bash
+pnpm add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>yarn</summary>
+
+```bash
+yarn add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>bun</summary>
+
+```bash
+bun add @ericchen1990/pano-view
+```
+
+</details>
 
 ### Peer dependencies
 
 These packages must be installed in the **host application**, not nested under
-this library. npm 7+ and pnpm install them automatically; Yarn Classic and npm
-6 do not, so install them explicitly.
+this library. npm 7+, pnpm, and Bun install them automatically; Yarn and npm 6
+do not, so install them explicitly.
 
 | Package | Supported range |
 | --- | --- |
@@ -45,7 +72,8 @@ this library. npm 7+ and pnpm install them automatically; Yarn Classic and npm
 Keep a **single copy** of React, Three.js, and the React Three Fiber packages
 in the host app. Duplicate `three` trees are a common cause of blank canvases
 and context errors (`R3F: Hooks can only be used within the Canvas component`).
-If that happens, check `npm ls three` / `pnpm why three` and dedupe.
+If that happens, check `npm ls three`, `pnpm why three`, `yarn why three`, or
+`bun pm ls` and dedupe.
 
 ### Stylesheet (HTML chrome)
 

@@ -14,15 +14,42 @@
 
 ### 包
 
+<details name="pano-view-install" open>
+<summary>npm</summary>
+
 ```bash
 npm install @ericchen1990/pano-view
 ```
 
-pnpm 与 Yarn 用法相同（`pnpm add` / `yarn add`）。
+</details>
+<details name="pano-view-install">
+<summary>pnpm</summary>
+
+```bash
+pnpm add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>yarn</summary>
+
+```bash
+yarn add @ericchen1990/pano-view
+```
+
+</details>
+<details name="pano-view-install">
+<summary>bun</summary>
+
+```bash
+bun add @ericchen1990/pano-view
+```
+
+</details>
 
 ### 对等依赖
 
-这些包必须安装在**宿主应用**中，而不是嵌套在本库之下。npm 7+ 与 pnpm 会自动安装；Yarn Classic 与 npm 6 不会，需显式安装。
+这些包必须安装在**宿主应用**中，而不是嵌套在本库之下。npm 7+、pnpm 与 Bun 会自动安装；Yarn 与 npm 6 不会，需显式安装。
 
 | 包 | 支持范围 |
 | --- | --- |
@@ -33,7 +60,7 @@ pnpm 与 Yarn 用法相同（`pnpm add` / `yarn add`）。
 | `@react-three/drei` | `^10.0.0` |
 | `@react-three/xr` | `^6.6.0` |
 
-在宿主应用中保持 React、Three.js 与 React Three Fiber 相关包的**单一副本**。重复的 `three` 树是空白画布与上下文错误（`R3F: Hooks can only be used within the Canvas component`）的常见原因。若出现该问题，请检查 `npm ls three` / `pnpm why three` 并去重。
+在宿主应用中保持 React、Three.js 与 React Three Fiber 相关包的**单一副本**。重复的 `three` 树是空白画布与上下文错误（`R3F: Hooks can only be used within the Canvas component`）的常见原因。若出现该问题，请检查 `npm ls three`、`pnpm why three`、`yarn why three` 或 `bun pm ls` 并去重。
 
 ### 样式表（HTML 叠加层）
 
