@@ -57,6 +57,9 @@ jobs:
       - name: Typecheck
         run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck
 
+      - name: Test viewer
+        run: pnpm --filter @ericchen1990/pano-view test
+
       - name: Build
         run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-view-playground build
 
