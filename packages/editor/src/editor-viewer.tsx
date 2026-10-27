@@ -49,6 +49,7 @@ class ViewerBoundary extends Component<
 export function EditorViewer({
   project,
   local,
+  directories,
   options,
   activeId,
   selectedId,
@@ -68,6 +69,7 @@ export function EditorViewer({
 }: {
   project: PanoProjectDefinition;
   local?: LocalFiles;
+  directories: readonly LocalFiles[];
   options: PanoEditorProps;
   activeId?: string;
   selectedId?: string;
@@ -97,11 +99,14 @@ export function EditorViewer({
           resolveAssetUrl: options.resolveAssetUrl,
         },
         local,
+        directories,
       ),
-    [local, options.baseUrl, options.requestInit, options.resolveAssetUrl],
+    [local, directories, options.baseUrl, options.requestInit, options.resolveAssetUrl],
   );
   const sourceKey = JSON.stringify(
-    project.scenes.map(({ id, source }) => ({ id, source })),
+    project.scenes
+      .map(({ id, source }) => ({ id, source }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
   );
   const [sources, setSources] = useState<
     Map<string, LoadedProjectScene["scene"]>
@@ -109,9 +114,12 @@ export function EditorViewer({
   const [errors, setErrors] = useState<string[]>([]);
   const [localIssues, setLocalIssues] = useState<string[]>([]);
   useEffect(() => {
-    setLocalIssues([...(local?.issues ?? [])]);
-    return local?.subscribe(() => setLocalIssues([...local.issues]));
-  }, [local]);
+    const files = [...(local ? [local] : []), ...directories];
+    const update = () => setLocalIssues(files.flatMap((entry) => [...entry.issues]));
+    update();
+    const unsubscribe = files.map((entry) => entry.subscribe(update));
+    return () => unsubscribe.forEach((stop) => stop());
+  }, [local, directories]);
   const priorSources = useRef({ loader, keys: new Map<string, string>() });
   useEffect(() => {
     const controller = new AbortController();
@@ -157,27 +165,43 @@ export function EditorViewer({
       const scene = sources.get(definition.id);
       if (!scene) continue;
       const hotspots: LoadedProjectScene["hotspots"] = [];
+      const assetFiles = (path: string) =>
+        directories.find((files) => files.containsPath(path)) ?? local;
       for (const hotspot of definition.hotspots ?? []) {
         try {
           const resolved = resolveProjectHotspotAssets(
             hotspot,
             local ? LOCAL_ROOT : projectRoot(options.baseUrl),
             definition.id,
-            local?.resolve ?? options.resolveAssetUrl,
+            (path, context) => {
+              const files = assetFiles(path);
+              return files
+                ? files.resolve(path, {
+                    ...context,
+                    defaultUrl: new URL(path, LOCAL_ROOT).href,
+                  })
+                : (options.resolveAssetUrl?.(path, context) ?? context.defaultUrl);
+            },
           );
           // Local sessions only preview documents. Keep authored permissions in
           // the saved definition, but never execute local HTML scripts or forms.
-          if (local && resolved.type === "iframe") resolved.sandbox = "";
           if (
-            local &&
+            resolved.type === "iframe" &&
+            hotspot.type === "iframe" &&
+            assetFiles(hotspot.src)
+          )
+            resolved.sandbox = "";
+          if (
             resolved.type === "audio" &&
             hotspot.type === "audio" &&
-            !resolved.format
+            !resolved.format &&
+            (Array.isArray(hotspot.src) ? hotspot.src : [hotspot.src])
+              .every((src) => assetFiles(src))
           ) {
             resolved.format = (
               Array.isArray(hotspot.src) ? hotspot.src : [hotspot.src]
             ).map((src) => {
-              const file = local.file(src);
+              const file = assetFiles(src)!.file(src);
               const extension = file.name.split(".").pop()?.toLowerCase();
               const mime = file.type.split("/")[1]?.split(";")[0];
               return extension &&
@@ -222,7 +246,7 @@ export function EditorViewer({
       scenes,
     };
     return { loaded, issues };
-  }, [project, sources, local, options.baseUrl, options.resolveAssetUrl]);
+  }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map((entry) => entry.scene),
     [sources, sourceKey],

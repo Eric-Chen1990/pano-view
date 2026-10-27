@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { PanoEditor } from "@ericchen1990/pano-editor";
+import { parsePanoProject } from "@ericchen1990/pano-view/data";
+import sampleProject from "../../../public/fixtures/projects/tour/project.json";
 import "@ericchen1990/pano-editor/styles.css";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
+
+const demoProject = parsePanoProject(sampleProject);
 
 export function EditorPage() {
   const [locale, setLocale] = useState<"en" | "zh-CN">("en");
@@ -19,8 +23,8 @@ export function EditorPage() {
       <div className="flex items-center justify-between gap-4 py-5">
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
-            ? "Open a local tour. Shape the scenes. Take the JSON with you."
-            : "打开本地导览，编辑场景与热点，带走 JSON 配置。"}
+            ? "Try the sample tour: edit hotspots, link scenes, or preview the result."
+            : "直接试用示例导览：编辑热点、连接场景，或预览效果。"}
         </p>
         <label className="shrink-0 text-xs text-muted-2">
           Language{" "}
@@ -37,14 +41,25 @@ export function EditorPage() {
         </label>
       </div>
       <PanoEditor
+        defaultValue={demoProject}
+        baseUrl={new URL("/fixtures/projects/tour/", window.location.href).href}
         locale={locale}
         style={{ height: "min(860px, 85vh)", minHeight: 660 }}
       />
       <p className="mt-4 text-xs leading-6 text-muted-2">
         {locale === "en"
-          ? "Run pano-convert locally first. Select your project root, edit, and put the exported project.json back in that directory. Serve it over HTTP to play your tour. Refreshing this page clears the session."
-          : "请先在本地运行 pano-convert，选择项目根目录，编辑后将导出的 project.json 放回该目录，通过 HTTP 静态服务播放。刷新页面会清空当前会话。"}
+          ? "The sample is ready to edit. To add your own converted panorama, choose Add scene and drop its folder, including viewer.json, previews and tiles. Files are read locally; nothing is uploaded. Export JSON before leaving. Refreshing restores the sample."
+          : "示例已准备好，可直接编辑。添加自己的切片场景时，点击“添加场景”并拖入包含 viewer.json、预览图和瓦片的文件夹。文件仅在本机读取，不会上传。离开前请导出 JSON；刷新会恢复示例。"}
       </p>
+      <a
+        className="mt-2 inline-block text-xs text-accent underline"
+        href="/fixtures/editor-demo.zip"
+        download
+      >
+        {locale === "en"
+          ? "Download sample files (.zip) · unzip, then open the folder or drag it into Add scene"
+          : "下载示例文件（.zip）· 解压后打开目录，或拖入“添加场景”"}
+      </a>
     </main>
   );
 }

@@ -138,3 +138,45 @@ test("malformed local viewer JSON, unsupported versions and missing files reject
     /Missing local resource/,
   );
 });
+
+test("mounted scene directories keep colliding filenames separate and coexist with HTTP scenes", async (t) => {
+  const requests: string[] = [];
+  const blobs: Blob[] = [];
+  t.mock.method(URL, "createObjectURL", (blob: Blob) => {
+    blobs.push(blob);
+    return `blob:mounted-${blobs.length}`;
+  });
+  t.mock.method(URL, "revokeObjectURL", () => {});
+  t.mock.method(globalThis, "fetch", async (url: string | URL | Request) => {
+    requests.push(String(url));
+    return new Response(JSON.stringify(config), { headers: { "Content-Type": "application/json" } });
+  });
+  const first = new LocalFiles([
+    file("viewer.json", JSON.stringify(config)),
+    file("previews/p.webp", "first"),
+    file("tiles/0/0_0.webp", "first tile"),
+  ], "imports/first/tour/");
+  const second = new LocalFiles([
+    file("viewer.json", JSON.stringify(config)),
+    file("previews/p.webp", "second"),
+  ], "imports/second/tour/");
+  try {
+    const loader = new SceneSources({ baseUrl: "https://example.test/demo/" }, undefined, [first, second]);
+    const signal = new AbortController().signal;
+    const a = await loader.load("first", { viewerUrl: first.viewerPaths()[0]! }, signal);
+    const b = await loader.load("second", { viewerUrl: second.viewerPaths()[0]! }, signal);
+    assert.notEqual(a.previewUrl, b.previewUrl);
+    assert.equal(await blobs[0]!.text(), "first");
+    assert.equal(await blobs[1]!.text(), "second");
+    await loader.load("remote", { viewerUrl: "viewer.json" }, signal);
+    assert.equal(requests.at(-1), "https://example.test/demo/viewer.json");
+    const count = requests.length;
+    await assert.rejects(loader.load("missing", { viewerUrl: "imports/first/tour/missing/viewer.json" }, signal), /Missing local resource/);
+    assert.equal(requests.length, count);
+    assert.equal(loader.localFor({ viewerUrl: "imports/first/tour/viewer.json" }), first);
+    assert.equal(loader.localFor({ viewerUrl: "viewer.json" }), undefined);
+  } finally {
+    first.dispose();
+    second.dispose();
+  }
+});

@@ -30,7 +30,13 @@ export class SceneSources {
   constructor(
     private options: LoadPanoProjectOptions,
     private local?: LocalFiles,
+    private directories: readonly LocalFiles[] = [],
   ) {}
+  localFor(source: PanoProjectSceneDefinition["source"]) {
+    return (
+      this.directories.find((files) => files.containsSource(source)) ?? this.local
+    );
+  }
   load(
     id: string,
     source: PanoProjectSceneDefinition["source"],
@@ -59,16 +65,16 @@ export class SceneSources {
     source: PanoProjectSceneDefinition["source"],
     signal: AbortSignal,
   ): Promise<LoadedProjectScene["scene"]> {
-    if (this.local) {
-      const { config, baseUrl } = await this.local.source(source);
+    const local = this.localFor(source);
+    if (local) {
+      const { config, baseUrl } = await local.source(source);
       signal.throwIfAborted();
       const scene = sceneFromViewerConfig(config, {
         id,
         baseUrl,
         resolveAssetUrl: (path, context) =>
-          this.local!.resolveFrom(path, context, baseUrl),
+          local.resolveFrom(path, context, baseUrl),
       });
-      const local = this.local;
       if (scene.type === "tile") {
         const resolve = scene.resolveTileUrl!;
         scene.resolveTileUrl = (address) => local.tile(() => resolve(address));

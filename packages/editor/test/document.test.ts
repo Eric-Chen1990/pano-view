@@ -10,6 +10,7 @@ import {
 import {
   exportDocument,
   removeScene,
+  moveScene,
   readDocument,
   emptyProject,
 } from "../src/document";
@@ -169,6 +170,33 @@ test("scene deletion clears incoming actions atomically and undo restores them",
   history.redo();
   assert.equal(history.current.scenes.length, 1);
   assert.equal(removeScene(history.current, "a").initialSceneId, undefined);
+});
+
+test("scene reordering preserves scene data, the initial scene and links, and supports undo", () => {
+  const original = project();
+  original.scenes.push({ id: "c", source: { viewerConfig: config } });
+  const history = new DocumentHistory(original);
+  history.commit(moveScene(history.current, "a", "c"));
+  assert.deepEqual(history.current.scenes.map((scene) => scene.id), ["b", "a", "c"]);
+  assert.equal(history.current.initialSceneId, "a");
+  assert.equal(history.current.scenes[1], original.scenes[0]);
+  assert.equal(history.current.scenes[1]!.hotspots!.at(-1)!.action?.sceneId, "b");
+  assert.deepEqual(original.scenes.map((scene) => scene.id), ["a", "b", "c"]);
+  history.commit(moveScene(history.current, "c", "b"));
+  assert.deepEqual(history.current.scenes.map((scene) => scene.id), ["c", "b", "a"]);
+  history.commit(moveScene(history.current, "c"));
+  assert.deepEqual(history.current.scenes.map((scene) => scene.id), ["b", "a", "c"]);
+  assert.deepEqual(history.undo().scenes.map((scene) => scene.id), ["c", "b", "a"]);
+  assert.deepEqual(history.redo().scenes.map((scene) => scene.id), ["b", "a", "c"]);
+});
+
+test("invalid and unchanged reorder targets preserve the original document", () => {
+  const original = project();
+  assert.equal(moveScene(original, "a", "a"), original);
+  assert.equal(moveScene(original, "a", "b"), original);
+  assert.equal(moveScene(original, "b"), original);
+  assert.equal(moveScene(original, "missing", "a"), original);
+  assert.equal(moveScene(original, "a", "missing"), original);
 });
 
 test("gesture history coalesces frames, clears redo, and does not share state between instances", () => {

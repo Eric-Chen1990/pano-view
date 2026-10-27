@@ -112,6 +112,22 @@ export function removeScene(
 }
 
 export type HotspotKind = ProjectHotspotDefinition["type"];
+export function moveScene(
+  project: PanoProjectDefinition,
+  id: string,
+  beforeId?: string,
+): PanoProjectDefinition {
+  const sourceIndex = project.scenes.findIndex((scene) => scene.id === id);
+  if (sourceIndex < 0 || beforeId === id) return project;
+  const scenes = project.scenes.filter((scene) => scene.id !== id);
+  const targetIndex = beforeId === undefined
+    ? scenes.length
+    : scenes.findIndex((scene) => scene.id === beforeId);
+  if (targetIndex < 0 || targetIndex === sourceIndex) return project;
+  scenes.splice(targetIndex, 0, project.scenes[sourceIndex]!);
+  return { ...project, scenes };
+}
+
 export const hotspotKinds: HotspotKind[] = [
   "graphic",
   "text",

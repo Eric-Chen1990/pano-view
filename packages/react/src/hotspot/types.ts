@@ -126,6 +126,8 @@ export type HotspotCommonProps = {
   opacity?: number;
   renderOrder?: number;
   visible?: boolean;
+  /** Show a 3px selection border around a point hotspot. Defaults to false. */
+  selected?: boolean;
   /** Whether the hotspot accepts pointer and keyboard interaction. Defaults to true. */
   interactive?: boolean;
   /**

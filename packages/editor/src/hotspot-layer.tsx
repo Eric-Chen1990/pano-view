@@ -105,6 +105,7 @@ export const HotspotLayer = memo(function HotspotLayer({
           );
         const point = {
           ...common,
+          selected: hotspot.id === selectedId,
           onPositionChange: ({ position }: { position: HotspotPosition }) =>
             onUpdate(hotspot.id, { position }),
         };
@@ -181,21 +182,6 @@ export const HotspotLayer = memo(function HotspotLayer({
             );
         }
       })}
-      {selected && "position" in selected ? (
-        <GraphicHotspot
-          id="editor-selection"
-          position={selected.position}
-          graphic={{ kind: "ring", fill: "#75cbd3", innerRadius: 0.9 }}
-          width={(selected.width ?? 12) + 2}
-          height={(selected.height ?? 12) + 2}
-          mode={selected.mode}
-          distance={(selected.distance ?? 10) - 0.01}
-          scale={selected.scale}
-          rotation={selected.rotation}
-          pointerEvents="none"
-          interactive={false}
-        />
-      ) : null}
       {selected && "vertices" in selected && !drawing
         ? selected.vertices.map((vertex, index) => (
             <GraphicHotspot

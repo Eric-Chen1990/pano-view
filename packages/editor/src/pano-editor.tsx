@@ -32,9 +32,9 @@ import {
   emptyProject,
   exportDocument,
   geometryIssue,
-  hotspotKinds,
   newId,
   readDocument,
+  moveScene,
   removeScene,
   type HotspotKind,
 } from "./document";
@@ -49,10 +49,6 @@ import { errorMessage } from "./errors";
 
 export function PanoEditor(props: PanoEditorProps) {
   const hostManaged = Boolean(
-    props.value ||
-    props.defaultValue ||
-    props.baseUrl ||
-    props.onChange ||
     props.onSave ||
     props.onImportPanorama ||
     props.onPickAsset,
@@ -81,6 +77,11 @@ export function PanoEditor(props: PanoEditorProps) {
     (hotspot) => hotspot.id === selectedId,
   );
   const [local, setLocal] = useState<LocalFiles>();
+  const [directories, setDirectories] = useState<LocalFiles[]>([]);
+  const retainedDirectories = useRef<LocalFiles[]>([]);
+  const activeLocal =
+    directories.find((files) => active && files.containsSource(active.source)) ?? local;
+  const localSession = Boolean(local || directories.length);
   const [preview, setPreview] = useState(false);
   const [tool, setTool] = useState<HotspotKind>();
   const [placement, setPlacement] = useState<ProjectHotspotDefinition>();
@@ -97,6 +98,7 @@ export function PanoEditor(props: PanoEditorProps) {
   const directoryRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const viewerRef = useRef<PanoViewerHandle>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
   const [task] = useState(() => new ImportTask());
   const alive = useRef(true);
   const generation = useRef(0);
@@ -120,6 +122,7 @@ export function PanoEditor(props: PanoEditorProps) {
       generation.current++;
       operation.current++;
       task.cancel();
+      for (const files of retainedDirectories.current) files.dispose();
     };
   }, [task]);
   useEffect(() => () => local?.dispose(), [local]);
@@ -240,6 +243,9 @@ export function PanoEditor(props: PanoEditorProps) {
     setProgress(undefined);
     history.replace(next);
     setLocal(files);
+    for (const directory of retainedDirectories.current) directory.dispose();
+    retainedDirectories.current = [];
+    setDirectories([]);
     setSaved(JSON.stringify(next));
     navigate(next.initialSceneId ?? next.scenes[0]?.id ?? "");
     setPreview(false);
@@ -274,6 +280,83 @@ export function PanoEditor(props: PanoEditorProps) {
     } catch (cause) {
       selectedFiles?.dispose();
       report(cause);
+    }
+  }
+  async function addDirectory(selection: File[] | Promise<File[]>) {
+    if (busy) return;
+    const token = ++operation.current;
+    const documentToken = generation.current;
+    const replace = dialog && "replace" in dialog ? dialog.replace : undefined;
+    let selectedFiles: LocalFiles | undefined;
+    setBusy(true);
+    setError("");
+    try {
+      const files = await selection;
+      if (
+        !files.length ||
+        !alive.current ||
+        token !== operation.current ||
+        documentToken !== generation.current
+      )
+        return;
+      if (!files[0]!.webkitRelativePath.includes("/"))
+        throw new Error(
+          t("Select or drop a complete folder, including viewer.json, previews and tiles. Unzip ZIP files first."),
+        );
+      const prefix = `imports/${newId()}/${files[0]!.webkitRelativePath.split("/")[0]}/`;
+      selectedFiles = new LocalFiles(files, prefix);
+      const paths = selectedFiles.viewerPaths();
+      if (!paths.length) throw new Error(t("No viewer.json found"));
+      if (replace && paths.length !== 1)
+        throw new Error(
+          t("Choose a directory containing one viewer.json to replace a scene"),
+        );
+      await Promise.all(
+        paths.map((path) =>
+          selectedFiles!.source({ viewerUrl: LocalFiles.reference(path) }),
+        ),
+      );
+      if (
+        !alive.current ||
+        token !== operation.current ||
+        documentToken !== generation.current
+      )
+        return;
+      const additions = paths.map((path) => ({
+        id: newId(),
+        title: path
+          .slice(prefix.length)
+          .replace(/\/viewer\.json$/, "")
+          .replace(/^viewer\.json$/, selectedFiles!.name),
+        source: { viewerUrl: LocalFiles.reference(path) },
+        hotspots: [],
+      }));
+      if (replace) addScene(additions[0]!.source, additions[0]!.title, replace);
+      else {
+        publish({
+          ...history.current,
+          initialSceneId: history.current.initialSceneId ?? additions[0]!.id,
+          scenes: [...history.current.scenes, ...additions],
+        });
+        navigate(additions[0]!.id);
+      }
+      retainedDirectories.current.push(selectedFiles);
+      setDirectories([...retainedDirectories.current]);
+      selectedFiles = undefined;
+      setDialog(undefined);
+    } catch (cause) {
+      if (
+        alive.current && token === operation.current &&
+        documentToken === generation.current
+      )
+        report(cause);
+    } finally {
+      selectedFiles?.dispose();
+      if (
+        alive.current && token === operation.current &&
+        documentToken === generation.current
+      )
+        setBusy(false);
     }
   }
   function addScene(
@@ -335,20 +418,37 @@ export function PanoEditor(props: PanoEditorProps) {
           navigate(additions[0]!.id);
         }
       } else if (dialog.kind === "source") {
+        const viewerUrl = dialog.url.trim();
+        const baseUrl = dialog.root.trim();
+        const urlError = t("Use an HTTP(S) URL for online resources. For files on your computer, choose Local folder.");
+        for (const path of [viewerUrl, baseUrl].filter(Boolean)) {
+          let url: URL;
+          try {
+            url = new URL(path);
+          } catch {
+            throw new Error(urlError);
+          }
+          if (!/^https?:\/\//i.test(path) || !/^https?:$/.test(url.protocol))
+            throw new Error(urlError);
+        }
         const source = {
-          viewerUrl: dialog.url,
-          ...(dialog.root ? { baseUrl: dialog.root } : {}),
+          viewerUrl,
+          ...(baseUrl ? { baseUrl } : {}),
         };
         await new SceneSources({
           baseUrl: props.baseUrl,
           requestInit: props.requestInit,
           resolveAssetUrl: props.resolveAssetUrl,
-        }).load("validate", source, new AbortController().signal);
+        })
+          .load("validate", source, new AbortController().signal)
+          .catch((cause: unknown) => {
+            throw new Error(`${t("Could not read viewer.json. Check the public URL, CORS permissions and JSON format.")} ${errorMessage(cause)}`);
+          });
         if (!alive.current || token !== generation.current) return;
         addScene(source, "Scene", dialog.replace);
       } else if (dialog.kind === "asset") {
         if (!dialog.selected.trim()) throw new Error("Choose a resource path");
-        if (local) local.file(dialog.selected);
+        if (activeLocal) activeLocal.file(dialog.selected);
         if (dialog.hotspotId && active) {
           const hotspot = active.hotspots?.find(
             (item) => item.id === dialog.hotspotId,
@@ -366,8 +466,26 @@ export function PanoEditor(props: PanoEditorProps) {
           setTool(dialog.hotspotKind);
         }
       } else if (dialog.kind === "delete") {
-        publish(removeScene(history.current, dialog.id));
-        navigate(history.current.scenes[0]?.id ?? "");
+        if (dialog.target === "scene") {
+          const next = removeScene(history.current, dialog.id);
+          publish(next);
+          if (active?.id === dialog.id)
+            navigate(next.initialSceneId ?? next.scenes[0]?.id ?? "");
+        } else {
+          updateScene(dialog.sceneId, (scene) => ({
+            ...scene,
+            hotspots: scene.hotspots?.filter((hotspot) => hotspot.id !== dialog.id),
+          }));
+          if (active?.id === dialog.sceneId && selectedId === dialog.id)
+            setSelectedId(undefined);
+        }
+        requestAnimationFrame(() => {
+          const root = rootRef.current;
+          const target = root?.querySelector<HTMLElement>(
+            dialog.target === "scene" ? ".pne-scene[aria-pressed='true']" : ".pne-add-hotspot",
+          ) ?? root?.querySelector<HTMLElement>(".pne-add-scene button") ?? root;
+          target?.focus();
+        });
       }
       setDialog(undefined);
     } catch (cause) {
@@ -416,7 +534,7 @@ export function PanoEditor(props: PanoEditorProps) {
   async function pickAsset(field: string, hotspotKind?: HotspotKind) {
     if (!active) return;
     const pickerToken = ++pickerOperation.current;
-    if (!local && props.onPickAsset) {
+    if (!localSession && props.onPickAsset) {
       const token = generation.current;
       const sceneId = active.id;
       const hotspot = hotspotKind
@@ -484,6 +602,18 @@ export function PanoEditor(props: PanoEditorProps) {
         setPlacement(createHotspot(kind, { yaw: 0, pitch: 0 }));
     }
   }
+  function selectHotspot(id: string) {
+    setSelectedId(id);
+    setTool(undefined);
+    setPlacement(undefined);
+    setDraft([]);
+  }
+  function editHotspot(id: string) {
+    selectHotspot(id);
+    requestAnimationFrame(() => {
+      inspectorRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+    });
+  }
   function appendHotspot(hotspot: ProjectHotspotDefinition) {
     if (!active) return;
     updateScene(active.id, (scene) => ({
@@ -526,15 +656,19 @@ export function PanoEditor(props: PanoEditorProps) {
     props.onChange?.(next);
     render();
   }
-  function deleteHotspot() {
-    if (active && selected) {
-      updateScene(active.id, (scene) => ({
-        ...scene,
-        hotspots: scene.hotspots?.filter(
-          (hotspot) => hotspot.id !== selected.id,
-        ),
-      }));
-      setSelectedId(undefined);
+  function requestDeleteHotspot(id = selected?.id) {
+    const hotspot = active?.hotspots?.find((item) => item.id === id);
+    if (active && hotspot) {
+      end();
+      setError("");
+      setDialog({
+        kind: "delete",
+        target: "hotspot",
+        id: hotspot.id,
+        sceneId: active.id,
+        title: hotspot.label || hotspot.id,
+        sceneTitle: active.title ?? active.id,
+      });
     }
   }
   function keyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -588,7 +722,7 @@ export function PanoEditor(props: PanoEditorProps) {
       ["Delete", "Backspace"].includes(event.key)
     ) {
       event.preventDefault();
-      deleteHotspot();
+      requestDeleteHotspot();
     }
   }
   async function save(download: boolean) {
@@ -652,7 +786,7 @@ export function PanoEditor(props: PanoEditorProps) {
         })
       : setDialog({ kind: "source", url: "", root: "", replace });
   const incoming =
-    dialog?.kind === "delete"
+    dialog?.kind === "delete" && dialog.target === "scene"
       ? project.scenes
           .flatMap((scene) => scene.hotspots ?? [])
           .filter((hotspot) => hotspot.action?.sceneId === dialog.id).length
@@ -682,7 +816,7 @@ export function PanoEditor(props: PanoEditorProps) {
           >
             {t("Open directory")}
           </button>
-          {props.onImportPanorama && !local ? (
+          {props.onImportPanorama && !localSession ? (
             <button
               type="button"
               disabled={busy}
@@ -725,7 +859,7 @@ export function PanoEditor(props: PanoEditorProps) {
           <button type="button" onClick={() => void toggleFullscreen()}>
             {t(fullscreen ? "Exit fullscreen" : "Fullscreen")}
           </button>
-          {props.onSave && !local ? (
+          {props.onSave && !localSession ? (
             <button
               type="button"
               disabled={!project.scenes.length || saving}
@@ -755,7 +889,7 @@ export function PanoEditor(props: PanoEditorProps) {
         aria-label={t("Open directory")}
         onChange={(event) => void openDirectory(event)}
       />
-      {props.onImportPanorama && !local ? (
+      {props.onImportPanorama && !localSession ? (
         <input
           ref={importRef}
           type="file"
@@ -767,13 +901,15 @@ export function PanoEditor(props: PanoEditorProps) {
       ) : null}
       <div className="pne-session">
         <span>
-          {local
+          {localSession
             ? t("Local session · files stay on your computer")
             : hostManaged
               ? t(
                   "Host-managed session · uploads and saving use your application",
                 )
-              : t(
+              : project.scenes.length
+                ? t("Browser session · export JSON before leaving")
+                : t(
                   "Select a project directory containing viewer.json and tiles. Nothing is uploaded or saved. Export project.json before leaving.",
                 )}
         </span>
@@ -813,7 +949,6 @@ export function PanoEditor(props: PanoEditorProps) {
       <div className={`pne-workspace ${preview ? "pne-preview" : ""}`}>
         <SceneSidebar
           project={project}
-          canAdd={Boolean(local) || hostManaged}
           activeId={active?.id}
           selectedId={selectedId}
           preview={preview}
@@ -823,73 +958,58 @@ export function PanoEditor(props: PanoEditorProps) {
           onEnd={end}
           onTitle={(title) => publish({ ...history.current, title })}
           onNavigate={navigate}
-          onSelectHotspot={(id) => {
-            setSelectedId(id);
-            setTool(undefined);
-            setPlacement(undefined);
-            setDraft([]);
-          }}
+          onSelectHotspot={selectHotspot}
+          onEditHotspot={editHotspot}
+          onDeleteHotspot={requestDeleteHotspot}
           onAdd={() => sourceDialog()}
-          onDuplicate={() => {
-            if (!active) return;
-            const id = newId();
-            publish({
-              ...project,
-              scenes: [
-                ...project.scenes,
-                {
-                  ...structuredClone(active),
-                  id,
-                  title: `${active.title ?? "Scene"} (copy)`,
-                },
-              ],
-            });
-            navigate(id);
+          onDelete={(id) => {
+            const scene = history.current.scenes.find((item) => item.id === id);
+            if (!scene) return;
+            end();
+            setError("");
+            setDialog({ kind: "delete", target: "scene", id, title: scene.title ?? id, hotspotCount: scene.hotspots?.length ?? 0 });
           }}
-          onDelete={() => {
-            if (active) setDialog({ kind: "delete", id: active.id });
-          }}
-          onMove={(offset) => {
-            const index = project.scenes.findIndex(
-              (scene) => scene.id === active?.id,
-            );
-            const scenes = [...project.scenes];
-            [scenes[index], scenes[index + offset]] = [
-              scenes[index + offset]!,
-              scenes[index]!,
-            ];
-            publish({ ...project, scenes });
+          onReorder={(id, beforeId) => {
+            end();
+            publish(moveScene(history.current, id, beforeId));
           }}
         />
         <section className="pne-center" aria-label={t("Panorama editor")}>
           {!preview && active ? (
             <div className="pne-tools">
+              <span className="pne-view-context">{active.title ?? active.id}</span>
               <button
                 type="button"
-                aria-pressed={!tool}
+                className="pne-primary pne-add-hotspot"
+                disabled={busy}
                 onClick={() => {
-                  setTool(undefined);
-                  setPlacement(undefined);
-                  setDraft([]);
+                  end();
+                  setDialog({ kind: "hotspot" });
                 }}
               >
-                {t("Navigate")}
+                {t("Add hotspot")}
               </button>
-              {hotspotKinds.map((kind) => (
-                <button
-                  type="button"
-                  key={kind}
-                  aria-pressed={tool === kind}
-                  onClick={() => chooseTool(kind)}
-                >
-                  {t(kind)}
-                </button>
-              ))}
+              {tool ? (
+                <>
+                  <span className="pne-tool-kind">{t(tool)}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTool(undefined);
+                      setPlacement(undefined);
+                      setDraft([]);
+                    }}
+                  >
+                    {t("Cancel placement")}
+                  </button>
+                </>
+              ) : null}
             </div>
           ) : null}
           <EditorViewer
             project={project}
             local={local}
+            directories={directories}
             options={props}
             activeId={active?.id}
             selectedId={selectedId}
@@ -899,7 +1019,7 @@ export function PanoEditor(props: PanoEditorProps) {
             placing={Boolean(placement)}
             viewerRef={viewerRef}
             onActive={navigate}
-            onSelect={setSelectedId}
+            onSelect={selectHotspot}
             onUpdate={patchHotspot}
             onBegin={begin}
             onEnd={end}
@@ -931,7 +1051,7 @@ export function PanoEditor(props: PanoEditorProps) {
           </div>
         </section>
         {!preview ? (
-          <aside className="pne-inspector" aria-label={t("Appearance")}>
+          <aside ref={inspectorRef} className="pne-inspector" aria-label={t("Appearance")}>
             <div className="pne-panel-title">
               {selected
                 ? selected.label || selected.id
@@ -939,6 +1059,16 @@ export function PanoEditor(props: PanoEditorProps) {
             </div>
             {selected ? (
               <>
+                <div className="pne-inspector-context">
+                  <span>{active?.title ?? active?.id} / {t("Hotspot properties")}</span>
+                  <button
+                    type="button"
+                    className="pne-subtle"
+                    onClick={() => setSelectedId(undefined)}
+                  >
+                    {t("Back to scene")}
+                  </button>
+                </div>
                 <div className="pne-fields pne-button-grid">
                   <button
                     type="button"
@@ -949,12 +1079,13 @@ export function PanoEditor(props: PanoEditorProps) {
                       })
                     }
                   >
-                    {t("Duplicate")}
+                    {t("Duplicate hotspot")}
                   </button>
-                  <button type="button" onClick={deleteHotspot}>
-                    {t("Delete")}
+                  <button type="button" onClick={() => requestDeleteHotspot()}>
+                    {t("Delete hotspot")}
                   </button>
                 </div>
+                <p className="pne-edit-hint">{t("Edit properties below. Drag the hotspot or its vertex handles in the panorama to change its position.")}</p>
                 <HotspotInspector
                   key={selected.id}
                   hotspot={selected}
@@ -985,7 +1116,7 @@ export function PanoEditor(props: PanoEditorProps) {
                 getView={() => viewerRef.current?.getView()}
                 onReplace={() => sourceDialog(active.id)}
                 onImport={
-                  props.onImportPanorama && !local
+                  props.onImportPanorama && !localSession
                     ? () => {
                         importTarget.current = active.id;
                         importRef.current?.click();
@@ -1002,14 +1133,22 @@ export function PanoEditor(props: PanoEditorProps) {
       {dialog ? (
         <EditorDialog
           dialog={dialog}
-          local={local}
+          local={dialog.kind === "asset" ? activeLocal : local}
           busy={busy}
           error={error}
           incoming={incoming}
           titleId={dialogTitleId}
           elementRef={dialogRef}
-          onChange={setDialog}
+          onChange={(next) => {
+            setError("");
+            setDialog(next);
+          }}
           onConfirm={confirmDialog}
+          onDirectory={addDirectory}
+          onChooseHotspot={(kind) => {
+            setDialog(undefined);
+            chooseTool(kind);
+          }}
           t={t}
         />
       ) : null}

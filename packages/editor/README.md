@@ -6,7 +6,9 @@ An embeddable React panorama editor for scenes, all nine pano-view hotspot types
 
 ## Local browser editor
 
-Run the workspace with `pnpm dev` and open `/editor`. Prepare panoramas with `pano-convert` locally first, then select a project root:
+Run the workspace with `pnpm dev` and open `/editor` to edit a ready-made two-scene tour with text, audio and scene-link hotspots. Download and unzip the prepared sample ZIP to try opening or dropping a directory without running the converter first.
+
+For your own panoramas, prepare them with `pano-convert` locally first, then select a project root:
 
 ```text
 tour/
@@ -19,6 +21,10 @@ tour/
 ```
 
 If the root has a `project.json`, the editor opens it. Otherwise choose the `viewer.json` files to create scenes. Select the whole project directory, including tiles and hotspot media. For portable references, keep resources within this root. Missing resources show their paths; they never fall back to requests against the editor's server.
+
+Add scene and Replace source distinguish Local folder from Online URL. The online input requires a complete HTTP(S) address returning viewer.json directly. Use public URLs without login for the demo, with previews and every tile level available online as well. Cross-origin servers must permit CORS; an HTTPS editor should use HTTPS resources. Leave the asset directory URL empty to resolve relative paths from viewer.json. JSON export does not download or bundle online assets.
+
+The local option accepts a dropped or selected directory containing `viewer.json`, previews and tiles, alongside the existing URL entry. Adding imports every scene in the directory and preserves current edits; replacing requires exactly one `viewer.json`. Added directories use separate `imports/<id>/<directory-name>/` paths to avoid filename collisions. JSON export does not package assets: when hosting the result, place added directories at the exported source paths.
 
 Files are read through the directory picker and temporary object URLs, without uploading them. The local session does not write localStorage, IndexedDB, source files, or server-side drafts. Export `project.json` before leaving; refreshing clears the session. Put the JSON in the selected root and serve the directory over HTTP to play the tour. Keep the existing directory structure: downloading JSON does not copy or package any assets.
 
@@ -104,6 +110,6 @@ Only a supplied `onImportPanorama` enables original-image import. The public loc
 
 Override `--pne-bg`, `--pne-panel`, `--pne-text`, `--pne-muted`, `--pne-border`, `--pne-accent`, and `--pne-brand` on the component to theme it. The fullscreen action expands the entire editor so its dialogs remain inside the fullscreen element.
 
-Select hotspots from the left list or canvas. Edit mode selects/drags without playing media or following links. Preview uses the viewer's normal actions. Property fields and advanced hotspot JSON preserve supported fields that were not edited. One drag or focused text-edit gesture is one undo step. Keyboard shortcuts are scoped to the editor: Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, Delete, Enter to finish geometry, Escape to cancel and Backspace to remove a draft vertex. Text inputs retain their native editing shortcuts.
+The left sidebar nests each hotspot list under its scene, with per-hotspot edit and delete actions. Drag a scene header handle to reorder scenes, or press Space/Enter to pick it up, use arrow keys, then Space/Enter to drop (Escape cancels). The delete button sits beside each scene title. Both scene and hotspot deletion, including the Delete shortcut, require a confirmation dialog; cancelling leaves the document unchanged. Use Add hotspot to choose a type, then place or draw it in the panorama; media types first ask for a resource. Select hotspots from the left list or canvas. Edit mode selects/drags without playing media or following links. Preview uses the viewer's normal actions. Property fields and advanced hotspot JSON preserve supported fields that were not edited. One drag or focused text-edit gesture is one undo step. Keyboard shortcuts are scoped to the editor: Ctrl/Cmd+Z, Shift+Ctrl/Cmd+Z, Delete, Enter to finish geometry, Escape to cancel and Backspace to remove a draft vertex. Text inputs retain their native editing shortcuts.
 
 Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (after building the viewer and editor) `pack:check`. No publication happens during these checks.

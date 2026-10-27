@@ -25,7 +25,7 @@ export class LocalFiles {
   static reference(path: string) {
     return path.split("/").map(encodeURIComponent).join("/");
   }
-  constructor(files: readonly File[]) {
+  constructor(files: readonly File[], private prefix = "") {
     if (!files.length) throw new Error("No files selected");
     const first = files[0]!.webkitRelativePath;
     if (!first || !first.includes("/"))
@@ -35,9 +35,21 @@ export class LocalFiles {
     for (const file of files) {
       if (!file.webkitRelativePath.startsWith(root + "/"))
         throw new Error("Select one project root directory");
-      const path = file.webkitRelativePath.slice(root.length + 1);
+      const path = prefix + file.webkitRelativePath.slice(root.length + 1);
       if (this.files.has(path)) throw new Error(`Duplicate resource: ${path}`);
       this.files.set(path, file);
+    }
+  }
+  containsSource(source: PanoProjectSceneDefinition["source"]): boolean {
+    if (!source.viewerUrl) return false;
+    return this.containsPath(source.viewerUrl);
+  }
+  containsPath(path: string): boolean {
+    try {
+      const key = this.path(path);
+      return this.prefix ? key.startsWith(this.prefix) : this.files.has(key);
+    } catch {
+      return false;
     }
   }
   path(path: string, base = LOCAL_ROOT): string {
