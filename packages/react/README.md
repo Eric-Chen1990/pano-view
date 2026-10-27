@@ -306,9 +306,9 @@ bun add @ericchen1990/pano-view
 
 ### Peer dependencies
 
-These packages must be installed in the **host application**, not nested under
-this library. npm 7+, pnpm, and Bun install them automatically; Yarn and npm 6
-do not, so install them explicitly.
+The **host application** must provide compatible versions of these packages.
+Automatic peer-dependency installation depends on the package manager and its
+settings. Install any missing peers explicitly using the ranges below.
 
 | Package | Supported range |
 | --- | --- |
@@ -329,10 +329,10 @@ If that happens, check `npm ls three`, `pnpm why three`, `yarn why three`, or
 
 Import the shipped stylesheet once in the host app. The WebGL panorama
 (`PanoViewer`, `Sphere`, `Tile`, 3D hotspots) renders without it. Built-in
-**HTML** overlays do not: they use prefixed `pano-*` classes for layout.
+**HTML** overlays depend on its prefixed `pano-*` classes for layout.
 
 Those overlays include video controls, captions, the default context menu,
-hotspot tooltips, accessibility-only chrome, and WebVR session UI.
+hotspot tooltips, controls for assistive technology, and WebVR session UI.
 
 ```ts
 import "@ericchen1990/pano-view/styles.css";
@@ -353,7 +353,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 Give PanoViewer an explicit size and render one panorama source inside it.
 Import the stylesheet once when you use built-in HTML overlays such as video
 controls, captions, tooltips, the context menu, or WebVR UI. Each example
-below is the shortest form; the linked section has the full props.
+below shows a basic setup; the linked section has the full props.
 
 ### Equirectangular image
 
@@ -370,7 +370,8 @@ export function Panorama() {
 }
 ~~~
 
-`previewUrl` is a 2:1 image. See [Sphere](#sphere).
+`previewUrl` must be a low-resolution 2:1 image shown while the full image
+loads. See [Sphere](#sphere).
 
 ### Cube tiles
 
@@ -448,9 +449,10 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 - [`PanoViewer`](#panoviewer) — canvas shell, camera, default controls, and imperative view API
 - [`Sphere`](#sphere) — single 2:1 equirectangular image
+- [`SphereTile`](#spherical-multiresolution-tiles) — multiresolution equirectangular tiles
 - [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
-- [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`Scenes`](#scenes) — multi-scene switching in controlled or uncontrolled mode
 - [`BackgroundAudio`](#backgroundaudio) — one shared track, or a different track per scene
 - [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
 
@@ -494,7 +496,7 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 `PanoViewer` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
 
-Angles are public degrees. Positive yaw looks right and positive pitch looks up.
+Angles in the public API are measured in degrees. Positive yaw looks right and positive pitch looks up.
 
 ```tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -563,13 +565,13 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 **Fullscreen** — `enterFullscreen`, `exitFullscreen`, `toggleFullscreen`, `isFullscreen`.
 
-**Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` now accepts an optional `defaultActiveSceneId` (uncontrolled) or keeps the existing `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
+**Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` accepts `defaultActiveSceneId` (uncontrolled) or `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
 
 **WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `requestVRPermission`.
 
-**Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to host changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
+**Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to video controller and playback-state changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
 
-**Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to host changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` now accepts an optional `playing` prop (controlled) or uses `defaultPlaying` (uncontrolled).
+**Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to background-audio controller and playback-state changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` accepts `playing` (controlled) or `defaultPlaying` (uncontrolled).
 
 ### Mobile media activation
 
@@ -591,7 +593,7 @@ By default, when a child has an initial playback intent (`PanoVideo autoPlay`, a
 
 The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom control reuse the same path.
 
-Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
+Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) perform no action and return `false`, `undefined`, `null`, or a corresponding Promise, depending on the method.
 
 ### Fullscreen
 
@@ -816,7 +818,7 @@ function TourPlayer() {
 
 The two deprecated auto-rotation handle methods (`startAutoRotate`, `stopAutoRotate`) remain for compatibility. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
 
-Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
+Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); smaller positive values make the camera approach the target more gradually, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
 The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the mouse, `pointer` over an interactive hotspot, and `move` while dragging a hotspot. Override those values with `cursors` (`default`, `dragging`, `hotspot`, `hotspotDragging`), or pass `cursors={false}` to leave the canvas cursor unchanged. A hotspot may set `cursor` to replace the hover cursor for that hotspot only.
 
@@ -838,7 +840,20 @@ The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the
 
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
 
+`Sphere` loads the complete `src` image as one texture. High-resolution images
+increase download, decoding, and GPU texture memory costs. Exceeding a device's
+texture-size or memory limits can cause loading failures or WebGL context loss;
+memory exhaustion can also crash the page. The current spherical renderer may
+still show visible artifacts near the top and bottom poles.
+
+Prefer cube tiles ([`Tile`](#tile)) for high-resolution panoramas, generated
+with [@ericchen1990/pano-converter](../converter/README.md). The viewer loads
+required tile levels by view, avoiding one oversized texture. For existing
+equirectangular tiles, use [`SphereTile`](#spherical-multiresolution-tiles).
+
 `previewUrl` is required and shows a low-resolution 2:1 image while `src` loads.
+Provide a small preview to reduce download, decoding, and texture memory costs
+for the initial display.
 Relative paths resolve against the directory of `src`; root-absolute and
 `http(s)` URLs are used as-is. For krpano sphere scenes, copy
 [`<preview url>`](https://krpano.com/docu/xml/#preview) into `previewUrl`. That
@@ -879,8 +894,8 @@ Pass `controls={false}` to hide it, an appearance object to restyle the default
 instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
 instance.
 
-Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
-rendered as a HUD overlay. `captions={false}` hides the overlay and the language
+Captions use WebVTT `tracks`. The video element is mounted inside the viewer as a
+transparent 1×1-pixel node; cue text is rendered in a screen-space overlay. `captions={false}` hides the overlay and the language
 menu; an object merges with the default appearance (`color`, `background`,
 `fontSize`, `fontFamily`, `textShadow`, `padding`, `borderRadius`, `maxWidth`,
 `bottom`). Those values act as the initial caption appearance; viewers can still
@@ -929,13 +944,14 @@ export function VideoExample() {
 }
 ```
 
-`muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
-rules. `playsInline` also defaults to true and writes `playsinline`,
-`webkit-playsinline`, and the X5 `h5-page` attributes, so the video stays in
-the page on iPhone Safari and in WeChat, QQ, and UC. Picture-in-picture and
+`muted` defaults to `true` for better autoplay compatibility; playback
+remains subject to browser policy. `playsInline` also defaults to true and writes `playsinline`,
+`webkit-playsinline`, and the X5 `h5-page` attributes, to request playback
+within the page on iPhone Safari and in WeChat, QQ, and UC. Actual behavior
+depends on the browser and its version. Picture-in-picture and
 remote playback stay disabled so the element can keep feeding the sphere
 texture. The element is mounted inside the viewer at 1×1px. Unmuted playback
-still needs a user gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
+may require a user gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
 rejected. Remote videos and VTT files that are not same-origin should set
 `crossOrigin` (usually `"anonymous"`). For mobile delivery, provide an H.264 +
 AAC MP4 fallback, poster, CORS, and Range support.
@@ -1022,12 +1038,12 @@ The first `multires` value is the tile size. Remaining values are ascending cube
 />
 ```
 
-`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
+`previewFaceOrder` must list all six face codes in the preview atlas's actual top-to-bottom order. The default is `l`, `f`, `r`, `b`, `u`, `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
 For layouts that are not krpano XML, override the default with a placeholder
-template or a resolver. Both return paths relative to `baseUrl`:
+template or a resolver. Both accept paths relative to `baseUrl` or absolute URLs:
 
 ```tsx
 <Tile
@@ -1053,14 +1069,14 @@ a single non-stereo cube panorama.
 
 ## Scenes
 
-`Scenes` switches controlled sphere, cube-tile, and equirectangular-tile scenes with GPU-only
-snapshot blending. The incoming scene stays hidden while it preloads its preview and base
-tiles. Once that preview can be drawn, the current framebuffer becomes a temporary GPU
+`Scenes` switches between single-image equirectangular, cube-tile, and
+equirectangular-tile scenes in controlled or uncontrolled mode. Transitions blend
+a GPU framebuffer snapshot with the incoming scene. The incoming scene stays hidden while it loads its preview; tiled scenes also
+load the lowest-resolution tiles around the view. Once the scene can be drawn, the current framebuffer becomes a temporary GPU
 texture and the outgoing source textures are released. The incoming scene then switches to
 full detail immediately: tiles that are already sharp replace the preview during the blend,
-and tiles that are still loading keep the coarser parent tile or the preview. The viewer
-does not keep two high-resolution tile sets resident, and it does not preload tiles outside
-the current view.
+and tiles that are still loading keep the coarser parent tile or the preview. The incoming scene starts loading detail tiles after the outgoing scene is
+released. Tile selection includes the current view and a small surrounding margin.
 
 ```tsx
 import {
@@ -1092,7 +1108,7 @@ const scenes: Scene[] = [
 </PanoViewer>;
 ```
 
-Available KRpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
+Available krpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
 `whiteFlash`, `slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`,
 `circleOpen`, `verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`.
 Grid presets are `pixelate`, `gridWipe`, `gridWipeUp`, `gridWipeRight`,
@@ -1117,7 +1133,7 @@ values are treated as `0`. `transition="none"` uses the same condition and then 
 over directly. A new target, an interrupt, unmount, or a lost WebGL context cancels a
 pending wait so a stale readiness report cannot affect the next scene.
 
-`onReady` still means a source can paint for the first time. `onSceneReady` still fires
+`onReady` means a source can be drawn for the first time. `onSceneReady` fires
 for the first paintable scene and when an incoming scene takes over after the outgoing
 snapshot. It does not mean the current view's full detail has finished loading.
 
@@ -1129,14 +1145,16 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 ## PanoFilter
 
 Render `PanoFilter` inside `PanoViewer` to color-grade or stylize the panorama
-source (`Sphere`, `Tile`, and `PanoVideo`). The filter runs on those materials
-only: 3D hotspots, tooltips, video chrome, and iframe overlays keep their
-original color. WebXR / MobileVR inherit the same look because the panorama
-shader itself is patched.
+source (`Sphere`, `Tile`, `SphereTile`, and `PanoVideo`). Built-in presets affect
+only panorama materials. `colorMatrix` defaults to the panorama; set
+`colorMatrixScope="all"` to include hotspot textures. DOM overlays such as
+tooltips, video controls, and iframes are unaffected. WebXR / MobileVR use the
+same panorama shader and inherit its filter appearance.
 
 `intensity` mixes the filtered result with the original image (`0`–`1`,
-default `1`). Omit the component, pass `preset="none"`, or set `enabled={false}`
-to leave the source unfiltered.
+default `1`). Omit the component or set `enabled={false}` to disable all filtering.
+`preset="none"` disables only the built-in preset; a configured `colorMatrix`
+still applies.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1187,10 +1205,11 @@ follow the camera. Render it as a child of `PanoViewer`, **alongside** `Scenes`,
 `Sphere`, or `Tile`. Do not put it in `Scenes`' `renderHotspots` — hotspots
 unmount during scene transitions and would stop the audio.
 
-`playing` is controlled by the host; the component does not change it. `loop`
-defaults to `true`. Browsers may block autoplay; `onPlaybackStateChange` then
-receives `"blocked"`, and the component retries `play()` after the next click
-or keypress while `playing` remains true.
+When `playing` is provided, the host controls playback. Otherwise the component
+uses internal state initialized by `defaultPlaying` (default `false`). `loop`
+defaults to `true`. If the browser blocks autoplay, `onPlaybackStateChange`
+receives `"blocked"`. The component retries `play()` after the next click or
+keypress while playback is still requested.
 
 Pick one of the two patterns.
 
@@ -1547,10 +1566,12 @@ Supported callbacks (krpano names in parentheses where applicable):
 `PanoViewer`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
 `onPanoramaPointerMove` props remain supported and share the same event bus.
 
-Resource loading and scene blending stay on their owners: use `Sphere` /
-`Tile` `onLoad` / `onError` / `onLoadProgress`, and `Scenes`
-`onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
-xml/VR/frame-render events.
+Resource callbacks belong to each source: `Sphere` provides `onLoad`,
+`onError`, and `onPreviewError`; `Tile` / `SphereTile` provide `onLoadProgress`,
+`onTileError`, and `onPreviewError`. Sources report initial render readiness
+through `onReady`. Use `Scenes` callbacks `onSceneReady`, `onTransitionEnd`,
+and `onTransitionError` for scene state. This package does not provide a
+one-to-one mapping of krpano XML-loading, VR, or frame-render events.
 
 ## PanoContextMenu
 
@@ -1727,6 +1748,11 @@ color, border, corner radius, shadow, padding, and font size.
     fontSize: 13,
   }}
 />
+```
+
+For a hover-triggered tooltip:
+
+```tsx
 <GraphicHotspot
   id="marker"
   ariaLabel="Signal"
@@ -1739,9 +1765,8 @@ color, border, corner radius, shadow, padding, and font size.
 ```
 
 For persistence or a host-owned editor, use the exported discriminated
-`HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
-exhaustive switches; handle `audio` alongside the existing point and path
-categories:
+`HotspotDefinition` union. Render each variant according to `type`; an exhaustive
+`switch` must cover every hotspot category in the union:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -1843,8 +1868,8 @@ property to orient them in another direction.
 ```
 
 `cornerRadius` is relative to the rendered graphic's shorter side: `0` keeps
-square corners and `0.5` produces the maximum rounded corners. This replaces
-the previous Canvas-texture pixel interpretation.
+square corners and `0.5` produces the maximum rounded corners. The value is a
+relative proportion, not a texture-pixel measurement.
 
 `GraphicHotspot` uses the same `onLoad(texture)` and `onError(error)` callbacks
 as `ImageHotspot`. Built-in paths are rasterized locally; only an SVG URL
@@ -1853,12 +1878,12 @@ markup.
 
 ## Hotspot mode and zoom behaviour
 
-Point hotspots use one safe `mode` instead of separate orientation and
-placement properties:
+Point hotspots use `mode` to configure orientation and placement together:
 
 - `mode="surface"` attaches the plane to the local panorama surface.
 - `mode="billboard"` keeps the plane facing the camera and floats it in front
-  of the shell. Set `distance` (world units, default `10`) to bring it nearer.
+  of the shell. `distance` is the distance from the camera (world units, default `10`);
+  decrease it to move the hotspot nearer.
   The built-in panorama shell is at roughly `1000` units; distance is
   automatically capped so the hotspot's corners cannot cross it.
 - `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
@@ -1925,8 +1950,7 @@ pitch clamped. Individual vertex editing is provided by the authoring
 workflow, not the runtime hotspot component.
 
 Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
-share the same spherical edge sampling, so there is no intentional seam
-between them.
+share the same spherical edge sampling so the outline follows the fill boundary.
 
 ## PolylineHotspot
 
@@ -2037,9 +2061,9 @@ attenuation (stereo pan only). Use a smaller `range` such as `90` for a
 spot source.
 
 Playback uses Web Audio via Howler.js (bundled; hosts do not install
-`howler`). The file must decode before play starts — MP3 is the recommended
-format. `src` may be a string or an array of fallback URLs. Do not use HTML5
-streaming (`html5`); it drops stereo panning.
+`howler`). The file must decode before playback starts; MP3 is a suitable
+format. `src` may be a string or an array of fallback URLs. The component uses Web Audio rather than HTML5
+streaming to retain stereo panning.
 
 `playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
 `muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
@@ -2152,9 +2176,10 @@ not load.
 
 ## Next.js and SSR
 
-The distributed entry is marked as a client module. Render it below a Client
-Component boundary. Panorama resources are loaded in the browser; no API keys
-or server configuration are required.
+The component entry is marked as a client module; render it within a Client
+Component boundary. Use `@ericchen1990/pano-view/data` for server-side
+configuration loading. The browser loads panorama assets. The viewer itself
+needs no API key; asset servers still need appropriate access and CORS settings.
 
 Import the stylesheet once from a Client Component or a global CSS file:
 
@@ -2166,7 +2191,20 @@ See [Stylesheet (HTML chrome)](#stylesheet-html-chrome).
 
 ## Spherical multiresolution tiles
 
-`SphereTile` renders full 2:1 equirectangular pyramids without assembling a full-resolution texture:
+`SphereTile` renders multiresolution tile pyramids covering a complete 2:1
+equirectangular panorama. It selects tiles according to the view, zoom, and
+texture budget, mapping each tile as a separate texture onto its corresponding
+spherical region. Coarser tiles or the preview cover regions whose detail has
+not loaded yet.
+
+This avoids loading the entire panorama as one high-resolution texture and can
+reduce peak image-decoding and texture-upload costs. Actual memory use still
+depends on tile dimensions, visible levels, and the cache budget. The current
+spherical renderer may still show visible artifacts near the top and bottom
+poles. Prefer cube tiles ([`Tile`](#tile)) for newly generated panorama assets;
+use `SphereTile` for existing equirectangular tile pyramids.
+
+Basic usage:
 
 ```tsx
 import { PanoViewer, SphereTile } from "@ericchen1990/pano-view";
@@ -2234,9 +2272,9 @@ const scenes: Scene[] = [
 `onSceneReady(sceneId)` fires when the first scene becomes paintable and when an
 incoming scene takes over after the outgoing snapshot is captured. The transition
 may still be running; use this callback to apply the incoming camera view without
-changing the outgoing snapshot. Full detail loads after that handoff, including during
-the blend. `transitionWaitForDetailMs` can hold the outgoing snapshot until the current
-view is sharp; it does not change when `onSceneReady` fires. `onTransitionEnd` marks
+changing the outgoing snapshot. For tiled scenes, detail loading is enabled after that handoff and continues
+during the blend. `transitionWaitForDetailMs` can hold the outgoing snapshot within the configured timeout until the current
+view's target detail is ready; it does not change when `onSceneReady` fires. `onTransitionEnd` marks
 completion of the blend.
 
 `SphereTileScene` accepts the source options of `SphereTile`, including
@@ -2251,18 +2289,22 @@ its own cache, callbacks, and loading options.
 `PanoFilter` also accepts `colorMatrix`, a readonly row-major 4×5 RGBA matrix
 (20 finite numbers, matching SVG `feColorMatrix`). The matrix is applied in
 display/sRGB space after the panorama preset. `intensity` mixes each effect
-with the original; `enabled={false}` disables both. Set
+with its input; `enabled={false}` disables both. Set
 `colorMatrixScope="all"` to include hotspot textures; the default `"panorama"`
 keeps existing behavior. Artistic presets always affect only the panorama.
 HTML tooltips, iframes and other DOM chrome remain host-styled.
 
-Hotspot `tooltipAppearance` now accepts `fontFamily`, `lineHeight`, and
+Hotspot `tooltipAppearance` accepts `fontFamily`, `lineHeight`, and
 `letterSpacing`, in addition to `fontSize` and existing paint options.
 `lineHeight` numbers are unitless; numeric `letterSpacing` values are CSS pixels.
 
 Regression checks: `pnpm --filter @ericchen1990/pano-view test` (Node 22+).
 
 ## FAQ and troubleshooting
+
+### Why prefer cube tiles?
+
+[`Tile`](#tile) loads cube tiles according to the view and zoom, avoiding one oversized panorama texture and the current spherical renderer's pole artifacts. Use [`SphereTile`](#spherical-multiresolution-tiles) for existing equirectangular tiles with view-dependent loading; tiling alone does not remove spherical pole artifacts. `Sphere` suits single images with manageable dimensions. A preview improves initial display time, but its dimensions should still be kept small. See [Sphere](#sphere).
 
 ### How do I deploy multiple scenes without a database?
 

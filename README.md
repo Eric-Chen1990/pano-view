@@ -2,9 +2,9 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-Pano View is a workspace for panoramic images and 360 video. It publishes a
-React viewer and a Node.js converter. Build the panorama experience inside
-your application with your own React UI, controls, routes, and data.
+Pano View provides a React viewer and a Node.js converter for panoramic images
+and 360 video. Host applications compose the panorama experience with React
+components and manage their own UI, controls, routes, and data.
 
 Try the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) to explore
 hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
@@ -68,9 +68,9 @@ See [Static projects and JSON data](./packages/react/README.md#static-projects-a
 ## Installation
 
 Install [@ericchen1990/pano-view](./packages/react/README.md) in the host
-application. npm 7+, pnpm, and Bun also install the peer dependencies. Yarn
-and npm 6 do not, so install those ranges from the [package
-README](./packages/react/README.md#install). Converter installation is in
+application. Peer-dependency installation depends on your package manager
+and settings. Ensure that all required peers are installed using the ranges in
+the [package README](./packages/react/README.md#peer-dependencies). Converter installation is in
 the [converter README](./packages/converter/README.md#install).
 
 <details name="pano-view-install" open>
@@ -120,7 +120,7 @@ use, and the complete API are in the [package README](./packages/react/README.md
 ## Examples
 
 Give `PanoViewer` an explicit size and render one panorama source inside it.
-These snippets are the shortest path for each source. The package README has
+These snippets show the basic setup for each source. The package README has
 the full props, hotspots, controls, and hooks.
 
 ### Equirectangular image
@@ -128,6 +128,13 @@ the full props, hotspots, controls, and hooks.
 `Sphere` expects a 2:1 image. `previewUrl` is required and shows a low-resolution
 2:1 image while `src` loads. Relative preview paths resolve against the
 directory of `src`.
+
+Prefer [cube tiles](#cube-tiles) for high-resolution panoramas to load by view
+and reduce the cost of one oversized texture. `Sphere` loads the full image
+and is constrained by device texture-size and memory limits. The current
+spherical renderer may still show visible artifacts near the poles. Provide a
+small `previewUrl` for a faster initial display. See
+[Sphere](./packages/react/README.md#sphere).
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -174,7 +181,7 @@ fields on `viewerConfig`.
 ### 360 video
 
 `PanoVideo` maps a 2:1 equirectangular video onto the same sphere. `muted`
-defaults to `true` so autoplay has a chance under browser policy.
+defaults to `true` for better autoplay compatibility; browser policy still applies.
 
 ~~~tsx
 import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
@@ -194,8 +201,9 @@ reference](./packages/react/README.md#panovideo). Try it in the [playground](htt
 
 ### Multiple scenes
 
-`Scenes` switches sphere and tile scenes with a GPU snapshot blend. Keep
-`activeSceneId` in the host when the surrounding UI needs the current id.
+`Scenes` switches single-image, cube-tile, and equirectangular-tile scenes
+with GPU snapshot blending. Use controlled `activeSceneId` when the host UI
+needs to read the current scene ID.
 
 ~~~tsx
 import { useState } from "react";

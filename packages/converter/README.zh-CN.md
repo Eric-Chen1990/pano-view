@@ -23,7 +23,9 @@
 
 ## pano-view
 
-[@ericchen1990/pano-view](../react/README.zh-CN.md) 是本仓库中的另一个包，也就是渲染 [`convertImage`](#nodejs) 所返回 `viewerConfig` 的 React 查看器。立方体输出对应 `Tile`（`type: "tile"`）；等距圆柱输出对应 `SphereTile`（`type: "sphereTile"`）。把该配置加上应用自己的 `id` 与 `baseUrl` 后传给 `Scenes`。详见[前端使用](#前端使用)。
+[@ericchen1990/pano-view](../react/README.zh-CN.md) 是本仓库中的另一个包，用于渲染 [`convertImage`](#nodejs) 所返回 `viewerConfig` 的 React 查看器。立方体输出对应 `Tile`（`type: "tile"`）；等距圆柱输出对应 `SphereTile`（`type: "sphereTile"`）。把该配置加上应用自己的 `id` 与 `baseUrl` 后传给 `Scenes`。详见[前端使用](#前端使用)。
+
+为 pano-view 生成新的全景资源时，优先使用默认的 `cubemap` 投影。`equirectangular` 适用于需要保留等距圆柱瓦片格式的场景；当前查看器的球面渲染在极点附近仍可能出现可见瑕疵。
 
 ## 安装
 
@@ -62,7 +64,7 @@ bun add @ericchen1990/pano-converter
 
 需要 Node.js >=20.19。立方体转换和立方体还原为球面需要外部 FFmpeg，且必须包含 `v360` 滤镜。通过系统包管理器安装；可用 `ffmpegPath` 或 `FFMPEG_PATH` 指定程序路径。球面和平面操作无需 FFmpeg。
 
-Sharp 是运行时依赖，不打进 JS bundle。包管理器根据安装目标的操作系统、CPU、Linux libc 选择可选原生包。请在部署目标安装依赖，或正确配置跨平台安装；不要将 macOS/Windows 的 `node_modules` 复制到 Linux。glibc 和 musl 需要各自的二进制。详见 [Sharp 安装说明](https://sharp.pixelplumbing.com/install/)。本包不分发 FFmpeg 或原生二进制。
+Sharp 是运行时依赖，不内联到 JavaScript 构建产物中。包管理器根据安装目标的操作系统、CPU、Linux libc 选择可选原生包。请在部署目标安装依赖，或正确配置跨平台安装；不要将 macOS/Windows 的 `node_modules` 复制到 Linux。glibc 和 musl 需要各自的二进制。详见 [Sharp 安装说明](https://sharp.pixelplumbing.com/install/)。本包不分发 FFmpeg 或原生二进制。
 
 ## Node.js
 
@@ -149,7 +151,7 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 
 | 文件 | 内容与用途 |
 | --- | --- |
-| `manifest.json` | 完整归档与还原信息，保持现有格式 |
+| `manifest.json` | 完整归档与还原信息，包含源尺寸、瓦片布局和预览引用 |
 | `viewer.json` | `{ schemaVersion: 1, ...viewerConfig }`，仅包含前端渲染字段 |
 
 两份文件中的资源引用都是相对路径，不含本地目录、云域名或业务 ID。平面图的 `viewerConfig` 为 `null`，不生成 `viewer.json`。
@@ -174,7 +176,7 @@ const scene = await loadSceneFromJson(
 
 多个场景和热点由应用编写独立 `project.json`，引用各 `viewer.json`，再用 `loadPanoProject` 和 `ProjectScenes` 展示。项目配置也支持直接内嵌现有 `result.viewerConfig`，无须数据库。清单 API 与资源分离时传 `baseUrl`；重命名资源时提供同步 URL 映射。
 
-完整的项目 JSON、React 加载/取消示例和路径规则见 [viewer 静态项目说明](../react/README.zh-CN.md#静态项目与-json-数据)，跨域、404、签名和媒体问题见 [FAQ](../react/README.zh-CN.md#常见问题与故障排查)。Node.js 服务端可从 `@ericchen1990/pano-view/data` 导入纯数据方法，无须渲染组件。转换器继续返回原有 `viewerConfig`；完整 `manifest.json` 不直接交给前端加载器。
+完整的项目 JSON、React 加载/取消示例和路径规则见 [viewer 静态项目说明](../react/README.zh-CN.md#静态项目与-json-数据)，跨域、404、签名和媒体问题见 [FAQ](../react/README.zh-CN.md#常见问题与故障排查)。Node.js 服务端可从 `@ericchen1990/pano-view/data` 导入纯数据方法，无须渲染组件。转换器同时返回 `viewerConfig`；完整 `manifest.json` 不直接交给前端加载器。
 
 ## 配置和输出
 
@@ -211,11 +213,11 @@ await convertImage("./large.png", {
 });
 ```
 
-标准 Deep Zoom 使用原生 `tile({layout:"dz",depth:"onepixel",overlap:0,skipBlanks:-1})`，输出 `image.dzi` 和 `image_files/`，包含空白瓦片的完整网格。此模式不接受自定义层级、比例或模板，需要时请改用 `layout: "custom"`。普通大图的标准 DZI 不等同于完整球面瓦片。
+标准 Deep Zoom 使用原生 `tile({layout:"dz",depth:"onepixel",overlap:0,skipBlanks:-1})`，输出 `image.dzi` 和 `image_files/`，包含空白瓦片的完整网格。此模式不接受自定义层级、比例或模板，需要时请改用 `layout: "custom"`。标准 DZI 使用平面图像布局，不能直接作为 `SphereTile` 的全景配置。
 
-默认 WebP 全景保留 CMS 路径 `previews/200.webp`、`400.webp`、`800.webp`，记录实际尺寸，小图不放大。立方体额外提供 `previews/cube-vertical.webp`，从上到下面顺序为 `l,f,r,b,u,d`。全景的 `thumbnail.path` 直接引用 200 高度预览；普通大图的独立缩略图限制在 400×400 内。选择其他格式后扩展名会改变，应按清单路径读取。
+默认 WebP 全景生成预览路径 `previews/200.webp`、`400.webp`、`800.webp`，记录实际尺寸，小图不放大。立方体额外提供 `previews/cube-vertical.webp`，从上到下面顺序为 `l,f,r,b,u,d`。全景的 `thumbnail.path` 直接引用 200 高度预览；普通大图的独立缩略图限制在 400×400 内。选择其他格式后扩展名会改变，应按清单路径读取。
 
-完整清单包含 `schemaVersion: 1`、投影、校正方向后的源尺寸、各级实际尺寸和网格、编码格式、模板、编号起点、预览和缩略图。所有路径为相对 POSIX 路径，不含云地址和本机源文件名。前端优先读取单独的 `viewer.json`。`toViewerConfig(manifest)` 提取精简配置，`validateManifest(unknown)` 校验新清单；未知版本明确失败，不猜测旧布局。
+完整清单包含 `schemaVersion: 1`、投影、校正方向后的源尺寸、各级实际尺寸和网格、编码格式、模板、编号起点、预览和缩略图。所有路径为相对 POSIX 路径，不含云地址和本机源文件名。前端优先读取单独的 `viewer.json`。`toViewerConfig(manifest)` 提取精简配置，`validateManifest(unknown)` 校验清单；未知版本明确失败，不猜测旧布局。
 
 ## JSON 清单示例
 
@@ -359,7 +361,7 @@ await convertImage("./large.png", {
 
 | 字段           | 类型                   | 含义                                                                             |
 | -------------- | ---------------------- | -------------------------------------------------------------------------------- |
-| `outputDir`    | `string`               | 成功交付的最终绝对目录。                                                         |
+| `outputDir`    | `string`               | 转换成功后的最终绝对输出目录。                                                         |
 | `manifest`     | `ConversionManifest`   | 完整清单，与输出目录中的 `manifest.json` 内容一致。                              |
 | `viewerConfig` | `ViewerConfig \| null` | 全景的精简查看器参数；普通大图为 `null`。                                        |
 | `assets`       | `OutputAsset[]`        | 所有已生成文件的元数据，包含 `manifest.json`。并发产生的数组顺序不作为业务约定。 |
@@ -385,7 +387,7 @@ await convertImage("./large.png", {
 | `contentType` / `bytes`    | MIME 类型和实际编码后字节数。                                                      |
 | `width` / `height`         | 可选，图片文件的实际尺寸；描述文件和清单通常没有。                                 |
 | `face`                     | 可选，立方体瓦片或导出面的 `f/r/b/l/u/d` 标识。                                    |
-| `level` / `row` / `column` | 可选，瓦片实际存储层、行、列；编号遵循清单的 `indexBase`，不是数组偏移。           |
+| `level` / `row` / `column` | 可选，瓦片文件的实际层级、行、列；编号遵循清单的 `indexBase`，不是数组偏移。           |
 
 注意：`assets` 包含最终清单，但 `onAsset` 不回调 `manifest.json`。共享缩略图与预览只对应一个文件事件，上传逻辑应按 `relativePath` 和清单引用组织。
 
@@ -400,7 +402,7 @@ await convertImage("./large.png", {
 
 ## 还原图片
 
-`restoreImage(descriptionPath, options)` 接受新库 JSON 或本地完整标准 DZI，按描述文件所在目录读取瓦片，默认选最高层级并输出 PNG。支持不足一块的边缘瓦片和标准 DZI 重叠裁切。远程下载及旧 converter 参数由调用方处理。拒绝 DTD/实体和稀疏 DZI；路径和符号链接不可逃出输入目录。缺块、损坏或尺寸错误均明确报错。
+`restoreImage(descriptionPath, options)` 接受本包生成的本地 `manifest.json` 或完整的标准 DZI 文件，按描述文件所在目录读取瓦片，默认选最高层级并输出 PNG。支持不足一块的边缘瓦片和标准 DZI 重叠裁切。远程下载及旧 converter 参数由调用方处理。拒绝 DTD/实体和稀疏 DZI；路径和符号链接不可逃出输入目录。缺块、损坏或尺寸错误均明确报错。
 
 还原专用参数：`level` 是实际存储层号；`format` / `quality` 控制编码；立方体可用 `exportCubeFaces` 同时导出六个完整面，`outputWidth` 指定偶数的 2:1 全景宽度，默认所选面边长的四倍。输出为普通大图 `image.png` 或全景 `panorama.png`，可额外生成 `faces/{face}.png`。共享任务参数和回调同样适用。
 
@@ -511,7 +513,7 @@ pano-convert --help
 | `INPUT_NOT_FOUND`            | 输入图片或描述文件不存在、不是普通文件或无法读取；检查路径和权限，描述文件需小于 8 MiB。               |
 | `INVALID_IMAGE`              | 无法识别或解码图片头；检查文件是否完整、格式是否可解码，并查看 `cause`。                               |
 | `UNSUPPORTED_IMAGE`          | 格式不受支持，或输入为动画/多页图片；先转换为支持的单帧栅格图。                                        |
-| `INVALID_PROJECTION`         | 全景输入不满足完整 2:1 比例及容差；使用正确的等距柱状全景，普通图片选择 `planar`。                     |
+| `INVALID_PROJECTION`         | 全景输入不满足完整 2:1 比例及容差；使用正确的等距圆柱全景，普通图片选择 `planar`。                     |
 | `PIXEL_LIMIT_EXCEEDED`       | 输入或还原画布超过像素上限；缩小输入、选择较低还原层级，或按可用内存显式提高上限。                     |
 | `SHARP_UNAVAILABLE`          | Sharp 包或原生二进制无法加载；在目标 OS/CPU/libc 安装依赖并保留可选依赖，不跨系统复制 `node_modules`。 |
 | `FFMPEG_UNAVAILABLE`         | 无法启动 FFmpeg；安装带 `v360` 的可执行程序并检查 `ffmpegPath` / `FFMPEG_PATH`。                       |
@@ -546,16 +548,16 @@ try {
 
 | 现象                   | 优先检查                                                                                                        |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 前端瓦片错位、请求 404 | 使用返回的 `viewerConfig`，核对模板的行列顺序、球面 `indexBase` 和云端相对目录；完整 JSON 不直接传给 `Scenes`。 |
-| CMS 缩略图缺失         | 默认 WebP 保留旧预览路径；自定义格式或路径需要 CMS 读取新的 `thumbnail.path`，不能继续硬拼旧路径。              |
-| 还原内存占用高         | 选择较低 `level`；立方体可减小 `outputWidth`。并发数只限制在途任务，不能消除完整 RGBA 画布的内存。              |
+| 前端瓦片错位、请求 404 | 使用返回的 `viewerConfig`，核对模板的行列顺序、等距圆柱瓦片的 `indexBase` 和云端相对目录；完整 `manifest.json` 不直接传给 `Scenes`。 |
+| CMS 缩略图缺失         | 默认 WebP 保留旧预览路径；自定义格式或路径需要 CMS 读取新的 `thumbnail.path`，应避免硬编码旧路径。              |
+| 还原内存占用高         | 选择较低 `level`；立方体可减小 `outputWidth`。并发数只限制正在处理的任务，不能消除完整 RGBA 画布的内存。              |
 | 任务长时间不结束       | 检查上传回调是否真正结束，并为上传客户端传递信号和设置超时；库需要等待活跃回调后才能安全清理。                  |
 | 还原目标尺寸被拒绝     | WebP 每边上限 16383，JPEG 为 65535，FFmpeg v360 输出每边为 32767；选择 PNG、较低层级或更小的投影尺寸。          |
 | Shell 找不到命令       | 在命令行章节展开你的包管理器对应的命令，或全局安装。 |
 
 ## CMS 新旧资源兼容
 
-接入目标是 Learnmersive CMS 的 `refactor/replace-krpano` 分支。旧记录继续走原字段适配；新配置采用可空、带版本的记录，明确提供模板、编号、预览路径。CMS 将通用 `equirectangular` 映射为已有 `equirect`，完成状态使用 `completed`。必须先让 CMS 读取新配置，再启用自定义路径或格式。本库不执行数据库迁移、不重写旧文件、不增加 krpano 渲染器；上线前仍需真实存量资源验收。
+接入已有 CMS 时，保留旧资源的读取适配，并保存新转换结果的配置版本、实际模板、编号起点和预览路径。宿主应用负责将转换器的投影类型和任务结果映射到自身的数据模型。先确认应用能读取新配置，再启用自定义路径或格式；上线前应使用真实存量资源验证兼容性。数据库迁移和旧文件重写由应用管理，本库仅负责转换与还原。
 
 ## 开发与发布
 
