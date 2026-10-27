@@ -1,4 +1,4 @@
-# @ericchen1990/pano-converter
+# @ericchen1990/pano-converter · [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm version](https://img.shields.io/npm/v/%40ericchen1990%2Fpano-converter.svg?style=flat)](https://www.npmjs.com/package/@ericchen1990/pano-converter) [![Converter](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml/badge.svg?branch=main)](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Eric-Chen1990/pano-view/pulls)
 
 Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or the CLI. Cloud uploads, database writes, IDs, and URLs belong to your application.
 

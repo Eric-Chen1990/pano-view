@@ -1,4 +1,4 @@
-# @ericchen1990/pano-converter
+# @ericchen1990/pano-converter · [![许可证](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![npm 版本](https://img.shields.io/npm/v/%40ericchen1990%2Fpano-converter.svg?style=flat)](https://www.npmjs.com/package/@ericchen1990/pano-converter) [![Converter](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml/badge.svg?branch=main)](https://github.com/Eric-Chen1990/pano-view/actions/workflows/converter.yml) [![欢迎 PR](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Eric-Chen1990/pano-view/pulls)
 
 在 Node.js 或命令行中生成全景/普通大图瓦片，并将本地瓦片还原成图片。云存储上传、数据库、业务 ID 和访问地址由调用方管理。
 
