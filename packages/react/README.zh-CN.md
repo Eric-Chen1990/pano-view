@@ -9,6 +9,8 @@
 ## 目录
 
 - [pano-converter](#pano-converter)
+- [静态项目与 JSON 数据](#静态项目与-json-数据)
+- [常见问题与故障排查](#常见问题与故障排查)
 - [兼容 krpano 的 tile 输出](#兼容-krpano-的-tile-输出)
 - [安装](#安装)
 - [示例](#示例)
@@ -45,6 +47,136 @@
 ## pano-converter
 
 [@ericchen1990/pano-converter](../converter/README.zh-CN.md) 是本仓库中的另一个包。它在 Node.js 中，以及通过 `pano-convert` CLI，生成立方体与等距圆柱瓦片金字塔，并返回可供 [`Tile`](#tile)、[`SphereTile`](#球面多分辨率瓦片) 与 [`Scenes`](#scenes) 使用的 `viewerConfig`。转换器不依赖 React。
+
+## 静态项目与 JSON 数据
+
+无需数据库。转换器生成的 `manifest.json` 用于归档和还原；新增 `viewer.json` 只保存渲染配置；应用编写 `project.json` 组织场景、视角和热点。不要把完整清单直接传给 `Scenes`。
+
+例如，将下面的 `project.json`、两个转换输出目录和你的 React 应用部署为静态网站：
+
+```json
+{
+  "schemaVersion": 1,
+  "initialSceneId": "entrance",
+  "scenes": [
+    {
+      "id": "entrance",
+      "source": { "viewerUrl": "./panoramas/entrance/viewer.json" },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 75 },
+      "hotspots": [{
+        "id": "to-hall", "type": "graphic", "label": "Enter hall",
+        "position": { "yaw": 30, "pitch": -10 },
+        "graphic": { "kind": "arrow" },
+        "action": { "type": "scene", "sceneId": "hall" }
+      }]
+    },
+    {
+      "id": "hall",
+      "source": { "viewerUrl": "./panoramas/hall/viewer.json" },
+      "hotspots": [{
+        "id": "caption", "type": "text",
+        "position": { "yaw": 0, "pitch": 5 }, "text": "Welcome"
+      }]
+    }
+  ]
+}
+```
+
+`source` 必须在 `viewerUrl` 与内嵌 `viewerConfig` 中二选一，可加 `baseUrl` 覆盖该场景的全景资源根目录。`title`、`initialView`、`hotspots` 可省略。未指定 `initialSceneId` 时使用第一项。场景 ID 全项目唯一，热点 ID 在各场景内唯一，跳转目标必须存在。
+
+`loadPanoProject` 读取项目及各场景的轻量配置，以最多四个并发请求加载元数据；任一失败会整体报错，不加载所有纹理。返回的 `LoadedPanoProject` 包含 `initialSceneId` 和 `scenes`；每项保存运行时 `scene`、标题、初始视角和已解析资源地址的热点。可直接传给 `ProjectScenes`：
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  PanoViewer, ProjectScenes, loadPanoProject, PanoDataError,
+  type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function Tour() {
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject("/tour/project.json", {
+      requestInit: { signal: controller.signal },
+    }).then((result) => {
+      if (!controller.signal.aborted) setProject(result);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof PanoDataError
+          ? `${cause.code}: ${cause.message}` : String(cause));
+      }
+    });
+    return () => controller.abort();
+  }, []);
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+`ProjectScenes` 放在 `PanoViewer` 内，复用全部九类现有热点。`action: { type: "scene", sceneId }` 点击后切换场景；没有 action 的音频、视频、序列热点点击切换播放。离开场景时卸载媒体，再次进入恢复 JSON 初始播放配置。浏览器仍可能阻止自动播放。
+
+配置了 `initialView` 的场景在 `onSceneReady` 时应用视角，缺省字段为 yaw 0、pitch 0、fov 75；未配置时保持当前视角。过渡期间热点隐藏。使用 `activeSceneId` / `onActiveSceneIdChange` 可控制当前场景。`onHotspotClick(event)` 中调用 `event.preventDefault()` 可取消默认动作；`onHotspotError` 提供场景、热点和原始错误；媒体的原始错误可能是带有 `error` 字段的事件。`renderHotspot(hotspot, context)` 返回 `undefined` 使用默认渲染，返回 `null` 隐藏；context 包含 `sceneId`、`playing`、`onClick`、`togglePlayback`、`reportError` 和 `renderDefault`。
+
+单图和已有配置可用纯数据入口；Next.js 的查看器组件需位于客户端边界，服务端加载数据则使用 `/data`：
+
+```ts
+import {
+  sceneFromViewerConfig, loadSceneFromJson, loadPanoProject,
+} from "@ericchen1990/pano-view/data";
+
+// A JSON API and a different asset/CDN origin.
+const scene = await loadSceneFromJson(
+  "https://api.example.com/rooms/123/viewer",
+  { id: "room", baseUrl: "https://cdn.example.com/rooms/123/" },
+);
+
+// Existing Node.js conversion results need no extra JSON request.
+const inlineScene = sceneFromViewerConfig(result.viewerConfig, {
+  id: "room", baseUrl: "https://cdn.example.com/rooms/123/",
+});
+
+// Use source.viewerConfig instead of source.viewerUrl to inline scene data.
+const project = await loadPanoProject({
+  schemaVersion: 1,
+  scenes: [{ id: "room", source: { viewerConfig: result.viewerConfig } }],
+}, { baseUrl: "https://cdn.example.com/rooms/123/" });
+```
+
+### 地址与上传映射
+
+| 引用 | 默认基准 |
+| --- | --- |
+| 项目中的 `viewerUrl`、热点资源及 `source.baseUrl` | 项目根目录 |
+| 外部 `viewer.json` 的瓦片与预览 | 该 JSON 的目录 |
+| 内嵌配置的瓦片与预览 | 项目根目录 |
+| 设置 `source.baseUrl` 的场景资源 | 指定目录 |
+
+URL 入口以重定向后最终地址所在目录为默认根目录；对象入口必须提供 `baseUrl`，可用它覆盖项目根目录。目录末尾斜杠自动统一，域名和云前缀无需写回转换 JSON。浏览器接受相对入口地址，Node.js 需要绝对 HTTP(S) 地址。完整资源 URL 不重新拼接，`/` 开头的地址相对资源基准的 origin 解析。
+
+上传时若改名或打散目录，使用同步 `resolveAssetUrl(path, context)`。context 提供 `defaultUrl`、`kind`（`tile`、`preview` 或 `hotspot`）、`sceneId` 和可选 `hotspotId`。返回最终的完整 URL 或站点根路径；不会再次拼接。`uploadedUrls` 由业务提供：
+
+```ts
+const project = await loadPanoProject("/tour/project.json", {
+  resolveAssetUrl(path, context) {
+    // Map keys must distinguish scenes and, for hotspot assets, hotspot IDs.
+    const key = `${context.sceneId}/${context.hotspotId ?? ""}/${path}`;
+    return uploadedUrls[key] ?? context.defaultUrl;
+  },
+});
+```
+
+热点映射涵盖图片、SVG 图片、音频数组、视频 poster、播放图标和 tooltip 图片；文本、CSS 和 SVG path 不作为地址处理。临时签名应由业务预先取得并通过映射返回，不要在每个瓦片请求中异步签名。
+
+`requestInit` 只接受 `headers`、`credentials`、`signal`，仅用于 JSON 请求。它们不会传到纹理请求，JSON 地址的查询参数也不会自动继承。`parsePanoProject(unknown)` 可单独校验并复制配置。`sceneFromViewerConfig` 接受未包装的精简配置；`loadSceneFromJson` 接受带 `schemaVersion: 1` 的 `viewer.json`。
+
+`PanoDataError` 提供稳定 `code`：`INVALID_OPTIONS`、`FETCH_FAILED`、`HTTP_ERROR`、`INVALID_JSON`、`INVALID_CONFIG`、`UNSUPPORTED_SCHEMA_VERSION`、`UNSUPPORTED_PROJECTION`、`INVALID_PROJECT`、`INVALID_REFERENCE`、`ABORTED`；HTTP 错误带 `status`，项目错误尽可能带 `sceneId` 和 `field`。加载成功仅代表配置就绪，纹理就绪仍由 `onSceneReady` 等回调表示。
+
+完整静态示例见 playground 的 `/project` 页面和 `public/fixtures/projects/tour/project.json`。
 
 ## 兼容 krpano 的 tile 输出
 
@@ -1717,3 +1849,61 @@ const scenes: Scene[] = [
 配合原有的 `fontSize` 使用。数字 `lineHeight` 为无单位倍数，数字 `letterSpacing` 为 CSS 像素。
 
 回归验证：`pnpm --filter @ericchen1990/pano-view test`（Node 22+）。
+
+## 常见问题与故障排查
+
+### 没有数据库，怎样发布多个场景？
+
+保留转换目录结构，编写引用各 `viewer.json` 的 `project.json`，用 `loadPanoProject` 和 `ProjectScenes` 展示。将 React 构建产物和资源上传到静态托管即可。部署到 `/demo/` 等子目录时，项目入口也要带正确前缀；项目内部优先用相对地址。
+
+### JSON 或纹理跨域加载失败？
+
+先看浏览器 Network 与 Console，确认具体失败的是配置、预览还是瓦片。服务端/CDN 必须允许前端 origin 读取这些资源。公开资源可以使用 `Access-Control-Allow-Origin: *`；携带 Cookie 等凭据时必须使用明确允许的 origin 和 `Access-Control-Allow-Credentials: true`，动态响应 origin 时设置 `Vary: Origin`。浏览器可能只向 JavaScript 暴露 `Failed to fetch`，库不会据此断言原因。
+
+`no-cors` 得到不可读取的 opaque 响应，不能解析 JSON，也不能用于需要 CORS 的 WebGL 纹理。应修改服务器配置，不能靠前端关闭安全检查。详见 [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) 和 [WebGL 纹理](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL)。
+
+S3 控制台的公开读取 CORS 示例（替换成实际网站 origin）：
+
+```json
+[{
+  "AllowedOrigins": ["https://app.example.com"],
+  "AllowedMethods": ["GET", "HEAD"],
+  "AllowedHeaders": ["Authorization"]
+}]
+```
+
+CORS 不授予对象读取权限。使用 CDN 时也需确保实际响应带有正确头。参阅 [S3 CORS 官方说明](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html)。
+
+### 404 或请求地址看起来不对？
+
+比较 Network 中的完整 URL 与云端对象 key，检查 `baseUrl`、多一层目录、大小写及文件名。只换域名或前缀时调整根地址；内部文件也改名时使用资源映射。保留转换器的模板，尤其注意 `%v_%h` 与 `%h_%v` 的区别。
+
+### 报 INVALID_JSON，响应却是 200？
+
+打开响应正文检查是否为 HTML。常见原因是 SPA fallback 把不存在的 JSON 路径返回为首页，或认证系统重定向到登录页。修正配置地址和静态路由；HTTP 200 不代表内容一定是 JSON。
+
+### JSON 正常，图片却是 401/403 或签名过期？
+
+配置认证与图片读取权限分别处理。`requestInit` 的头和凭据只用于 JSON；配置 URL 的 token 不会自动附加到瓦片。为图片提供可用的公开 URL、签名 URL 或适合应用的认证访问方案。异步取得签名后再加载/映射，签名过期后重新获取；不要把临时凭据永久写入转换 JSON。
+
+### 配置加载成功，为什么画面仍是空白？
+
+检查 `PanoViewer` 的容器是否有非零高度、纹理是否成功，以及 Console 中的 WebGL 错误。保持 React、Three.js 和 React Three Fiber 单一副本。纯数据加载成功不代表资源可绘制，应观察 `onSceneReady` 和 `onTransitionError`。
+
+### 预览正常，高清缺失或错位？
+
+检查瓦片是否全部上传，使用实际层级尺寸及转换输出的 `urlTemplate`、`previewFaceOrder`、`indexBase`。不要假定层级总能乘二或混淆从零开始的逻辑地址与存储编号；自定义 resolver 需要返回原文件对应的地址。
+
+### 热点不显示，或点击不跳转？
+
+检查所属场景、`visible`、`interactive`、`pointerEvents`、角度与资源请求。场景过渡时热点会暂时隐藏。场景 ID 和热点 ID 按各自范围唯一，`action.sceneId` 必须存在；`preventDefault()` 会取消默认动作。未配置 action 的文本只是文字，不会自动创建弹窗。
+
+### 音视频没有播放？
+
+使用点击/键盘等用户手势触发播放，检查格式和权限，并用 `onHotspotError` 查看失败。浏览器可阻止非静音自动播放；隐藏的标签页和设备规则也可能影响播放。组件不会绕过浏览器限制。
+
+### 双击本地 HTML、混合内容、缓存或版本问题？
+
+通过本地 HTTP(S) 服务预览，不使用 `file://`。HTTPS 页面使用 HTTPS 资源。采用带版本的资源目录，并协调项目 JSON 与图片的缓存，避免旧配置请求新目录。`UNSUPPORTED_SCHEMA_VERSION` 需要匹配支持的配置版本；平面图没有 `viewer.json`，需要平面查看器。
+
+转换阶段的问题另见 [converter 错误码与故障排查](../converter/README.zh-CN.md#错误码与故障排查)。

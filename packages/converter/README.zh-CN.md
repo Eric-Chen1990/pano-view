@@ -12,6 +12,7 @@
 - [上传和保存数据](#上传和保存数据)
 - [前端使用](#前端使用)
 - [配置和输出](#配置和输出)
+- [viewer.json 与静态项目](#viewerjson-与静态项目)
 - [JSON 清单示例](#json-清单示例)
 - [API 返回值](#api-返回值)
 - [还原图片](#还原图片)
@@ -114,7 +115,7 @@ await db.savePanorama({
 });
 ```
 
-`storage`、`db`、ID 和存储前缀均为业务代码示例。`onAsset` 以受限并发执行，库会等待它完成；回调包含瓦片、预览、缩略图、DZI 描述文件，不包含最终 `manifest.json`。一个小预览兼作缩略图时，只回调一次。转换成功后再上传完整清单。
+`storage`、`db`、ID 和存储前缀均为业务代码示例。`onAsset` 以受限并发执行，库会等待它完成；回调包含瓦片、预览、缩略图、DZI 描述文件和前端 `viewer.json`，不包含最终 `manifest.json`。一个小预览兼作缩略图时，只回调一次。转换成功后再上传完整清单。
 
 回调中的绝对路径指向临时工作目录，仅保证在该次异步回调期间有效；必须等待上传/读取完成再返回，不要删除或修改这些文件。成功返回的 `result.assets` 使用最终绝对路径。标准 Deep Zoom 在原生金字塔完成后逐文件回调；自定义模式在各瓦片编码完成后回调。
 
@@ -141,6 +142,39 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 ```
 
 立方体配置为 `type: "tile"`；球面为 `type: "sphereTile"`，明确带有 `indexBase: 1`。普通大图的 `viewerConfig` 为 `null`，应交给平面查看器。渲染由 [@ericchen1990/pano-view](../react/README.zh-CN.md) 完成；本包不抓取或保存业务数据。浏览器无需逐个请求完整清单。两种全景都显式提供实际模板，立方体文件名为先行后列，与 pano-view 的默认模板不同。
+
+## viewer.json 与静态项目
+
+全景转换（CLI 与 Node.js）默认同时输出两份不同用途的 JSON：
+
+| 文件 | 内容与用途 |
+| --- | --- |
+| `manifest.json` | 完整归档与还原信息，保持现有格式 |
+| `viewer.json` | `{ schemaVersion: 1, ...viewerConfig }`，仅包含前端渲染字段 |
+
+两份文件中的资源引用都是相对路径，不含本地目录、云域名或业务 ID。平面图的 `viewerConfig` 为 `null`，不生成 `viewer.json`。
+
+```sh
+pano-convert ./entrance.jpg --output ./public/tour/panoramas/entrance
+pano-convert ./hall.jpg --output ./public/tour/panoramas/hall
+```
+
+保留输出目录内部结构上传到云存储即可。前端只展示时需要瓦片、预览和 `viewer.json`；还原图片时应另行保留 `manifest.json` 及其引用的资源。`viewer.json` 使用 `descriptor` 类型和 `application/json`，加入 `result.assets` 并通过 `onAsset` 回调，库会等待上传完成；最终归档 `manifest.json` 仍不触发该回调。
+
+```tsx
+import { PanoViewer, Scenes, loadSceneFromJson } from "@ericchen1990/pano-view";
+
+const scene = await loadSceneFromJson(
+  "https://cdn.example.com/tour/panoramas/entrance/viewer.json",
+  { id: "entrance" },
+);
+// 在应用加载流程完成后渲染：
+<PanoViewer style={{ height: 600 }}><Scenes scenes={[scene]} /></PanoViewer>;
+```
+
+多个场景和热点由应用编写独立 `project.json`，引用各 `viewer.json`，再用 `loadPanoProject` 和 `ProjectScenes` 展示。项目配置也支持直接内嵌现有 `result.viewerConfig`，无须数据库。清单 API 与资源分离时传 `baseUrl`；重命名资源时提供同步 URL 映射。
+
+完整的项目 JSON、React 加载/取消示例和路径规则见 [viewer 静态项目说明](../react/README.zh-CN.md#静态项目与-json-数据)，跨域、404、签名和媒体问题见 [FAQ](../react/README.zh-CN.md#常见问题与故障排查)。Node.js 服务端可从 `@ericchen1990/pano-view/data` 导入纯数据方法，无须渲染组件。转换器继续返回原有 `viewerConfig`；完整 `manifest.json` 不直接交给前端加载器。
 
 ## 配置和输出
 
@@ -181,7 +215,7 @@ await convertImage("./large.png", {
 
 默认 WebP 全景保留 CMS 路径 `previews/200.webp`、`400.webp`、`800.webp`，记录实际尺寸，小图不放大。立方体额外提供 `previews/cube-vertical.webp`，从上到下面顺序为 `l,f,r,b,u,d`。全景的 `thumbnail.path` 直接引用 200 高度预览；普通大图的独立缩略图限制在 400×400 内。选择其他格式后扩展名会改变，应按清单路径读取。
 
-完整清单包含 `schemaVersion: 1`、投影、校正方向后的源尺寸、各级实际尺寸和网格、编码格式、模板、编号起点、预览和缩略图。所有路径为相对 POSIX 路径，不含云地址和本机源文件名。`toViewerConfig(manifest)` 提取精简配置，`validateManifest(unknown)` 校验新清单；未知版本明确失败，不猜测旧布局。
+完整清单包含 `schemaVersion: 1`、投影、校正方向后的源尺寸、各级实际尺寸和网格、编码格式、模板、编号起点、预览和缩略图。所有路径为相对 POSIX 路径，不含云地址和本机源文件名。前端优先读取单独的 `viewer.json`。`toViewerConfig(manifest)` 提取精简配置，`validateManifest(unknown)` 校验新清单；未知版本明确失败，不猜测旧布局。
 
 ## JSON 清单示例
 

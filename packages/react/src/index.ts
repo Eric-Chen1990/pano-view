@@ -1,4 +1,7 @@
 export { PanoViewer } from "./pano-viewer";
+export * from "./data";
+export { ProjectScenes } from "./project-scenes";
+export type { ProjectScenesProps, ProjectHotspotClickEvent, ProjectHotspotRenderContext, ProjectHotspotErrorEvent } from "./project-scenes";
 export type { PanoViewerProps } from "./pano-viewer";
 export type {
   PanoMediaActivationControls,

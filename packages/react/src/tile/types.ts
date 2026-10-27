@@ -61,7 +61,7 @@ export type TileProps = {
    * vertical `%v`/`%y`/`%w`/`%r`, and index padding such as `%0h` or `%00v`.
    */
   urlTemplate?: string;
-  /** Returns a path relative to `baseUrl`; takes precedence over `urlTemplate`. */
+  /** Returns a relative path or absolute URL; takes precedence over `urlTemplate`. */
   resolveTileUrl?: (address: TileAddress) => string;
   maxTextureMemoryMb?: number;
   maxConcurrentLoads?: number;

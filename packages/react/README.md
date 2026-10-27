@@ -9,6 +9,8 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 ## Contents
 
 - [pano-converter](#pano-converter)
+- [Static projects and JSON data](#static-projects-and-json-data)
+- [FAQ and troubleshooting](#faq-and-troubleshooting)
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
 - [Examples](#examples)
@@ -49,6 +51,136 @@ this repository. It generates cube and equirectangular tile pyramids in
 Node.js and through the `pano-convert` CLI, then returns `viewerConfig` for
 [`Tile`](#tile), [`SphereTile`](#spherical-multiresolution-tiles), and
 [`Scenes`](#scenes). It does not depend on React.
+
+## Static projects and JSON data
+
+No database is required. The converter writes `manifest.json` for archiving/reconstruction and a small `viewer.json` for rendering. Your application authors `project.json` to connect scenes, views and hotspots. Do not pass the full manifest directly to `Scenes`.
+
+Deploy this `project.json`, both panorama output directories and your React app as static files:
+
+```json
+{
+  "schemaVersion": 1,
+  "initialSceneId": "entrance",
+  "scenes": [
+    {
+      "id": "entrance",
+      "source": { "viewerUrl": "./panoramas/entrance/viewer.json" },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 75 },
+      "hotspots": [{
+        "id": "to-hall", "type": "graphic", "label": "Enter hall",
+        "position": { "yaw": 30, "pitch": -10 },
+        "graphic": { "kind": "arrow" },
+        "action": { "type": "scene", "sceneId": "hall" }
+      }]
+    },
+    {
+      "id": "hall",
+      "source": { "viewerUrl": "./panoramas/hall/viewer.json" },
+      "hotspots": [{
+        "id": "caption", "type": "text",
+        "position": { "yaw": 0, "pitch": 5 }, "text": "Welcome"
+      }]
+    }
+  ]
+}
+```
+
+`source` must contain exactly one of `viewerUrl` or inline `viewerConfig`; optional `baseUrl` overrides panorama assets for that scene. `title`, `initialView` and `hotspots` are optional. The first scene is the default initial scene. Scene IDs must be unique, hotspot IDs unique within a scene, and scene-action targets must exist.
+
+`loadPanoProject` loads metadata with at most four concurrent requests and rejects the whole project if one scene fails. It does not preload every texture. Its `LoadedPanoProject` contains `initialSceneId` and `scenes`; each entry has a runtime `scene`, title, initial view and hotspots with resolved asset URLs. Pass it to `ProjectScenes`:
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  PanoViewer, ProjectScenes, loadPanoProject, PanoDataError,
+  type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function Tour() {
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject("/tour/project.json", {
+      requestInit: { signal: controller.signal },
+    }).then((result) => {
+      if (!controller.signal.aborted) setProject(result);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof PanoDataError
+          ? `${cause.code}: ${cause.message}` : String(cause));
+      }
+    });
+    return () => controller.abort();
+  }, []);
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+`ProjectScenes` belongs inside `PanoViewer` and reuses all nine existing hotspot types. A `scene` action navigates on click. Without an action, audio/video/sequence hotspots toggle playback. Media unmounts on leaving a scene and starts from its JSON settings on re-entry; browser autoplay restrictions still apply.
+
+Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives the scene, hotspot and original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `togglePlayback`, `reportError` and `renderDefault`.
+
+For individual panoramas and existing configs use the pure data entry. Next.js viewer components need a client boundary; server-side data loading uses `/data`:
+
+```ts
+import {
+  sceneFromViewerConfig, loadSceneFromJson, loadPanoProject,
+} from "@ericchen1990/pano-view/data";
+
+// A JSON API and a different asset/CDN origin.
+const scene = await loadSceneFromJson(
+  "https://api.example.com/rooms/123/viewer",
+  { id: "room", baseUrl: "https://cdn.example.com/rooms/123/" },
+);
+
+// Existing Node.js conversion results need no extra JSON request.
+const inlineScene = sceneFromViewerConfig(result.viewerConfig, {
+  id: "room", baseUrl: "https://cdn.example.com/rooms/123/",
+});
+
+// Use source.viewerConfig instead of source.viewerUrl to inline scene data.
+const project = await loadPanoProject({
+  schemaVersion: 1,
+  scenes: [{ id: "room", source: { viewerConfig: result.viewerConfig } }],
+}, { baseUrl: "https://cdn.example.com/rooms/123/" });
+```
+
+### URLs and upload mapping
+
+| Reference | Default base |
+| --- | --- |
+| Project `viewerUrl`, hotspot assets, `source.baseUrl` | Project directory |
+| Tiles and preview in external `viewer.json` | That JSON directory |
+| Tiles and preview in inline config | Project directory |
+| Panorama with `source.baseUrl` | Specified directory |
+
+URL inputs use the final response directory after redirects. Object inputs require `baseUrl`; it can also override the project directory. Directory trailing slashes are normalized. Domains and cloud prefixes stay outside converter JSON. Browsers accept relative entry URLs; Node.js requires absolute HTTP(S) entry URLs. Full resource URLs remain intact; leading `/` paths resolve against the resource base origin.
+
+If uploads rename files or scatter directories, provide synchronous `resolveAssetUrl(path, context)`. Context has `defaultUrl`, `kind` (`tile`, `preview`, `hotspot`), `sceneId` and optional `hotspotId`. Return a final absolute URL or site-root path; it is not joined again. `uploadedUrls` below is application-owned:
+
+```ts
+const project = await loadPanoProject("/tour/project.json", {
+  resolveAssetUrl(path, context) {
+    // Map keys must distinguish scenes and, for hotspot assets, hotspot IDs.
+    const key = `${context.sceneId}/${context.hotspotId ?? ""}/${path}`;
+    return uploadedUrls[key] ?? context.defaultUrl;
+  },
+});
+```
+
+Hotspot mapping covers images, SVG image URLs, audio source arrays, video posters, playback icons and tooltip images; text, CSS and SVG path data remain unchanged. Acquire signed URLs ahead of time in your application and return them synchronously.
+
+`requestInit` accepts only `headers`, `credentials` and `signal`, for JSON requests only. They are not forwarded to textures, and JSON query parameters are not inherited by assets. `parsePanoProject(unknown)` validates and copies project data independently. `sceneFromViewerConfig` accepts the unwrapped compact config; `loadSceneFromJson` accepts a versioned `viewer.json`.
+
+`PanoDataError` exposes stable codes: `INVALID_OPTIONS`, `FETCH_FAILED`, `HTTP_ERROR`, `INVALID_JSON`, `INVALID_CONFIG`, `UNSUPPORTED_SCHEMA_VERSION`, `UNSUPPORTED_PROJECTION`, `INVALID_PROJECT`, `INVALID_REFERENCE`, `ABORTED`. HTTP errors carry `status`; project errors include `sceneId` and `field` where available. Successful loading means metadata is ready, not that textures have loaded; use `onSceneReady` for render readiness.
+
+See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example.
 
 ## krpano-compatible tile output
 
@@ -2055,3 +2187,61 @@ Hotspot `tooltipAppearance` now accepts `fontFamily`, `lineHeight`, and
 `lineHeight` numbers are unitless; numeric `letterSpacing` values are CSS pixels.
 
 Regression checks: `pnpm --filter @ericchen1990/pano-view test` (Node 22+).
+
+## FAQ and troubleshooting
+
+### How do I deploy multiple scenes without a database?
+
+Keep the converter directory structure, author `project.json` referencing each `viewer.json`, and render it with `loadPanoProject` and `ProjectScenes`. Upload your React build and assets to static hosting. Under a prefix such as `/demo/`, use the correct project entry URL and prefer relative references inside the project.
+
+### Why do JSON or textures fail across origins?
+
+Inspect Network and Console to identify the failing config, preview or tile. The server/CDN must allow your app origin. Public anonymous resources may use `Access-Control-Allow-Origin: *`; credentialed requests need an explicit allowed origin and `Access-Control-Allow-Credentials: true`. Use `Vary: Origin` when varying by origin. JavaScript may only receive `Failed to fetch`, so the loader cannot diagnose CORS with certainty.
+
+`no-cors` gives an unreadable opaque response; it cannot make JSON readable or bypass WebGL texture rules. Configure the server. See [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) and [WebGL textures](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL).
+
+Example S3 console CORS configuration for reads (replace the website origin):
+
+```json
+[{
+  "AllowedOrigins": ["https://app.example.com"],
+  "AllowedMethods": ["GET", "HEAD"],
+  "AllowedHeaders": ["Authorization"]
+}]
+```
+
+CORS does not grant object read permission. When using a CDN, check its actual response headers too. See the [official S3 CORS guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html).
+
+### Why do tiles return 404 or use the wrong URL?
+
+Compare the complete Network URL with the uploaded object key. Check `baseUrl`, extra directory levels, case and filenames. A new domain/prefix only needs a new root; renamed files need mapping. Preserve the converter template, particularly `%v_%h` versus `%h_%v`.
+
+### Why INVALID_JSON with HTTP 200?
+
+Inspect the response body for HTML. A static SPA fallback may serve the homepage for a missing JSON file, or authentication may redirect to a login page. Fix the URL/routing; status 200 does not guarantee JSON.
+
+### Why does JSON work but images return 401/403 or expired signatures?
+
+Treat config authentication and image access separately. `requestInit` headers/credentials apply to JSON only; its URL token is not appended to tiles. Supply public URLs, signed URLs, or your application's supported authentication mechanism for assets. Acquire signatures before mapping/loading and refresh them when expired; keep temporary credentials outside conversion JSON.
+
+### Why is the canvas blank after config loading succeeds?
+
+Ensure the viewer container has nonzero height, inspect texture requests and WebGL console errors, and keep React, Three.js and React Three Fiber singletons. Metadata success is not render readiness: observe `onSceneReady` and `onTransitionError`.
+
+### Why is the preview correct but detailed tiles are missing or misplaced?
+
+Upload every tile and preserve actual level sizes, `urlTemplate`, `previewFaceOrder` and `indexBase`. Do not assume all levels exactly double or confuse zero-based logical coordinates with stored indices. A custom resolver must identify the corresponding original tile.
+
+### Why are hotspots missing or not navigating?
+
+Check the owning scene, `visible`, `interactive`, `pointerEvents`, angles and asset requests. Hotspots hide during transitions. IDs must be unique in their respective scopes and `action.sceneId` must exist. `preventDefault()` cancels built-in actions. Text alone does not create an information dialog.
+
+### Why does media not play?
+
+Start playback from a click or keyboard gesture, check supported formats and permissions, and inspect `onHotspotError`. Browsers can block unmuted autoplay; tab visibility and device rules can also affect playback. The component does not bypass browser policies.
+
+### What about local files, mixed content, caching and versions?
+
+Serve files over local HTTP(S), rather than double-clicking `file://` HTML. HTTPS pages should load HTTPS assets. Use versioned asset directories and coordinate JSON/image caching so stale configs do not target replaced files. `UNSUPPORTED_SCHEMA_VERSION` requires a supported config version. Planar conversions have no `viewer.json` and need a planar viewer.
+
+For conversion failures see [converter error codes and troubleshooting](../converter/README.md#error-codes-and-troubleshooting).

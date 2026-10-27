@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "title": "Static panorama tour",
+  "initialSceneId": "entrance",
+  "scenes": [
+    {
+      "id": "entrance",
+      "title": "Entrance",
+      "source": { "viewerUrl": "../../panorama/cube-tiles/3/viewer.json" },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 75 },
+      "hotspots": [
+        {
+          "type": "graphic",
+          "id": "to-hall",
+          "label": "Enter the hall",
+          "position": { "yaw": 24, "pitch": -6 },
+          "width": 9,
+          "height": 9,
+          "graphic": { "kind": "arrow", "fill": "#67e8f9" },
+          "tooltip": "Enter the hall",
+          "action": { "type": "scene", "sceneId": "hall" }
+        },
+        {
+          "type": "text",
+          "id": "welcome",
+          "position": { "yaw": -20, "pitch": 12 },
+          "width": 28,
+          "height": 8,
+          "text": "Welcome · Static JSON tour",
+          "interactive": false
+        },
+        {
+          "type": "audio",
+          "id": "ambient",
+          "label": "Toggle ambient audio",
+          "position": { "yaw": -18, "pitch": -10 },
+          "src": "../../bgm/ambient-light.mp3",
+          "loop": true,
+          "width": 7,
+          "height": 7,
+          "tooltip": "Play / pause ambient audio"
+        }
+      ]
+    },
+    {
+      "id": "hall",
+      "title": "Hall",
+      "source": { "viewerUrl": "../../panorama/cube-tiles/4/viewer.json" },
+      "initialView": { "yaw": 15, "pitch": 0, "fov": 75 },
+      "hotspots": [
+        {
+          "type": "graphic",
+          "id": "to-entrance",
+          "label": "Back to entrance",
+          "position": { "yaw": 0, "pitch": -6 },
+          "width": 9,
+          "height": 9,
+          "graphic": { "kind": "arrow", "fill": "#67e8f9" },
+          "action": { "type": "scene", "sceneId": "entrance" }
+        },
+        {
+          "type": "text",
+          "id": "hall-label",
+          "position": { "yaw": 15, "pitch": 14 },
+          "width": 24,
+          "height": 8,
+          "text": "The second scene",
+          "interactive": false
+        }
+      ]
+    }
+  ]
+}

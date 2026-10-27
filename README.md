@@ -12,6 +12,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 ## Contents
 
 - [Packages](#packages)
+- [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
 - [Examples](#examples)
   - [Equirectangular image](#equirectangular-image)
@@ -33,6 +34,24 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
 The sections below use the viewer. Generate a new tile pyramid with the converter, then pass its `viewerConfig` to `Tile`, `SphereTile`, or `Scenes`.
+
+## Static multi-scene projects
+
+The converter writes a complete `manifest.json` for archiving/reconstruction and a compact `viewer.json` for rendering. Without a database, author one `project.json` referencing each scene's `viewer.json`, plus its views, hotspots and scene links.
+
+```tsx
+import { loadPanoProject, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
+
+const project = await loadPanoProject("/tour/project.json");
+// Render in your React app after metadata loading completes:
+<PanoViewer style={{ height: 600 }}>
+  <ProjectScenes project={project} transition="dissolve" />
+</PanoViewer>;
+```
+
+Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example.
+
+See [Static projects and JSON data](./packages/react/README.md#static-projects-and-json-data) for configuration and React loading/error/cancellation, and [FAQ and troubleshooting](./packages/react/README.md#faq-and-troubleshooting) for CORS, 404, authentication, blank canvases and playback restrictions.
 
 ## Installation
 

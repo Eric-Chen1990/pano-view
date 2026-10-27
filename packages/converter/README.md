@@ -10,6 +10,7 @@ Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or 
 - [Install](#install)
 - [Node.js](#nodejs)
 - [Output and options](#output-and-options)
+- [viewer.json and static projects](#viewerjson-and-static-projects)
 - [JSON examples](#json-examples)
 - [API return values](#api-return-values)
 - [Reconstruction](#reconstruction)
@@ -117,7 +118,7 @@ await db.savePanorama({
 });
 ```
 
-`storage`, `db`, IDs and paths above are application-owned examples. `onAsset` is awaited with bounded concurrency and includes tiles, previews, thumbnails and DZI descriptors. It excludes `manifest.json`: upload the final manifest after conversion succeeds. The same small preview can serve as the thumbnail and is emitted once. Callback paths refer to job staging files and are valid during the awaited callback; return only after reading/uploading finishes. After success, `result.assets` contains final absolute paths. Do not delete or mutate callback files. Native Deep Zoom emits file callbacks after the native pyramid completes; custom output emits each tile after its encode.
+`storage`, `db`, IDs and paths above are application-owned examples. `onAsset` is awaited with bounded concurrency and includes tiles, previews, thumbnails, DZI descriptors and frontend `viewer.json`. It excludes `manifest.json`: upload the final manifest after conversion succeeds. The same small preview can serve as the thumbnail and is emitted once. Callback paths refer to job staging files and are valid during the awaited callback; return only after reading/uploading finishes. After success, `result.assets` contains final absolute paths. Do not delete or mutate callback files. Native Deep Zoom emits file callbacks after the native pyramid completes; custom output emits each tile after its encode.
 
 A failed callback fails the conversion. Uploads are not rolled back; use a unique conversion prefix and let your application clean failed uploads, set business status, and remove successful local output when finished. Cancellation/deadlines stop new work, interrupt FFmpeg, and wait for active native work/callbacks before cleaning staging. Pass the supplied signal into your upload client and set upload timeouts; a callback that never settles cannot be safely cleaned up by the library.
 
@@ -142,6 +143,39 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 ```
 
 Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. Rendering is done by [@ericchen1990/pano-view](../react/README.md); this package does not fetch or store application data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
+
+## viewer.json and static projects
+
+Panorama conversion in both CLI and Node.js now writes two JSON files:
+
+| File | Contents and purpose |
+| --- | --- |
+| `manifest.json` | Complete archive/reconstruction metadata, preserving the existing format |
+| `viewer.json` | `{ schemaVersion: 1, ...viewerConfig }`, rendering fields only |
+
+Asset references are relative, without local directories, cloud hosts or application IDs. Planar output keeps `viewerConfig: null` and does not create `viewer.json`.
+
+```sh
+pano-convert ./entrance.jpg --output ./public/tour/panoramas/entrance
+pano-convert ./hall.jpg --output ./public/tour/panoramas/hall
+```
+
+Upload the directory while preserving its internal layout. Rendering needs tiles, preview and `viewer.json`; retain `manifest.json` and its referenced assets separately for reconstruction. `viewer.json` appears in `result.assets` as `descriptor`, with `application/json`, and is emitted through the awaited `onAsset` callback. The final archive `manifest.json` remains excluded from that callback.
+
+```tsx
+import { PanoViewer, Scenes, loadSceneFromJson } from "@ericchen1990/pano-view";
+
+const scene = await loadSceneFromJson(
+  "https://cdn.example.com/tour/panoramas/entrance/viewer.json",
+  { id: "entrance" },
+);
+// Render after your application's loading flow completes:
+<PanoViewer style={{ height: 600 }}><Scenes scenes={[scene]} /></PanoViewer>;
+```
+
+For multiple scenes and hotspots, author a separate `project.json` referencing each `viewer.json`, then use `loadPanoProject` and `ProjectScenes`. Projects can also inline the existing `result.viewerConfig`, without a database. Set `baseUrl` when the config API and assets are hosted separately, or use synchronous URL mapping for renamed files.
+
+See the [viewer static project guide](../react/README.md#static-projects-and-json-data) for project JSON, React loading/cancellation and URL rules, and the [FAQ](../react/README.md#faq-and-troubleshooting) for CORS, 404, signatures and playback. Node.js server consumers can import pure data methods from `@ericchen1990/pano-view/data`. The converter still returns its existing `viewerConfig`; frontend loaders do not consume the full `manifest.json`.
 
 ## Output and options
 

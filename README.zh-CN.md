@@ -11,6 +11,7 @@ Pano View 是面向全景图像与 360 视频的工作区，发布 React 查看�
 ## 目录
 
 - [包](#包)
+- [静态多场景项目](#静态多场景项目)
 - [安装](#安装)
 - [示例](#示例)
   - [等距圆柱图像](#等距圆柱图像)
@@ -32,6 +33,24 @@ Pano View 是面向全景图像与 360 视频的工作区，发布 React 查看�
 | [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) | Node.js 库与 `pano-convert` CLI。生成瓦片金字塔、预览图，以及 React 包渲染所用的 `viewerConfig`。不依赖 React、云存储或数据库。 |
 
 下文示例使用查看器。用转换器生成新的瓦片金字塔，再把它的 `viewerConfig` 交给 `Tile`、`SphereTile` 或 `Scenes`。
+
+## 静态多场景项目
+
+转换器现在同时生成完整的 `manifest.json` 和轻量 `viewer.json`。前者用于归档和还原，后者用于前端渲染。无需数据库时，编写一份 `project.json` 引用各场景的 `viewer.json`，并保存视角、热点及场景跳转。
+
+```tsx
+import { loadPanoProject, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
+
+const project = await loadPanoProject("/tour/project.json");
+// 配置加载完成后在 React 应用中渲染：
+<PanoViewer style={{ height: 600 }}>
+  <ProjectScenes project={project} transition="dissolve" />
+</PanoViewer>;
+```
+
+保留输出目录结构即可上传静态托管；自定义域名和云目录使用 `baseUrl`，重命名资源使用同步 URL 映射。服务端纯数据方法从 `@ericchen1990/pano-view/data` 导入。运行 `pnpm dev` 后访问 `/project` 查看静态双场景示例。
+
+完整配置、React 加载/错误/取消示例见 [静态项目与 JSON 数据](./packages/react/README.zh-CN.md#静态项目与-json-数据)；跨域、404、认证、空白画面及媒体限制见 [常见问题与故障排查](./packages/react/README.zh-CN.md#常见问题与故障排查)。
 
 ## 安装
 

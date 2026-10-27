@@ -473,12 +473,21 @@ export async function convertImage(
       manifest,
       await previews(previewSource, projection, faces, format, context),
     );
+    const viewerConfig = toViewerConfig(manifest);
+    if (viewerConfig) {
+      await writeFile(
+        await context.reserve("viewer.json"),
+        JSON.stringify({ schemaVersion: 1, ...viewerConfig }, null, 2) + "\n",
+        "utf8",
+      );
+      await context.emit("viewer.json", "descriptor");
+    }
     await writeFile(
       await context.reserve("manifest.json"),
       JSON.stringify(manifest, null, 2) + "\n",
       "utf8",
     );
     await context.emit("manifest.json", "manifest", {}, false);
-    return { manifest, viewerConfig: toViewerConfig(manifest) };
+    return { manifest, viewerConfig };
   });
 }

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "packages/react/**"
+      - "shared/**"
       - "apps/playground/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -17,6 +18,7 @@ on:
       - main
     paths:
       - "packages/react/**"
+      - "shared/**"
       - "apps/playground/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -64,7 +66,7 @@ jobs:
         run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-view-playground build
 
       - name: Pack check
-        run: pnpm --filter @ericchen1990/pano-view exec npm pack --dry-run
+        run: pnpm --filter @ericchen1990/pano-view pack:check
 
       - name: Check conflict markers and whitespace
         run: git diff --check
