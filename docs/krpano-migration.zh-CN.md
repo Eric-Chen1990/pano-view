@@ -1,16 +1,16 @@
-# 在 React 中复用 krpano 风格 cube tile
+# 在 React 中复用 krpano 风格立方体瓦片
 
 [English](./krpano-migration.md)
 
-Pano View 可在 React 应用中渲染现有 krpano 风格立方体 tile 金字塔。它支持这种
+Pano View 可在 React 应用中渲染现有 krpano 风格立方体瓦片金字塔。它支持这种
 输出格式，但不是 krpano 的插件、包装器、替代品或关联项目。
 
-打开[支持 tile 的 Playground](https://pano-view-playground.vercel.app/hotspots?utm_source=github&utm_medium=docs&utm_campaign=krpano-migration&utm_content=tile-demo)
+打开[支持瓦片的 Playground](https://pano-view-playground.vercel.app/hotspots?utm_source=github&utm_medium=docs&utm_campaign=krpano-migration&utm_content=tile-demo)
 查看可运行场景。
 
 ## 直接映射 XML 中的值
 
-请读取 krpano XML 的实际值。不要依赖 Pano View 的默认 tile 布局：常见 krpano
+请读取 krpano XML 的实际值。不要依赖 Pano View 的默认瓦片布局：常见 krpano
 目录会在文件名中先写行、后写列，而本包默认模板是先列、后行。
 
 | krpano XML | Tile prop |
@@ -36,6 +36,7 @@ Pano View 可在 React 应用中渲染现有 krpano 风格立方体 tile 金字�
 `previewFaceOrder` 一致，因此可以不填：
 
 ~~~tsx
+import "@ericchen1990/pano-view/styles.css";
 import { PanoViewer, Tile } from "@ericchen1990/pano-view";
 
 export function MigratedPanorama() {
@@ -57,18 +58,18 @@ export function MigratedPanorama() {
 模板和预览路径相对于 baseUrl。根路径和 HTTP(S) URL 则直接使用。在怀疑投影、
 LOD 或 WebGL 前，先在浏览器网络面板中对照每个面与层级生成的 URL。
 
-- 预览必须是 1×6 cube-strip，不是缩略图。
+- 预览必须是 1×6 立方体预览条带，不是缩略图。
 - previewFaceOrder 按 atlas 从上到下的顺序列出面。默认是 `l`、`f`、`r`、
   `b`、`u`、`d`。仅在 `striporder` 不同时设置。
 - Tile 的行列索引从 1 开始。
-- multires 的第一项是 tile 大小，后续项为递增的立方体面大小。
-- 无法用 urlTemplate 表示时，可使用 resolveTileUrl；它同样返回相对 baseUrl
-  的路径，并优先于模板。
+- multires 的第一项是瓦片大小，后续项为递增的立方体面大小。
+- 无法用 urlTemplate 表示时，可使用 resolveTileUrl；它可返回相对于 `baseUrl`
+  的路径或绝对 URL，并优先于模板。
 
 ## 在 React 中映射热点，而不是 XML
 
 Pano View 不会解析 krpano 热点动作。每个 `<hotspot>` 应作为 Tile 旁的 React
-子组件，或写在 Scenes 的 `renderHotspots` 中。
+子组件，或写在 `Scenes` 的 `renderHotspots` 中。下例的 `onNavigate` 由宿主提供，用于更新当前场景。
 
 | krpano XML | Hotspot prop |
 | --- | --- |
@@ -110,6 +111,7 @@ krpano 的 `atv` 向下为正。Pano View 的 `pitch` 向上为正，因此将 `
 用相同位置渲染为 React 热点：
 
 ~~~tsx
+import "@ericchen1990/pano-view/styles.css";
 import {
   ImageHotspot,
   PanoViewer,
@@ -117,7 +119,11 @@ import {
   Tile,
 } from "@ericchen1990/pano-view";
 
-export function MigratedPanorama() {
+export function MigratedPanorama({
+  onNavigate,
+}: {
+  onNavigate: (sceneId: string) => void;
+}) {
   return (
     <PanoViewer style={{ height: 560 }}>
       <Tile
@@ -131,7 +137,7 @@ export function MigratedPanorama() {
         ariaLabel="Go to garden"
         position={{ yaw: 120, pitch: -8 }}
         src="/panoramas/room/hotspots/arrow.png"
-        onClick={() => setActiveSceneId("garden")}
+        onClick={() => onNavigate("garden")}
       />
       <PolygonHotspot
         id="exhibit"
@@ -151,7 +157,7 @@ export function MigratedPanorama() {
 }
 ~~~
 
-- 热点 `url` 是普通资源路径，不是 tile 模板。按宿主其他图片同样的方式，相对
+- 热点 `url` 是普通资源路径，不是瓦片模板。按宿主其他图片同样的方式，相对
   场景目录解析。
 - `width` 与 `height` 为角度（度），不是 krpano 的像素尺寸。
 - `distorted="true"` 对应 `mode="surface"`。默认 billboard 模式对应未扭曲热点。
@@ -163,7 +169,7 @@ export function MigratedPanorama() {
 | 现象 | 首先检查 |
 | --- | --- |
 | 某个面缺失或错乱 | 对照 XML 模板与生成的 URL，确认行列占位符顺序。 |
-| 初始图像不正确 | 使用 cube-strip 而非 thumb.jpg，并在需要时设置 previewFaceOrder。 |
+| 初始图像不正确 | 使用立方体预览条带，而非 thumb.jpg，并在需要时设置 previewFaceOrder。 |
 | 请求遗漏全景目录 | 将相对 urlTemplate 和 previewUrl 放在 baseUrl 之下。 |
 | Tile 能加载但长期模糊 | 确认所有 multires 值，并在移动或缩放时检查请求。 |
 | 热点偏高或偏低 | 将 `atv` 取反：`pitch = -atv`。 |

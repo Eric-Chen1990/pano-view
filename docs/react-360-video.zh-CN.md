@@ -10,9 +10,10 @@ Playground](https://pano-view-playground.vercel.app/video?utm_source=github&utm_
 ## 从静音内联播放开始
 
 静音播放更容易通过浏览器的自动播放策略。PanoVideo 默认使用内联播放，并写入
-WebKit 与 X5 属性，让视频在 iPhone Safari、微信、QQ 和 UC 中留在页面内。
+WebKit 与 X5 属性，向 iPhone Safari、微信、QQ 和 UC 请求页内播放。实际行为取决于浏览器及其版本，这些设置不保证自动播放。
 
 ~~~tsx
+import "@ericchen1990/pano-view/styles.css";
 import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
 
 export function TourVideo() {
@@ -31,7 +32,7 @@ export function TourVideo() {
 生产环境请提供 poster、H.264 + AAC MP4 回退文件；远程文件还应提供 CORS，
 服务器应支持 HTTP Range。
 
-## 由宿主决定哪一路声音变为可听
+## 由宿主选择需要播放声音的媒体
 
 当子组件带有初始播放意图时，PanoViewer 默认在浏览器需要用户手势时于首次交互
 静默解锁有声播放；若自动播放策略已允许，则立即激活。随后由宿主决定启动视频、
@@ -50,8 +51,8 @@ export function TourVideo() {
 </PanoViewer>
 ~~~
 
-不要在 onActivate 中 await；有声媒体必须在同一用户手势的同步调用栈内启动。
-若使用受控 BackgroundAudio，仍由宿主在这个回调中更新其 playing 状态。
+在 `onActivate` 中同步调用播放方法，避免在调用前等待其他异步任务，以保留用户手势上下文。
+使用受控 `BackgroundAudio` 时，由宿主在该回调中更新 `playing` 状态。播放仍受[浏览器自动播放策略](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay)约束。
 
 ## 在真实设备上验证
 

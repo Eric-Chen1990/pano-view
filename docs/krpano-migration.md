@@ -38,6 +38,7 @@ pass the same values to Tile. krpano default `striporder` is `LFRBUD`, which
 matches Tile's default `previewFaceOrder`, so the prop can be omitted:
 
 ~~~tsx
+import "@ericchen1990/pano-view/styles.css";
 import { PanoViewer, Tile } from "@ericchen1990/pano-view";
 
 export function MigratedPanorama() {
@@ -68,13 +69,14 @@ WebGL behavior.
 - The first multires value is tile size; the remaining values are ascending
   cube-face sizes.
 - If a source layout cannot be expressed by urlTemplate, use resolveTileUrl.
-  It also returns a path relative to baseUrl and takes precedence over the
-  template.
+  It returns a path relative to `baseUrl` or an absolute URL and takes
+  precedence over the template.
 
 ## Map hotspots in React, not XML
 
 Pano View does not parse krpano hotspot actions. Each `<hotspot>` becomes a
-React child beside Tile, or inside Scenes `renderHotspots`.
+React child beside `Tile`, or inside `Scenes`' `renderHotspots`. In the example
+below, the host supplies `onNavigate` to update the active scene.
 
 | krpano XML | Hotspot prop |
 | --- | --- |
@@ -116,6 +118,7 @@ Given this XML:
 render the same positions as React hotspots:
 
 ~~~tsx
+import "@ericchen1990/pano-view/styles.css";
 import {
   ImageHotspot,
   PanoViewer,
@@ -123,7 +126,11 @@ import {
   Tile,
 } from "@ericchen1990/pano-view";
 
-export function MigratedPanorama() {
+export function MigratedPanorama({
+  onNavigate,
+}: {
+  onNavigate: (sceneId: string) => void;
+}) {
   return (
     <PanoViewer style={{ height: 560 }}>
       <Tile
@@ -137,7 +144,7 @@ export function MigratedPanorama() {
         ariaLabel="Go to garden"
         position={{ yaw: 120, pitch: -8 }}
         src="/panoramas/room/hotspots/arrow.png"
-        onClick={() => setActiveSceneId("garden")}
+        onClick={() => onNavigate("garden")}
       />
       <PolygonHotspot
         id="exhibit"

@@ -1,4 +1,4 @@
-import { resolveRelativeAssetUrl } from "../asset-url";
+import { resolveAssetUrl } from "../asset-url";
 import type {
   TileAddress,
   TileMultiresConfig,
@@ -63,12 +63,12 @@ export function resolveRelativeTileUrl(
   baseUrl: string,
   relativePath: string,
 ): string {
-  return resolveRelativeAssetUrl(baseUrl, relativePath);
+  return resolveAssetUrl(baseUrl, relativePath);
 }
 
 export function resolveTemplateUrl(
   template: string,
-  address: TileAddress,
+  address: Pick<TileAddress, "face" | "level" | "row" | "col">,
 ): string {
   return template
     .replace(/%s/g, address.face)

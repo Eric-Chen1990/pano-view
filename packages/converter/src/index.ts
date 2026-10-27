@@ -16,6 +16,7 @@ export type {
   CubemapViewerConfig,
   SphereViewerConfig,
   ViewerConfig,
+  ViewerDocument,
   AssetKind,
   OutputAsset,
   ProgressEvent,

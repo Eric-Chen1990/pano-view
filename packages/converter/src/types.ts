@@ -1,3 +1,4 @@
+import type { ViewerConfig } from "../../../shared/viewer-config";
 export type Projection = "cubemap" | "equirectangular" | "planar";
 export type ImageFormat = "webp" | "jpeg" | "png";
 export type CubeFace = "f" | "r" | "b" | "l" | "u" | "d";
@@ -44,22 +45,7 @@ export type ConversionManifest = {
   thumbnail: ImageDescriptor;
 };
 
-/** Serializable props; no React or pano-view runtime dependency. */
-export type CubemapViewerConfig = {
-  type: "tile";
-  multires: { tileSize: number; levels: number[] };
-  urlTemplate: string;
-  previewUrl: string;
-  previewFaceOrder: CubeFace[];
-};
-export type SphereViewerConfig = {
-  type: "sphereTile";
-  multires: { tileSize: number; levels: ImageSize[] };
-  urlTemplate: string;
-  previewUrl: string;
-  indexBase: 0 | 1;
-};
-export type ViewerConfig = CubemapViewerConfig | SphereViewerConfig;
+export type { CubemapViewerConfig, SphereViewerConfig, ViewerConfig, ViewerDocument } from "../../../shared/viewer-config";
 export type AssetKind =
   | "tile"
   | "preview"

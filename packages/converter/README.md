@@ -10,6 +10,7 @@ Generate panorama/image tile pyramids and reconstruct local tiles in Node.js or 
 - [Install](#install)
 - [Node.js](#nodejs)
 - [Output and options](#output-and-options)
+- [viewer.json and static projects](#viewerjson-and-static-projects)
 - [JSON examples](#json-examples)
 - [API return values](#api-return-values)
 - [Reconstruction](#reconstruction)
@@ -26,6 +27,10 @@ repository. It is the React viewer for the `viewerConfig` returned by
 equirectangular output maps to `SphereTile` (`type: "sphereTile"`). Pass that
 config, plus your application's `id` and `baseUrl`, to `Scenes`. See
 [Frontend integration](#frontend-integration).
+
+Prefer the default `cubemap` projection for new pano-view assets. Use
+`equirectangular` when retaining an equirectangular tile format is required;
+the viewer's current spherical renderer may still show visible pole artifacts.
 
 ## Install
 
@@ -117,7 +122,7 @@ await db.savePanorama({
 });
 ```
 
-`storage`, `db`, IDs and paths above are application-owned examples. `onAsset` is awaited with bounded concurrency and includes tiles, previews, thumbnails and DZI descriptors. It excludes `manifest.json`: upload the final manifest after conversion succeeds. The same small preview can serve as the thumbnail and is emitted once. Callback paths refer to job staging files and are valid during the awaited callback; return only after reading/uploading finishes. After success, `result.assets` contains final absolute paths. Do not delete or mutate callback files. Native Deep Zoom emits file callbacks after the native pyramid completes; custom output emits each tile after its encode.
+`storage`, `db`, IDs and paths above are application-owned examples. `onAsset` is awaited with bounded concurrency and includes tiles, previews, thumbnails, DZI descriptors and frontend `viewer.json`. It excludes `manifest.json`: upload the final manifest after conversion succeeds. The same small preview can serve as the thumbnail and is emitted once. Callback paths refer to job staging files and are valid during the awaited callback; return only after reading/uploading finishes. After success, `result.assets` contains final absolute paths. Do not delete or mutate callback files. Native Deep Zoom emits file callbacks after the native pyramid completes; custom output emits each tile after its encode.
 
 A failed callback fails the conversion. Uploads are not rolled back; use a unique conversion prefix and let your application clean failed uploads, set business status, and remove successful local output when finished. Cancellation/deadlines stop new work, interrupt FFmpeg, and wait for active native work/callbacks before cleaning staging. Pass the supplied signal into your upload client and set upload timeouts; a callback that never settles cannot be safely cleaned up by the library.
 
@@ -142,6 +147,39 @@ import { PanoViewer, Scenes } from "@ericchen1990/pano-view";
 ```
 
 Cubemaps produce `type: "tile"`; equirectangular output produces `type: "sphereTile"`, including explicit `indexBase: 1`. Planar images return `viewerConfig: null` and need a planar viewer. Rendering is done by [@ericchen1990/pano-view](../react/README.md); this package does not fetch or store application data. The browser need not request every full manifest. Both configs use explicit URL templates; cube filenames are row-before-column, differing from pano-view's default template.
+
+## viewer.json and static projects
+
+Panorama conversion in both CLI and Node.js writes two JSON files:
+
+| File | Contents and purpose |
+| --- | --- |
+| `manifest.json` | Complete archive/reconstruction metadata, including source dimensions, tile layout, and preview references |
+| `viewer.json` | `{ schemaVersion: 1, ...viewerConfig }`, rendering fields only |
+
+Asset references are relative, without local directories, cloud hosts or application IDs. Planar output keeps `viewerConfig: null` and does not create `viewer.json`.
+
+```sh
+pano-convert ./entrance.jpg --output ./public/tour/panoramas/entrance
+pano-convert ./hall.jpg --output ./public/tour/panoramas/hall
+```
+
+Upload the directory while preserving its internal layout. Rendering needs tiles, preview and `viewer.json`; retain `manifest.json` and its referenced assets separately for reconstruction. `viewer.json` appears in `result.assets` as `descriptor`, with `application/json`, and is emitted through the awaited `onAsset` callback. The final archive `manifest.json` remains excluded from that callback.
+
+```tsx
+import { PanoViewer, Scenes, loadSceneFromJson } from "@ericchen1990/pano-view";
+
+const scene = await loadSceneFromJson(
+  "https://cdn.example.com/tour/panoramas/entrance/viewer.json",
+  { id: "entrance" },
+);
+// Render after your application's loading flow completes:
+<PanoViewer style={{ height: 600 }}><Scenes scenes={[scene]} /></PanoViewer>;
+```
+
+For multiple scenes and hotspots, author a separate `project.json` referencing each `viewer.json`, then use `loadPanoProject` and `ProjectScenes`. Projects can also inline the existing `result.viewerConfig`, without a database. Set `baseUrl` when the config API and assets are hosted separately, or use synchronous URL mapping for renamed files.
+
+See the [viewer static project guide](../react/README.md#static-projects-and-json-data) for project JSON, React loading/cancellation and URL rules, and the [FAQ](../react/README.md#faq-and-troubleshooting) for CORS, 404, signatures and playback. Node.js server consumers can import pure data methods from `@ericchen1990/pano-view/data`. The converter also returns `viewerConfig`; frontend loaders do not consume the full `manifest.json`.
 
 ## Output and options
 
@@ -178,7 +216,7 @@ await convertImage("./large.png", {
 });
 ```
 
-Standard Deep Zoom uses Sharp's `tile({layout:"dz",depth:"onepixel",overlap:0,skipBlanks:-1})`, writes `image.dzi`/`image_files/`, and retains the complete grid including blank tiles. It rejects custom levels, scale factors and templates; select `layout: "custom"` for those. Native Deep Zoom output is not a custom full-panorama pyramid.
+Standard Deep Zoom uses Sharp's `tile({layout:"dz",depth:"onepixel",overlap:0,skipBlanks:-1})`, writes `image.dzi`/`image_files/`, and retains the complete grid including blank tiles. It rejects custom levels, scale factors and templates; select `layout: "custom"` for those. Standard Deep Zoom uses a planar layout and cannot be passed directly to `SphereTile` as panorama configuration.
 
 Default WebP panorama previews retain `previews/200.webp`, `400.webp`, `800.webp`; their actual dimensions are recorded and small sources are not enlarged. Cubemap previews additionally include `previews/cube-vertical.webp` with top-to-bottom order `l,f,r,b,u,d`. Panorama `thumbnail.path` references the 200-height preview. Planar thumbnails fit within 400×400. Choosing another format changes extensions and requires consuming the recorded paths.
 
@@ -186,7 +224,7 @@ The full manifest includes `schemaVersion: 1`, projection, EXIF-oriented source 
 
 ## JSON examples
 
-This is the complete manifest.json from a 4096×2048 input using default cubemap conversion. No fields are omitted; individual tile URLs are represented by the template/grid rather than enumerated.
+The following `manifest.json` describes a 4096×2048 input using default cubemap conversion. A URL template and grid dimensions identify the tiles without listing each tile URL.
 
 ```json
 {
@@ -261,9 +299,9 @@ This is the complete manifest.json from a 4096×2048 input using default cubemap
 }
 ```
 
-source records EXIF-oriented input dimensions. Cube level width/height describe one face; sphere/planar levels describe the complete image at that level. columns/rows round upward by tileSize, so edge tiles can be partial. A viewer preview is the viewer background; image previews are for ordinary image presentation. thumbnail may reference an existing small preview.
+`source` records EXIF-oriented input dimensions. Cube level `width`/`height` describe one face; equirectangular/planar levels describe the complete image at that level. `columns`/`rows` are calculated by dividing by `tileSize` and rounding up, so edge tiles can be partial. Previews with `role: "viewer"` provide the viewer background; `role: "image"` is for ordinary image presentation. `thumbnail` may reference an existing small preview.
 
-The complete viewerConfig returned by that cubemap conversion:
+The `viewerConfig` returned by that cubemap conversion:
 
 ```json
 {
@@ -278,7 +316,7 @@ The complete viewerConfig returned by that cubemap conversion:
 }
 ```
 
-For the same input dimensions with projection: "equirectangular", the complete viewerConfig is:
+For the same input dimensions with `projection: "equirectangular"`, the `viewerConfig` is:
 
 ```json
 {
@@ -310,15 +348,15 @@ For the same input dimensions with projection: "equirectangular", the complete v
 }
 ```
 
-The application adds id and baseUrl before passing viewerConfig to Scenes. A full manifest is not a scene configuration. Planar output returns viewerConfig: null.
+The application adds `id` and `baseUrl` before passing `viewerConfig` to `Scenes`. A full manifest is not a scene configuration. Planar output returns `viewerConfig: null`.
 
 Manifest differences for other modes:
 
 | Mode               | Differences from the full example                                                                                                                                                                                            |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Custom sphere      | projection: "equirectangular"; no tiles.faces; explicit width/height levels, tiles/%l/%h\_%v.webp and an equirectangular viewer preview.                                                                                     |
-| Custom planar      | projection: "planar"; no tiles.faces; levels describe the planar image; thumbnail references its separate thumbnail file.                                                                                                    |
-| Standard Deep Zoom | projection: "planar", tiles.layout: "deepzoom", indexBase: 0, tiles.descriptor: "image.dzi", template image*files/%l/%h*%v.jpeg, and a complete standard pyramid starting at 1×1. PNG/WebP change the extension accordingly. |
+| Custom sphere      | `projection: "equirectangular"`; no `tiles.faces`; explicit width/height levels, `tiles/%l/%h_%v.webp` and an equirectangular viewer preview.                                                                                     |
+| Custom planar      | `projection: "planar"`; no `tiles.faces`; levels describe the planar image; `thumbnail` references its separate thumbnail file.                                                                                                    |
+| Standard Deep Zoom | `projection: "planar"`, `tiles.layout: "deepzoom"`, `indexBase: 0`, `tiles.descriptor: "image.dzi"`, template `image_files/%l/%h_%v.jpeg`, and a complete standard pyramid starting at 1×1. PNG/WebP change the extension accordingly. |
 
 ## API return values
 
@@ -326,48 +364,48 @@ Manifest differences for other modes:
 
 | Field        | Type                 | Meaning                                                                                                   |
 | ------------ | -------------------- | --------------------------------------------------------------------------------------------------------- |
-| outputDir    | string               | Final absolute output directory after successful commit.                                                  |
-| manifest     | ConversionManifest   | Full description, matching manifest.json in the output directory.                                         |
-| viewerConfig | ViewerConfig \| null | Compact panorama viewer props; null for planar images.                                                    |
-| assets       | OutputAsset[]        | Metadata for generated files, including manifest.json. Concurrent array order is not a business contract. |
+| `outputDir`    | string               | Final absolute output directory after successful conversion.                                                  |
+| `manifest`     | ConversionManifest   | Full description, matching manifest.json in the output directory.                                         |
+| `viewerConfig` | ViewerConfig \| null | Compact panorama viewer props; null for planar images.                                                    |
+| `assets`       | OutputAsset[]        | Metadata for generated files, including manifest.json. Concurrent array order is not a business contract. |
 
 `restoreImage(descriptionPath, options): Promise<RestorationResult>`
 
 | Field          | Type                          | Meaning                                                                                             |
 | -------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
-| outputDir      | string                        | Final absolute reconstruction directory.                                                            |
-| width / height | number                        | Actual main-image size, determined by the selected level and cubemap outputWidth.                   |
-| projection     | "equirectangular" \| "planar" | Main-image projection; a cubemap restores to equirectangular, with optional faces listed in assets. |
-| assets         | OutputAsset[]                 | Main image and optional face files. RestorationResult has no manifest or viewerConfig.              |
+| `outputDir`      | string                        | Final absolute reconstruction directory.                                                            |
+| `width / height` | number                        | Actual main-image size, determined by the selected level and cubemap outputWidth.                   |
+| `projection`     | "equirectangular" \| "planar" | Main-image projection; a cubemap restores to equirectangular, with optional faces listed in assets. |
+| `assets`         | OutputAsset[]                 | Main image and optional face files. RestorationResult has no manifest or viewerConfig.              |
 
 ### Asset and progress metadata
 
-assets[] and onAsset(asset, signal) use the same OutputAsset fields:
+`assets[]` and `onAsset(asset, signal)` use the same `OutputAsset` fields:
 
 | Field                | Meaning                                                                                       |
 | -------------------- | --------------------------------------------------------------------------------------------- |
-| kind                 | tile, preview, thumbnail, descriptor, manifest, image or cube-face.                           |
-| absolutePath         | Local absolute path: staging during the callback, final in the successful result.             |
-| relativePath         | POSIX path relative to the output root, suitable for joining to a cloud key prefix; no host.  |
-| contentType / bytes  | MIME type and actual encoded byte count.                                                      |
-| width / height       | Optional actual image dimensions; typically absent on descriptors/manifests.                  |
-| face                 | Optional f/r/b/l/u/d identifier for cube tiles or exported faces.                             |
-| level / row / column | Optional stored tile coordinates, following the manifest indexBase rather than array offsets. |
+| `kind`                 | tile, preview, thumbnail, descriptor, manifest, image or cube-face.                           |
+| `absolutePath`         | Local absolute path: staging during the callback, final in the successful result.             |
+| `relativePath`         | POSIX path relative to the output root, suitable for joining to a cloud key prefix; no host.  |
+| `contentType / bytes`  | MIME type and actual encoded byte count.                                                      |
+| `width / height`       | Optional actual image dimensions; typically absent on descriptors/manifests.                  |
+| `face`                 | Optional f/r/b/l/u/d identifier for cube tiles or exported faces.                             |
+| `level / row / column` | Optional stored tile coordinates, following the manifest indexBase rather than array offsets. |
 
-assets includes the final manifest, but onAsset does not emit manifest.json. A shared thumbnail/preview is one file event; organize uploads by relativePath and manifest references.
+`assets` includes the final manifest, but `onAsset` does not emit `manifest.json`. A shared thumbnail/preview is one file event; organize uploads by `relativePath` and manifest references.
 
-onProgress receives {stage, completedAssets}. Stages are decode / project / tiles / previews / restore / complete. completedAssets counts registered written files, potentially including files with pending application callbacks; it is not an upload-success count or a percentage. A stage notification does not replace awaiting the conversion/restoration promise for final success.
+`onProgress` receives `{ stage, completedAssets }`. Stages are `decode / project / tiles / previews / restore / complete`. `completedAssets` counts registered written files, potentially including files with pending application callbacks; it is not an upload-success count or a percentage. A stage notification does not replace awaiting the conversion/restoration promise for final success.
 
 ### Manifest helpers
 
 | Method                               | Return value and boundary                                                                                                                  |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| validateManifest(value, pixelLimit?) | Accepts unknown and returns a validated ConversionManifest. Default pixel limit is 268402689. Does not read files or verify tile presence. |
-| toViewerConfig(manifest)             | Extracts ViewerConfig from a known valid manifest; null for planar. Parse and validate external JSON before calling it.                    |
+| `validateManifest(value, pixelLimit?)` | Accepts unknown and returns a validated ConversionManifest. Default pixel limit is 268402689. Does not read files or verify tile presence. |
+| `toViewerConfig(manifest)`             | Extracts ViewerConfig from a known valid manifest; null for planar. Parse and validate external JSON before calling it.                    |
 
 ## Reconstruction
 
-`restoreImage(descriptionPath, options)` accepts local new-converter JSON or a complete standard DZI, reads tiles relative to the description, and defaults to the highest stored level and PNG. It handles partial edge tiles and standard DZI overlap. Remote downloads and legacy converter metadata are caller responsibilities. DTD/entity declarations and sparse DZI pyramids are rejected; paths and symlinks cannot escape the input directory. Missing, corrupt or incorrectly-sized tiles fail explicitly.
+`restoreImage(descriptionPath, options)` accepts a local `manifest.json` generated by this package or a complete standard DZI file, reads tiles relative to the description, and defaults to the highest stored level and PNG. It handles partial edge tiles and standard DZI overlap. Remote downloads and legacy converter metadata are caller responsibilities. DTD/entity declarations and sparse DZI pyramids are rejected; paths and symlinks cannot escape the input directory. Missing, corrupt or incorrectly-sized tiles fail explicitly.
 
 Restore-specific options: `level` is the stored number; `format`/`quality` select encoding; cubemap-only `exportCubeFaces` writes six full faces alongside the panorama, and `outputWidth` sets an even 2:1 panorama width (default four times the selected face edge). Outputs are `image.png` for planar or `panorama.png` for panoramas, optionally `faces/{face}.png`. Shared job options/callbacks work on reconstruction too.
 
@@ -461,7 +499,7 @@ Success prints the result JSON to stdout. TTY progress is on stderr; `--quiet` d
 
 ## Error codes and troubleshooting
 
-Branch on the stable code, use stage to locate the operation, and message for readable diagnostics. cause retains the original error for local debugging. toJSON() and CLI --json-errors emit only the following public fields, excluding cause:
+Branch on the stable `code`, use `stage` to locate the operation, and read `message` for diagnostics. `cause` retains the original error for local debugging. `toJSON()` and CLI `--json-errors` emit only the following public fields, excluding `cause`:
 
 ```json
 {
@@ -522,7 +560,7 @@ Common integration symptoms:
 
 ## Existing CMS data
 
-The target integration is Learnmersive CMS's `refactor/replace-krpano` branch. Existing records continue through its legacy field adapter; new configurations should use a nullable, versioned record with explicit template/index/preview paths. CMS maps generic `equirectangular` to its existing `equirect` value and uses `completed` status. Enable custom paths/formats only after CMS reads the explicit configuration. The package does not migrate databases, rewrite old resources, or add a krpano renderer. Real stored resources still require integration acceptance before rollout.
+When integrating an existing CMS, retain its reader for legacy resources and store the configuration version, actual URL template, index base, and preview paths for new conversions. The host application maps converter projection types and job results to its own data model. Confirm that the application reads explicit configurations before enabling custom paths or formats, and validate compatibility with real stored assets before rollout. Database migrations and legacy-file rewrites belong to the application; this package handles conversion and reconstruction.
 
 ## Development and release
 

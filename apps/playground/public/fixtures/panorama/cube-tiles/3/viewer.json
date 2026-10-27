@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "type": "tile",
+  "multires": { "tileSize": 512, "levels": [1000, 2000] },
+  "urlTemplate": "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+  "previewUrl": "previews/cube-vertical.webp",
+  "previewFaceOrder": ["l", "f", "r", "b", "u", "d"]
+}

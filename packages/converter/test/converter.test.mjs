@@ -668,6 +668,58 @@ test("CLI help/version, machine-readable errors, conversion, and restore", async
   await equalPixels(JSON.parse(restored.stdout).assets[0].absolutePath, input);
 });
 
+test("panorama viewer.json matches viewerConfig, is awaited/uploadable, and is absent for planar output", async (t) => {
+  const root = await workspace(t);
+  const input = await raster(128, 64);
+  for (const projection of ["equirectangular", ...(ffmpegAvailable ? ["cubemap"] : []), "planar"]) {
+    const events = [];
+    let viewerUploaded = false;
+    const result = await convertImage(input, {
+      outputDir: join(root, projection), projection, tileSize: 32, format: "png",
+      onAsset: async (asset) => {
+        events.push(asset.relativePath);
+        if (asset.relativePath === "viewer.json") {
+          assert.equal(asset.kind, "descriptor");
+          assert.equal(asset.contentType, "application/json");
+          const document = JSON.parse(await readFile(asset.absolutePath, "utf8"));
+          assert.equal(document.schemaVersion, 1);
+          assert.ok(!("source" in document));
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          viewerUploaded = true;
+        }
+      },
+    });
+    assert.ok(!events.includes("manifest.json"));
+    assert.equal(events.length, result.assets.length - 1);
+    if (projection === "planar") {
+      assert.equal(result.viewerConfig, null);
+      assert.equal(viewerUploaded, false);
+      await assert.rejects(stat(join(result.outputDir, "viewer.json")), { code: "ENOENT" });
+    } else {
+      assert.equal(viewerUploaded, true);
+      assert.equal(events.at(-1), "viewer.json");
+      assert.deepEqual(JSON.parse(await readFile(join(result.outputDir, "viewer.json"), "utf8")), { schemaVersion: 1, ...result.viewerConfig });
+      assert.ok(result.assets.some((asset) => asset.relativePath === "viewer.json"));
+    }
+  }
+  const outputDir = join(root, "failed-viewer-upload");
+  await assert.rejects(convertImage(input, { outputDir, projection: "equirectangular", onAsset(asset) {
+    if (asset.relativePath === "viewer.json") throw new Error("upload failed");
+  } }), code("CALLBACK_FAILED"));
+  await assert.rejects(stat(outputDir), { code: "ENOENT" });
+});
+
+test("CLI and Node emit the same portable viewer document", async (t) => {
+  const root = await workspace(t);
+  const input = join(root, "input.png");
+  await writeFile(input, await raster(128, 64));
+  const result = await convertImage(input, { outputDir: join(root, "node"), projection: "equirectangular", tileSize: 32 });
+  const converted = await cli([input, "--output", join(root, "cli"), "--projection", "equirectangular", "--tile-size", "32", "--quiet"]);
+  assert.equal(converted.status, 0, converted.stderr);
+  assert.deepEqual(JSON.parse(converted.stdout).viewerConfig, result.viewerConfig);
+  assert.deepEqual(JSON.parse(await readFile(join(root, "cli", "viewer.json"), "utf8")), { schemaVersion: 1, ...result.viewerConfig });
+});
+
 
 test("cubemap projection streams six faces with legacy pixel orientation", { skip: !ffmpegAvailable }, async (t) => {
   const root = await workspace(t);

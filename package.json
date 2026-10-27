@@ -11,7 +11,7 @@
     "build": "pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-converter build && pnpm --filter @ericchen1990/pano-view-playground build",
     "typecheck": "pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-converter typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck",
     "test": "pnpm --filter @ericchen1990/pano-view test && pnpm --filter @ericchen1990/pano-converter test",
-    "pack:check": "pnpm --filter @ericchen1990/pano-view exec npm pack --dry-run && pnpm --filter @ericchen1990/pano-converter pack:check",
+    "pack:check": "pnpm --filter @ericchen1990/pano-view pack:check && pnpm --filter @ericchen1990/pano-converter pack:check",
     "changeset": "changeset",
     "version-packages": "changeset version && pnpm install --lockfile-only",
     "release": "pnpm build && changeset publish"

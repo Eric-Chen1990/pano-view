@@ -6,6 +6,7 @@ import { LandingPage } from "./components/landing/LandingPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
+import { ProjectPage } from "./components/project/ProjectPage";
 
 export type PlaygroundRoute = {
   path: string;
@@ -24,6 +25,7 @@ export const HOME_ROUTE: PlaygroundRoute = {
  * this list so the demo navigation remains focused on runnable feature examples.
  */
 export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
+  { path: "/project", navLabel: "Static project", Component: ProjectPage },
   {
     path: "/hotspots",
     navLabel: "Hotspot bench",

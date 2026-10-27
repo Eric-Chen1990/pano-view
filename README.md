@@ -2,9 +2,9 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-Pano View is a workspace for panoramic images and 360 video. It publishes a
-React viewer and a Node.js converter. Build the panorama experience inside
-your application with your own React UI, controls, routes, and data.
+Pano View provides a React viewer and a Node.js converter for panoramic images
+and 360 video. Host applications compose the panorama experience with React
+components and manage their own UI, controls, routes, and data.
 
 Try the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) to explore
 hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
@@ -12,6 +12,8 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 ## Contents
 
 - [Packages](#packages)
+- [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
+- [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
 - [Examples](#examples)
   - [Equirectangular image](#equirectangular-image)
@@ -34,12 +36,41 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 The sections below use the viewer. Generate a new tile pyramid with the converter, then pass its `viewerConfig` to `Tile`, `SphereTile`, or `Scenes`.
 
+## Data sources and choosing an approach
+
+The viewer accepts configuration objects or loads JSON over HTTP. Choose where your application stores and serves that configuration:
+
+- **Static JSON + CDN:** serve `project.json` and scene `viewer.json` files from static hosting. Loading configuration requires no database queries; storage, requests and traffic still have costs. Updates require publishing files and managing caches.
+- **Database + backend API:** your backend queries and authorizes the data, then supplies configuration objects or a JSON API response. The viewer does not connect to the database. This suits editing, private content and per-user configuration; backend availability, query costs and cache management belong to your application.
+
+**Prefer JSON + CDN for public, published tours; prefer database + API for editing previews, private content and personalization.** If you need both, keep the database as the editing source and generate a JSON snapshot on publication. Neither path automatically subscribes to configuration changes: the host must reload data and update the viewer in an already-open page.
+
+See [Data sources and choosing an approach](./packages/react/README.md#data-sources-and-choosing-an-approach) for the comparison and database example, and [Caching and publishing updates](./packages/react/README.md#caching-and-publishing-updates) for versioned URLs, cache headers and CDN invalidation.
+
+## Static multi-scene projects
+
+The converter writes a complete `manifest.json` for archiving/reconstruction and a compact `viewer.json` for rendering. Without a database, author one `project.json` referencing each scene's `viewer.json`, plus its views, hotspots and scene links.
+
+```tsx
+import { loadPanoProject, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
+
+const project = await loadPanoProject("/tour/project.json");
+// Render in your React app after metadata loading completes:
+<PanoViewer style={{ height: 600 }}>
+  <ProjectScenes project={project} transition="dissolve" />
+</PanoViewer>;
+```
+
+Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example.
+
+See [Static projects and JSON data](./packages/react/README.md#static-projects-and-json-data) for configuration and React loading/error/cancellation, and [FAQ and troubleshooting](./packages/react/README.md#faq-and-troubleshooting) for CORS, 404, authentication, blank canvases and playback restrictions.
+
 ## Installation
 
 Install [@ericchen1990/pano-view](./packages/react/README.md) in the host
-application. npm 7+, pnpm, and Bun also install the peer dependencies. Yarn
-and npm 6 do not, so install those ranges from the [package
-README](./packages/react/README.md#install). Converter installation is in
+application. Peer-dependency installation depends on your package manager
+and settings. Ensure that all required peers are installed using the ranges in
+the [package README](./packages/react/README.md#peer-dependencies). Converter installation is in
 the [converter README](./packages/converter/README.md#install).
 
 <details name="pano-view-install" open>
@@ -89,7 +120,7 @@ use, and the complete API are in the [package README](./packages/react/README.md
 ## Examples
 
 Give `PanoViewer` an explicit size and render one panorama source inside it.
-These snippets are the shortest path for each source. The package README has
+These snippets show the basic setup for each source. The package README has
 the full props, hotspots, controls, and hooks.
 
 ### Equirectangular image
@@ -97,6 +128,13 @@ the full props, hotspots, controls, and hooks.
 `Sphere` expects a 2:1 image. `previewUrl` is required and shows a low-resolution
 2:1 image while `src` loads. Relative preview paths resolve against the
 directory of `src`.
+
+Prefer [cube tiles](#cube-tiles) for high-resolution panoramas to load by view
+and reduce the cost of one oversized texture. `Sphere` loads the full image
+and is constrained by device texture-size and memory limits. The current
+spherical renderer may still show visible artifacts near the poles. Provide a
+small `previewUrl` for a faster initial display. See
+[Sphere](./packages/react/README.md#sphere).
 
 ~~~tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -143,7 +181,7 @@ fields on `viewerConfig`.
 ### 360 video
 
 `PanoVideo` maps a 2:1 equirectangular video onto the same sphere. `muted`
-defaults to `true` so autoplay has a chance under browser policy.
+defaults to `true` for better autoplay compatibility; browser policy still applies.
 
 ~~~tsx
 import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
@@ -163,8 +201,9 @@ reference](./packages/react/README.md#panovideo). Try it in the [playground](htt
 
 ### Multiple scenes
 
-`Scenes` switches sphere and tile scenes with a GPU snapshot blend. Keep
-`activeSceneId` in the host when the surrounding UI needs the current id.
+`Scenes` switches single-image, cube-tile, and equirectangular-tile scenes
+with GPU snapshot blending. Use controlled `activeSceneId` when the host UI
+needs to read the current scene ID.
 
 ~~~tsx
 import { useState } from "react";

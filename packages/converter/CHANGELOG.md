@@ -1,5 +1,13 @@
 # @ericchen1990/pano-converter
 
+## 0.3.0
+
+### Minor Changes
+
+- 5ca1447: Emit a portable viewer.json alongside panorama conversion output. Add browser-safe data loaders and ProjectScenes for static multi-scene tours, hotspot rendering and scene navigation, with cloud URL mapping and bilingual integration FAQs.
+
+  Improve text hotspot rasterization as the viewport and field of view change. Clarify bilingual rendering, resource-loading, playback, and integration documentation, and correct migration examples.
+
 ## 0.2.1
 
 ### Patch Changes

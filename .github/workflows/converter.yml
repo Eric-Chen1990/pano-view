@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "packages/converter/**"
+      - "shared/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "packages/converter/**"
+      - "shared/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

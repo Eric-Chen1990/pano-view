@@ -9,6 +9,9 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 ## Contents
 
 - [pano-converter](#pano-converter)
+- [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
+- [Static projects and JSON data](#static-projects-and-json-data)
+- [FAQ and troubleshooting](#faq-and-troubleshooting)
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
 - [Examples](#examples)
@@ -49,6 +52,209 @@ this repository. It generates cube and equirectangular tile pyramids in
 Node.js and through the `pano-convert` CLI, then returns `viewerConfig` for
 [`Tile`](#tile), [`SphereTile`](#spherical-multiresolution-tiles), and
 [`Scenes`](#scenes). It does not depend on React.
+
+## Data sources and choosing an approach
+
+The viewer accepts configuration objects or loads JSON over HTTP. It does not connect to a database: your host backend owns database connections, queries, authorization and response mapping. A database-backed API can also return JSON; the distinction is static files versus dynamically supplied configuration, not the JSON format itself. Preview images, tiles and media can use object storage/CDN with either approach.
+
+| Consideration | Static JSON + CDN | Database + backend API |
+| --- | --- | --- |
+| Configuration reads | No database queries; storage, request and traffic costs still apply | Requests that reach the backend need processing and may query the database; caching can reduce that work |
+| Updates | Generate and publish files, then manage entry references and caches | No static-file publication is required; freshness still depends on backend and client caches |
+| Access and personalization | Public files suit public content; private delivery needs hosting/CDN access control | Backend can authorize users/organizations and return different configurations |
+| Availability and maintenance | Depends on static hosting/CDN; maintain the publication and cache-update process | Depends on the API and its database/cache services; maintain queries, authorization and cache invalidation |
+| Best fit | Public, published tours; infrequent updates; high read traffic | Editing previews, private content, frequent updates and personalization |
+
+**Prefer JSON + CDN for public, published tours; prefer database + API for editing previews, private content and personalization.** If both are needed, use the database as the editing source and generate a JSON snapshot on publication. That hybrid approach needs an application-owned publication process; the package does not generate or synchronize snapshots for you.
+
+Neither path automatically polls or subscribes to configuration changes. To update an already-open page, the host must reload the configuration and pass the new data to the viewer. An uncached API read can return current database values, but does not make an existing viewer update automatically.
+
+### Database-backed configuration
+
+In your backend, query and authorize the tour, then map only the intended configuration fields into a project. The application-owned `readAuthorizedTour` below performs that database read and access check; it is not a package API. Its scene records contain the compact `viewerConfig` saved from conversion, asset directories, views and hotspot definitions:
+
+```ts
+import { loadPanoProject } from "@ericchen1990/pano-view/data";
+import { readAuthorizedTour } from "./tour-repository";
+
+export async function loadTourFromDatabase(tourId: string) {
+  const tour = await readAuthorizedTour(tourId);
+  return loadPanoProject({
+    schemaVersion: 1,
+    initialSceneId: tour.initialSceneId,
+    scenes: tour.scenes.map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      source: {
+        viewerConfig: scene.viewerConfig,
+        baseUrl: scene.assetBaseUrl,
+      },
+      initialView: scene.initialView,
+      hotspots: scene.hotspots,
+    })),
+  }, { baseUrl: tour.assetBaseUrl });
+}
+```
+
+Object input requires `baseUrl`: here `tour.assetBaseUrl` is an absolute directory URL such as `https://cdn.example.com/tours/123/v12/`. Project-relative hotspot URLs resolve against that directory; each scene's optional `source.baseUrl` overrides its panorama tile/preview directory. With every `source.viewerConfig` inline, this call makes no project/viewer JSON requests; rendering still loads previews, tiles and media. On the server, import data helpers from `@ericchen1990/pano-view/data`.
+
+Pass the resulting `LoadedPanoProject` to a viewer component; in Next.js, keep the viewer inside a client boundary:
+
+```tsx
+"use client";
+
+import {
+  PanoViewer, ProjectScenes, type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function DatabaseTour({ project }: { project: LoadedPanoProject }) {
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+Alternatively, return a `PanoProjectDefinition` from an authorized JSON endpoint and use `loadPanoProject("https://api.example.com/tours/123", { baseUrl: "https://cdn.example.com/tours/123/v12/" })`; the URL need not end in `.json`. A single scene can use `sceneFromViewerConfig` with an existing config or `loadSceneFromJson` with an API returning a `schemaVersion: 1` viewer document, then render through `Scenes`. See [Static projects and JSON data](#static-projects-and-json-data) for request options and error handling. Protect private images/media separately: JSON request credentials are not forwarded to texture requests.
+
+### Caching and publishing updates
+
+`project.json` (scene structure, views and hotspots), each `viewer.json` (panorama rendering configuration), and previews/tiles/media are separate cached resources. Refreshing the project alone will not refresh an unchanged scene URL or an image at the same URL. Database-backed APIs can also be cached by the backend, CDN and client, so cache policy matters for both approaches.
+
+- **Prefer versioned directories:** publish a complete release under a new path such as `/tours/123/v12/`, including its `project.json`, scene configs and assets, before switching the page or entry reference. Version changed assets too, and retain old assets while old configurations may still be in use. Immutable versioned files can use long-lived caching; a mutable page or pointer that selects the version needs short caching or revalidation. AWS also [recommends versioned file or directory names](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/UpdatingExistingObjects.html).
+- **When overwriting the same URL:** wait for its configured cache lifetime to expire, require revalidation, or invalidate the affected CDN paths after uploading. CDN invalidation does not clear files already cached in browsers; a newly configured response header cannot retroactively replace an already-fresh cached response. Versioned paths avoid depending on those copies expiring. Query strings such as `?v=12` work only if the CDN includes them in its cache key; JSON query parameters are not inherited by referenced assets.
+- **Choose headers for the resource:** `Cache-Control: no-cache` permits storage but requires validation before reuse; `no-store` tells caches not to store the response. A mutable public entry can use revalidation with validators such as `ETag`, while private/user-specific API responses need an explicit policy such as `private, no-store` and must not be shared between users. Configure hosting/CDN rules to honor the intended policy. See [MDN HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching) and [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control).
+
+These headers and CDN operations belong to your hosting/backend setup. The loader's `requestInit` supports only `headers`, `credentials` and `signal`; it does not expose Fetch's `cache` option, invalidate CDNs or refresh an already-loaded project automatically.
+
+## Static projects and JSON data
+
+No database is required. The converter writes `manifest.json` for archiving/reconstruction and a small `viewer.json` for rendering. Your application authors `project.json` to connect scenes, views and hotspots. Do not pass the full manifest directly to `Scenes`.
+
+Deploy this `project.json`, both panorama output directories and your React app as static files:
+
+```json
+{
+  "schemaVersion": 1,
+  "initialSceneId": "entrance",
+  "scenes": [
+    {
+      "id": "entrance",
+      "source": { "viewerUrl": "./panoramas/entrance/viewer.json" },
+      "initialView": { "yaw": 0, "pitch": 0, "fov": 75 },
+      "hotspots": [{
+        "id": "to-hall", "type": "graphic", "label": "Enter hall",
+        "position": { "yaw": 30, "pitch": -10 },
+        "graphic": { "kind": "arrow" },
+        "action": { "type": "scene", "sceneId": "hall" }
+      }]
+    },
+    {
+      "id": "hall",
+      "source": { "viewerUrl": "./panoramas/hall/viewer.json" },
+      "hotspots": [{
+        "id": "caption", "type": "text",
+        "position": { "yaw": 0, "pitch": 5 }, "text": "Welcome"
+      }]
+    }
+  ]
+}
+```
+
+`source` must contain exactly one of `viewerUrl` or inline `viewerConfig`; optional `baseUrl` overrides panorama assets for that scene. `title`, `initialView` and `hotspots` are optional. The first scene is the default initial scene. Scene IDs must be unique, hotspot IDs unique within a scene, and scene-action targets must exist.
+
+`loadPanoProject` loads metadata with at most four concurrent requests and rejects the whole project if one scene fails. It does not preload every texture. Its `LoadedPanoProject` contains `initialSceneId` and `scenes`; each entry has a runtime `scene`, title, initial view and hotspots with resolved asset URLs. Pass it to `ProjectScenes`:
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  PanoViewer, ProjectScenes, loadPanoProject, PanoDataError,
+  type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+
+export function Tour() {
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject("/tour/project.json", {
+      requestInit: { signal: controller.signal },
+    }).then((result) => {
+      if (!controller.signal.aborted) setProject(result);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof PanoDataError
+          ? `${cause.code}: ${cause.message}` : String(cause));
+      }
+    });
+    return () => controller.abort();
+  }, []);
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+  return <PanoViewer style={{ height: 600 }}>
+    <ProjectScenes project={project} transition="dissolve" />
+  </PanoViewer>;
+}
+```
+
+`ProjectScenes` belongs inside `PanoViewer` and reuses all nine existing hotspot types. A `scene` action navigates on click. Without an action, audio/video/sequence hotspots toggle playback. Media unmounts on leaving a scene and starts from its JSON settings on re-entry; browser autoplay restrictions still apply.
+
+Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives the scene, hotspot and original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `togglePlayback`, `reportError` and `renderDefault`.
+
+For individual panoramas and existing configs use the pure data entry. Next.js viewer components need a client boundary; server-side data loading uses `/data`:
+
+```ts
+import {
+  sceneFromViewerConfig, loadSceneFromJson, loadPanoProject,
+} from "@ericchen1990/pano-view/data";
+
+// A JSON API and a different asset/CDN origin.
+const scene = await loadSceneFromJson(
+  "https://api.example.com/rooms/123/viewer",
+  { id: "room", baseUrl: "https://cdn.example.com/rooms/123/" },
+);
+
+// Existing Node.js conversion results need no extra JSON request.
+const inlineScene = sceneFromViewerConfig(result.viewerConfig, {
+  id: "room", baseUrl: "https://cdn.example.com/rooms/123/",
+});
+
+// Use source.viewerConfig instead of source.viewerUrl to inline scene data.
+const project = await loadPanoProject({
+  schemaVersion: 1,
+  scenes: [{ id: "room", source: { viewerConfig: result.viewerConfig } }],
+}, { baseUrl: "https://cdn.example.com/rooms/123/" });
+```
+
+### URLs and upload mapping
+
+| Reference | Default base |
+| --- | --- |
+| Project `viewerUrl`, hotspot assets, `source.baseUrl` | Project directory |
+| Tiles and preview in external `viewer.json` | That JSON directory |
+| Tiles and preview in inline config | Project directory |
+| Panorama with `source.baseUrl` | Specified directory |
+
+URL inputs use the final response directory after redirects. Object inputs require `baseUrl`; it can also override the project directory. Directory trailing slashes are normalized. Domains and cloud prefixes stay outside converter JSON. Browsers accept relative entry URLs; Node.js requires absolute HTTP(S) entry URLs. Full resource URLs remain intact; leading `/` paths resolve against the resource base origin.
+
+If uploads rename files or scatter directories, provide synchronous `resolveAssetUrl(path, context)`. Context has `defaultUrl`, `kind` (`tile`, `preview`, `hotspot`), `sceneId` and optional `hotspotId`. Return a final absolute URL or site-root path; it is not joined again. `uploadedUrls` below is application-owned:
+
+```ts
+const project = await loadPanoProject("/tour/project.json", {
+  resolveAssetUrl(path, context) {
+    // Map keys must distinguish scenes and, for hotspot assets, hotspot IDs.
+    const key = `${context.sceneId}/${context.hotspotId ?? ""}/${path}`;
+    return uploadedUrls[key] ?? context.defaultUrl;
+  },
+});
+```
+
+Hotspot mapping covers images, SVG image URLs, audio source arrays, video posters, playback icons and tooltip images; text, CSS and SVG path data remain unchanged. Acquire signed URLs ahead of time in your application and return them synchronously.
+
+`requestInit` accepts only `headers`, `credentials` and `signal`, for JSON requests only. They are not forwarded to textures, and JSON query parameters are not inherited by assets. `parsePanoProject(unknown)` validates and copies project data independently. `sceneFromViewerConfig` accepts the unwrapped compact config; `loadSceneFromJson` accepts a versioned `viewer.json`.
+
+`PanoDataError` exposes stable codes: `INVALID_OPTIONS`, `FETCH_FAILED`, `HTTP_ERROR`, `INVALID_JSON`, `INVALID_CONFIG`, `UNSUPPORTED_SCHEMA_VERSION`, `UNSUPPORTED_PROJECTION`, `INVALID_PROJECT`, `INVALID_REFERENCE`, `ABORTED`. HTTP errors carry `status`; project errors include `sceneId` and `field` where available. Successful loading means metadata is ready, not that textures have loaded; use `onSceneReady` for render readiness.
+
+See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example.
 
 ## krpano-compatible tile output
 
@@ -100,9 +306,9 @@ bun add @ericchen1990/pano-view
 
 ### Peer dependencies
 
-These packages must be installed in the **host application**, not nested under
-this library. npm 7+, pnpm, and Bun install them automatically; Yarn and npm 6
-do not, so install them explicitly.
+The **host application** must provide compatible versions of these packages.
+Automatic peer-dependency installation depends on the package manager and its
+settings. Install any missing peers explicitly using the ranges below.
 
 | Package | Supported range |
 | --- | --- |
@@ -123,10 +329,10 @@ If that happens, check `npm ls three`, `pnpm why three`, `yarn why three`, or
 
 Import the shipped stylesheet once in the host app. The WebGL panorama
 (`PanoViewer`, `Sphere`, `Tile`, 3D hotspots) renders without it. Built-in
-**HTML** overlays do not: they use prefixed `pano-*` classes for layout.
+**HTML** overlays depend on its prefixed `pano-*` classes for layout.
 
 Those overlays include video controls, captions, the default context menu,
-hotspot tooltips, accessibility-only chrome, and WebVR session UI.
+hotspot tooltips, controls for assistive technology, and WebVR session UI.
 
 ```ts
 import "@ericchen1990/pano-view/styles.css";
@@ -147,7 +353,7 @@ the stylesheet, the overlays still mount, but they render unstyled.
 Give PanoViewer an explicit size and render one panorama source inside it.
 Import the stylesheet once when you use built-in HTML overlays such as video
 controls, captions, tooltips, the context menu, or WebVR UI. Each example
-below is the shortest form; the linked section has the full props.
+below shows a basic setup; the linked section has the full props.
 
 ### Equirectangular image
 
@@ -164,7 +370,8 @@ export function Panorama() {
 }
 ~~~
 
-`previewUrl` is a 2:1 image. See [Sphere](#sphere).
+`previewUrl` must be a low-resolution 2:1 image shown while the full image
+loads. See [Sphere](#sphere).
 
 ### Cube tiles
 
@@ -242,9 +449,10 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 - [`PanoViewer`](#panoviewer) — canvas shell, camera, default controls, and imperative view API
 - [`Sphere`](#sphere) — single 2:1 equirectangular image
+- [`SphereTile`](#spherical-multiresolution-tiles) — multiresolution equirectangular tiles
 - [`PanoVideo`](#panovideo) — 2:1 equirectangular video on the panorama sphere
 - [`Tile`](#tile) — krpano-style multires cube tiles
-- [`Scenes`](#scenes) — controlled multi-scene transitions
+- [`Scenes`](#scenes) — multi-scene switching in controlled or uncontrolled mode
 - [`BackgroundAudio`](#backgroundaudio) — one shared track, or a different track per scene
 - [`PanoFilter`](#panofilter) — color and artistic filters on the panorama source
 
@@ -288,7 +496,7 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 `PanoViewer` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
 
-Angles are public degrees. Positive yaw looks right and positive pitch looks up.
+Angles in the public API are measured in degrees. Positive yaw looks right and positive pitch looks up.
 
 ```tsx
 import "@ericchen1990/pano-view/styles.css";
@@ -357,13 +565,13 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 **Fullscreen** — `enterFullscreen`, `exitFullscreen`, `toggleFullscreen`, `isFullscreen`.
 
-**Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` now accepts an optional `defaultActiveSceneId` (uncontrolled) or keeps the existing `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
+**Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` accepts `defaultActiveSceneId` (uncontrolled) or `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
 
 **WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `requestVRPermission`.
 
-**Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to host changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
+**Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to video controller and playback-state changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
 
-**Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to host changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` now accepts an optional `playing` prop (controlled) or uses `defaultPlaying` (uncontrolled).
+**Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to background-audio controller and playback-state changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` accepts `playing` (controlled) or `defaultPlaying` (uncontrolled).
 
 ### Mobile media activation
 
@@ -385,7 +593,7 @@ By default, when a child has an initial playback intent (`PanoVideo autoPlay`, a
 
 The `media` argument provides `resumeAudio()`, `playVideo({ unmute })`, and `playBackgroundAudio()`. Controlled background audio remains host-owned: update its `playing` state from this callback. `viewer.activateMedia()` lets a custom control reuse the same path.
 
-Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) are safe no-ops — they return `false`, `void`, or `null`.
+Methods that depend on an unmounted child component (e.g. `enterVR` without `<WebVR />`) perform no action and return `false`, `undefined`, `null`, or a corresponding Promise, depending on the method.
 
 ### Fullscreen
 
@@ -610,7 +818,7 @@ function TourPlayer() {
 
 The two deprecated auto-rotation handle methods (`startAutoRotate`, `stopAutoRotate`) remain for compatibility. Mouse, touch, and keyboard input are enabled by default — you do not need to render control components for ordinary viewing. Render `MouseControls`, `TouchControls`, or `KeyboardControls` only to override properties (the child replaces that channel's default instance). Tune shared behaviour through `controls` (`inertia`, `invert`, `bouncingLimits`, `fovSpeed`, `frictionStop`, `rotateDamping`, `zoomDamping`, and top-level `rotateSpeed` / `zoomSpeed`). Disable a channel with `controls.mouse` / `touch` / `keyboard` set to `false`, or pass an options object (including `enabled`) to override defaults without mounting a child. Auto-rotation is off until you render `AutoRotate`. A default context menu (Reset view / Enter fullscreen) is also mounted — see [`PanoContextMenu`](#panocontextmenu).
 
-Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); lower values feel softer, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
+Drag and zoom update a target view that the camera follows smoothly. `rotateDamping` and `zoomDamping` control that following speed in seconds^-1 (defaults: `14` and `16` respectively); smaller positive values make the camera approach the target more gradually, while `0` disables smoothing for that axis. Both values must be non-negative finite numbers. Imperative `setView()` and `reset()` remain immediate.
 
 The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the mouse, `pointer` over an interactive hotspot, and `move` while dragging a hotspot. Override those values with `cursors` (`default`, `dragging`, `hotspot`, `hotspotDragging`), or pass `cursors={false}` to leave the canvas cursor unchanged. A hotspot may set `cursor` to replace the hover cursor for that hotspot only.
 
@@ -632,7 +840,20 @@ The canvas cursor defaults to `grab`, becomes `grabbing` while dragging with the
 
 `Sphere` expects a 2:1 equirectangular image. Use `yawOffset` when the source's forward direction needs horizontal adjustment.
 
+`Sphere` loads the complete `src` image as one texture. High-resolution images
+increase download, decoding, and GPU texture memory costs. Exceeding a device's
+texture-size or memory limits can cause loading failures or WebGL context loss;
+memory exhaustion can also crash the page. The current spherical renderer may
+still show visible artifacts near the top and bottom poles.
+
+Prefer cube tiles ([`Tile`](#tile)) for high-resolution panoramas, generated
+with [@ericchen1990/pano-converter](../converter/README.md). The viewer loads
+required tile levels by view, avoiding one oversized texture. For existing
+equirectangular tiles, use [`SphereTile`](#spherical-multiresolution-tiles).
+
 `previewUrl` is required and shows a low-resolution 2:1 image while `src` loads.
+Provide a small preview to reduce download, decoding, and texture memory costs
+for the initial display.
 Relative paths resolve against the directory of `src`; root-absolute and
 `http(s)` URLs are used as-is. For krpano sphere scenes, copy
 [`<preview url>`](https://krpano.com/docu/xml/#preview) into `previewUrl`. That
@@ -673,8 +894,8 @@ Pass `controls={false}` to hide it, an appearance object to restyle the default
 instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
 instance.
 
-Captions use WebVTT `tracks`. The video element is off-screen, so cue text is
-rendered as a HUD overlay. `captions={false}` hides the overlay and the language
+Captions use WebVTT `tracks`. The video element is mounted inside the viewer as a
+transparent 1×1-pixel node; cue text is rendered in a screen-space overlay. `captions={false}` hides the overlay and the language
 menu; an object merges with the default appearance (`color`, `background`,
 `fontSize`, `fontFamily`, `textShadow`, `padding`, `borderRadius`, `maxWidth`,
 `bottom`). Those values act as the initial caption appearance; viewers can still
@@ -723,13 +944,14 @@ export function VideoExample() {
 }
 ```
 
-`muted` defaults to `true` so `autoPlay` has a chance under browser autoplay
-rules. `playsInline` also defaults to true and writes `playsinline`,
-`webkit-playsinline`, and the X5 `h5-page` attributes, so the video stays in
-the page on iPhone Safari and in WeChat, QQ, and UC. Picture-in-picture and
+`muted` defaults to `true` for better autoplay compatibility; playback
+remains subject to browser policy. `playsInline` also defaults to true and writes `playsinline`,
+`webkit-playsinline`, and the X5 `h5-page` attributes, to request playback
+within the page on iPhone Safari and in WeChat, QQ, and UC. Actual behavior
+depends on the browser and its version. Picture-in-picture and
 remote playback stay disabled so the element can keep feeding the sphere
 texture. The element is mounted inside the viewer at 1×1px. Unmuted playback
-still needs a user gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
+may require a user gesture; `onPlaybackStateChange` receives `"blocked"` when `play()` is
 rejected. Remote videos and VTT files that are not same-origin should set
 `crossOrigin` (usually `"anonymous"`). For mobile delivery, provide an H.264 +
 AAC MP4 fallback, poster, CORS, and Range support.
@@ -816,12 +1038,12 @@ The first `multires` value is the tile size. Remaining values are ascending cube
 />
 ```
 
-`previewFaceOrder` must list the six face codes in their top-to-bottom atlas order: `f`, `r`, `b`, `l`, `u`, and `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
+`previewFaceOrder` must list all six face codes in the preview atlas's actual top-to-bottom order. The default is `l`, `f`, `r`, `b`, `u`, `d`. The preview image is a vertical 1×6 cubestrip. krpano `thumb.jpg` is a small thumbnail and is not this atlas.
 
 During rapid rotation or zoom, loaded tiles remain visible while newly visible tiles use their parent level or the preview as a local fallback.
 
 For layouts that are not krpano XML, override the default with a placeholder
-template or a resolver. Both return paths relative to `baseUrl`:
+template or a resolver. Both accept paths relative to `baseUrl` or absolute URLs:
 
 ```tsx
 <Tile
@@ -847,14 +1069,14 @@ a single non-stereo cube panorama.
 
 ## Scenes
 
-`Scenes` switches controlled sphere, cube-tile, and equirectangular-tile scenes with GPU-only
-snapshot blending. The incoming scene stays hidden while it preloads its preview and base
-tiles. Once that preview can be drawn, the current framebuffer becomes a temporary GPU
+`Scenes` switches between single-image equirectangular, cube-tile, and
+equirectangular-tile scenes in controlled or uncontrolled mode. Transitions blend
+a GPU framebuffer snapshot with the incoming scene. The incoming scene stays hidden while it loads its preview; tiled scenes also
+load the lowest-resolution tiles around the view. Once the scene can be drawn, the current framebuffer becomes a temporary GPU
 texture and the outgoing source textures are released. The incoming scene then switches to
 full detail immediately: tiles that are already sharp replace the preview during the blend,
-and tiles that are still loading keep the coarser parent tile or the preview. The viewer
-does not keep two high-resolution tile sets resident, and it does not preload tiles outside
-the current view.
+and tiles that are still loading keep the coarser parent tile or the preview. The incoming scene starts loading detail tiles after the outgoing scene is
+released. Tile selection includes the current view and a small surrounding margin.
 
 ```tsx
 import {
@@ -886,7 +1108,7 @@ const scenes: Scene[] = [
 </PanoViewer>;
 ```
 
-Available KRpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
+Available krpano-style presets are `none`, `crossfade`, `zoom`, `blackout`,
 `whiteFlash`, `slideRightToLeft`, `slideTopToBottom`, `slideDiagonal`,
 `circleOpen`, `verticalOpen`, `horizontalOpen`, and `ellipticZoomOpen`.
 Grid presets are `pixelate`, `gridWipe`, `gridWipeUp`, `gridWipeRight`,
@@ -911,7 +1133,7 @@ values are treated as `0`. `transition="none"` uses the same condition and then 
 over directly. A new target, an interrupt, unmount, or a lost WebGL context cancels a
 pending wait so a stale readiness report cannot affect the next scene.
 
-`onReady` still means a source can paint for the first time. `onSceneReady` still fires
+`onReady` means a source can be drawn for the first time. `onSceneReady` fires
 for the first paintable scene and when an incoming scene takes over after the outgoing
 snapshot. It does not mean the current view's full detail has finished loading.
 
@@ -923,14 +1145,16 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 ## PanoFilter
 
 Render `PanoFilter` inside `PanoViewer` to color-grade or stylize the panorama
-source (`Sphere`, `Tile`, and `PanoVideo`). The filter runs on those materials
-only: 3D hotspots, tooltips, video chrome, and iframe overlays keep their
-original color. WebXR / MobileVR inherit the same look because the panorama
-shader itself is patched.
+source (`Sphere`, `Tile`, `SphereTile`, and `PanoVideo`). Built-in presets affect
+only panorama materials. `colorMatrix` defaults to the panorama; set
+`colorMatrixScope="all"` to include hotspot textures. DOM overlays such as
+tooltips, video controls, and iframes are unaffected. WebXR / MobileVR use the
+same panorama shader and inherit its filter appearance.
 
 `intensity` mixes the filtered result with the original image (`0`–`1`,
-default `1`). Omit the component, pass `preset="none"`, or set `enabled={false}`
-to leave the source unfiltered.
+default `1`). Omit the component or set `enabled={false}` to disable all filtering.
+`preset="none"` disables only the built-in preset; a configured `colorMatrix`
+still applies.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -981,10 +1205,11 @@ follow the camera. Render it as a child of `PanoViewer`, **alongside** `Scenes`,
 `Sphere`, or `Tile`. Do not put it in `Scenes`' `renderHotspots` — hotspots
 unmount during scene transitions and would stop the audio.
 
-`playing` is controlled by the host; the component does not change it. `loop`
-defaults to `true`. Browsers may block autoplay; `onPlaybackStateChange` then
-receives `"blocked"`, and the component retries `play()` after the next click
-or keypress while `playing` remains true.
+When `playing` is provided, the host controls playback. Otherwise the component
+uses internal state initialized by `defaultPlaying` (default `false`). `loop`
+defaults to `true`. If the browser blocks autoplay, `onPlaybackStateChange`
+receives `"blocked"`. The component retries `play()` after the next click or
+keypress while playback is still requested.
 
 Pick one of the two patterns.
 
@@ -1341,10 +1566,12 @@ Supported callbacks (krpano names in parentheses where applicable):
 `PanoViewer`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
 `onPanoramaPointerMove` props remain supported and share the same event bus.
 
-Resource loading and scene blending stay on their owners: use `Sphere` /
-`Tile` `onLoad` / `onError` / `onLoadProgress`, and `Scenes`
-`onTransitionEnd` / `onTransitionError`. This package does not mirror krpano
-xml/VR/frame-render events.
+Resource callbacks belong to each source: `Sphere` provides `onLoad`,
+`onError`, and `onPreviewError`; `Tile` / `SphereTile` provide `onLoadProgress`,
+`onTileError`, and `onPreviewError`. Sources report initial render readiness
+through `onReady`. Use `Scenes` callbacks `onSceneReady`, `onTransitionEnd`,
+and `onTransitionError` for scene state. This package does not provide a
+one-to-one mapping of krpano XML-loading, VR, or frame-render events.
 
 ## PanoContextMenu
 
@@ -1521,6 +1748,11 @@ color, border, corner radius, shadow, padding, and font size.
     fontSize: 13,
   }}
 />
+```
+
+For a hover-triggered tooltip:
+
+```tsx
 <GraphicHotspot
   id="marker"
   ariaLabel="Signal"
@@ -1533,9 +1765,8 @@ color, border, corner radius, shadow, padding, and font size.
 ```
 
 For persistence or a host-owned editor, use the exported discriminated
-`HotspotDefinition` union. Adding a variant is a TypeScript breaking change for
-exhaustive switches; handle `audio` alongside the existing point and path
-categories:
+`HotspotDefinition` union. Render each variant according to `type`; an exhaustive
+`switch` must cover every hotspot category in the union:
 
 ```ts
 import type { HotspotDefinition } from "@ericchen1990/pano-view";
@@ -1637,8 +1868,8 @@ property to orient them in another direction.
 ```
 
 `cornerRadius` is relative to the rendered graphic's shorter side: `0` keeps
-square corners and `0.5` produces the maximum rounded corners. This replaces
-the previous Canvas-texture pixel interpretation.
+square corners and `0.5` produces the maximum rounded corners. The value is a
+relative proportion, not a texture-pixel measurement.
 
 `GraphicHotspot` uses the same `onLoad(texture)` and `onError(error)` callbacks
 as `ImageHotspot`. Built-in paths are rasterized locally; only an SVG URL
@@ -1647,12 +1878,12 @@ markup.
 
 ## Hotspot mode and zoom behaviour
 
-Point hotspots use one safe `mode` instead of separate orientation and
-placement properties:
+Point hotspots use `mode` to configure orientation and placement together:
 
 - `mode="surface"` attaches the plane to the local panorama surface.
 - `mode="billboard"` keeps the plane facing the camera and floats it in front
-  of the shell. Set `distance` (world units, default `10`) to bring it nearer.
+  of the shell. `distance` is the distance from the camera (world units, default `10`);
+  decrease it to move the hotspot nearer.
   The built-in panorama shell is at roughly `1000` units; distance is
   automatically capped so the hotspot's corners cannot cross it.
 - `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
@@ -1719,8 +1950,7 @@ pitch clamped. Individual vertex editing is provided by the authoring
 workflow, not the runtime hotspot component.
 
 Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
-share the same spherical edge sampling, so there is no intentional seam
-between them.
+share the same spherical edge sampling so the outline follows the fill boundary.
 
 ## PolylineHotspot
 
@@ -1831,9 +2061,9 @@ attenuation (stereo pan only). Use a smaller `range` such as `90` for a
 spot source.
 
 Playback uses Web Audio via Howler.js (bundled; hosts do not install
-`howler`). The file must decode before play starts — MP3 is the recommended
-format. `src` may be a string or an array of fallback URLs. Do not use HTML5
-streaming (`html5`); it drops stereo panning.
+`howler`). The file must decode before playback starts; MP3 is a suitable
+format. `src` may be a string or an array of fallback URLs. The component uses Web Audio rather than HTML5
+streaming to retain stereo panning.
 
 `playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
 `muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
@@ -1946,9 +2176,10 @@ not load.
 
 ## Next.js and SSR
 
-The distributed entry is marked as a client module. Render it below a Client
-Component boundary. Panorama resources are loaded in the browser; no API keys
-or server configuration are required.
+The component entry is marked as a client module; render it within a Client
+Component boundary. Use `@ericchen1990/pano-view/data` for server-side
+configuration loading. The browser loads panorama assets. The viewer itself
+needs no API key; asset servers still need appropriate access and CORS settings.
 
 Import the stylesheet once from a Client Component or a global CSS file:
 
@@ -1960,7 +2191,20 @@ See [Stylesheet (HTML chrome)](#stylesheet-html-chrome).
 
 ## Spherical multiresolution tiles
 
-`SphereTile` renders full 2:1 equirectangular pyramids without assembling a full-resolution texture:
+`SphereTile` renders multiresolution tile pyramids covering a complete 2:1
+equirectangular panorama. It selects tiles according to the view, zoom, and
+texture budget, mapping each tile as a separate texture onto its corresponding
+spherical region. Coarser tiles or the preview cover regions whose detail has
+not loaded yet.
+
+This avoids loading the entire panorama as one high-resolution texture and can
+reduce peak image-decoding and texture-upload costs. Actual memory use still
+depends on tile dimensions, visible levels, and the cache budget. The current
+spherical renderer may still show visible artifacts near the top and bottom
+poles. Prefer cube tiles ([`Tile`](#tile)) for newly generated panorama assets;
+use `SphereTile` for existing equirectangular tile pyramids.
+
+Basic usage:
 
 ```tsx
 import { PanoViewer, SphereTile } from "@ericchen1990/pano-view";
@@ -2028,9 +2272,9 @@ const scenes: Scene[] = [
 `onSceneReady(sceneId)` fires when the first scene becomes paintable and when an
 incoming scene takes over after the outgoing snapshot is captured. The transition
 may still be running; use this callback to apply the incoming camera view without
-changing the outgoing snapshot. Full detail loads after that handoff, including during
-the blend. `transitionWaitForDetailMs` can hold the outgoing snapshot until the current
-view is sharp; it does not change when `onSceneReady` fires. `onTransitionEnd` marks
+changing the outgoing snapshot. For tiled scenes, detail loading is enabled after that handoff and continues
+during the blend. `transitionWaitForDetailMs` can hold the outgoing snapshot within the configured timeout until the current
+view's target detail is ready; it does not change when `onSceneReady` fires. `onTransitionEnd` marks
 completion of the blend.
 
 `SphereTileScene` accepts the source options of `SphereTile`, including
@@ -2045,13 +2289,75 @@ its own cache, callbacks, and loading options.
 `PanoFilter` also accepts `colorMatrix`, a readonly row-major 4×5 RGBA matrix
 (20 finite numbers, matching SVG `feColorMatrix`). The matrix is applied in
 display/sRGB space after the panorama preset. `intensity` mixes each effect
-with the original; `enabled={false}` disables both. Set
+with its input; `enabled={false}` disables both. Set
 `colorMatrixScope="all"` to include hotspot textures; the default `"panorama"`
 keeps existing behavior. Artistic presets always affect only the panorama.
 HTML tooltips, iframes and other DOM chrome remain host-styled.
 
-Hotspot `tooltipAppearance` now accepts `fontFamily`, `lineHeight`, and
+Hotspot `tooltipAppearance` accepts `fontFamily`, `lineHeight`, and
 `letterSpacing`, in addition to `fontSize` and existing paint options.
 `lineHeight` numbers are unitless; numeric `letterSpacing` values are CSS pixels.
 
 Regression checks: `pnpm --filter @ericchen1990/pano-view test` (Node 22+).
+
+## FAQ and troubleshooting
+
+### Why prefer cube tiles?
+
+[`Tile`](#tile) loads cube tiles according to the view and zoom, avoiding one oversized panorama texture and the current spherical renderer's pole artifacts. Use [`SphereTile`](#spherical-multiresolution-tiles) for existing equirectangular tiles with view-dependent loading; tiling alone does not remove spherical pole artifacts. `Sphere` suits single images with manageable dimensions. A preview improves initial display time, but its dimensions should still be kept small. See [Sphere](#sphere).
+
+### How do I deploy multiple scenes without a database?
+
+Keep the converter directory structure, author `project.json` referencing each `viewer.json`, and render it with `loadPanoProject` and `ProjectScenes`. Upload your React build and assets to static hosting. Under a prefix such as `/demo/`, use the correct project entry URL and prefer relative references inside the project.
+
+### Why do JSON or textures fail across origins?
+
+Inspect Network and Console to identify the failing config, preview or tile. The server/CDN must allow your app origin. Public anonymous resources may use `Access-Control-Allow-Origin: *`; credentialed requests need an explicit allowed origin and `Access-Control-Allow-Credentials: true`. Use `Vary: Origin` when varying by origin. JavaScript may only receive `Failed to fetch`, so the loader cannot diagnose CORS with certainty.
+
+`no-cors` gives an unreadable opaque response; it cannot make JSON readable or bypass WebGL texture rules. Configure the server. See [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) and [WebGL textures](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL).
+
+Example S3 console CORS configuration for reads (replace the website origin):
+
+```json
+[{
+  "AllowedOrigins": ["https://app.example.com"],
+  "AllowedMethods": ["GET", "HEAD"],
+  "AllowedHeaders": ["Authorization"]
+}]
+```
+
+CORS does not grant object read permission. When using a CDN, check its actual response headers too. See the [official S3 CORS guide](https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html).
+
+### Why do tiles return 404 or use the wrong URL?
+
+Compare the complete Network URL with the uploaded object key. Check `baseUrl`, extra directory levels, case and filenames. A new domain/prefix only needs a new root; renamed files need mapping. Preserve the converter template, particularly `%v_%h` versus `%h_%v`.
+
+### Why INVALID_JSON with HTTP 200?
+
+Inspect the response body for HTML. A static SPA fallback may serve the homepage for a missing JSON file, or authentication may redirect to a login page. Fix the URL/routing; status 200 does not guarantee JSON.
+
+### Why does JSON work but images return 401/403 or expired signatures?
+
+Treat config authentication and image access separately. `requestInit` headers/credentials apply to JSON only; its URL token is not appended to tiles. Supply public URLs, signed URLs, or your application's supported authentication mechanism for assets. Acquire signatures before mapping/loading and refresh them when expired; keep temporary credentials outside conversion JSON.
+
+### Why is the canvas blank after config loading succeeds?
+
+Ensure the viewer container has nonzero height, inspect texture requests and WebGL console errors, and keep React, Three.js and React Three Fiber singletons. Metadata success is not render readiness: observe `onSceneReady` and `onTransitionError`.
+
+### Why is the preview correct but detailed tiles are missing or misplaced?
+
+Upload every tile and preserve actual level sizes, `urlTemplate`, `previewFaceOrder` and `indexBase`. Do not assume all levels exactly double or confuse zero-based logical coordinates with stored indices. A custom resolver must identify the corresponding original tile.
+
+### Why are hotspots missing or not navigating?
+
+Check the owning scene, `visible`, `interactive`, `pointerEvents`, angles and asset requests. Hotspots hide during transitions. IDs must be unique in their respective scopes and `action.sceneId` must exist. `preventDefault()` cancels built-in actions. Text alone does not create an information dialog.
+
+### Why does media not play?
+
+Start playback from a click or keyboard gesture, check supported formats and permissions, and inspect `onHotspotError`. Browsers can block unmuted autoplay; tab visibility and device rules can also affect playback. The component does not bypass browser policies.
+
+### What about local files, mixed content, caching and versions?
+
+Serve files over local HTTP(S), rather than double-clicking `file://` HTML. HTTPS pages should load HTTPS assets. Use versioned asset directories and coordinate JSON/image caching so stale configs do not target replaced files. `UNSUPPORTED_SCHEMA_VERSION` requires a supported config version. Planar conversions have no `viewer.json` and need a planar viewer.
+
+For conversion failures see [converter error codes and troubleshooting](../converter/README.md#error-codes-and-troubleshooting).
