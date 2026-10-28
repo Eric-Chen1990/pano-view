@@ -40,6 +40,12 @@ export class LocalFiles {
       this.files.set(path, file);
     }
   }
+  static imported(file: File, prefix: string): LocalFiles {
+    const name = file.name.replace(/[/\\]/g, "_");
+    const named = new File([file], name, { type: file.type });
+    Object.defineProperty(named, "webkitRelativePath", { value: `assets/${name}` });
+    return new LocalFiles([named], prefix);
+  }
   containsSource(source: PanoProjectSceneDefinition["source"]): boolean {
     if (!source.viewerUrl) return false;
     return this.containsPath(source.viewerUrl);

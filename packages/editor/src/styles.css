@@ -762,3 +762,70 @@
     flex-shrink: 0;
   }
 }
+
+.pne-field-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+.pne-field.pne-check {
+  flex-wrap: wrap;
+}
+.pne-field.pne-check .pne-field-heading {
+  order: 1;
+  margin-bottom: 0;
+}
+.pne-field.pne-check > button {
+  order: 2;
+}
+.pne-field.pne-check > small {
+  order: 3;
+  flex-basis: 100%;
+}
+.pne-root button.pne-help-button {
+  min-height: 28px;
+  width: 28px;
+  padding: 4px;
+  border-color: transparent;
+  color: var(--pne-muted);
+  flex: none;
+}
+.pne-help-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+.pne-help-bubble {
+  position: absolute;
+  pointer-events: auto;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--pne-border);
+  border-radius: 3px;
+  background: var(--pne-panel);
+  color: var(--pne-text);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.pne-help-bubble strong,
+.pne-help-bubble code {
+  display: block;
+}
+.pne-help-bubble code {
+  color: var(--pne-muted);
+}
+.pne-root .pne-help-bubble p {
+  margin: 6px 0 0;
+}
+.pne-cursor-preview {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  margin-top: 6px;
+  background: var(--pne-panel);
+  border: 1px solid var(--pne-border);
+}

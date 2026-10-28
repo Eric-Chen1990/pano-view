@@ -1,3 +1,4 @@
+import { mapCursorAssets } from "../../../shared/cursor-assets";
 import {
   parsePanoProject,
   type PanoProjectDefinition,
@@ -82,6 +83,8 @@ export function exportDocument(project: PanoProjectDefinition): string {
             `${hotspot.id}.${field}`,
           );
       }
+      if (hotspot.cursor) mapCursorAssets(hotspot.cursor, (path) => { check(path, `${hotspot.id}.cursor`); return path; });
+      if (hotspot.tooltipAppearance?.background) mapCursorAssets(hotspot.tooltipAppearance.background, path => { check(path, `${hotspot.id}.tooltipAppearance.background`); return path; });
       if (hotspot.type === "graphic" && hotspot.graphic.kind === "svg")
         check(hotspot.graphic.src, `${hotspot.id}.graphic.src`);
       if (typeof hotspot.tooltip === "object")

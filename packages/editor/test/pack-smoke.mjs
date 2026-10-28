@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+  cp,
   mkdtemp,
   mkdir,
   readFile,
@@ -64,6 +65,13 @@ try {
       join(directory, "node_modules", name),
     );
   }
+  assert.ok(manifest.dependencies?.fflate, "ZIP runtime dependency must be declared");
+  // This fixture assembles an isolated tarball consumer without a registry install.
+  // Copy the declared ZIP runtime just as the fixture supplies React and viewer peers.
+  await cp(join(editor, "node_modules/fflate"), join(directory, "node_modules/fflate"), {
+    recursive: true,
+    dereference: true,
+  });
   const css = await readFile(
     join(directory, "node_modules/@ericchen1990/pano-editor/dist/styles.css"),
     "utf8",

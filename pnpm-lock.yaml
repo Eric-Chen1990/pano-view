@@ -99,6 +99,10 @@ importers:
         version: 5.9.3
 
   packages/editor:
+    dependencies:
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
     devDependencies:
       '@ericchen1990/pano-view':
         specifier: workspace:*

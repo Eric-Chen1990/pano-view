@@ -1,3 +1,6 @@
+import { cursorImage, imageCursor } from "../../../shared/cursor-assets";
+import { validateCursorImage } from "./cursor-image";
+import { projectRoot } from "./sources";
 import { SceneSidebar, SceneSettings } from "./scene-panels";
 import {
   EditorDialog,
@@ -43,6 +46,7 @@ import { SceneSources } from "./sources";
 import { ImportTask } from "./import-task";
 import { translator } from "./i18n";
 import { getField, setField } from "./fields";
+import { FieldHelpProvider } from "./field-help";
 import { HotspotInspector } from "./inspector";
 import { EditorViewer } from "./editor-viewer";
 import { errorMessage } from "./errors";
@@ -94,6 +98,9 @@ export function PanoEditor(props: PanoEditorProps) {
   const [saved, setSaved] = useState(() => JSON.stringify(project));
   const dirty = JSON.stringify(project) !== saved;
   const [fullscreen, setFullscreen] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ completed: number; total: number }>();
+  const exportController = useRef<AbortController | undefined>(undefined);
+  const cursorInput = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const directoryRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -122,6 +129,7 @@ export function PanoEditor(props: PanoEditorProps) {
       generation.current++;
       operation.current++;
       task.cancel();
+      exportController.current?.abort();
       for (const files of retainedDirectories.current) files.dispose();
     };
   }, [task]);
@@ -200,6 +208,7 @@ export function PanoEditor(props: PanoEditorProps) {
     field: string,
     url: string,
   ): ProjectHotspotDefinition {
+    if (field === "cursor") return { ...hotspot, cursor: imageCursor(url) };
     if (field === "graphic.src" && hotspot.type === "graphic")
       return { ...hotspot, graphic: { kind: "svg", src: url } };
     const value =
@@ -239,6 +248,7 @@ export function PanoEditor(props: PanoEditorProps) {
     generation.current++;
     operation.current++;
     task.cancel();
+    exportController.current?.abort();
     setBusy(false);
     setProgress(undefined);
     history.replace(next);
@@ -533,6 +543,10 @@ export function PanoEditor(props: PanoEditorProps) {
   }
   async function pickAsset(field: string, hotspotKind?: HotspotKind) {
     if (!active) return;
+    if (field === "cursor" && (localSession || !props.onPickAsset)) {
+      cursorInput.current?.click();
+      return;
+    }
     const pickerToken = ++pickerOperation.current;
     if (!localSession && props.onPickAsset) {
       const token = generation.current;
@@ -542,18 +556,22 @@ export function PanoEditor(props: PanoEditorProps) {
         : selected;
       const request: PanoAssetRequest = {
         kind:
-          (hotspotKind ?? hotspot?.type) === "video" && field === "src"
+          field === "cursor"
+            ? "image"
+            : (hotspotKind ?? hotspot?.type) === "video" && field === "src"
             ? "video"
             : (hotspotKind ?? hotspot?.type) === "audio" && field === "src"
-              ? "audio"
-              : (hotspotKind ?? hotspot?.type) === "iframe"
-                ? "document"
-                : "image",
+            ? "audio"
+            : (hotspotKind ?? hotspot?.type) === "iframe"
+            ? "document"
+            : "image",
         sceneId,
         hotspotId: hotspot?.id ?? "",
         field,
         currentUrl: hotspot
-          ? String(getField(hotspot, field) ?? "")
+          ? field === "cursor"
+            ? cursorImage(hotspot.cursor)
+            : String(getField(hotspot, field) ?? "")
           : undefined,
       };
       try {
@@ -586,6 +604,65 @@ export function PanoEditor(props: PanoEditorProps) {
         hotspotKind,
         selected: "",
       });
+  }
+  async function importCursor(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file || !active || !selected) return;
+    const sceneId = active.id,
+      hotspotId = selected.id,
+      token = generation.current;
+    try {
+      await validateCursorImage(file);
+      const imageUrl = URL.createObjectURL(file);
+      try {
+        const image = new Image();
+        image.src = imageUrl;
+        await image.decode();
+      } catch {
+        throw new Error("Choose a PNG cursor image up to 32 × 32 pixels.");
+      } finally {
+        URL.revokeObjectURL(imageUrl);
+      }
+      if (!alive.current || generation.current !== token) return;
+      const files = LocalFiles.imported(file, `assets/cursors/${newId()}/`);
+      const path = LocalFiles.reference([...files.files.keys()][0]!);
+      updateScene(sceneId, (scene) => ({
+        ...scene,
+        hotspots: scene.hotspots?.map((hotspot) =>
+          hotspot.id === hotspotId
+            ? { ...hotspot, cursor: imageCursor(path) }
+            : hotspot,
+        ),
+      }));
+      retainedDirectories.current.push(files);
+      setDirectories((current) => [...current, files]);
+      setError("");
+    } catch (cause) {
+      report(t(errorMessage(cause)));
+    }
+  }
+  let cursorPreviewUrl: string | undefined;
+  const cursorPath = cursorImage(selected?.cursor);
+  if (cursorPath && selected && active) {
+    try {
+      const files =
+        directories.find((entry) => entry.containsPath(cursorPath)) ?? local;
+      const context = {
+        kind: "hotspot" as const,
+        sceneId: active.id,
+        hotspotId: selected.id,
+        defaultUrl: new URL(
+          cursorPath,
+          files ? "https://pano-editor.invalid/" : projectRoot(props.baseUrl),
+        ).href,
+      };
+      cursorPreviewUrl = files
+        ? files.resolve(cursorPath, context)
+        : props.resolveAssetUrl?.(cursorPath, context) ?? context.defaultUrl;
+    } catch {
+      /* The viewer reports missing resources; keep the inspector usable. */
+    }
   }
   function newHotspot(kind: HotspotKind, position: HotspotPosition, src = "") {
     return createHotspot(kind, position, src, { hotspots: active?.hotspots, t });
@@ -757,6 +834,71 @@ export function PanoEditor(props: PanoEditorProps) {
       if (alive.current) setSaving(false);
     }
   }
+  async function exportPackage() {
+    if (exportController.current) return;
+    end();
+    const controller = new AbortController();
+    exportController.current = controller;
+    const token = generation.current;
+    const snapshot = JSON.stringify(history.current);
+    setExportProgress({ completed: 0, total: 0 });
+    setError("");
+    try {
+      const { buildProjectPackage } = await import("./project-package");
+      const blob = await buildProjectPackage(
+        JSON.parse(snapshot) as PanoProjectDefinition,
+        {
+          baseUrl: props.baseUrl,
+          requestInit: props.requestInit,
+          resolveAssetUrl: props.resolveAssetUrl,
+          local,
+          directories,
+          signal: controller.signal,
+          onProgress: (value) => {
+            if (
+              alive.current &&
+              token === generation.current &&
+              !controller.signal.aborted
+            )
+              setExportProgress(value);
+          },
+        },
+      );
+      if (
+        !alive.current ||
+        token !== generation.current ||
+        controller.signal.aborted
+      )
+        return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "panorama-project.zip";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setSaved(snapshot);
+    } catch (cause) {
+      if (
+        alive.current &&
+        token === generation.current &&
+        !controller.signal.aborted
+      ) {
+        const message = errorMessage(cause);
+        const separator = message.indexOf(": ");
+        setError(
+          separator < 0
+            ? t(message)
+            : `${message.slice(0, separator)}: ${t(
+                message.slice(separator + 2),
+              )}`,
+        );
+      }
+    } finally {
+      if (exportController.current === controller)
+        exportController.current = undefined;
+      if (alive.current) setExportProgress(undefined);
+    }
+  }
   async function toggleFullscreen() {
     try {
       if (fullscreen) {
@@ -805,6 +947,7 @@ export function PanoEditor(props: PanoEditorProps) {
       tabIndex={-1}
       aria-label={t("Panorama editor")}
     >
+      <FieldHelpProvider>
       <div className="pne-topbar">
         <div className="pne-brand">
           <span className="pne-brand-dot" />
@@ -873,11 +1016,14 @@ export function PanoEditor(props: PanoEditorProps) {
           ) : null}
           <button
             type="button"
-            className="pne-primary"
-            disabled={!project.scenes.length || saving}
+            disabled={!project.scenes.length || saving || Boolean(exportProgress)}
+            title={t("Export configuration only; assets are not included.")}
             onClick={() => void save(true)}
           >
             {t("Export JSON")}
+          </button>
+          <button type="button" className="pne-primary" disabled={!project.scenes.length || saving || Boolean(exportProgress)} onClick={() => void exportPackage()}>
+            {t("Export project package")}
           </button>
         </div>
       </div>
@@ -892,6 +1038,7 @@ export function PanoEditor(props: PanoEditorProps) {
         aria-label={t("Open directory")}
         onChange={(event) => void openDirectory(event)}
       />
+      <input ref={cursorInput} type="file" accept="image/png,.png" hidden aria-label={t("Choose cursor image")} onChange={event => void importCursor(event)} />
       {props.onImportPanorama && !localSession ? (
         <input
           ref={importRef}
@@ -911,7 +1058,7 @@ export function PanoEditor(props: PanoEditorProps) {
                   "Host-managed session · uploads and saving use your application",
                 )
               : project.scenes.length
-                ? t("Browser session · export JSON before leaving")
+                ? t("Browser session · export before leaving")
                 : t(
                   "Select a project directory containing viewer.json and tiles. Nothing is uploaded or saved. Export project.json before leaving.",
                 )}
@@ -930,6 +1077,10 @@ export function PanoEditor(props: PanoEditorProps) {
           </button>
         </div>
       ) : null}
+      {exportProgress ? <div className="pne-progress" role="status">
+        {t("Preparing project package")} · {exportProgress.total ? `${exportProgress.completed} / ${exportProgress.total}` : t("Collecting resources…")}
+        <button type="button" onClick={() => exportController.current?.abort()}>{t("Cancel")}</button>
+      </div> : null}
       {progress ? (
         <div className="pne-progress" role="status">
           {t("Conversion in progress")} · {t(progress.stage)}
@@ -1097,6 +1248,7 @@ export function PanoEditor(props: PanoEditorProps) {
                   onBegin={begin}
                   onEnd={end}
                   onPick={(field) => void pickAsset(field)}
+                  cursorPreviewUrl={cursorPreviewUrl}
                   getViewPosition={() =>
                     viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }
                   }
@@ -1155,6 +1307,7 @@ export function PanoEditor(props: PanoEditorProps) {
           t={t}
         />
       ) : null}
+      </FieldHelpProvider>
     </div>
   );
 }

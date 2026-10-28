@@ -51,5 +51,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
   }
 }

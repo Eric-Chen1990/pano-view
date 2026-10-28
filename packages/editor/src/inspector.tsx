@@ -5,6 +5,7 @@ import {
   type ProjectHotspotDefinition,
   type PanoProjectSceneDefinition,
 } from "@ericchen1990/pano-view";
+import { hotspotFieldSpec } from "./hotspot-field-specs";
 import { hotspotFieldDefault } from "./hotspot-defaults";
 import {
   Field,
@@ -26,6 +27,7 @@ export function HotspotInspector({
   onEnd,
   onPick,
   getViewPosition,
+  cursorPreviewUrl,
   t,
 }: {
   hotspot: ProjectHotspotDefinition;
@@ -35,11 +37,13 @@ export function HotspotInspector({
   onEnd: () => void;
   onPick: (field: string) => void;
   getViewPosition: () => HotspotPosition;
+  cursorPreviewUrl?: string;
   t: Translate;
 }) {
   const [advanced, setAdvanced] = useState("");
   const [advancedError, setAdvancedError] = useState("");
   const update = (name: string, value: unknown) => {
+    if (name === "cursor" && value === "custom-image") { onPick("cursor"); return; }
     let next = hotspot;
     if (name === "graphic.kind" && hotspot.type === "graphic") {
       const kind = value ?? "circle";
@@ -59,10 +63,10 @@ export function HotspotInspector({
     specs.map((spec) => (
       <Field
         key={spec.name}
-        spec={{
+        spec={hotspotFieldSpec({
           ...spec,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
-        }}
+        })}
         value={
           spec.name === "tooltip.text" && typeof hotspot.tooltip === "string"
             ? hotspot.tooltip
@@ -72,6 +76,7 @@ export function HotspotInspector({
         onBegin={onBegin}
         onEnd={onEnd}
         onPick={spec.asset ? () => onPick(spec.name) : undefined}
+        previewUrl={spec.name === "cursor" ? cursorPreviewUrl : undefined}
         t={t}
       />
     ));
@@ -187,7 +192,7 @@ export function HotspotInspector({
                 {(["yaw", "pitch"] as const).map((axis) => (
                   <Field
                     key={axis}
-                    spec={{ name: axis, type: "number" }}
+                    spec={hotspotFieldSpec({ name: axis, type: "number" })}
                     value={vertex[axis]}
                     onBegin={onBegin}
                     onEnd={onEnd}

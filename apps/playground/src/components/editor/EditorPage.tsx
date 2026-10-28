@@ -48,8 +48,8 @@ export function EditorPage() {
       />
       <p className="mt-4 text-xs leading-6 text-muted-2">
         {locale === "en"
-          ? "The sample is ready to edit. To add your own converted panorama, choose Add scene and drop its folder, including viewer.json, previews and tiles. Files are read locally; nothing is uploaded. Export JSON before leaving. Refreshing restores the sample."
-          : "示例已准备好，可直接编辑。添加自己的切片场景时，点击“添加场景”并拖入包含 viewer.json、预览图和瓦片的文件夹。文件仅在本机读取，不会上传。离开前请导出 JSON；刷新会恢复示例。"}
+          ? "The sample is ready to edit. To add your own converted panorama, choose Add scene and drop its folder, including viewer.json, previews and tiles. Files are read locally; nothing is uploaded. Export a project package before leaving to include all resources, or export JSON for configuration only. Unzip a package before reopening its directory. Refreshing restores the sample."
+          : "示例已准备好，可直接编辑。添加自己的切片场景时，点击“添加场景”并拖入包含 viewer.json、预览图和瓦片的文件夹。文件仅在本机读取，不会上传。离开前请导出项目包以包含全部资源，或仅导出配置 JSON。重新打开项目包前请先解压，再选择其目录；刷新会恢复示例。"}
       </p>
       <a
         className="mt-2 inline-block text-xs text-accent underline"

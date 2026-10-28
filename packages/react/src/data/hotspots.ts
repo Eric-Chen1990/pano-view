@@ -1,3 +1,4 @@
+import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
 import type { HotspotPosition } from "../hotspot/types";
@@ -410,6 +411,11 @@ export function resolveHotspotAssets(
         )
       : path;
   const result = { ...hotspot };
+  if (result.cursor) result.cursor = mapCursorAssets(result.cursor, resolve);
+  if (result.tooltipAppearance?.background) result.tooltipAppearance = {
+    ...result.tooltipAppearance,
+    background: mapCursorAssets(result.tooltipAppearance.background, resolve),
+  };
   if ("src" in result)
     result.src = Array.isArray(result.src)
       ? result.src.map(resolve)
