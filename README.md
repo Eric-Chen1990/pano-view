@@ -2,7 +2,7 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-Pano View provides a React viewer and a Node.js converter for panoramic images
+Pano View provides a React viewer, an editor and a Node.js converter for panoramic images
 and 360 video. Host applications compose the panorama experience with React
 components and manage their own UI, controls, routes, and data.
 
@@ -15,6 +15,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 - [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
+- [Fullscreen overlays and dialogs](#fullscreen-overlays-and-dialogs)
 - [Examples](#examples)
   - [Equirectangular image](#equirectangular-image)
   - [Cube tiles](#cube-tiles)
@@ -29,8 +30,11 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Packages
 
+The [embeddable panorama editor](./packages/editor/README.md) provides local-directory scene and hotspot authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
+
 | Package | What it does |
 | --- | --- |
+| [@ericchen1990/pano-editor](./packages/editor/README.md) | Embeddable scene and hotspot editing, local directory previews, JSON export, and host-owned conversion and saving callbacks. |
 | [@ericchen1990/pano-view](./packages/react/README.md) | Composable React components for equirectangular images, 360 video, and krpano-style multiresolution cube tiles. |
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
@@ -64,6 +68,12 @@ const project = await loadPanoProject("/tour/project.json");
 Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example.
 
 See [Static projects and JSON data](./packages/react/README.md#static-projects-and-json-data) for configuration and React loading/error/cancellation, and [FAQ and troubleshooting](./packages/react/README.md#faq-and-troubleshooting) for CORS, 404, authentication, blank canvases and playback restrictions.
+
+## Fullscreen overlays and dialogs
+
+Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
+
+Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. The separate [dialog and styling guide](./packages/react/docs/dialogs.md) includes complete examples, theme variables, component APIs, nested portals, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
 
 ## Installation
 
@@ -258,6 +268,7 @@ project.
 - [@ericchen1990/pano-view](./packages/react/README.md) — component API, hotspots, controls, and hooks
 - [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling and reconstruction
 - [360 video guide](./docs/react-360-video.md) — inline playback, captions, and mobile activation
+- [Dialog and styling guide](./packages/react/docs/dialogs.md) — multiple hotspot content mappings, themes, custom layouts and third-party dialogs
 - [krpano migration guide](./docs/krpano-migration.md) — XML attributes to component props
 
 The Vite Playground in this workspace imports viewer source directly, so local

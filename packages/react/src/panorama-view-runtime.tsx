@@ -1,3 +1,12 @@
+import {
+  applyLimitedYawDelta,
+  clampViewAxis,
+  constrainViewYaw,
+  limitedYawDelta,
+  parseViewLimits,
+  resolveViewLimits,
+  type PanoViewLimits,
+} from "./view-limits";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useXR } from "@react-three/xr";
 import {
@@ -5,6 +14,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
 } from "react";
 import type { RefObject } from "react";
@@ -31,6 +41,7 @@ const DEFAULT_ZOOM_DAMPING = 16;
 const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
 const DEFAULT_NAVIGATION_DURATION = 700;
+const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
@@ -41,6 +52,8 @@ export type ApplyViewDeltaOptions = {
 
 export type PanoramaViewRuntimeHandle = {
   getView: () => PanoViewerState;
+  /** Internal scene override, applied before the incoming initial view. */
+  setSceneViewLimits: (limits: PanoViewLimits | undefined) => void;
   /** Target view used by drag/zoom input before camera smoothing. */
   getTargetView: () => PanoViewerState;
   setView: (
@@ -71,7 +84,11 @@ export type PanoramaViewRuntimeHandle = {
   /** Marks whether keyboard navigation is currently driving the view. */
   setKeyboardActive: (active: boolean) => void;
   /** Marks whether mouse or touch input is currently driving the view. */
-  setPointerActive: (source: "mouse" | "touch", active: boolean) => void;
+  setPointerActive: (
+    source: "mouse" | "touch",
+    active: boolean,
+    options?: { cancelled?: boolean },
+  ) => void;
   /** Whether hotspot / transition locks currently block user input. */
   isInteractionLocked: () => boolean;
   /**
@@ -105,6 +122,7 @@ type ActiveNavigation = {
 
 type PanoramaViewRuntimeProps = {
   initialView: PanoViewerState;
+  viewLimits?: PanoViewLimits;
   minFov: number;
   maxFov: number;
   options: PanoramaControlsOptions;
@@ -133,6 +151,16 @@ function resolveDamping(value: number | undefined, fallback: number): number {
 
 function resolveFrictionStop(value: number | undefined): number {
   return Number.isFinite(value) && value! >= 0 ? value! : DEFAULT_FRICTION_STOP;
+}
+
+/** Only a recent, normally released drag may continue as a flick. */
+export function shouldKeepPointerInertia(
+  sampledAt: number | null,
+  releasedAt: number,
+  cancelled = false,
+): boolean {
+  return !cancelled && sampledAt !== null && releasedAt >= sampledAt &&
+    releasedAt - sampledAt <= POINTER_VELOCITY_MAX_AGE_MS;
 }
 
 function resolveNavigationDuration(value: number | undefined): number {
@@ -165,7 +193,7 @@ export const PanoramaViewRuntime = forwardRef<
   PanoramaViewRuntimeHandle,
   PanoramaViewRuntimeProps
 >(function PanoramaViewRuntime(
-  { initialView, minFov, maxFov, options, eventBus },
+  { initialView, viewLimits, minFov, maxFov, options, eventBus },
   ref,
 ) {
   const { camera, gl } = useThree();
@@ -195,15 +223,17 @@ export const PanoramaViewRuntime = forwardRef<
   const lastEmittedViewRef = useRef<PanoViewerState | null>(null);
   const eulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
   const xrEulerRef = useRef(new Euler(0, 0, 0, "YXZ"));
-  const minFovRef = useRef(minFov);
-  const maxFovRef = useRef(maxFov);
+  const baseLimitsRef = useRef(viewLimits);
+  const sceneLimitsRef = useRef<PanoViewLimits | undefined>(undefined);
+  const legacyFovRef = useRef({ minFov, maxFov });
+  const limitsRef = useRef(resolveViewLimits(viewLimits, undefined, minFov, maxFov));
   const activeNavigationRef = useRef<ActiveNavigation | null>(null);
 
   optionsRef.current = options;
   eventBusRef.current = eventBus;
   xrSessionRef.current = xrSession;
-  minFovRef.current = minFov;
-  maxFovRef.current = maxFov;
+  baseLimitsRef.current = viewLimits;
+  legacyFovRef.current = { minFov, maxFov };
 
   const hasInertia = () =>
     yawVelocityRef.current !== 0 ||
@@ -228,14 +258,11 @@ export const PanoramaViewRuntime = forwardRef<
     view: Partial<PanoViewerState>,
     current: PanoViewerState = targetViewRef.current,
   ): PanoViewerState => {
+    const limits = limitsRef.current;
     return {
-      yaw: normalizeYaw(view.yaw ?? current.yaw),
-      pitch: clamp(view.pitch ?? current.pitch, -MAX_PITCH, MAX_PITCH),
-      fov: clamp(
-        view.fov ?? current.fov,
-        minFovRef.current,
-        maxFovRef.current,
-      ),
+      yaw: constrainViewYaw(Number.isFinite(view.yaw) ? view.yaw! : current.yaw, limits.yaw),
+      pitch: clampViewAxis(Number.isFinite(view.pitch) ? view.pitch! : current.pitch, limits.pitch),
+      fov: clampViewAxis(Number.isFinite(view.fov) ? view.fov! : current.fov, limits.fov),
     };
   };
 
@@ -243,24 +270,22 @@ export const PanoramaViewRuntime = forwardRef<
     view: Partial<PanoViewerState>,
     current: PanoViewerState = targetViewRef.current,
   ): PanoViewerState => {
-    const bouncing = optionsRef.current.bouncingLimits === true;
-    if (!bouncing || !interactingRef.current) {
-      return hardConstrainView(view, current);
-    }
-
-    const fovRange = Math.max(maxFovRef.current - minFovRef.current, 1);
-    const fovOvershoot = fovRange * BOUNCE_OVERSHOOT_FOV_RATIO;
+    const constrained = hardConstrainView(view, current);
+    if (optionsRef.current.bouncingLimits !== true || !interactingRef.current)
+      return constrained;
+    const limits = limitsRef.current;
+    const fovOvershoot = Math.max(limits.fov.max - limits.fov.min, 1) * BOUNCE_OVERSHOOT_FOV_RATIO;
     return {
-      yaw: normalizeYaw(view.yaw ?? current.yaw),
-      pitch: clamp(
+      yaw: constrained.yaw,
+      pitch: limits.hardPitch ? constrained.pitch : clamp(
         view.pitch ?? current.pitch,
         -MAX_PITCH - BOUNCE_OVERSHOOT_PITCH,
         MAX_PITCH + BOUNCE_OVERSHOOT_PITCH,
       ),
-      fov: clamp(
+      fov: limits.hardFov ? constrained.fov : clamp(
         view.fov ?? current.fov,
-        minFovRef.current - fovOvershoot,
-        maxFovRef.current + fovOvershoot,
+        limits.fov.min - fovOvershoot,
+        limits.fov.max + fovOvershoot,
       ),
     };
   };
@@ -325,6 +350,26 @@ export const PanoramaViewRuntime = forwardRef<
     };
   };
 
+  const refreshLimits = () => {
+    const next = resolveViewLimits(
+      baseLimitsRef.current, sceneLimitsRef.current,
+      legacyFovRef.current.minFov, legacyFovRef.current.maxFov,
+    );
+    if (JSON.stringify(next) === JSON.stringify(limitsRef.current)) return;
+    limitsRef.current = next;
+    cancelNavigation();
+    stopVelocity();
+    viewRef.current = hardConstrainView(viewRef.current);
+    targetViewRef.current = hardConstrainView(targetViewRef.current);
+    if (gyroActiveRef.current) {
+      gyroOffsetRef.current = {
+        yaw: shortestYawDelta(gyroPoseRef.current.yaw, viewRef.current.yaw),
+        pitch: viewRef.current.pitch - gyroPoseRef.current.pitch,
+      };
+    }
+    markDirty();
+  };
+
   const setView = (
     view: Partial<PanoViewerState>,
     setOptions?: SetPanoViewerOptions,
@@ -379,10 +424,12 @@ export const PanoramaViewRuntime = forwardRef<
       targetInput.yaw !== undefined && Number.isFinite(targetInput.yaw)
         ? safeTargetInput.yaw - from.yaw
         : 0;
-    const yawDelta =
-      options?.shortestPath === false
-        ? rawYawDelta
-        : shortestYawDelta(from.yaw, target.yaw);
+    const yawDelta = limitedYawDelta(
+      from.yaw,
+      options?.shortestPath === false ? from.yaw + rawYawDelta : target.yaw,
+      limitsRef.current.yaw,
+      options?.shortestPath !== false,
+    );
     stopVelocity();
     targetViewRef.current = target;
     markDirty();
@@ -468,7 +515,7 @@ export const PanoramaViewRuntime = forwardRef<
     const acceptsPitch = !appliesTouchMode || gyroMode === "full";
     const nextYaw =
       acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)
-        ? current.yaw + delta.yaw
+        ? applyLimitedYawDelta(current.yaw, delta.yaw, limitsRef.current.yaw)
         : current.yaw;
     const nextPitch =
       acceptsPitch && delta.pitch !== undefined && Number.isFinite(delta.pitch)
@@ -486,14 +533,14 @@ export const PanoramaViewRuntime = forwardRef<
     });
     if (gyroControlsView) {
       if (acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)) {
-        gyroOffsetRef.current.yaw += delta.yaw;
+        gyroOffsetRef.current.yaw = shortestYawDelta(gyroPoseRef.current.yaw, targetViewRef.current.yaw);
       }
       if (
         acceptsPitch &&
         delta.pitch !== undefined &&
         Number.isFinite(delta.pitch)
       ) {
-        gyroOffsetRef.current.pitch += delta.pitch;
+        gyroOffsetRef.current.pitch = targetViewRef.current.pitch - gyroPoseRef.current.pitch;
       }
     }
     markDirty();
@@ -516,6 +563,10 @@ export const PanoramaViewRuntime = forwardRef<
       if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
         zoomVelocityRef.current = clamp(delta.fov / elapsed, -180, 180);
       }
+    } else if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
+      // Wheel / keyboard zoom replaces any earlier zoom inertia. Browser wheel
+      // events already include trackpad momentum; camera damping still applies.
+      zoomVelocityRef.current = 0;
     }
 
     return true;
@@ -525,6 +576,10 @@ export const PanoramaViewRuntime = forwardRef<
     ref,
     () => ({
       getView: () => ({ ...viewRef.current }),
+      setSceneViewLimits: (limits) => {
+        sceneLimitsRef.current = parseViewLimits(limits);
+        refreshLimits();
+      },
       getTargetView: () => ({ ...targetViewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),
@@ -548,7 +603,7 @@ export const PanoramaViewRuntime = forwardRef<
           });
         }
       },
-      setPointerActive: (source, active) => {
+      setPointerActive: (source, active, releaseOptions) => {
         const wasActive =
           source === "mouse"
             ? mouseActiveRef.current
@@ -567,9 +622,14 @@ export const PanoramaViewRuntime = forwardRef<
         } else if (!active && wasActive) {
           eventBusRef.current.emit("viewinteractionend", { source });
         }
-        if (active) {
+        if (active || !shouldKeepPointerInertia(
+          lastVelocitySampleAtRef.current,
+          performance.now(),
+          releaseOptions?.cancelled,
+        )) {
           stopVelocity();
-        } else if (!mouseActiveRef.current && !touchActiveRef.current) {
+        }
+        if (!active && !mouseActiveRef.current && !touchActiveRef.current) {
           lastVelocitySampleAtRef.current = null;
           snapTargetToHardLimits();
         }
@@ -642,7 +702,9 @@ export const PanoramaViewRuntime = forwardRef<
           return false;
         }
 
-        targetViewRef.current.yaw += yawDelta;
+        const nextYaw = applyLimitedYawDelta(targetViewRef.current.yaw, yawDelta, limitsRef.current.yaw);
+        if (nextYaw === targetViewRef.current.yaw) return false;
+        targetViewRef.current.yaw = nextYaw;
         markDirty();
         return true;
       },
@@ -656,6 +718,10 @@ export const PanoramaViewRuntime = forwardRef<
     },
     [],
   );
+
+  useLayoutEffect(() => {
+    refreshLimits();
+  }, [viewLimits, minFov, maxFov]);
 
   useEffect(() => {
     initialViewRef.current = { ...initialView };
@@ -747,8 +813,9 @@ export const PanoramaViewRuntime = forwardRef<
       const zoomDamping = Math.exp(-INERTIA_ZOOM_DAMPING * deltaSeconds);
 
       if (Math.abs(yawVelocityRef.current) >= frictionStop) {
-        targetViewRef.current.yaw += yawVelocityRef.current * deltaSeconds;
-        yawVelocityRef.current *= rotationDamping;
+        const previousYaw = targetViewRef.current.yaw;
+        targetViewRef.current.yaw = applyLimitedYawDelta(previousYaw, yawVelocityRef.current * deltaSeconds, limitsRef.current.yaw);
+        yawVelocityRef.current = targetViewRef.current.yaw === previousYaw ? 0 : yawVelocityRef.current * rotationDamping;
         markDirty();
       } else {
         yawVelocityRef.current = 0;
@@ -794,7 +861,7 @@ export const PanoramaViewRuntime = forwardRef<
     );
     const rotationFactor = dampingFactor(rotateDamping, deltaSeconds);
     const zoomFactor = dampingFactor(zoomDamping, deltaSeconds);
-    const yawDelta = shortestYawDelta(viewRef.current.yaw, targetView.yaw);
+    const yawDelta = limitedYawDelta(viewRef.current.yaw, targetView.yaw, limitsRef.current.yaw);
     const smoothedView = {
       yaw: normalizeYaw(viewRef.current.yaw + yawDelta * rotationFactor),
       pitch:

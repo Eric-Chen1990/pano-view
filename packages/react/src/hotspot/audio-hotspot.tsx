@@ -34,6 +34,8 @@ type AudioMarkerState = "stopped" | "playing";
 
 export type AudioHotspotProps = HotspotCommonProps & {
   src: string | string[];
+  /** Container hints for extensionless sources such as blob URLs, in source order. */
+  format?: string | string[];
   playing: boolean;
   loop?: boolean;
   muted?: boolean;
@@ -222,6 +224,7 @@ function useAudioHowl({
   onPlaybackStateChange,
   playing,
   src,
+  format,
 }: Pick<
   AudioHotspotProps,
   | "crossOrigin"
@@ -233,6 +236,7 @@ function useAudioHowl({
   | "onPlaybackStateChange"
   | "playing"
   | "src"
+  | "format"
 >) {
   const [howl, setHowl] = useState<Howl | null>(null);
   const playingRef = useRef(playing);
@@ -249,6 +253,7 @@ function useAudioHowl({
   onPlaybackStateChangeRef.current = onPlaybackStateChange;
 
   const sourcesKey = sourceList(src).join("\0");
+  const formatsKey = sourceList(format).join("\0");
 
   useEffect(() => {
     const sources = sourcesKey.length > 0 ? sourcesKey.split("\0") : [];
@@ -260,6 +265,7 @@ function useAudioHowl({
     let active = true;
     const handle = createUnlockingHowl({
       src: sources,
+      format: formatsKey ? formatsKey.split("\0") : undefined,
       loop: loopRef.current,
       crossOrigin,
       isActive: () => active,
@@ -288,7 +294,7 @@ function useAudioHowl({
       active = false;
       handle.dispose();
     };
-  }, [crossOrigin, id, sourcesKey]);
+  }, [crossOrigin, id, sourcesKey, formatsKey]);
 
   useEffect(() => {
     howl?.loop(loop ?? false);
@@ -300,6 +306,7 @@ function useAudioHowl({
 export function AudioHotspot({
   id,
   src,
+  format,
   playing,
   loop = false,
   muted = false,
@@ -331,6 +338,7 @@ export function AudioHotspot({
     onPlaybackStateChange,
     playing,
     src,
+    format,
   });
   const speakerTextures = useSpeakerTextures(marker && !icon);
   const stoppedIconTexture = useIconTexture(icon, marker, onError, id);

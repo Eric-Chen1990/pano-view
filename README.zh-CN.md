@@ -2,7 +2,7 @@
 
 [English](./README.md) | **简体中文**
 
-Pano View 提供用于全景图像与 360 视频的 React 查看器和 Node.js 转换器。
+Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器和 Node.js 转换器。
 宿主应用通过 React 组件构建全景体验，并管理界面、控件、路由与数据。
 
 在[在线 Playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) 中试用热点、场景过渡、
@@ -14,6 +14,7 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器和 Node.js �
 - [数据来源与选型](#数据来源与选型)
 - [静态多场景项目](#静态多场景项目)
 - [安装](#安装)
+- [全屏 Overlay 与弹窗](#全屏-overlay-与弹窗)
 - [示例](#示例)
   - [等距圆柱图像](#等距圆柱图像)
   - [立方体瓦片](#立方体瓦片)
@@ -28,8 +29,11 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器和 Node.js �
 
 ## 包
 
+[可嵌入的全景编辑器](./packages/editor/README.zh-CN.md) 支持读取本地项目目录、编辑场景与热点并导出 JSON。运行 `pnpm dev` 后访问 `/editor`，文件不上传、不持久保存；嵌入时通过回调接入宿主的保存、素材库和转换服务。
+
 | 包 | 作用 |
 | --- | --- |
+| [@ericchen1990/pano-editor](./packages/editor/README.zh-CN.md) | 可嵌入的场景与热点编辑器，支持本地目录预览、JSON 导出和宿主转换、保存回调。 |
 | [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) | 用于等距圆柱图像、360 视频与 krpano 风格多分辨率立方体瓦片的可组合 React 组件。 |
 | [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) | Node.js 库与 `pano-convert` CLI。生成瓦片金字塔、预览图，以及 React 包渲染所用的 `viewerConfig`。不依赖 React、云存储或数据库。 |
 
@@ -63,6 +67,12 @@ const project = await loadPanoProject("/tour/project.json");
 保留输出目录结构即可上传静态托管；自定义域名和云目录使用 `baseUrl`，重命名资源使用同步 URL 映射。服务端纯数据方法从 `@ericchen1990/pano-view/data` 导入。运行 `pnpm dev` 后访问 `/project` 查看静态双场景示例。
 
 完整配置、React 加载/错误/取消示例见 [静态项目与 JSON 数据](./packages/react/README.zh-CN.md#静态项目与-json-数据)；跨域、404、认证、空白画面及媒体限制见 [常见问题与故障排查](./packages/react/README.zh-CN.md#常见问题与故障排查)。
+
+## 全屏 Overlay 与弹窗
+
+通过 `PanoViewer.renderOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
+
+本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。独立的[弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md)提供完整示例、主题变量、组件 API、二级 Portal、焦点和媒体清理说明。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
 
 ## 安装
 
@@ -225,6 +235,7 @@ Pano View 支持这种瓦片输出格式，但不是 krpano 的插件、包装�
 - [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) — 组件 API、热点、控件与 Hook
 - [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) — Node.js 与 CLI 切图和还原
 - [360 视频指南](./docs/react-360-video.zh-CN.md) — 页内播放、字幕与移动端激活
+- [弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md) — 多热点内容映射、主题、布局组合与第三方弹窗
 - [krpano 迁移指南](./docs/krpano-migration.zh-CN.md) — XML 属性到组件 props
 
 本仓库中的 Vite Playground 直接导入查看器源码，因此本地修改组件后无需重新构建包即可看到效果。

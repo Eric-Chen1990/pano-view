@@ -46,6 +46,27 @@ export default defineConfig([
     splitting: false,
   },
   {
+    entry: { ui: "src/ui.ts" },
+    banner: { js: '"use client";' },
+    clean: false,
+    dts: true,
+    format: ["esm", "cjs"],
+    external: ["react", "react-dom", "@radix-ui/react-dialog"],
+    esbuildPlugins: [{
+      name: "shared-overlay-runtime",
+      setup(build) {
+        // UI must use the main entry's Context instances, also for CJS consumers.
+        build.onResolve({ filter: /^\.\.\/overlay\/pano-overlay$/ }, () => ({
+          path: build.initialOptions.format === "cjs" ? "./index.cjs" : "./index.mjs",
+          external: true,
+        }));
+      },
+    }],
+    sourcemap: true,
+    splitting: false,
+    outExtension: ({ format }) => ({ js: format === "esm" ? ".mjs" : ".cjs" }),
+  },
+  {
     entry: { data: "src/data.ts" },
     clean: false,
     dts: true,

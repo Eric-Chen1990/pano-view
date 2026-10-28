@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "packages/react/**"
+      - "packages/editor/**"
       - "shared/**"
       - "apps/playground/**"
       - "package.json"
@@ -18,6 +19,7 @@ on:
       - main
     paths:
       - "packages/react/**"
+      - "packages/editor/**"
       - "shared/**"
       - "apps/playground/**"
       - "package.json"
@@ -57,16 +59,19 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck
+        run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-editor typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck
 
       - name: Test viewer
         run: pnpm --filter @ericchen1990/pano-view test
 
+      - name: Test editor
+        run: pnpm --filter @ericchen1990/pano-editor test
+
       - name: Build
-        run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-view-playground build
+        run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-editor build && pnpm --filter @ericchen1990/pano-view-playground build
 
       - name: Pack check
-        run: pnpm --filter @ericchen1990/pano-view pack:check
+        run: pnpm --filter @ericchen1990/pano-view pack:check && pnpm --filter @ericchen1990/pano-editor pack:check
 
       - name: Check conflict markers and whitespace
         run: git diff --check

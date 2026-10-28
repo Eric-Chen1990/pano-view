@@ -1,11 +1,67 @@
+import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
+import type { PanoViewerState } from "../types";
 import type { HotspotPosition } from "../hotspot/types";
 import { PanoDataError } from "./errors";
 import { mapResource, resolveResource, type AssetUrlResolver } from "./viewer";
 
+export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
+export type JsonObject = { [key: string]: JsonValue };
+export const projectHotspotTriggers = ["click", "pointerenter", "pointerleave"] as const;
+export type ProjectHotspotTrigger = typeof projectHotspotTriggers[number];
+export type ProjectCustomHotspotAction = { type: "custom"; actionId: string; params?: JsonObject };
+export function hotspotAction(hotspot: ProjectHotspotDefinition, trigger: ProjectHotspotTrigger) {
+  return hotspot.events?.[trigger] ?? (trigger === "click" ? hotspot.action : undefined);
+}
+export function setHotspotAction(hotspot: ProjectHotspotDefinition, trigger: ProjectHotspotTrigger, action?: ProjectHotspotAction): ProjectHotspotDefinition {
+  const events = { ...hotspot.events };
+  const next: ProjectHotspotDefinition = { ...hotspot, events };
+  if (trigger === "click") delete next.action;
+  if (action) events[trigger] = action;
+  else delete events[trigger];
+  if (!Object.keys(events).length) delete next.events;
+  return next;
+}
+function jsonValue(value: unknown, seen = new Set<object>()): JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "object" || !value || seen.has(value)) throw new Error("params: expected JSON data");
+  if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new Error("params: expected JSON data");
+  seen.add(value);
+  const result: JsonValue = Array.isArray(value) ? value.map(item => jsonValue(item, seen)) : Object.fromEntries(Object.entries(value).map(([key, item]) => [key, jsonValue(item, seen)]));
+  seen.delete(value);
+  return result;
+}
+function parseAction(action: unknown): ProjectHotspotAction {
+  if (!isRecord(action)) throw new Error("action: expected an object");
+  if (action.type === "scene") return { type: "scene", sceneId: requiredString(action.sceneId, "action.sceneId") };
+  if (action.type === "popup") return { type: "popup", popupId: requiredString(action.popupId, "action.popupId") };
+  if (action.type === "custom") {
+    if (action.params !== undefined && (!isRecord(action.params) || Array.isArray(action.params))) throw new Error("action.params: expected an object");
+    return { type: "custom", actionId: requiredString(action.actionId, "action.actionId"), ...(action.params === undefined ? {} : { params: jsonValue(action.params) as JsonObject }) };
+  }
+  if (action.type === "view") {
+    const position = parsePosition(action.view, "action.view");
+    const fov = finite((action.view as Record<string, unknown>).fov, "action.view.fov");
+    if (fov <= 0 || fov >= 180) throw new Error("action.view.fov: expected 0 < fov < 180");
+    const duration = action.duration === undefined ? undefined : finite(action.duration, "action.duration");
+    if (duration !== undefined && duration < 0) throw new Error("action.duration: expected a nonnegative number");
+    return { type: "view", view: { ...position, fov }, ...(duration === undefined ? {} : { duration }) };
+  }
+  throw new Error("action.type: unsupported action");
+}
+
+export type ProjectHotspotAction =
+  | ProjectCustomHotspotAction
+  | { type: "scene"; sceneId: string }
+  | { type: "view"; view: PanoViewerState; duration?: number }
+  | { type: "popup"; popupId: string };
+
 export type ProjectHotspotDefinition = HotspotDefinition & {
-  action?: { type: "scene"; sceneId: string };
+  /** Legacy click fallback. events.click takes precedence. */
+  action?: ProjectHotspotAction;
+  events?: Partial<Record<ProjectHotspotTrigger, ProjectHotspotAction>>;
 };
 
 const common = [
@@ -50,6 +106,7 @@ const fields = {
   ],
   audio: [
     "src",
+    "format",
     "playing",
     "loop",
     "muted",
@@ -339,9 +396,14 @@ export function parseHotspot(
         result[key] = n;
       } else if (key === "fontWeight" && typeof item === "number")
         result[key] = finite(item, key);
-      else if (key === "src" && kind === "audio" && Array.isArray(item)) {
-        if (!item.length) throw new Error("src: expected audio sources");
-        result[key] = item.map((src, i) => requiredString(src, `src[${i}]`));
+      else if (
+        (key === "src" || key === "format") &&
+        kind === "audio" &&
+        Array.isArray(item)
+      ) {
+        if (!item.length)
+          throw new Error(`${key}: expected audio ${key === "src" ? "sources" : "formats"}`);
+        result[key] = item.map((entry, i) => requiredString(entry, `${key}[${i}]`));
       } else {
         if (typeof item !== "string")
           throw new Error(`${key}: expected a string`);
@@ -365,13 +427,16 @@ export function parseHotspot(
       throw new Error("text: required");
     if (kind === "sequence" && !result.frameCount)
       throw new Error("frameCount: required");
-    if (value.action !== undefined) {
-      if (!isRecord(value.action) || value.action.type !== "scene")
-        throw new Error("action: expected a scene action");
-      result.action = {
-        type: "scene",
-        sceneId: requiredString(value.action.sceneId, "action.sceneId"),
-      };
+    if (value.action !== undefined) result.action = parseAction(value.action);
+    if (value.events !== undefined) {
+      if (!isRecord(value.events)) throw new Error("events: expected an object");
+      const events: Partial<Record<ProjectHotspotTrigger, ProjectHotspotAction>> = {};
+      for (const key of Object.keys(value.events)) {
+        if (!projectHotspotTriggers.includes(key as ProjectHotspotTrigger)) throw new Error(`events.${key}: unsupported trigger`);
+        try { events[key as ProjectHotspotTrigger] = parseAction(value.events[key]); }
+        catch (error) { throw new Error(`events.${key}.${error instanceof Error ? error.message : "invalid action"}`); }
+      }
+      result.events = events;
     }
     return result as ProjectHotspotDefinition;
   } catch (cause) {
@@ -404,6 +469,11 @@ export function resolveHotspotAssets(
         )
       : path;
   const result = { ...hotspot };
+  if (result.cursor) result.cursor = mapCursorAssets(result.cursor, resolve);
+  if (result.tooltipAppearance?.background) result.tooltipAppearance = {
+    ...result.tooltipAppearance,
+    background: mapCursorAssets(result.tooltipAppearance.background, resolve),
+  };
   if ("src" in result)
     result.src = Array.isArray(result.src)
       ? result.src.map(resolve)

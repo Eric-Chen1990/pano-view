@@ -17,6 +17,7 @@
 - [示例](#示例)
 - [导出组件](#导出组件)
 - [PanoViewer](#panoviewer)
+- [DOM Overlay 与弹窗](#dom-overlay-与弹窗)
 - [Sphere](#sphere)
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
@@ -195,6 +196,50 @@ export function Tour() {
 `ProjectScenes` 放在 `PanoViewer` 内，复用全部九类现有热点。`action: { type: "scene", sceneId }` 点击后切换场景；没有 action 的音频、视频、序列热点点击切换播放。离开场景时卸载媒体，再次进入恢复 JSON 初始播放配置。浏览器仍可能阻止自动播放。
 
 配置了 `initialView` 的场景在 `onSceneReady` 时应用视角，缺省字段为 yaw 0、pitch 0、fov 75；未配置时保持当前视角。过渡期间热点隐藏。使用 `activeSceneId` / `onActiveSceneIdChange` 可控制当前场景。`onHotspotClick(event)` 中调用 `event.preventDefault()` 可取消默认动作；`onHotspotError` 提供场景、热点和原始错误；媒体的原始错误可能是带有 `error` 字段的事件。`renderHotspot(hotspot, context)` 返回 `undefined` 使用默认渲染，返回 `null` 隐藏；context 包含 `sceneId`、`playing`、`onClick`、`togglePlayback`、`reportError` 和 `renderDefault`。
+
+### 热点动作与共享弹窗内容
+
+`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认动画 700 毫秒，0 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
+
+项目新增可选 `popups: ProjectPopupDefinition[]`。每项包含唯一 `id`、非空 `title` 和有序 `blocks`；内容块 ID 在弹窗内唯一：
+
+```json
+{
+  "id": "story",
+  "title": "About this place",
+  "blocks": [
+    { "id": "intro", "type": "text", "text": "Plain text, including line breaks." },
+    { "id": "photo", "type": "image", "src": "media/photo.webp", "alt": "The main hall" },
+    { "id": "film", "type": "video", "src": "media/movie.mp4", "poster": "media/photo.webp" },
+    { "id": "voice", "type": "audio", "src": "media/story.mp3" }
+  ]
+}
+```
+
+内容结构存在 `project.json`，媒体保留为独立文件。弹窗路径相对项目目录解析，不跟随各全景的 `viewer.json`。`loadPanoProject` 返回解析后的 `popups`；新增可选 `resolvePopupAssetUrl(path, context)`，上下文是 `{ defaultUrl, popupId, blockId, field }`，field 为 `src` 或 `poster`；返回绝对 URL 或站点根路径。原有 `resolveAssetUrl` 回调继续只处理场景/热点资源。自定义加载器也可使用 `/data` 导出的 `resolveProjectPopupAssets`。JSON 请求的凭证不会自动保护媒体资源。
+
+`ProjectScenes.onPopupRequest({ sceneId, hotspot, popup })` 将展示交给宿主 Overlay。缺少处理器或目标弹窗时通过 `onHotspotError` 报错。独立 UI 入口提供 `ProjectPopupDialog`，查看器主入口不引入 Dialog 依赖：
+
+```tsx
+import { useState } from "react";
+import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+  return <PanoViewer renderOverlay={() => (
+    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+  )}>
+    <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
+      onActiveSceneIdChange={() => setPopup(null)} />
+  </PanoViewer>;
+}
+```
+
+`ProjectPopupDialog` 接收 `popup`（null 关闭）、`onOpenChange`，以及可选 `closeLabel` 和 `onMediaError(block)`。文字按纯文本展示，音视频使用原生控件且不自动播放；关闭或切换内容时释放媒体。全屏、尺寸和焦点行为复用 `PanoDialog`。需要自定义渲染时可替换成自己的 Overlay。
+
+继续使用 schemaVersion 1，旧项目仍可读取，包含新动作的项目需使用支持它们的新版查看器。`parsePanoProject(input, { draft: true })` 仅用于编辑草稿，允许空场景列表及未完成的弹窗标题/媒体；加载、保存和导出仍严格校验。宿主可将同一份文档存入数据库或映射到表，查看器不直接连接数据库。
 
 单图和已有配置可用纯数据入口；Next.js 的查看器组件需位于客户端边界，服务端加载数据则使用 `/data`：
 
@@ -466,6 +511,22 @@ export function Tour() {
 - `cycleSceneId` — 循环上一/下一场景 id（[`KeyboardControls`](#keyboardcontrols)）
 - 右键菜单辅助 — `createPanoContextMenuPresets`、`composePanoContextMenuItems` 及相关 API（[`PanoContextMenu`](#panocontextmenu)）
 - 多边形 / 折线校验 — `validatePolygonVertices`、`validatePolylineVertices`、`unwrapPolygonVertices`
+
+## DOM Overlay 与弹窗
+
+普通 DOM 界面使用 `PanoViewer.renderOverlay`，位于 Three.js 渲染树之外。`usePanoOverlay()` 提供稳定的 Portal 容器、viewer/可见区域尺寸和全屏状态。可选 `/ui` 入口提供 `PanoDialog` 与组成组件，也可以接入应用已有的 Dialog。
+
+独立的 **[弹窗使用与自定义样式指南](./docs/dialogs.zh-CN.md)** 包含完整示例、CSS 变量默认值与放置位置、布局组合、第三方接入、二级 Portal、生命周期、API 表和排错说明。指南随 npm 包分发。在本仓库运行 `pnpm dev`，打开 `/overlays` 可体验示例。
+
+### 默认弹窗
+
+从[快速开始](./docs/dialogs.zh-CN.md#quick-start)接入，再[定制默认外观](./docs/dialogs.zh-CN.md#customize-the-default-appearance)。默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`，也可不导入。
+
+多个热点使用[场景/热点到内容的完整映射示例](./docs/dialogs.zh-CN.md#choose-content-by-hotspot)：五份内容、一个共享弹窗、对应项目 JSON，以及场景内热点 ID 的处理。
+
+### 组成组件与已有 Dialog 接入
+
+自定义标题栏、内容区和底部操作使用[组成组件](./docs/dialogs.zh-CN.md#compose-a-different-layout)；已有 Dialog 使用本地 Portal 容器与 `usePanoModal(open)` [完成接入](./docs/dialogs.zh-CN.md#use-an-existing-dialog)。全屏功能放在 viewer 全局界面，不放入弹窗内容。
 
 ## PanoViewer
 
@@ -1761,6 +1822,8 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 
 音频通过 Howler.js 的 Web Audio 模式播放（Howler.js 已包含在本包构建产物中，宿主无需另行安装）。文件需完成解码后才能开始播放，可使用 MP3 格式。`src` 可以是字符串或回退 URL 数组。组件不使用 HTML5 流式音频模式，以保留立体声像控制。
 
+对于 `blob:` 等没有扩展名的音频地址，可传 `format="mp3"`，或按素材顺序传格式数组。`project.json` 中的音频定义也支持可选 `format` 字段。
+
 `playing` 与 `VideoHotspot` 一样受控。`loop` 默认 `false`，`muted` 默认 `false`，`volume` 默认 `1`，`pauseWhenHidden` 默认 `true`（标签页隐藏时暂停，`playing` 仍为 `true` 时，在标签页恢复可见后继续播放）。首次用户手势会解锁音频；若自动播放被阻止，会报告 `"blocked"`，并在 `playing` 仍为 true 时于下一次指针或按键后重试 `play()`。
 
 默认标记在 **停止**（扬声器）与 **播放**（扬声器 + 声波）之间切换。可用 `icon` 自定义停止图标、`playingIcon` 自定义播放图标。只设 `icon` 时两种状态共用该图。`marker={false}` 隐藏标记，仍保留定点声源。整个导览共用或按场景切换的非空间背景音频请使用 [`BackgroundAudio`](#backgroundaudio)。
@@ -1999,3 +2062,33 @@ CORS 不授予对象读取权限。使用 CDN 时也需确保实际响应带有�
 通过本地 HTTP(S) 服务预览，不使用 `file://`。HTTPS 页面使用 HTTPS 资源。采用带版本的资源目录，并协调项目 JSON 与图片的缓存，避免旧配置请求新目录。`UNSUPPORTED_SCHEMA_VERSION` 需要匹配支持的配置版本；平面图没有 `viewer.json`，需要平面查看器。
 
 转换阶段的问题另见 [converter 错误码与故障排查](../converter/README.zh-CN.md#错误码与故障排查)。
+
+### 相机中心范围
+
+`PanoViewer`、`Scenes` 的每个场景及 `project.json` 的每个场景均支持可选的 `viewLimits`：
+
+```ts
+viewLimits: {
+  yaw: { min: 170, max: -170 },
+  pitch: { min: -30, max: 45 },
+  fov: { min: 40, max: 90 },
+}
+```
+
+角度单位为度。Yaw 上下限在 −180…180 内；min > max 表示跨接缝，−180…180 表示完整一圈。Pitch 在 −90…90、FOV 在 1…179 内，均要求 min ≤ max。相等时锁定该轴。场景逐轴覆盖播放器设置；未配置的轴继承播放器，FOV 最后回退到原有 `minFov` / `maxFov`（默认 30 / 100）。范围限制相机中心，覆盖鼠标、触摸、键盘、惯性、自动旋转、陀螺仪及视角导航 API，不保证整个可见画面不超界。显式配置的轴即使启用 `bouncingLimits` 也使用硬边界。Yaw 动画沿允许区间插值，不走穿过禁区的最短路径；沉浸式 WebXR 继续由头显控制姿态。
+
+新场景接管画面时先应用范围，再设置初始视角。实时修改会取消导航与惯性、收回越界视角，不修改保存的初始视角或重新加载纹理。移除场景范围时恢复播放器设置。
+
+### 热点交互事件与自定义动作
+
+`events` 为 `click`、`pointerenter`、`pointerleave` 分别绑定一个动作。三个事件均支持 `scene`、`view`、`popup` 和 `{ type: "custom", actionId, params? }`。`params` 是 JSON 对象；函数、凭据、API 实现和表单定义由宿主维护。参数内的字符串不作为素材解析或打包。
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+旧 `action` 继续作为点击动作的后备，`events.click` 优先；编辑或清除点击时移除旧字段。打开项目不自动迁移。新事件配置需要升级后的播放器，项目 schemaVersion 仍为 1。没有点击动作的媒体继续切换播放，悬停没有默认动作。
+
+`ProjectScenes.onHotspotEvent(event)` 提供 `trigger`、`sceneId`、`hotspot`、`interaction` 和 `preventDefault()`。点击时先调用它，再调用原有 `onHotspotClick`，任一回调均可取消动作。`onCustomAction(event)` 额外提供 `action`，支持返回 Promise。宿主按稳定的 `action.actionId` 分发，校验业务参数，对未知动作抛出错误。缺少执行器、同步异常和 Promise 拒绝进入附带 `trigger` 的 `onHotspotError`。请求、鉴权、取消、防重复和迟到响应由宿主负责；各事件独立分发，不自动重试。
+
+悬停按整个热点的边界触发一次，跳过触屏和键盘焦点，并遵循可见性、指针交互设置。切换场景、隐藏和卸载仅清理状态，不执行离开动作。原有 tooltip 行为独立保留。自定义渲染器需同时转发 `context.onHoverChange(hovered, interaction)` 和 `context.onClick`；调用 `context.renderDefault()` 会自动接线。

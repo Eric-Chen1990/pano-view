@@ -1,7 +1,9 @@
 export { PanoViewer } from "./pano-viewer";
+export { usePanoOverlay, usePanoModal, PanoOverlayPortalProvider } from "./overlay/pano-overlay";
+export type { PanoOverlayRenderContext } from "./overlay/pano-overlay";
 export * from "./data";
 export { ProjectScenes } from "./project-scenes";
-export type { ProjectScenesProps, ProjectHotspotClickEvent, ProjectHotspotRenderContext, ProjectHotspotErrorEvent } from "./project-scenes";
+export type { ProjectScenesProps, ProjectHotspotEvent, ProjectCustomActionEvent, ProjectHotspotClickEvent, ProjectHotspotRenderContext, ProjectHotspotErrorEvent, ProjectPopupRequestEvent } from "./project-scenes";
 export type { PanoViewerProps } from "./pano-viewer";
 export type {
   PanoMediaActivationControls,
@@ -264,3 +266,5 @@ export type {
   TextHotspotDefinition,
   VideoHotspotDefinition,
 } from "./hotspot/definitions";
+
+export type { PanoViewLimits } from "./view-limits";

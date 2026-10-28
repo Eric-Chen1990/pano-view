@@ -42,6 +42,7 @@ import {
 } from "./hotspot-tooltip";
 import { HotspotTargetRegistryContext } from "./target-registry";
 import { applyHotspotTransform } from "./transform";
+import { HotspotStrokeLine, type HotspotStrokePoint } from "./hotspot-stroke-line";
 import {
   acceptsHotspotPointerEvents,
   type HotspotCommonProps,
@@ -60,6 +61,13 @@ const DEFAULT_REFERENCE_FOV = 75;
 const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
+const SELECTION_BORDER_POINTS: HotspotStrokePoint[] = [
+  [-0.5, -0.5, 0.001],
+  [0.5, -0.5, 0.001],
+  [0.5, 0.5, 0.001],
+  [-0.5, 0.5, 0.001],
+  [-0.5, -0.5, 0.001],
+];
 const TOOLTIP_WORLD_BOX = new Box3();
 const TOOLTIP_LOCAL_BOX = new Box3();
 const TOOLTIP_CORNER = new Vector3();
@@ -468,6 +476,7 @@ export function HotspotAnchor({
   rotation = 0,
   renderOrder = 0,
   visible = true,
+  selected = false,
   draggable = false,
   interactive = true,
   pointerEvents = "auto",
@@ -539,6 +548,8 @@ export function HotspotAnchor({
     planeGeometry.dispose();
     return geometry;
   }, []);
+  const eventHovered = useRef(false);
+  useEffect(() => { if (!visible || !interactive || pointerEvents === "none") eventHovered.current = false; }, [visible, interactive, pointerEvents]);
   const acceptsPointer = acceptsHotspotPointerEvents(interactive, pointerEvents);
   const canActivateFromKeyboard = Boolean(
     visible && interactive && (onClick || tooltipTrigger === "click"),
@@ -807,6 +818,13 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          if (!visible || event.nativeEvent.pointerType === "touch" || !eventHovered.current) return;
+          const inside = event.intersections.some(({ object }) => {
+            for (let node: typeof object | null = object; node; node = node.parent) if (node === groupRef.current) return true;
+            return false;
+          });
+          if (inside) return;
+          eventHovered.current = false;
           setHovered(false);
           onHoverChange?.(
             false,
@@ -816,6 +834,8 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOver={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          if (!visible || event.nativeEvent.pointerType === "touch" || eventHovered.current) return;
+          eventHovered.current = true;
           setHovered(true);
           onHoverChange?.(
             true,
@@ -836,6 +856,15 @@ export function HotspotAnchor({
         </lineSegments>
       )) : null}
       {children}
+      {selected && useAngularScale ? (
+        <HotspotStrokeLine
+          points={SELECTION_BORDER_POINTS}
+          color="#ffb300"
+          lineWidth={3}
+          opacity={1}
+          renderOrder={renderOrder + 1}
+        />
+      ) : null}
       {tooltipOpen && tooltipContent ? (
         <group ref={tooltipAnchorRef}>
           <HotspotTooltip

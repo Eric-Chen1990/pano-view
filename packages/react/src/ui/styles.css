@@ -1,0 +1,70 @@
+/* Optional dialog appearance. Structural layout remains in the components. */
+.pano-dialog-backdrop {
+  background: var(--pano-dialog-backdrop, rgb(0 0 0 / 65%));
+}
+
+.pano-dialog-content {
+  background: var(--pano-dialog-background, #161b22);
+  color: var(--pano-dialog-color, #f4f4f4);
+  border: var(--pano-dialog-border, 1px solid #39424e);
+  border-radius: var(--pano-dialog-radius, 12px);
+  box-shadow: var(--pano-dialog-shadow, 0 16px 64px rgb(0 0 0 / 45%));
+  font: inherit;
+}
+
+.pano-dialog-header {
+  padding: var(--pano-dialog-padding, 20px);
+  padding-top: max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--pano-dialog-padding, 20px) + 36px + 16px);
+  min-height: calc(max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px)) + 36px + var(--pano-dialog-padding, 20px));
+}
+
+.pano-dialog-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.pano-dialog-description {
+  margin: 8px 0 0;
+  color: var(--pano-dialog-muted-color, #a7b4c4);
+  font-size: 0.875rem;
+}
+
+.pano-dialog-body {
+  padding: 0 var(--pano-dialog-padding, 20px) max(var(--pano-dialog-padding, 20px), env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+
+.pano-dialog-close {
+  position: absolute;
+  top: max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px));
+  right: var(--pano-dialog-padding, 20px);
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  line-height: 1;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pano-dialog-close:focus-visible {
+  outline: 2px solid var(--pano-dialog-focus-color, #ffb300);
+  outline-offset: 2px;
+}
+
+.pano-project-popup {
+  display: grid;
+  gap: 16px;
+}
+.pano-project-popup p { margin: 0; }
+.pano-project-popup img,
+.pano-project-popup video { display: block; width: 100%; height: auto; }
+.pano-project-popup audio { width: 100%; }

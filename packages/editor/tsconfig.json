@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@ericchen1990/pano-view": ["../react/src/index.ts"],
+      "@ericchen1990/pano-view/ui": ["../react/src/ui.ts"],
+      "@ericchen1990/pano-view/data": ["../react/src/data.ts"]
+    }
+  },
+  "include": ["src", "tsup.config.ts"]
+}

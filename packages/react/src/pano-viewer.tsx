@@ -1,3 +1,4 @@
+import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
 import {
@@ -82,6 +83,13 @@ import {
   type PanoCursors,
 } from "./pano-cursor";
 import { PanoEvents } from "./pano-events";
+import { createPanoModalHost } from "./overlay/modal-host";
+import {
+  PanoModalHostContext,
+  PanoOverlayContext,
+  usePanoOverlayHost,
+  type PanoOverlayRenderContext,
+} from "./overlay/pano-overlay";
 import { PanoramaEventSurface } from "./panorama-event-surface";
 import {
   DEFAULT_PANORAMA_CAMERA_FAR,
@@ -144,7 +152,11 @@ export type PanoViewerProps = Omit<
   "children" | "onChange" | "contextMenu"
 > & {
   children?: ReactNode;
+  /** Viewer-local DOM UI, rendered outside the Three.js tree, including in fullscreen. */
+  renderOverlay?: (context: PanoOverlayRenderContext) => ReactNode;
   initialView?: Partial<PanoViewerState>;
+  /** Camera-center limits; scene limits override individual axes. */
+  viewLimits?: PanoViewLimits;
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
@@ -278,7 +290,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   function PanoViewer(
     {
       children,
+      renderOverlay,
       initialView,
+      viewLimits,
       minFov = 30,
       maxFov = 100,
       controls = true,
@@ -298,6 +312,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaViewRuntimeHandle>(null);
+    const modalHost = useMemo(() => createPanoModalHost(), []);
+    const modalOpen = useSyncExternalStore(modalHost.subscribe, modalHost.getSnapshot, () => false);
+    const setControlsRuntime = useCallback((runtime: PanoramaViewRuntimeHandle | null) => {
+      controlsRef.current = runtime;
+      modalHost.connect(runtime);
+    }, [modalHost]);
     const eventBus = useMemo(() => createPanoEventBus(), []);
     const { controls: hotspotAccessibilityControls, registry } =
       useHotspotAccessibilityLayer();
@@ -457,6 +477,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       shouldActivateMedia,
       videoHost,
     ]);
+    const limitsKey = JSON.stringify(viewLimits);
+    const parsedLimits = useMemo(() => parseViewLimits(viewLimits), [limitsKey]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -467,17 +489,14 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       () => ({
         yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
         pitch: clampPanoPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),
-        fov: Math.max(
-          normalizedMinFov,
-          Math.min(initialView?.fov ?? DEFAULT_VIEW.fov, normalizedMaxFov),
-        ),
+        // The runtime applies the effective scene/viewer range, including FOVs
+        // outside the legacy minFov/maxFov defaults.
+        fov: initialView?.fov ?? DEFAULT_VIEW.fov,
       }),
       [
         initialView?.fov,
         initialView?.pitch,
         initialView?.yaw,
-        normalizedMaxFov,
-        normalizedMinFov,
       ],
     );
     fallbackViewRef.current = normalizedInitialView;
@@ -573,6 +592,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     }, []);
 
     const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
+    const { context: overlayContext, setPortalContainer } = usePanoOverlayHost(isViewerFullscreen);
+
+    useEffect(() => {
+      if (modalOpen) contextMenuOverlayApi.setSession(null);
+    }, [contextMenuOverlayApi, modalOpen]);
 
     useEffect(() => {
       if (typeof document === "undefined") {
@@ -780,6 +804,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         aria-label={ariaLabel}
         style={rootStyle}
       >
+        <div data-pano-background="" inert={modalOpen} style={{ position: "absolute", inset: 0 }}>
         <Canvas
           aria-label={`${ariaLabel} canvas`}
           // Container-only resizes also use react-use-measure's scroll debounce.
@@ -827,9 +852,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <PanoVideoHostReset />
                   <PanoramaViewRuntime
-                    ref={controlsRef}
+                    ref={setControlsRuntime}
                     eventBus={eventBus}
                     initialView={normalizedInitialView}
+                    viewLimits={parsedLimits}
                     maxFov={normalizedMaxFov}
                     minFov={normalizedMinFov}
                     options={controlOptions}
@@ -893,6 +919,18 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
+        </div>
+        <PanoModalHostContext.Provider value={modalHost}>
+          <PanoOverlayContext.Provider value={overlayContext}>
+            <div
+              data-pano-overlay=""
+              ref={setPortalContainer}
+              style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
+            >
+              {renderOverlay?.(overlayContext)}
+            </div>
+          </PanoOverlayContext.Provider>
+        </PanoModalHostContext.Provider>
       </div>
     );
   },

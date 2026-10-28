@@ -17,6 +17,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [Examples](#examples)
 - [Exported components](#exported-components)
 - [PanoViewer](#panoviewer)
+- [DOM overlays and dialogs](#dom-overlays-and-dialogs)
 - [Sphere](#sphere)
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
@@ -199,6 +200,50 @@ export function Tour() {
 `ProjectScenes` belongs inside `PanoViewer` and reuses all nine existing hotspot types. A `scene` action navigates on click. Without an action, audio/video/sequence hotspots toggle playback. Media unmounts on leaving a scene and starts from its JSON settings on re-entry; browser autoplay restrictions still apply.
 
 Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives the scene, hotspot and original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `togglePlayback`, `reportError` and `renderDefault`.
+
+### Hotspot actions and shared popup content
+
+`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (700 ms by default, 0 for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
+
+Add an optional project-level `popups: ProjectPopupDefinition[]`. Each entry has a unique `id`, a nonempty `title`, and ordered `blocks` with unique IDs within that popup:
+
+```json
+{
+  "id": "story",
+  "title": "About this place",
+  "blocks": [
+    { "id": "intro", "type": "text", "text": "Plain text, including line breaks." },
+    { "id": "photo", "type": "image", "src": "media/photo.webp", "alt": "The main hall" },
+    { "id": "film", "type": "video", "src": "media/movie.mp4", "poster": "media/photo.webp" },
+    { "id": "voice", "type": "audio", "src": "media/story.mp3" }
+  ]
+}
+```
+
+Store this content structure in `project.json`; store media as separate files. Popup paths resolve from the project directory, independently of each panorama's `viewer.json`. `loadPanoProject` returns resolved `popups`; its optional `resolvePopupAssetUrl(path, context)` receives `{ defaultUrl, popupId, blockId, field }`, where field is `src` or `poster`. Like the existing resolver, return an absolute URL or site-root path. Existing `resolveAssetUrl` callbacks continue to receive only their scene/hotspot resources. `resolveProjectPopupAssets` is also exported from `/data` for custom loaders. Request credentials for JSON do not automatically protect media.
+
+`ProjectScenes.onPopupRequest({ sceneId, hotspot, popup })` delegates display to your overlay. A missing handler or missing popup reports through `onHotspotError`. The optional UI entry supplies `ProjectPopupDialog` without adding Dialog dependencies to the viewer core:
+
+```tsx
+import { useState } from "react";
+import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+  return <PanoViewer renderOverlay={() => (
+    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+  )}>
+    <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
+      onActiveSceneIdChange={() => setPopup(null)} />
+  </PanoViewer>;
+}
+```
+
+`ProjectPopupDialog` accepts `popup` (or `null` to close), `onOpenChange`, optional `closeLabel` and `onMediaError(block)`. It renders text as text, uses native audio/video controls without autoplay, and releases media when content closes or changes. It inherits `PanoDialog` fullscreen, sizing and focus behavior. Replace this component with your own overlay to customize rendering.
+
+The schema remains version 1 and old projects remain valid. Projects using new actions require a viewer that supports them. `parsePanoProject(input, { draft: true })` is for authoring only: it permits empty scene lists and unfinished popup titles/media. Loading, saving and package export validate strictly. Host applications may save the same document in a database or map it to tables; the viewer has no database connection.
 
 For individual panoramas and existing configs use the pure data entry. Next.js viewer components need a client boundary; server-side data loading uses `/data`:
 
@@ -491,6 +536,22 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 - `cycleSceneId` — wrap previous/next scene ids ([`KeyboardControls`](#keyboardcontrols))
 - Context menu helpers — `createPanoContextMenuPresets`, `composePanoContextMenuItems`, and related APIs ([`PanoContextMenu`](#panocontextmenu))
 - Polygon / polyline validation — `validatePolygonVertices`, `validatePolylineVertices`, `unwrapPolygonVertices`
+
+## DOM overlays and dialogs
+
+Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. `usePanoOverlay()` supplies its stable Portal target, measured viewer/visible dimensions and fullscreen state. The optional `/ui` entry provides `PanoDialog` and composable parts; your application can also integrate an existing Dialog.
+
+See the separate **[Dialog and styling guide](./docs/dialogs.md)** for complete examples, CSS variable defaults and placement, custom layouts, third-party integration, nested portals, lifecycle, API tables and troubleshooting. The guide is included in the npm package. Run `pnpm dev` and open `/overlays` for the local examples.
+
+### Default dialog
+
+Start with [Quick start](./docs/dialogs.md#quick-start), then [customize the default appearance](./docs/dialogs.md#customize-the-default-appearance). Default styling is an optional import from `@ericchen1990/pano-view/ui/styles.css`.
+
+For multiple hotspots, use the [complete scene/hotspot-to-content example](./docs/dialogs.md#choose-content-by-hotspot): five content definitions, one shared dialog, matching project JSON and scene-local IDs.
+
+### Compose parts or integrate an existing Dialog
+
+Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custom header/body/footer, or [connect an existing Dialog](./docs/dialogs.md#use-an-existing-dialog) through the local Portal container and `usePanoModal(open)`. Fullscreen belongs in viewer-level UI, not in dialog content.
 
 ## PanoViewer
 
@@ -2065,6 +2126,8 @@ Playback uses Web Audio via Howler.js (bundled; hosts do not install
 format. `src` may be a string or an array of fallback URLs. The component uses Web Audio rather than HTML5
 streaming to retain stereo panning.
 
+For extensionless sources such as `blob:` URLs, pass `format="mp3"` (or an array of container hints in source order). The optional `format` field is also supported by audio definitions in `project.json`.
+
 `playing` is controlled like `VideoHotspot`. `loop` defaults to `false`,
 `muted` to `false`, `volume` to `1`, and `pauseWhenHidden` to `true` (pause
 when the tab is hidden, resume if `playing` is still true). A first user
@@ -2361,3 +2424,33 @@ Start playback from a click or keyboard gesture, check supported formats and per
 Serve files over local HTTP(S), rather than double-clicking `file://` HTML. HTTPS pages should load HTTPS assets. Use versioned asset directories and coordinate JSON/image caching so stale configs do not target replaced files. `UNSUPPORTED_SCHEMA_VERSION` requires a supported config version. Planar conversions have no `viewer.json` and need a planar viewer.
 
 For conversion failures see [converter error codes and troubleshooting](../converter/README.md#error-codes-and-troubleshooting).
+
+### Camera-center limits
+
+`PanoViewer`, every `Scenes` scene, and each `project.json` scene accept optional `viewLimits`:
+
+```ts
+viewLimits: {
+  yaw: { min: 170, max: -170 },
+  pitch: { min: -30, max: 45 },
+  fov: { min: 40, max: 90 },
+}
+```
+
+Angles are degrees. Yaw bounds are within −180…180; min > max crosses the seam. −180…180 allows a full circle. Pitch bounds are within −90…90, FOV within 1…179; both require min ≤ max. Equal bounds lock an axis. Scene axes override viewer axes individually; omitted axes inherit viewer settings, with existing `minFov` / `maxFov` (30 / 100 by default) as the FOV fallback. Bounds apply to the camera center, including pointer, touch, keyboard, inertia, auto rotation, gyro and view navigation APIs; they do not keep the entire visible image inside the bounds. Explicit axes have hard boundaries even with `bouncingLimits`. Limited yaw animations stay in the permitted arc, overriding a shorter path through forbidden angles. Immersive WebXR remains controlled by the headset.
+
+Scene limits take effect when the incoming scene takes over, before its initial view. Live changes cancel navigation and inertia and constrain the current view without rewriting authored initial views or reloading textures. Removing scene limits restores viewer limits.
+
+### Hotspot interaction events and custom actions
+
+`events` maps `click`, `pointerenter`, and `pointerleave` to one action each. Every event supports `scene`, `view`, `popup`, and `{ type: "custom", actionId, params? }`. `params` is a JSON object; functions, credentials, API implementations and form definitions belong to the host. Parameter strings are not resolved or packaged as assets.
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+Legacy `action` remains a click fallback; `events.click` wins. Editing or clearing click removes the legacy fallback. Loading a project does not migrate it. New event configurations require an updated viewer (project schemaVersion remains 1). Media without a click action still toggles playback; hover has no default action.
+
+`ProjectScenes.onHotspotEvent(event)` receives `trigger`, `sceneId`, `hotspot`, `interaction` and `preventDefault()`. On clicks it runs before the existing `onHotspotClick`; either callback can cancel the action. `onCustomAction(event)` additionally receives `action` and may return a Promise. Dispatch by the stable `action.actionId`, validate business parameters and throw for unknown actions. Missing handlers, synchronous exceptions and rejected Promises reach `onHotspotError` with `trigger`. Requests, authentication, cancellation, duplicate prevention and response ordering are host responsibilities; events dispatch independently without automatic retries.
+
+Hover runs once per logical hotspot boundary, skips touch and keyboard focus, and respects visibility and pointer interaction settings. Scene changes, hiding and unmounting clear hover state without executing leave actions. Existing tooltip behavior is independent. Custom renderers must forward `context.onHoverChange(hovered, interaction)` as well as `context.onClick`; `context.renderDefault()` wires both automatically.

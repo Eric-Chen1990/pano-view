@@ -233,6 +233,7 @@ const hotspots: ProjectHotspotDefinition[] = [
   {
     type: "audio",
     id: "audio",
+    format: ["mp3", "ogg"],
     position,
     src: ["clip.mp3", "clip.ogg"],
     icon: "sound.webp",
@@ -294,6 +295,10 @@ test("projects validate all hotspot variants and resolve nested resources withou
   assert.deepEqual(
     (hs[4] as Extract<ProjectHotspotDefinition, { type: "audio" }>).src,
     ["https://hotspots.test/clip.mp3", "https://hotspots.test/clip.ogg"]
+  );
+  assert.deepEqual(
+    (hs[4] as Extract<ProjectHotspotDefinition, { type: "audio" }>).format,
+    ["mp3", "ogg"]
   );
   assert.equal(
     (hs[5] as Extract<ProjectHotspotDefinition, { type: "text" }>).text,

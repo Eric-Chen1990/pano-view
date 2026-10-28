@@ -482,17 +482,156 @@ bun add -g @ericchen1990/pano-converter
 
 </details>
 
-```sh
-pano-convert room.jpg --projection cubemap --output ./room
-pano-convert sphere.jpg --projection equirectangular --output ./sphere
-pano-convert scan.png --projection planar --output ./scan
-pano-convert room.jpg --levels 512,1024,2048 --output ./custom
-pano-convert restore ./room/manifest.json --output ./restored --export-faces
-pano-convert restore ./scan/image.dzi --output ./scan-restored --level 10
-pano-convert --help
+### 用法与运行条件
+
+```text
+pano-convert <image> --output <directory> [options]
+pano-convert restore <manifest.json|image.dzi> --output <directory> [options]
 ```
 
-成功时 stdout 输出结果 JSON；TTY 进度写入 stderr，`--quiet` 关闭进度。`--json-errors` 将 `{name,code,stage,message}` 写入 stderr。退出码：0 成功、1 处理或依赖错误、2 参数错误、130 取消。错误类型为 `ConverterError`，包含稳定 `code`、阶段、可读信息和内部原始 `cause`。
+每次命令处理一个本地文件，不接受 URL、stdin 或目录批量输入。批量处理时由 Shell 循环调用，并为每个文件使用独立输出目录。相对路径以当前工作目录为基准；含空格的路径与瓦片模板需要加引号。项目内安装时，将下文的 `pano-convert` 换成对应包管理器的运行命令，例如 `pnpm exec pano-convert`。
+
+需要 Node.js >=20.19，以及匹配当前平台的 Sharp。立方体转换和立方体还原还需要外部 FFmpeg，且必须带 `v360` 滤镜。运行前可检查：
+
+```sh
+node --version
+ffmpeg -version
+ffmpeg -filters
+```
+
+确认滤镜列表包含 `v360`。FFmpeg 不在 `PATH` 时，传入 `--ffmpeg-path /absolute/path/to/ffmpeg` 或设置 `FFMPEG_PATH`；命令行参数优先。等距圆柱和平面操作不使用 FFmpeg。
+
+输入必须是 Sharp 支持的静态单帧栅格图片。`cubemap` 和 `equirectangular` 都接收完整的 2:1 等距圆柱全景图（输入比例容差 1%）：前者投影为六个面再切图，后者直接对全景图切图。普通照片、扫描图及其他比例图片使用 `planar`。
+
+两种操作都必须指定 `--output`，且目录必须不存在或为空；非空目录会报错，不会覆盖。重新运行时请换用新目录。任务在临时目录处理，成功后再提交完整输出；不要通过目标目录中的文件数判断实时进度。
+
+### 转换示例
+
+```sh
+# 默认立方体：WebP、512px 瓦片、自动层级、质量 95。
+pano-convert ./room.jpg --output ./output/room
+
+# 保持等距圆柱瓦片，不需要 FFmpeg。
+pano-convert ./sphere.jpg --projection equirectangular --output ./output/sphere
+
+# 普通图片：标准 Deep Zoom，输出 JPEG 瓦片和 image.dzi。
+pano-convert ./scan.png --projection planar --output ./output/scan
+
+# 立方体面边长 2048px；仅存储三个层级，尺寸从小到大。
+pano-convert ./room.jpg --face-size 2048 --levels 512,1024,2048 \
+  --format jpeg --quality 90 --output ./output/room-custom
+
+# 假设源图为 4096x2048：明确指定等距圆柱的各层宽高。
+pano-convert ./sphere.jpg --projection equirectangular \
+  --levels 1024x512,2048x1024,4096x2048 --output ./output/sphere-custom
+
+# 假设平面源图为 4096x2048：自定义层级与路径时必须选 --layout custom。
+pano-convert ./scan.png --projection planar --layout custom --format png \
+  --levels 1024x512,4096x2048 --tile-template 'tiles/%l/%0v_%0h.%e' \
+  --output ./output/scan-custom
+
+# 调整自动金字塔的缩小倍率，不要同时传 --levels。
+pano-convert ./room.jpg --pyramid-downscale 3 --output ./output/room-factor3
+```
+
+### 转换专用参数
+
+`restore` 不接受下列参数。
+
+| 参数 | 默认值与规则 |
+| --- | --- |
+| `--projection <name>` | 默认 `cubemap`；可选 `equirectangular`、`planar`。 |
+| `--layout <name>` | 全景默认 `custom`，平面默认 `deepzoom`；仅平面支持 `deepzoom`。 |
+| `--tile-size <pixels>` | 整数 1–8192，默认 512；边缘瓦片可小于此尺寸。 |
+| `--levels <list>` | 仅限 custom。逗号分隔的立方体面边长（`512,1024,2048`），或其他投影的宽高对（`1024x512,2048x1024`，使用小写 `x`）。共 1–64 层，尺寸升序、不可重复，保持源图比例，不得超过处理后的源图或立方体面尺寸。列表含空格时需加引号。 |
+| `--pyramid-downscale <factor>` | 仅限 custom；有限数值且 >1，默认 2。逐层相除并向上取整，自动生成金字塔。与 `--levels` 互斥。 |
+| `--tile-template <template>` | 仅限 custom。立方体默认 `tiles/%s/l%l/%v/l%l_%s_%v_%h.%e`；其他 custom 模式默认 `tiles/%l/%h_%v.%e`。占位符见下表。 |
+| `--face-size <pixels>` | 仅限 cubemap；2–12288 的偶数整数。默认约为输入宽度的 1/4，取偶数并限制在 12288 内；自定义立方体层级不能超过此边长。 |
+
+Deep Zoom 固定层级、缩小倍率和瓦片路径，不允许传入 `--levels`、`--pyramid-downscale` 或 `--tile-template`，即使传入的是常用默认值。需要自定义时使用 `--projection planar --layout custom`。Custom 的层、行、列从 1 开始；标准 Deep Zoom 从 0 开始。以 `manifest.json` 记录的实际布局为准。
+
+瓦片模板必须是输出目录内的相对路径：
+
+| 占位符 | 含义 |
+| --- | --- |
+| `%s` | 立方体面：`f`、`r`、`b`、`l`、`u`、`d`，仅限 cubemap。 |
+| `%l` | 实际存储层号，按尺寸从小到大编号。 |
+| `%h` / `%v` | 分别为列号 / 行号；立方体默认文件名先行后列。 |
+| `%e` | 所选编码扩展名：`webp`、`jpeg` 或 `png`。 |
+| `%0h` / `%00v` | 列号 / 行号补前导零，最少分别为 2 / 3 位。 |
+
+扩展名必须匹配 `--format`（JPEG 也支持 `.jpg`）。每块瓦片必须对应唯一且安全的路径，例如多个立方体面需要保留 `%s`，多个层级需要保留 `%l`。模板请按示例加引号；Windows `.bat` 文件中的字面量 `%` 需要写成 `%%`。
+
+### 还原示例与专用参数
+
+保留清单或 DZI 及其引用瓦片的相对目录结构。还原只读取本地文件，不会下载缺失瓦片。`viewer.json` 仅含渲染字段，不能替代 `manifest.json` 作为还原输入。
+
+```sh
+# 默认最高存储层级，输出 panorama.png 和六张 faces/*.png。
+pano-convert restore ./output/room/manifest.json \
+  --output ./restored/room --export-faces
+
+# 仅立方体：选择实际层号 1，输出 2048x1024 的 JPEG 全景图。
+pano-convert restore ./output/room/manifest.json --level 1 \
+  --output-width 2048 --format jpeg --quality 90 --output ./restored/room-small
+
+# 标准 DZI：选择实际存储层号 10。
+pano-convert restore ./output/scan/image.dzi --level 10 --output ./restored/scan
+```
+
+| 参数 | 默认值与规则 |
+| --- | --- |
+| `--level <number>` | 默认最高存储层级；填写实际的 `tiles.levels[].level`，不是数组偏移或目标宽度。DZI 使用标准层号，指定层级必须存在。 |
+| `--output-width <pixels>` | 仅限 cubemap；正偶数全景宽度，高度为宽度的一半。默认是所选面边长的 4 倍；提高宽度无法恢复缺失细节。 |
+| `--export-faces` | 仅限 cubemap；额外输出 `faces/{f,r,b,l,u,d}.<format>`，尺寸为所选层级的面尺寸，仍然会生成全景图。 |
+
+平面还原文件名为 `image.<format>`；立方体及等距圆柱全景还原为 `panorama.<format>`。默认 PNG，不受原瓦片格式影响。有损瓦片、缩放和立方体重投影无法还原原始像素；内存与编码器限制见[还原图片](#还原图片)。
+
+### 通用参数
+
+| 参数 | 默认值与规则 |
+| --- | --- |
+| `-o, --output <directory>` | 必填；目录必须不存在或为空。 |
+| `--format <name>` | 可选 `webp`、`jpeg`、`png`。Custom 转换默认 WebP，Deep Zoom 转换默认 JPEG，还原默认 PNG。参数值使用 `jpeg`，不是 `jpg`。 |
+| `--quality <number>` | 整数 1–100，默认 95；影响 JPEG/WebP，不影响 PNG；生成的预览图使用质量 90。 |
+| `--ffmpeg-path <path>` | 可执行程序路径，优先于 `FFMPEG_PATH`，最后使用 `PATH` 中的 `ffmpeg`；仅立方体操作调用。 |
+| `--concurrency <number>` | 整数 1–32，默认 4；限制活跃图片任务数，不是总内存上限。 |
+| `--timeout <milliseconds>` | 整数 1–2147483647，默认 600000（10 分钟）；设置任务期限，清理仍需等待已开始的原生工作结束。 |
+| `--limit-input-pixels <number>` | 正整数，默认 268402689，也约束还原画布。内存不足时优先选择较低还原层级；提高此值不会增加可用内存。 |
+| `--quiet` | 关闭 stderr 的 TTY 进度；仍输出成功 JSON 和错误。 |
+| `--json-errors` | 在 stderr 输出错误 JSON，公开字段为 `{name,code,stage,message}`。 |
+| `-h, --help` | 显示用法、参数和示例，不执行转换；也支持 `restore --help`。 |
+| `-v, --version` | 显示包版本，不执行转换。 |
+
+### 输出文件与脚本调用
+
+| 操作 | `--output` 内的文件 |
+| --- | --- |
+| 立方体转换 | 六面瓦片、全景预览、立方体条带预览、`manifest.json`、`viewer.json`。 |
+| 等距圆柱转换 | 全景瓦片、预览、`manifest.json`、`viewer.json`。 |
+| 平面转换 | 瓦片、缩略图、`manifest.json`；标准 Deep Zoom 另有 `image.dzi` 和 `image_files/`。不生成 `viewer.json`。 |
+| 还原 | `image.<format>` 或 `panorama.<format>`，以及按需导出的立方体面；不生成新的转换清单。 |
+
+成功时 stdout 输出一份结果 JSON，末尾带换行。转换返回 `{outputDir, manifest, viewerConfig, assets}`；还原返回 `{outputDir, width, height, projection, assets}`。`outputDir` 和资源的 `absolutePath` 是本地绝对路径；复制到存储时使用 `relativePath` 和清单引用。字段详解见 [API 返回值](#api-返回值)。
+
+仅当 stderr 为 TTY 时才写入进度。脚本中可使用 `--quiet --json-errors` 分别重定向两个流。重定向文件应放在**输出目录之外**：Shell 会在命令开始前创建文件，放在输出目录内会导致目录非空而被拒绝。
+
+```sh
+pano-convert ./room.jpg --output ./output/room-script \
+  --quiet --json-errors >result.json 2>error.json
+status=$?
+# 先检查退出码，再解析 result.json；成功时 error.json 为空。
+echo "Exit code: $status"
+```
+
+| 退出码 | 含义 |
+| --- | --- |
+| `0` | 成功，或已显示帮助/版本。 |
+| `1` | 处理、文件系统、依赖或超时错误。 |
+| `2` | 参数不合法或组合不兼容（`INVALID_OPTIONS`）。 |
+| `130` | 取消（`ABORTED`）。Ctrl+C/SIGINT 或 SIGTERM 请求取消，清理可能需要等待活跃原生工作结束。 |
+
+同一退出码下通过错误 `code` 区分原因。`OUTPUT_CONFLICT`、FFmpeg 缺失和瓦片缺失等处理方式见[错误码与故障排查](#错误码与故障排查)。
 
 ## 错误码与故障排查
 

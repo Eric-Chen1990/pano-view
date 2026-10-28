@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { lazy, type ComponentType } from "react";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { FilterPage } from "./components/filters/FilterPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
@@ -7,6 +7,13 @@ import { SceneTransitionPage } from "./components/scene-transitions/SceneTransit
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
+
+const EditorPage = lazy(() =>
+  import("./components/editor/EditorPage").then((module) => ({
+    default: module.EditorPage,
+  })),
+);
+const OverlayPage = lazy(() => import("./components/overlays/OverlayPage").then((module) => ({ default: module.OverlayPage })));
 
 export type PlaygroundRoute = {
   path: string;
@@ -25,6 +32,8 @@ export const HOME_ROUTE: PlaygroundRoute = {
  * this list so the demo navigation remains focused on runnable feature examples.
  */
 export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
+  { path: "/overlays", navLabel: "Overlays", Component: OverlayPage },
+  { path: "/editor", navLabel: "Editor", Component: EditorPage },
   { path: "/project", navLabel: "Static project", Component: ProjectPage },
   {
     path: "/hotspots",

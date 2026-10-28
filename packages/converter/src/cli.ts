@@ -11,30 +11,71 @@ Usage:
   pano-convert <image> --output <directory> [options]
   pano-convert restore <manifest.json|image.dzi> --output <directory> [options]
 
-Options:
-  -o, --output <directory>       Required, nonexistent or empty output directory
+Input and output:
+  Convert one local, static raster image (no URLs, stdin, or directory batches).
+  cubemap/equirectangular require a full 2:1 panorama (1% input tolerance).
+  Use planar for ordinary images. Restore reads local tiles beside the manifest/DZI.
+  -o, --output <directory>       Required for both operations; nonexistent or empty
+
+Conversion options (not accepted by restore):
   --projection <name>           cubemap (default), equirectangular, planar
-  --layout <name>               custom or deepzoom (planar default)
-  --tile-size <pixels>          Default 512
-  --format <name>               webp, jpeg, png; restore defaults to png
-  --quality <1..100>             Default 95
-  --levels <list>               Cube edges: 512,1024; other modes: 1024x512,2048x1024
-  --pyramid-downscale <factor>   Default 2; mutually exclusive with --levels
-  --tile-template <template>    %s face, %l level, %h column, %v row, %e extension
-  --face-size <pixels>          Even cube-face edge
-  --ffmpeg-path <path>          Also accepts FFMPEG_PATH
-  --concurrency <number>        Default 4
-  --timeout <milliseconds>      Default 600000
-  --limit-input-pixels <number> Default 268402689
-  --level <number>              Restore only; highest stored level by default
-  --output-width <pixels>       Restore cube to a 2:1 panorama of this width
-  --export-faces                Restore cube faces alongside panorama
-  --quiet                       Suppress progress on stderr
+  --layout <name>               custom (panorama default), deepzoom (planar default)
+                               deepzoom is planar only; no custom levels/paths
+  --tile-size <pixels>          Integer 1..8192; default 512
+  --levels <list>               custom only; ascending, no duplicates/upscaling
+                               Cube face edges: 256,512,1024
+                               Other modes: 1024x512,2048x1024 (preserve aspect)
+  --pyramid-downscale <factor>   custom only; finite >1, default 2
+                               Mutually exclusive with --levels
+  --tile-template <template>    custom only; relative path, quote in your shell
+                               %s cube face (f/r/b/l/u/d), %l stored level,
+                               %h column, %v row, %e extension
+                               %0h pads to 2 digits; %00v pads to 3 digits
+                               Default cube: tiles/%s/l%l/%v/l%l_%s_%v_%h.%e
+                               Default other: tiles/%l/%h_%v.%e
+  --face-size <pixels>          cubemap only; even integer 2..12288
+                               Default approx. input width / 4, capped at 12288
+
+Restore options (not accepted by conversion):
+  --level <number>              Actual stored level, not array offset; default highest
+  --output-width <pixels>       cubemap only; even 2:1 panorama width
+                               Default 4 * selected face edge
+  --export-faces                cubemap only; also write faces/{f,r,b,l,u,d}.<format>
+
+Shared options:
+  --format <name>               webp, jpeg, png; default webp for custom conversion,
+                               jpeg for deepzoom, png for restore
+  --quality <1..100>            Integer; default 95, JPEG/WebP only (previews use 90)
+  --ffmpeg-path <path>          Executable; overrides FFMPEG_PATH, then ffmpeg on PATH
+  --concurrency <number>        Integer 1..32; default 4 (active image tasks)
+  --timeout <milliseconds>      Integer 1..2147483647; default 600000 (10 minutes)
+  --limit-input-pixels <number> Positive integer; default 268402689
+                               Also bounds reconstruction canvases
+  --quiet                       Suppress TTY progress on stderr; keep result JSON
   --json-errors                 Write machine-readable errors on stderr
   -h, --help                    Show help
   -v, --version                 Show version
 
-Success writes JSON to stdout. Image and metadata files are written to --output.
+Dependencies:
+  Node.js >=20.19 and Sharp. Cube conversion/restoration also need external
+  FFmpeg with v360; equirectangular and planar operations do not use FFmpeg.
+
+Examples:
+  pano-convert room.jpg -o ./room
+  pano-convert sphere.jpg --projection equirectangular -o ./sphere
+  pano-convert scan.png --projection planar -o ./scan
+  pano-convert room.jpg --face-size 1024 --levels 256,512,1024 -o ./custom
+  pano-convert restore ./room/manifest.json -o ./restored --export-faces
+  pano-convert restore ./scan/image.dzi -o ./scan-restored --level 10
+  pano-convert room.jpg -o ./room --quiet --json-errors >result.json 2>error.json
+
+Output:
+  Conversion writes tiles, previews/thumbnail and manifest.json. Panoramas also
+  write viewer.json; deepzoom writes image.dzi and image_files/.
+  Restore writes panorama.<format> or image.<format>, plus optional cube faces.
+  Success writes one result JSON to stdout; progress/errors use stderr.
+  Keep redirected logs outside --output. Existing nonempty output is rejected.
+  Ctrl+C/SIGTERM requests cancellation; active native work may finish first.
 Exit codes: 0 success, 1 processing failure, 2 invalid arguments, 130 cancellation.
 `;
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { isKnownPlaygroundRoute, matchPlaygroundRoute } from "./routes";
 
@@ -20,8 +20,10 @@ export function App() {
 
   return (
     <>
-      <Component />
-      <Analytics />
+      <Suspense fallback={<p role="status">Loading…</p>}>
+        <Component />
+      </Suspense>
+      {pathname !== "/editor" ? <Analytics /> : null}
     </>
   );
 }

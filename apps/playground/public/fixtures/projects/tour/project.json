@@ -39,7 +39,9 @@
           "width": 7,
           "height": 7,
           "tooltip": "Play / pause ambient audio"
-        }
+        },
+        {"type": "graphic", "id": "shared-info", "label": "About this tour", "position": {"yaw": 0, "pitch": 8}, "width": 7, "height": 7, "graphic": {"kind": "circle", "fill": "#df6b42"}, "tooltip": "About this tour", "action": {"type": "popup", "popupId": "welcome-story"}},
+        {"type": "graphic", "id": "look-around", "label": "Look to the right", "position": {"yaw": 40, "pitch": 10}, "width": 7, "height": 7, "graphic": {"kind": "arrow", "fill": "#fbbf24"}, "tooltip": "Look to the right", "action": {"type": "view", "view": {"yaw": 90, "pitch": 0, "fov": 60}, "duration": 700}}
       ]
     },
     {
@@ -66,6 +68,26 @@
           "height": 8,
           "text": "The second scene",
           "interactive": false
+        },
+        {"type": "graphic", "id": "shared-info", "label": "About this tour", "position": {"yaw": 30, "pitch": 8}, "width": 7, "height": 7, "graphic": {"kind": "circle", "fill": "#df6b42"}, "tooltip": "About this tour", "action": {"type": "popup", "popupId": "welcome-story"}}
+      ]
+    }
+  ],
+  "popups": [
+    {
+      "id": "welcome-story",
+      "title": "Explore the tour",
+      "blocks": [
+        {
+          "id": "welcome-text",
+          "type": "text",
+          "text": "This shared popup is used in both scenes. Edit it once in the editor’s Popup content library."
+        },
+        {
+          "id": "welcome-image",
+          "type": "image",
+          "src": "../../panorama/cube-tiles/3/previews/400.webp",
+          "alt": "Panorama preview"
         }
       ]
     }
