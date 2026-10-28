@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.1
+
+### Patch Changes
+
+- Fix mouse, pen, and single-touch panorama dragging to keep the grabbed image point anchored across viewport sizes and zoom levels. Smooth fast drags with frame-aligned input and a short following filter, retain release inertia, and preserve pending input when rebasing after zoom or resize.
+
 ## 3.6.0
 
 ### Minor Changes
