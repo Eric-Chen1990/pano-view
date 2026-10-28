@@ -1,6 +1,6 @@
 # @ericchen1990/pano-editor
 
-An embeddable React panorama editor for scenes, all nine pano-view hotspot types, initial views and scene links. It produces the existing `schemaVersion: 1` `project.json` consumed by `loadPanoProject` and `ProjectScenes`.
+An embeddable React tour editor for scenes, all nine pano-view hotspot types, initial views and scene links. It produces the existing `schemaVersion: 1` `project.json` consumed by `loadPanoProject` and `ProjectScenes`.
 
 [简体中文](./README.zh-CN.md)
 

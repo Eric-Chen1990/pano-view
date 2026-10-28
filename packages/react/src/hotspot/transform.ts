@@ -62,3 +62,31 @@ function fixedScaleFactor(cameraFov: number, referenceFov: number): number {
     Math.tan(MathUtils.degToRad(safeReferenceFov) / 2)
   );
 }
+
+/**
+ * Scale for a unit quad whose screen-space stroke center sits `outsetPixels`
+ * outside the hotspot. X and Y differ when the hotspot is not square.
+ */
+export function selectionFrameScale(
+  worldScaleX: number,
+  worldScaleY: number,
+  cameraSpaceDepth: number,
+  fovDegrees: number,
+  viewportHeight: number,
+  outsetPixels: number,
+): readonly [number, number] {
+  const pixels = Number.isFinite(outsetPixels) && outsetPixels > 0 ? outsetPixels : 0;
+  const depth = Number.isFinite(cameraSpaceDepth) ? Math.max(cameraSpaceDepth, 1e-4) : 1e-4;
+  const height = Number.isFinite(viewportHeight) ? Math.max(viewportHeight, 1) : 1;
+  const fov = Number.isFinite(fovDegrees) ? MathUtils.clamp(fovDegrees, 1, 179) : 75;
+  const pixelsPerWorldUnit =
+    height / (2 * Math.tan(MathUtils.degToRad(fov) * 0.5) * depth);
+  const axis = (worldScale: number) => {
+    const pixelsPerLocalUnit = pixelsPerWorldUnit * Math.abs(worldScale);
+    if (pixelsPerLocalUnit < 1e-4) {
+      return 1;
+    }
+    return 1 + (2 * pixels) / pixelsPerLocalUnit;
+  };
+  return [axis(worldScaleX), axis(worldScaleY)];
+}

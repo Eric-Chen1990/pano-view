@@ -1,5 +1,13 @@
 # @ericchen1990/pano-editor
 
+## 1.0.1
+
+### Patch Changes
+
+- Rename the editor title from Panorama editor to Tour editor.
+- Updated dependencies
+  - @ericchen1990/pano-view@3.6.4
+
 ## 1.0.0
 
 ### Minor Changes

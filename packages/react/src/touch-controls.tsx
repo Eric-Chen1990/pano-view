@@ -56,7 +56,10 @@ export function TouchControls({
     const element = gl.domElement;
     const drag = createPointerDrag(camera, element, () => controlsRef.current, "touch");
 
+    const pending = new Set<number>();
+    let disposed = false;
     const clearPointers = () => {
+      pending.clear();
       for (const pointerId of pointersRef.current.keys()) {
         if (element.hasPointerCapture?.(pointerId)) {
           element.releasePointerCapture?.(pointerId);
@@ -86,6 +89,33 @@ export function TouchControls({
       );
     };
 
+    const beginPointer = (event: PointerEvent) => {
+      if (disposed || controlsRef.current?.isInteractionLocked()) {
+        return;
+      }
+      if (pointersRef.current.has(event.pointerId)) {
+        return;
+      }
+      pointersRef.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        at: performance.now(),
+      });
+      try {
+        element.setPointerCapture?.(event.pointerId);
+      } catch {
+        // The pointer can already be inactive if it was released immediately.
+      }
+      syncActive();
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
+
+      if (pointersRef.current.size >= 2) {
+        drag.suspend();
+        const [first, second] = Array.from(pointersRef.current.values());
+        pinchDistanceRef.current = pointerDistance(first!, second!);
+      }
+    };
+
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== "touch") {
         return;
@@ -95,20 +125,16 @@ export function TouchControls({
       }
 
       event.preventDefault();
-      pointersRef.current.set(event.pointerId, {
-        x: event.clientX,
-        y: event.clientY,
-        at: performance.now(),
+      // Same turn as mouse controls: a hotspot locks this pointerdown before
+      // the view drag may capture it. See MouseControls.
+      const pointerId = event.pointerId;
+      pending.add(pointerId);
+      queueMicrotask(() => {
+        if (!pending.delete(pointerId)) {
+          return;
+        }
+        beginPointer(event);
       });
-      element.setPointerCapture?.(event.pointerId);
-      syncActive();
-      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
-
-      if (pointersRef.current.size >= 2) {
-        drag.suspend();
-        const [first, second] = Array.from(pointersRef.current.values());
-        pinchDistanceRef.current = pointerDistance(first!, second!);
-      }
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -158,6 +184,7 @@ export function TouchControls({
     };
 
     const releasePointer = (event: PointerEvent) => {
+      pending.delete(event.pointerId);
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
@@ -183,6 +210,7 @@ export function TouchControls({
     element.addEventListener("lostpointercapture", releasePointer);
 
     return () => {
+      disposed = true;
       validateDragRef.current = undefined;
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);

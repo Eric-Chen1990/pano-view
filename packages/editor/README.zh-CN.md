@@ -1,6 +1,6 @@
 # @ericchen1990/pano-editor
 
-可嵌入的 React 全景编辑器，支持场景、初始视角、九种热点和场景跳转。输出沿用 `schemaVersion: 1` 的 `project.json`，可交给现有 `loadPanoProject` 与 `ProjectScenes` 播放。
+可嵌入的 React 漫游编辑器，支持场景、初始视角、九种热点和场景跳转。输出沿用 `schemaVersion: 1` 的 `project.json`，可交给现有 `loadPanoProject` 与 `ProjectScenes` 播放。
 
 [English](./README.md)
 

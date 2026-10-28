@@ -69,3 +69,15 @@ export function vector3ToPanoPosition(
     ),
   });
 }
+
+/** Move `origin` by the yaw/pitch delta from `from` to `to`, keeping the grabbed point fixed. */
+export function translateHotspotPosition(
+  origin: HotspotPosition,
+  from: HotspotPosition,
+  to: HotspotPosition,
+): HotspotPosition {
+  return normalizePanoPosition({
+    yaw: origin.yaw + normalizePanoYaw(to.yaw - from.yaw),
+    pitch: origin.pitch + (to.pitch - from.pitch),
+  });
+}
