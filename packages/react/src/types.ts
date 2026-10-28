@@ -129,7 +129,7 @@ export type MouseControlButton = "left" | "middle" | "right";
 export type MouseControlsOptions = {
   /** Whether mouse handling is active. Defaults to true. */
   enabled?: boolean;
-  /** Pointer drag multiplier. Defaults to 0.35. */
+  /** Pointer drag speed: 0.35 (default) tracks 1:1; other values scale displacement relative to it. */
   rotateSpeed?: number;
   /** Wheel zoom multiplier. Defaults to 0.08. */
   zoomSpeed?: number;
@@ -145,7 +145,7 @@ export type MouseControlsOptions = {
 export type TouchControlsOptions = {
   /** Whether touch handling is active. Defaults to true. */
   enabled?: boolean;
-  /** Pointer drag multiplier. Defaults to 0.35. */
+  /** Pointer drag speed: 0.35 (default) tracks 1:1; other values scale displacement relative to it. */
   rotateSpeed?: number;
   /** Inverts drag direction. Defaults to the all-mode `invert` value. */
   invert?: boolean;
@@ -186,7 +186,7 @@ export type PanoramaControlsOptions = {
    */
   frictionStop?: number;
   /**
-   * Default pointer drag multiplier for mouse and touch. Defaults to 0.35.
+   * Default pointer drag speed for mouse and touch. 0.35 tracks 1:1; other values scale displacement relative to it.
    * Prefer `controls.mouse` / `controls.touch` for per-channel overrides.
    */
   rotateSpeed?: number;
@@ -196,7 +196,7 @@ export type PanoramaControlsOptions = {
    */
   zoomSpeed?: number;
   /**
-   * Rotation target-following speed in seconds^-1. Defaults to 14; use 0 for
+   * Rotation target-following speed outside anchored pointer drags, in seconds^-1. Defaults to 14; use 0 for
    * immediate response. Must be a non-negative finite number.
    */
   rotateDamping?: number;

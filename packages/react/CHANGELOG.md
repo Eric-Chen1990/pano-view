@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 3.6.2
+
+### Patch Changes
+
+- e3b2856: Finish each panorama drag on pointer release and base flick inertia on the latest pointer motion, so repeated drags no longer stall or coast from a lagged sample.
+
+## 3.6.1
+
+### Patch Changes
+
+- Fix mouse, pen, and single-touch panorama dragging to keep the grabbed image point anchored across viewport sizes and zoom levels. Smooth fast drags with frame-aligned input and a short following filter, retain release inertia, and preserve pending input when rebasing after zoom or resize.
+
 ## 3.6.0
 
 ### Minor Changes

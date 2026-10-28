@@ -1,5 +1,6 @@
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import { createPointerDrag } from "./pointer-drag";
 import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { TouchControlsOptions } from "./types";
@@ -13,6 +14,10 @@ type PointerSample = {
   y: number;
   at: number;
 };
+
+function pointerAt(event: PointerEvent): number {
+  return event.timeStamp > 0 ? event.timeStamp : performance.now();
+}
 
 function resolveSpeed(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! >= 0 ? value! : fallback;
@@ -34,7 +39,9 @@ export function TouchControls({
 }: TouchControlsProps) {
   useClaimControlChannel("touch");
   const controlsRef = useContext(PanoramaViewContext);
-  const { gl } = useThree();
+  const { gl, camera } = useThree();
+  const validateDragRef = useRef<((delta: number) => void) | undefined>(undefined);
+  useFrame((_, delta) => validateDragRef.current?.(delta), -1);
   const pointersRef = useRef(new Map<number, PointerSample>());
   const pinchDistanceRef = useRef<number | null>(null);
   const optionsRef = useRef({ rotateSpeed, invert, pinchZoom });
@@ -47,6 +54,7 @@ export function TouchControls({
 
   useEffect(() => {
     const element = gl.domElement;
+    const drag = createPointerDrag(camera, element, () => controlsRef.current, "touch");
 
     const clearPointers = () => {
       for (const pointerId of pointersRef.current.keys()) {
@@ -55,8 +63,14 @@ export function TouchControls({
         }
       }
       pointersRef.current.clear();
+      drag.clear();
       pinchDistanceRef.current = null;
       controlsRef.current?.setPointerActive("touch", false, { cancelled: true });
+    };
+
+    validateDragRef.current = (delta) => {
+      if (pointersRef.current.size && !drag.valid()) clearPointers();
+      else drag.flush(delta);
     };
 
     if (!enabled) {
@@ -88,8 +102,10 @@ export function TouchControls({
       });
       element.setPointerCapture?.(event.pointerId);
       syncActive();
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
 
-      if (pointersRef.current.size === 2) {
+      if (pointersRef.current.size >= 2) {
+        drag.suspend();
         const [first, second] = Array.from(pointersRef.current.values());
         pinchDistanceRef.current = pointerDistance(first!, second!);
       }
@@ -117,6 +133,7 @@ export function TouchControls({
 
       const pointers = Array.from(pointersRef.current.values());
       if (pointers.length >= 2) {
+        drag.suspend();
         if (!optionsRef.current.pinchZoom) {
           return;
         }
@@ -136,29 +153,17 @@ export function TouchControls({
         return;
       }
 
-      const rect = element.getBoundingClientRect();
-      const speed = resolveSpeed(
-        optionsRef.current.rotateSpeed,
-        DEFAULT_ROTATE_SPEED,
-      );
-      const sign = optionsRef.current.invert ? -1 : 1;
-      const deltaYaw =
-        (sign * -(next.x - previous.x) * 360 * speed) /
-        Math.max(rect.width, 1);
-      const deltaPitch =
-        (sign * (next.y - previous.y) * 180 * speed) /
-        Math.max(rect.height, 1);
-
-      controlsRef.current?.applyViewDelta(
-        { yaw: deltaYaw, pitch: deltaPitch },
-        { recordVelocity: true, source: "touch" },
-      );
+      const speed = resolveSpeed(optionsRef.current.rotateSpeed, DEFAULT_ROTATE_SPEED);
+      drag.move(next, previous, speed, optionsRef.current.invert, pointerAt(event));
     };
 
     const releasePointer = (event: PointerEvent) => {
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
+      const pinch = pointersRef.current.size >= 2;
+      if (event.type === "pointerup" && !pinch) drag.release();
+      else drag.clear();
       pointersRef.current.delete(event.pointerId);
       if (element.hasPointerCapture?.(event.pointerId)) {
         element.releasePointerCapture?.(event.pointerId);
@@ -167,6 +172,8 @@ export function TouchControls({
         pinchDistanceRef.current = null;
       }
       syncActive(event.type !== "pointerup");
+      const remaining = pointersRef.current.values().next().value;
+      if (remaining) drag.start(remaining, pointerAt(event));
     };
 
     element.addEventListener("pointerdown", onPointerDown);
@@ -176,6 +183,7 @@ export function TouchControls({
     element.addEventListener("lostpointercapture", releasePointer);
 
     return () => {
+      validateDragRef.current = undefined;
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", releasePointer);
@@ -183,7 +191,7 @@ export function TouchControls({
       element.removeEventListener("lostpointercapture", releasePointer);
       clearPointers();
     };
-  }, [controlsRef, enabled, gl]);
+  }, [controlsRef, enabled, gl, camera]);
 
   return null;
 }

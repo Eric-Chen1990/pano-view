@@ -1,5 +1,6 @@
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
+import { createPointerDrag } from "./pointer-drag";
 import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { MouseControlButton, MouseControlsOptions } from "./types";
@@ -26,6 +27,10 @@ function resolveSpeed(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! >= 0 ? value! : fallback;
 }
 
+function pointerAt(event: PointerEvent): number {
+  return event.timeStamp > 0 ? event.timeStamp : performance.now();
+}
+
 function resolveButtons(
   buttons: readonly MouseControlButton[] | undefined,
 ): Set<number> {
@@ -48,7 +53,9 @@ export function MouseControls({
 }: MouseControlsProps) {
   useClaimControlChannel("mouse");
   const controlsRef = useContext(PanoramaViewContext);
-  const { gl } = useThree();
+  const { gl, camera } = useThree();
+  const validateDragRef = useRef<((delta: number) => void) | undefined>(undefined);
+  useFrame((_, delta) => validateDragRef.current?.(delta), -1);
   const pointersRef = useRef(
     new Map<number, { x: number; y: number; at: number }>(),
   );
@@ -74,6 +81,7 @@ export function MouseControls({
 
   useEffect(() => {
     const element = gl.domElement;
+    const drag = createPointerDrag(camera, element, () => controlsRef.current, "mouse");
     const allowedButtons = resolveButtons(buttons);
 
     const clearPointers = () => {
@@ -83,7 +91,13 @@ export function MouseControls({
         }
       }
       pointersRef.current.clear();
+      drag.clear();
       controlsRef.current?.setPointerActive("mouse", false, { cancelled: true });
+    };
+
+    validateDragRef.current = (delta) => {
+      if (pointersRef.current.size && !drag.valid()) clearPointers();
+      else drag.flush(delta);
     };
 
     if (!enabled) {
@@ -121,6 +135,7 @@ export function MouseControls({
       });
       element.setPointerCapture?.(event.pointerId);
       syncActive();
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -143,29 +158,16 @@ export function MouseControls({
       };
       pointersRef.current.set(event.pointerId, next);
 
-      const rect = element.getBoundingClientRect();
-      const speed = resolveSpeed(
-        optionsRef.current.rotateSpeed,
-        DEFAULT_ROTATE_SPEED,
-      );
-      const sign = optionsRef.current.invert ? -1 : 1;
-      const deltaYaw =
-        (sign * -(next.x - previous.x) * 360 * speed) /
-        Math.max(rect.width, 1);
-      const deltaPitch =
-        (sign * (next.y - previous.y) * 180 * speed) /
-        Math.max(rect.height, 1);
-
-      controlsRef.current?.applyViewDelta(
-        { yaw: deltaYaw, pitch: deltaPitch },
-        { recordVelocity: true, source: "mouse" },
-      );
+      const speed = resolveSpeed(optionsRef.current.rotateSpeed, DEFAULT_ROTATE_SPEED);
+      drag.move(next, previous, speed, optionsRef.current.invert, pointerAt(event));
     };
 
     const releasePointer = (event: PointerEvent) => {
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
+      if (event.type === "pointerup") drag.release();
+      else drag.clear();
       pointersRef.current.delete(event.pointerId);
       if (element.hasPointerCapture?.(event.pointerId)) {
         element.releasePointerCapture?.(event.pointerId);
@@ -207,6 +209,7 @@ export function MouseControls({
     element.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
+      validateDragRef.current = undefined;
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", releasePointer);
@@ -215,7 +218,7 @@ export function MouseControls({
       element.removeEventListener("wheel", onWheel);
       clearPointers();
     };
-  }, [buttons, controlsRef, enabled, gl]);
+  }, [buttons, controlsRef, enabled, gl, camera]);
 
   return null;
 }
