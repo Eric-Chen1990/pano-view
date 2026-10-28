@@ -30,7 +30,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Packages
 
-The [embeddable panorama editor](./packages/editor/README.md) provides local-directory scene and hotspot authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
+The [embeddable tour editor](./packages/editor/README.md) provides local-directory scene and hotspot authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
 
 | Package | What it does |
 | --- | --- |

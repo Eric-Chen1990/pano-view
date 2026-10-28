@@ -1034,13 +1034,13 @@ export function PanoEditor(props: PanoEditorProps) {
       lang={props.locale ?? "en"}
       onKeyDown={keyDown}
       tabIndex={-1}
-      aria-label={t("Panorama editor")}
+      aria-label={t("Tour editor")}
     >
       <FieldHelpProvider>
       <div className="pne-topbar">
         <div className="pne-brand">
           <span className="pne-brand-dot" />
-          {t("Panorama editor")}
+          {t("Tour editor")}
           <small>{local?.name ?? "PANO / VIEW"}</small>
         </div>
         <div className="pne-toolbar">
@@ -1219,7 +1219,7 @@ export function PanoEditor(props: PanoEditorProps) {
           }}
         />}
         </div>
-        <section className="pne-center" aria-label={t("Panorama editor")}>
+        <section className="pne-center" aria-label={t("Tour editor")}>
           {!preview && active ? (
             <div className="pne-tools">
               <span className="pne-view-context">{active.title ?? active.id}</span>

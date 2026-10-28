@@ -82,7 +82,7 @@ try {
   assert.ok(viewerManifest.dependencies["@radix-ui/react-dialog"], "Viewer must declare the preview dialog runtime dependency");
   const example = `
 const html=server.renderToString(React.createElement(api.PanoEditor,{locale:"zh-CN"}));
-if(!html.includes("全景编辑器")||html.includes('accept="image/*"'))throw Error("Local editor contract failed");
+if(!html.includes("漫游编辑器")||html.includes('accept="image/*"'))throw Error("Local editor contract failed");
 const host=server.renderToString(React.createElement(api.PanoEditor,{onImportPanorama:async()=>({viewerUrl:"https://cdn.test/viewer.json"})}));
 if(!host.includes('accept="image/*"'))throw Error("Missing host import control");
 `;

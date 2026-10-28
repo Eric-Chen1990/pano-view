@@ -17,7 +17,7 @@ export function EditorPage() {
   const [error, setError] = useState<string>();
   useEffect(() => {
     const previous = document.title;
-    document.title = "Panorama editor · Pano View";
+    document.title = "Tour editor · Pano View";
     return () => {
       document.title = previous;
     };
@@ -53,7 +53,7 @@ export function EditorPage() {
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
             ? "Try the sample tour: edit hotspots, test click actions, and reuse shared popup content."
-            : "直接试用示例导览：编辑热点、测试点击动作，并复用共享弹窗内容。"}
+            : "直接试用示例漫游：编辑热点、测试点击动作，并复用共享弹窗内容。"}
         </p>
         <label className="shrink-0 text-xs text-muted-2">
           Language{" "}

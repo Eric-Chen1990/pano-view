@@ -331,7 +331,7 @@ export function EditorViewer({
           <PanoViewer
             ref={viewerRef}
             className="pne-viewer"
-            aria-label={t("Panorama editor")}
+            aria-label={t("Tour editor")}
             controls={
               placing || Boolean(draftKind)
                 ? false

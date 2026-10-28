@@ -50,7 +50,7 @@ const zh: Record<string, string> = {
   "Could not load popup media": "无法加载弹窗媒体",
   "Editing keeps hotspots selectable and draggable, and pauses media. Use Preview or Test this hotspot to check visitor behavior.": "编辑时热点保持可选中、可拖动，媒体暂停。请使用“预览”或“测试此热点”检查实际展示效果。",
 
-  "Panorama editor": "全景编辑器",
+  "Tour editor": "漫游编辑器",
   "Open directory": "打开项目目录",
   "Import image": "导入全景图片",
   Undo: "撤销",
