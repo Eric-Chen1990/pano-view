@@ -41,11 +41,17 @@ const DEFAULT_ZOOM_DAMPING = 16;
 const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
 const DEFAULT_NAVIGATION_DURATION = 700;
-const POINTER_VELOCITY_MAX_AGE_MS = 100;
+export const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
   recordVelocity?: boolean;
+  /**
+   * Yaw and pitch speed in degrees per second to keep after this update.
+   * A released drag uses this so inertia follows the pointer, not the short
+   * display filter. Ignored while gyro is controlling the view.
+   */
+  velocity?: { yaw: number; pitch: number };
   /** Absolute rotation relative to the rendered pose at drag start. */
   pointerOrigin?: PanoViewerState;
   /** Input channel applying the delta. */
@@ -558,7 +564,17 @@ export const PanoramaViewRuntime = forwardRef<
     }
     markDirty();
 
-    if (applyOptions?.recordVelocity && !gyroControlsView) {
+    const releaseVelocity = applyOptions?.velocity;
+    if (
+      !gyroControlsView &&
+      releaseVelocity &&
+      Number.isFinite(releaseVelocity.yaw) &&
+      Number.isFinite(releaseVelocity.pitch)
+    ) {
+      yawVelocityRef.current = releaseVelocity.yaw;
+      pitchVelocityRef.current = releaseVelocity.pitch;
+      lastVelocitySampleAtRef.current = performance.now();
+    } else if (applyOptions?.recordVelocity && !gyroControlsView) {
       const now = performance.now();
       const previousAt = lastVelocitySampleAtRef.current;
       const elapsed =

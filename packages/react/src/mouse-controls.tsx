@@ -27,6 +27,10 @@ function resolveSpeed(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! >= 0 ? value! : fallback;
 }
 
+function pointerAt(event: PointerEvent): number {
+  return event.timeStamp > 0 ? event.timeStamp : performance.now();
+}
+
 function resolveButtons(
   buttons: readonly MouseControlButton[] | undefined,
 ): Set<number> {
@@ -131,7 +135,7 @@ export function MouseControls({
       });
       element.setPointerCapture?.(event.pointerId);
       syncActive();
-      drag.start({ x: event.clientX, y: event.clientY });
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -155,16 +159,16 @@ export function MouseControls({
       pointersRef.current.set(event.pointerId, next);
 
       const speed = resolveSpeed(optionsRef.current.rotateSpeed, DEFAULT_ROTATE_SPEED);
-      drag.move(next, previous, speed, optionsRef.current.invert);
+      drag.move(next, previous, speed, optionsRef.current.invert, pointerAt(event));
     };
 
     const releasePointer = (event: PointerEvent) => {
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
-      if (event.type === "pointerup") drag.flush();
+      if (event.type === "pointerup") drag.release();
+      else drag.clear();
       pointersRef.current.delete(event.pointerId);
-      drag.clear();
       if (element.hasPointerCapture?.(event.pointerId)) {
         element.releasePointerCapture?.(event.pointerId);
       }

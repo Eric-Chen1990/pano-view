@@ -15,6 +15,10 @@ type PointerSample = {
   at: number;
 };
 
+function pointerAt(event: PointerEvent): number {
+  return event.timeStamp > 0 ? event.timeStamp : performance.now();
+}
+
 function resolveSpeed(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! >= 0 ? value! : fallback;
 }
@@ -98,7 +102,7 @@ export function TouchControls({
       });
       element.setPointerCapture?.(event.pointerId);
       syncActive();
-      drag.start({ x: event.clientX, y: event.clientY });
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
 
       if (pointersRef.current.size >= 2) {
         drag.suspend();
@@ -150,16 +154,17 @@ export function TouchControls({
       }
 
       const speed = resolveSpeed(optionsRef.current.rotateSpeed, DEFAULT_ROTATE_SPEED);
-      drag.move(next, previous, speed, optionsRef.current.invert);
+      drag.move(next, previous, speed, optionsRef.current.invert, pointerAt(event));
     };
 
     const releasePointer = (event: PointerEvent) => {
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
-      if (event.type === "pointerup") drag.flush();
+      const pinch = pointersRef.current.size >= 2;
+      if (event.type === "pointerup" && !pinch) drag.release();
+      else drag.clear();
       pointersRef.current.delete(event.pointerId);
-      drag.clear();
       if (element.hasPointerCapture?.(event.pointerId)) {
         element.releasePointerCapture?.(event.pointerId);
       }
@@ -168,7 +173,7 @@ export function TouchControls({
       }
       syncActive(event.type !== "pointerup");
       const remaining = pointersRef.current.values().next().value;
-      if (remaining) drag.start(remaining);
+      if (remaining) drag.start(remaining, pointerAt(event));
     };
 
     element.addEventListener("pointerdown", onPointerDown);

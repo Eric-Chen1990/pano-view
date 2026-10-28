@@ -852,7 +852,7 @@ function TourPlayer() {
 
 两个已废弃的自动旋转方法（`startAutoRotate`、`stopAutoRotate`）继续保留以兼容。鼠标、触控与键盘输入默认启用 — 普通浏览无需再渲染控件组件。仅当需要覆盖属性时渲染 `MouseControls`、`TouchControls` 或 `KeyboardControls`（子组件会替换该通道的默认实例）。通过 `controls` 调节共享行为（`inertia`、`invert`、`bouncingLimits`、`fovSpeed`、`frictionStop`、`rotateDamping`、`zoomDamping`，以及顶层的 `rotateSpeed` / `zoomSpeed`）。将 `controls.mouse` / `touch` / `keyboard` 设为 `false` 可关闭某通道，或传入选项对象（含 `enabled`）在不挂载子组件的情况下覆盖默认值。自动旋转在渲染 `AutoRotate` 之前处于关闭状态。默认右键菜单（重置视图 / 进入全屏）也会挂载 — 见 [`PanoContextMenu`](#panocontextmenu)。
 
-鼠标、笔和单指拖拽会锚定按下的全景点，并在每个渲染帧更新旋转；使用短暂的时间平滑吸收输入采样的波动（匀速移动时约 10ms 跟随延迟），停住并收敛后按下点会准确对齐指针；视角边界或极点附近可能限制跟随。`rotateSpeed` 默认 `0.35` 表示 1:1 跟随，其他值按其相对倍率调整指针位移，`0` 禁止旋转；`invert` 反转方向。双指缩放和滚轮继续更新目标 FOV，相机平滑跟随。拖拽释放后保留惯性。`rotateDamping` 与 `zoomDamping` 控制跟随速度（旋转平滑不作用于锚定拖拽期间），单位为秒⁻¹（默认分别为 `14` 与 `16`）；较小的正值使相机更缓慢地接近目标视角，`0` 表示该轴不做平滑。两者必须为非负有限数。命令式 `setView()` 与 `reset()` 仍为即时生效。
+鼠标、笔和单指拖拽会锚定按下的全景点，并在每个渲染帧更新旋转；使用短暂的时间平滑吸收输入采样的波动（匀速移动时约 10ms 跟随延迟）。指针停住并收敛后，按下点会与指针对齐；松手时也会立刻完成这次对齐。甩动惯性只跟随最近一段指针运动，松手前如果已经停住，不会把更早的速度继续带出去。视角边界或极点附近可能限制跟随。`rotateSpeed` 默认 `0.35` 表示 1:1 跟随，其他值按其相对倍率调整指针位移，`0` 禁止旋转；`invert` 反转方向。双指缩放和滚轮继续更新目标 FOV，相机平滑跟随。拖拽释放后保留惯性。`rotateDamping` 与 `zoomDamping` 控制跟随速度（旋转平滑不作用于锚定拖拽期间），单位为秒⁻¹（默认分别为 `14` 与 `16`）；较小的正值使相机更缓慢地接近目标视角，`0` 表示该轴不做平滑。两者必须为非负有限数。命令式 `setView()` 与 `reset()` 仍为即时生效。
 
 画布光标默认为 `grab`，鼠标拖拽时为 `grabbing`，悬停在可交互热点上为 `pointer`，拖拽热点时为 `move`。可通过 `cursors`（`default`、`dragging`、`hotspot`、`hotspotDragging`）覆盖，或传 `cursors={false}` 保持画布光标不变。热点可设置 `cursor`，仅替换该热点的悬停光标。
 

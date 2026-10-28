@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Euler, MathUtils, PerspectiveCamera, Vector3 } from "three";
-import { PointerDragAnchor, createPointerDrag } from "../src/pointer-drag";
+import { PointerDragAnchor, createPointerDrag, pointerReleaseVelocity } from "../src/pointer-drag";
 import { applyLimitedYawDelta } from "../src/view-limits";
 import type { PanoramaViewRuntimeHandle } from "../src/panorama-view-runtime";
 import type { PanoViewerState } from "../src/types";
@@ -184,4 +184,73 @@ test("projection rebasing preserves the pending drag until it settles", () => {
   const point = new Vector3(0, 0, -100).project(cameraFor(view, 1600, 900));
   const error = Math.hypot((point.x + 1) * 800 - 1000, (1 - point.y) * 450 - 500);
   assert.ok(error < 0.01, `rebased drag must finish following: ${error}px`);
+});
+
+test("release velocity follows recent pointer motion and drops an earlier flick after a pause", () => {
+  const solve = (point: { x: number; y: number }) => ({ yaw: -point.x, pitch: point.y / 2 });
+  const paused = pointerReleaseVelocity(
+    [{ x: 0, y: 0, at: 0 }, { x: 80, y: 40, at: 20 }],
+    200,
+    solve,
+  );
+  assert.deepEqual(paused, { yaw: 0, pitch: 0 });
+
+  const flick = pointerReleaseVelocity(
+    [{ x: 0, y: 0, at: 1000 }, { x: 80, y: 40, at: 1050 }],
+    1060,
+    solve,
+  );
+  assert.ok(Math.abs(flick.yaw - (-80 / 0.05)) < 1e-6);
+  assert.ok(Math.abs(flick.pitch - (20 / 0.05)) < 1e-6);
+
+  const later = pointerReleaseVelocity(
+    [
+      { x: 0, y: 0, at: 0 },
+      { x: 400, y: 0, at: 30 },
+      { x: 400, y: 0, at: 800 },
+      { x: 430, y: 0, at: 830 },
+    ],
+    840,
+    solve,
+  );
+  assert.ok(Math.abs(later.yaw - (-30 / 0.03)) < 1e-6, `earlier flick leaked: ${later.yaw}`);
+});
+
+test("consecutive drags each finish on the pointer", () => {
+  let view = { yaw: 0, pitch: 0, fov: 75 };
+  const rect = { left: 0, top: 0, width: 1600, height: 900 };
+  const camera = cameraFor(view, 1600, 900);
+  let velocity = { yaw: Number.NaN, pitch: Number.NaN };
+  const handle = {
+    getView: () => view,
+    getPointerDragState: () => ({ revision: 1, anchored: true }),
+    isInteractionLocked: () => false,
+    applyViewDelta: (delta: { yaw?: number; pitch?: number }, options?: { pointerOrigin?: { yaw: number; pitch: number }; velocity?: { yaw: number; pitch: number } }) => {
+      if (options?.pointerOrigin && delta.yaw !== undefined && delta.pitch !== undefined) {
+        view = { ...view, yaw: options.pointerOrigin.yaw + delta.yaw, pitch: options.pointerOrigin.pitch + delta.pitch };
+      }
+      if (options?.velocity) velocity = options.velocity;
+    },
+  } satisfies Partial<PanoramaViewRuntimeHandle>;
+  const drag = createPointerDrag(camera, { getBoundingClientRect: () => rect } as HTMLCanvasElement, () => handle as PanoramaViewRuntimeHandle, "mouse");
+  const strokes = [
+    [{ x: 640, y: 360 }, { x: 980, y: 560 }],
+    [{ x: 980, y: 560 }, { x: 700, y: 300 }],
+    [{ x: 700, y: 300 }, { x: 1120, y: 640 }],
+  ];
+  for (const [start, end] of strokes) {
+    const grabbed = new Vector3(
+      (start!.x / rect.width) * 2 - 1,
+      1 - (start!.y / rect.height) * 2,
+      0.5,
+    ).unproject(cameraFor(view, rect.width, rect.height)).normalize().multiplyScalar(100);
+    const at = performance.now();
+    drag.start(start!, at);
+    drag.move(end!, start!, 0.35, false, at + 40);
+    drag.release();
+    const projected = grabbed.project(cameraFor(view, rect.width, rect.height));
+    const error = Math.hypot((projected.x + 1) * rect.width / 2 - end!.x, (1 - projected.y) * rect.height / 2 - end!.y);
+    assert.ok(error < 0.01, `released drag must reach the pointer: ${error}px`);
+  }
+  assert.ok(Number.isFinite(velocity.yaw) && velocity.yaw !== 0);
 });
