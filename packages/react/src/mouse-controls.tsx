@@ -84,7 +84,10 @@ export function MouseControls({
     const drag = createPointerDrag(camera, element, () => controlsRef.current, "mouse");
     const allowedButtons = resolveButtons(buttons);
 
+    const pending = new Set<number>();
+    let disposed = false;
     const clearPointers = () => {
+      pending.clear();
       for (const pointerId of pointersRef.current.keys()) {
         if (element.hasPointerCapture?.(pointerId)) {
           element.releasePointerCapture?.(pointerId);
@@ -116,6 +119,27 @@ export function MouseControls({
       );
     };
 
+    const beginPointer = (event: PointerEvent) => {
+      if (disposed || controlsRef.current?.isInteractionLocked()) {
+        return;
+      }
+      if (pointersRef.current.has(event.pointerId)) {
+        return;
+      }
+      pointersRef.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        at: performance.now(),
+      });
+      try {
+        element.setPointerCapture?.(event.pointerId);
+      } catch {
+        // The pointer can already be inactive if it was released immediately.
+      }
+      syncActive();
+      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
+    };
+
     const onPointerDown = (event: PointerEvent) => {
       if (!isMouseLike(event)) {
         return;
@@ -128,14 +152,18 @@ export function MouseControls({
       }
 
       event.preventDefault();
-      pointersRef.current.set(event.pointerId, {
-        x: event.clientX,
-        y: event.clientY,
-        at: performance.now(),
+      // Hotspot handlers on this same pointerdown acquire the interaction lock
+      // synchronously, but this listener runs first. Capturing now makes the
+      // next frame drop the pointer, and that lostpointercapture cancels the
+      // hotspot drag before it can move. Wait until those handlers have run.
+      const pointerId = event.pointerId;
+      pending.add(pointerId);
+      queueMicrotask(() => {
+        if (!pending.delete(pointerId)) {
+          return;
+        }
+        beginPointer(event);
       });
-      element.setPointerCapture?.(event.pointerId);
-      syncActive();
-      drag.start({ x: event.clientX, y: event.clientY }, pointerAt(event));
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -163,6 +191,7 @@ export function MouseControls({
     };
 
     const releasePointer = (event: PointerEvent) => {
+      pending.delete(event.pointerId);
       if (!pointersRef.current.has(event.pointerId)) {
         return;
       }
@@ -209,6 +238,7 @@ export function MouseControls({
     element.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
+      disposed = true;
       validateDragRef.current = undefined;
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);

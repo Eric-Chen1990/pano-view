@@ -10,6 +10,8 @@ export type DragPointerLike = {
   pointerId: number;
   clientX: number;
   clientY: number;
+  /** Still-pressed buttons. A capture loss with a button held is not a drag end. */
+  buttons?: number;
   preventDefault?: () => void;
 };
 
@@ -90,6 +92,12 @@ export function trackPointerDrag(
     finish(event);
   };
   const onLostCapture = (event: DragPointerLike) => {
+    // View controls can release the canvas capture on the next frame after a
+    // hotspot locks the gesture. The button is still down, and window
+    // listeners keep receiving the pointer, so this is not the end of the drag.
+    if ((event.buttons ?? 0) > 0) {
+      return;
+    }
     finish(event);
   };
 

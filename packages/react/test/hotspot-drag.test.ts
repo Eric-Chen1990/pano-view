@@ -111,6 +111,28 @@ test("pointer tracking continues after the pointer leaves the mesh and ends once
   stop();
 });
 
+test("losing pointer capture while the button is held does not end the drag", () => {
+  const source = createSource();
+  const element = createElement();
+  const moves: number[] = [];
+  const ends: number[] = [];
+  trackPointerDrag(
+    source,
+    element,
+    4,
+    (event) => moves.push(event.clientX),
+    (event) => ends.push(event.clientX),
+  );
+
+  element.emitLost({ pointerId: 4, clientX: 10, clientY: 0, buttons: 1 });
+  source.emit("pointermove", { pointerId: 4, clientX: 30, clientY: 0 });
+  element.emitLost({ pointerId: 4, clientX: 30, clientY: 0 });
+
+  assert.deepEqual(moves, [30]);
+  assert.deepEqual(ends, [30]);
+  assert.equal(element.capture, null);
+});
+
 test("failed pointer capture still tracks inside the page", () => {
   const source = createSource();
   const element = createElement();
