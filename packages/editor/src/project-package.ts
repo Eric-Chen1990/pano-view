@@ -7,6 +7,7 @@ import {
   type PanoProjectDefinition,
   type ViewerConfig,
   type AssetUrlContext,
+  type PopupAssetUrlContext,
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view/data";
 import { validateViewerConfig } from "../../../shared/viewer-config";
@@ -173,13 +174,15 @@ export async function buildProjectPackage(
   };
   const mediaPath = async (
     path: string,
-    context: AssetUrlContext,
+    context: AssetUrlContext | PopupAssetUrlContext,
   ): Promise<string> => {
     if (!path) return path;
     const local = localFor(path);
     const url = local
       ? new URL(LocalFiles.reference(local.path(path)), LOCAL_ROOT).href
-      : options.resolveAssetUrl?.(path, context) ?? context.defaultUrl;
+      : ("popupId" in context ? options.resolvePopupAssetUrl?.(path, context) : options.resolveAssetUrl?.(path, context)) ?? context.defaultUrl;
+    if ("popupId" in context && (typeof url !== "string" || (!url.startsWith("/") && !/^(https?:|blob:|data:)/i.test(url))))
+      throw new Error("resolvePopupAssetUrl must return an absolute URL or a site-root path");
     let pending = media.get(url);
     if (!pending) {
       const index = media.size + 1;
@@ -245,6 +248,16 @@ export async function buildProjectPackage(
     return hotspot;
   };
   try {
+    for (const popup of project.popups ?? []) {
+      for (const block of popup.blocks) {
+        if (block.type === "text") continue;
+        const copy = (path: string, field: "src" | "poster") => mediaPath(path, {
+          popupId: popup.id, blockId: block.id, field, defaultUrl: new URL(path, root).href,
+        });
+        block.src = await copy(block.src, "src");
+        if (block.type === "video" && block.poster) block.poster = await copy(block.poster, "poster");
+      }
+    }
     for (const [index, scene] of project.scenes.entries()) {
       signal.throwIfAborted();
       const local = scene.source.viewerUrl

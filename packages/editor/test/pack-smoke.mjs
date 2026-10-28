@@ -58,6 +58,7 @@ try {
     "react-dom",
     "three",
     "@react-three",
+    "@radix-ui",
     "@types",
   ]) {
     await symlink(
@@ -77,6 +78,8 @@ try {
     "utf8",
   );
   assert.match(css, /--pne-accent/);
+  assert.match(css, /@ericchen1990\/pano-view\/ui\/styles\.css/);
+  assert.ok(viewerManifest.dependencies["@radix-ui/react-dialog"], "Viewer must declare the preview dialog runtime dependency");
   const example = `
 const html=server.renderToString(React.createElement(api.PanoEditor,{locale:"zh-CN"}));
 if(!html.includes("全景编辑器")||html.includes('accept="image/*"'))throw Error("Local editor contract failed");
@@ -95,7 +98,7 @@ if(!host.includes('accept="image/*"'))throw Error("Missing host import control")
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {PanoEditor,type PanoEditorProps} from "@ericchen1990/pano-editor";
 import type {PanoProjectSceneDefinition} from "@ericchen1990/pano-view/data";
-const props:PanoEditorProps={locale:"zh-CN",onImportPanorama:async(file,{signal,onProgress})=>{void file;void signal;onProgress({stage:"convert",progress:0.5});return {viewerUrl:"https://cdn.test/viewer.json"} satisfies PanoProjectSceneDefinition["source"];},onPickAsset:async request=>{void request.field;return undefined;},onSave:async project=>{void project.scenes;}};void[PanoEditor,props];`;
+const props:PanoEditorProps={locale:"zh-CN",onImportPanorama:async(file,{signal,onProgress})=>{void file;void signal;onProgress({stage:"convert",progress:0.5});return {viewerUrl:"https://cdn.test/viewer.json"} satisfies PanoProjectSceneDefinition["source"];},onPickAsset:async request=>{void request.field;return undefined;},onPickPopupAsset:async request=>{void [request.popupId,request.blockId,request.kind,request.field];return undefined;},resolvePopupAssetUrl:(path,context)=>{void [path,context.popupId,context.blockId,context.field];return context.defaultUrl;},onSave:async project=>{void project.scenes;}};void[PanoEditor,props];`;
   for (const extension of ["mts", "cts"])
     await writeFile(join(directory, `consumer.${extension}`), typeExample);
   run(process.execPath, [

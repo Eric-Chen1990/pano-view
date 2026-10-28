@@ -11,6 +11,7 @@ export default defineConfig({
     "react-dom",
     "@ericchen1990/pano-view",
     "@ericchen1990/pano-view/data",
+    "@ericchen1990/pano-view/ui",
   ],
   sourcemap: true,
   splitting: false,

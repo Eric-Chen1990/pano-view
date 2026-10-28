@@ -3,6 +3,7 @@
   "compilerOptions": {
     "paths": {
       "@ericchen1990/pano-view": ["../react/src/index.ts"],
+      "@ericchen1990/pano-view/ui": ["../react/src/ui.ts"],
       "@ericchen1990/pano-view/data": ["../react/src/data.ts"]
     }
   },

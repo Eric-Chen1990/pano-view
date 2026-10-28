@@ -197,6 +197,50 @@ export function Tour() {
 
 配置了 `initialView` 的场景在 `onSceneReady` 时应用视角，缺省字段为 yaw 0、pitch 0、fov 75；未配置时保持当前视角。过渡期间热点隐藏。使用 `activeSceneId` / `onActiveSceneIdChange` 可控制当前场景。`onHotspotClick(event)` 中调用 `event.preventDefault()` 可取消默认动作；`onHotspotError` 提供场景、热点和原始错误；媒体的原始错误可能是带有 `error` 字段的事件。`renderHotspot(hotspot, context)` 返回 `undefined` 使用默认渲染，返回 `null` 隐藏；context 包含 `sceneId`、`playing`、`onClick`、`togglePlayback`、`reportError` 和 `renderDefault`。
 
+### 热点动作与共享弹窗内容
+
+`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认动画 700 毫秒，0 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
+
+项目新增可选 `popups: ProjectPopupDefinition[]`。每项包含唯一 `id`、非空 `title` 和有序 `blocks`；内容块 ID 在弹窗内唯一：
+
+```json
+{
+  "id": "story",
+  "title": "About this place",
+  "blocks": [
+    { "id": "intro", "type": "text", "text": "Plain text, including line breaks." },
+    { "id": "photo", "type": "image", "src": "media/photo.webp", "alt": "The main hall" },
+    { "id": "film", "type": "video", "src": "media/movie.mp4", "poster": "media/photo.webp" },
+    { "id": "voice", "type": "audio", "src": "media/story.mp3" }
+  ]
+}
+```
+
+内容结构存在 `project.json`，媒体保留为独立文件。弹窗路径相对项目目录解析，不跟随各全景的 `viewer.json`。`loadPanoProject` 返回解析后的 `popups`；新增可选 `resolvePopupAssetUrl(path, context)`，上下文是 `{ defaultUrl, popupId, blockId, field }`，field 为 `src` 或 `poster`；返回绝对 URL 或站点根路径。原有 `resolveAssetUrl` 回调继续只处理场景/热点资源。自定义加载器也可使用 `/data` 导出的 `resolveProjectPopupAssets`。JSON 请求的凭证不会自动保护媒体资源。
+
+`ProjectScenes.onPopupRequest({ sceneId, hotspot, popup })` 将展示交给宿主 Overlay。缺少处理器或目标弹窗时通过 `onHotspotError` 报错。独立 UI 入口提供 `ProjectPopupDialog`，查看器主入口不引入 Dialog 依赖：
+
+```tsx
+import { useState } from "react";
+import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+  return <PanoViewer renderOverlay={() => (
+    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+  )}>
+    <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
+      onActiveSceneIdChange={() => setPopup(null)} />
+  </PanoViewer>;
+}
+```
+
+`ProjectPopupDialog` 接收 `popup`（null 关闭）、`onOpenChange`，以及可选 `closeLabel` 和 `onMediaError(block)`。文字按纯文本展示，音视频使用原生控件且不自动播放；关闭或切换内容时释放媒体。全屏、尺寸和焦点行为复用 `PanoDialog`。需要自定义渲染时可替换成自己的 Overlay。
+
+继续使用 schemaVersion 1，旧项目仍可读取，包含新动作的项目需使用支持它们的新版查看器。`parsePanoProject(input, { draft: true })` 仅用于编辑草稿，允许空场景列表及未完成的弹窗标题/媒体；加载、保存和导出仍严格校验。宿主可将同一份文档存入数据库或映射到表，查看器不直接连接数据库。
+
 单图和已有配置可用纯数据入口；Next.js 的查看器组件需位于客户端边界，服务端加载数据则使用 `/data`：
 
 ```ts

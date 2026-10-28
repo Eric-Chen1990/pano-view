@@ -209,3 +209,29 @@ test("opening old hotspots presents translated defaults without changing project
     ""
   );
 });
+
+test("enum defaults have concrete selections without duplicate reset options, while inheritance remains explicit", () => {
+  const render = (spec: import("../src/fields").FieldSpec, value: unknown) => renderToStaticMarkup(createElement(Field, {
+    spec, value, onChange: noop, onBegin: noop, onEnd: noop, t: translator("en"),
+  }));
+  const concrete = render({ name: "tooltipTrigger", defaultValue: "always", options: ["always", "hover", "click"] }, undefined);
+  assert.match(concrete, /value="always" selected=""/);
+  assert.doesNotMatch(concrete, /<option value=""|Use default|Reset:/);
+  const override = render({ name: "tooltipOffset", type: "number", defaultValue: 12 }, 0);
+  assert.match(override, /value="0"/);
+  assert.match(override, /Reset: TooltipOffset|Reset:/);
+  assert.match(render({ name: "cursor", options: ["pointer"] }, undefined), /Use viewer default/);
+});
+
+test("mode-dependent camera fields are disabled until their controlling mode applies", () => {
+  const hotspot = { ...createHotspot("graphic", position), mode: "surface" as const, scaleMode: "fov" as const };
+  const render = (value: ProjectHotspotDefinition) => renderToStaticMarkup(createElement(HotspotInspector, {
+    hotspot: value, scenes: [], onChange: noop, onBegin: noop, onEnd: noop, onPick: noop, getViewPosition: () => position, t: translator("en"),
+  }));
+  const html = render(hotspot);
+  const inputs = [...html.matchAll(/<input[^>]+>/g)].map((match) => match[0]);
+  assert.ok(inputs.some((input) => input.includes('value="10"') && input.includes("disabled")));
+  assert.ok(inputs.some((input) => input.includes('value="75"') && input.includes("disabled")));
+  const active = render({ ...hotspot, mode: "billboard", scaleMode: "fixed" });
+  assert.doesNotMatch(active, /<input[^>]*disabled[^>]*value="(?:10|75)"/);
+});

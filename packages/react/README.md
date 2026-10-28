@@ -201,6 +201,50 @@ export function Tour() {
 
 Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives the scene, hotspot and original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `togglePlayback`, `reportError` and `renderDefault`.
 
+### Hotspot actions and shared popup content
+
+`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (700 ms by default, 0 for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
+
+Add an optional project-level `popups: ProjectPopupDefinition[]`. Each entry has a unique `id`, a nonempty `title`, and ordered `blocks` with unique IDs within that popup:
+
+```json
+{
+  "id": "story",
+  "title": "About this place",
+  "blocks": [
+    { "id": "intro", "type": "text", "text": "Plain text, including line breaks." },
+    { "id": "photo", "type": "image", "src": "media/photo.webp", "alt": "The main hall" },
+    { "id": "film", "type": "video", "src": "media/movie.mp4", "poster": "media/photo.webp" },
+    { "id": "voice", "type": "audio", "src": "media/story.mp3" }
+  ]
+}
+```
+
+Store this content structure in `project.json`; store media as separate files. Popup paths resolve from the project directory, independently of each panorama's `viewer.json`. `loadPanoProject` returns resolved `popups`; its optional `resolvePopupAssetUrl(path, context)` receives `{ defaultUrl, popupId, blockId, field }`, where field is `src` or `poster`. Like the existing resolver, return an absolute URL or site-root path. Existing `resolveAssetUrl` callbacks continue to receive only their scene/hotspot resources. `resolveProjectPopupAssets` is also exported from `/data` for custom loaders. Request credentials for JSON do not automatically protect media.
+
+`ProjectScenes.onPopupRequest({ sceneId, hotspot, popup })` delegates display to your overlay. A missing handler or missing popup reports through `onHotspotError`. The optional UI entry supplies `ProjectPopupDialog` without adding Dialog dependencies to the viewer core:
+
+```tsx
+import { useState } from "react";
+import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+  return <PanoViewer renderOverlay={() => (
+    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+  )}>
+    <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
+      onActiveSceneIdChange={() => setPopup(null)} />
+  </PanoViewer>;
+}
+```
+
+`ProjectPopupDialog` accepts `popup` (or `null` to close), `onOpenChange`, optional `closeLabel` and `onMediaError(block)`. It renders text as text, uses native audio/video controls without autoplay, and releases media when content closes or changes. It inherits `PanoDialog` fullscreen, sizing and focus behavior. Replace this component with your own overlay to customize rendering.
+
+The schema remains version 1 and old projects remain valid. Projects using new actions require a viewer that supports them. `parsePanoProject(input, { draft: true })` is for authoring only: it permits empty scene lists and unfinished popup titles/media. Loading, saving and package export validate strictly. Host applications may save the same document in a database or map it to tables; the viewer has no database connection.
+
 For individual panoramas and existing configs use the pure data entry. Next.js viewer components need a client boundary; server-side data loading uses `/data`:
 
 ```ts

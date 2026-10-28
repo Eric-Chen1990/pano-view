@@ -23,8 +23,8 @@ export function EditorPage() {
       <div className="flex items-center justify-between gap-4 py-5">
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
-            ? "Try the sample tour: edit hotspots, link scenes, or preview the result."
-            : "直接试用示例导览：编辑热点、连接场景，或预览效果。"}
+            ? "Try the sample tour: edit hotspots, test click actions, and reuse shared popup content."
+            : "直接试用示例导览：编辑热点、测试点击动作，并复用共享弹窗内容。"}
         </p>
         <label className="shrink-0 text-xs text-muted-2">
           Language{" "}

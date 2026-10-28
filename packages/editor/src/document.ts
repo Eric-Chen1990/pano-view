@@ -20,26 +20,10 @@ export const newId = () => crypto.randomUUID();
 
 /** Keep empty authoring documents separate from the viewer's nonempty-project requirement. */
 export function readDocument(value: unknown): PanoProjectDefinition {
-  if (
-    value &&
-    typeof value === "object" &&
-    "schemaVersion" in value &&
-    value.schemaVersion === 1 &&
-    "scenes" in value &&
-    Array.isArray(value.scenes) &&
-    value.scenes.length === 0
-  ) {
-    return {
-      schemaVersion: 1,
-      scenes: [],
-      ...("title" in value &&
-      typeof value.title === "string" &&
-      value.title.trim()
-        ? { title: value.title }
-        : {}),
-    };
-  }
-  return parsePanoProject(value);
+  const empty = value && typeof value === "object" && "scenes" in value && Array.isArray(value.scenes) && value.scenes.length === 0;
+  const input = empty ? { ...value, title: "title" in value && typeof value.title === "string" && value.title.trim() ? value.title : undefined } : value;
+  const parsed = parsePanoProject(input, { draft: true });
+  return empty ? { schemaVersion: 1, scenes: [], ...(parsed.title ? { title: parsed.title } : {}), ...(parsed.popups === undefined ? {} : { popups: parsed.popups }) } : parsed;
 }
 
 export function geometryIssue(
@@ -91,6 +75,12 @@ export function exportDocument(project: PanoProjectDefinition): string {
         check(hotspot.tooltip.image, `${hotspot.id}.tooltip.image`);
     }
   }
+  for (const popup of parsed.popups ?? []) {
+    for (const block of popup.blocks) {
+      if (block.type !== "text") check(block.src, `popups.${popup.id}.${block.id}.src`);
+      if (block.type === "video" && block.poster) check(block.poster, `popups.${popup.id}.${block.id}.poster`);
+    }
+  }
   return JSON.stringify(parsed, null, 2) + "\n";
 }
 
@@ -103,7 +93,7 @@ export function removeScene(
     .map((scene) => ({
       ...scene,
       hotspots: scene.hotspots?.map((hotspot) => {
-        if (hotspot.action?.sceneId !== id) return hotspot;
+        if (hotspot.action?.type !== "scene" || hotspot.action.sceneId !== id) return hotspot;
         const { action: _action, ...rest } = hotspot;
         return rest;
       }),
@@ -225,4 +215,14 @@ export function createHotspot(
         strokeWidth: 2,
       };
   }
+}
+
+export function popupReferences(project: PanoProjectDefinition, popupId: string) {
+  return project.scenes.flatMap((scene) => (scene.hotspots ?? [])
+    .filter((hotspot) => hotspot.action?.type === "popup" && hotspot.action.popupId === popupId)
+    .map((hotspot) => ({ sceneId: scene.id, hotspotId: hotspot.id, label: `${scene.title ?? scene.id} / ${hotspot.label || hotspot.id}` })));
+}
+export function removePopup(project: PanoProjectDefinition, popupId: string): PanoProjectDefinition {
+  if (popupReferences(project, popupId).length) throw new Error("Unlink this popup from its hotspots before deleting it.");
+  return { ...project, popups: project.popups?.filter((popup) => popup.id !== popupId) };
 }

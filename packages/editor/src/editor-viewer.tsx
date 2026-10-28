@@ -1,3 +1,4 @@
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import {
   Component,
   useEffect,
@@ -13,9 +14,12 @@ import {
   ProjectScenes,
   type PanoViewerHandle,
   type HotspotPosition,
+  type ProjectHotspotDefinition,
+  type ProjectHotspotRenderContext,
 } from "@ericchen1990/pano-view";
 import {
   resolveProjectHotspotAssets,
+  resolveProjectPopupAssets,
   type PanoProjectDefinition,
   type LoadedPanoProject,
   type LoadedProjectScene,
@@ -46,6 +50,16 @@ class ViewerBoundary extends Component<
   }
 }
 
+export type HotspotTestRequest = { sceneId: string; hotspotId: string; token: number };
+function PreviewHotspot({ context, hotspot, test }: {
+  context: ProjectHotspotRenderContext;
+  hotspot: ProjectHotspotDefinition;
+  test: (hotspot: ProjectHotspotDefinition, context: ProjectHotspotRenderContext) => void;
+}) {
+  useEffect(() => test(hotspot, context), [test, hotspot, context]);
+  return context.renderDefault();
+}
+
 export function EditorViewer({
   project,
   local,
@@ -65,6 +79,9 @@ export function EditorViewer({
   onEnd,
   onPlace,
   onError,
+  onReady,
+  testRequest,
+  onTestConsumed,
   t,
 }: {
   project: PanoProjectDefinition;
@@ -88,8 +105,16 @@ export function EditorViewer({
   onEnd: () => void;
   onPlace: (position: HotspotPosition) => void;
   onError: (message: string) => void;
+  onReady?: (id: string) => void;
+  testRequest?: HotspotTestRequest;
+  onTestConsumed?: () => void;
   t: Translate;
 }) {
+  const [popupSelection, setPopupSelection] = useState<{ id?: string; sceneId?: string; preview: boolean }>({ sceneId: activeId, preview });
+  if (popupSelection.sceneId !== activeId || popupSelection.preview !== preview)
+    setPopupSelection({ sceneId: activeId, preview });
+  const [readyId, setReadyId] = useState<string>();
+  const tested = useRef<number | undefined>(undefined);
   const loader = useMemo(
     () =>
       new SceneSources(
@@ -120,6 +145,11 @@ export function EditorViewer({
     const unsubscribe = files.map((entry) => entry.subscribe(update));
     return () => unsubscribe.forEach((stop) => stop());
   }, [local, directories]);
+  useEffect(() => {
+    if (!testRequest) return;
+    const failure = errors.find((message) => message.startsWith(`${testRequest.sceneId}:`));
+    if (failure) { onTestConsumed?.(); onError(failure); }
+  }, [errors, testRequest, onTestConsumed, onError]);
   const priorSources = useRef({ loader, keys: new Map<string, string>() });
   useEffect(() => {
     const controller = new AbortController();
@@ -240,13 +270,24 @@ export function EditorViewer({
         hotspots,
       });
     }
+    const popups: NonNullable<LoadedPanoProject["popups"]> = [];
+    for (const popup of project.popups ?? []) {
+      try {
+        popups.push(resolveProjectPopupAssets(popup, local ? LOCAL_ROOT : projectRoot(options.baseUrl), (path, context) => {
+          const files = directories.find((entry) => entry.containsPath(path)) ?? local;
+          return files ? files.resolveFrom(path, context, LOCAL_ROOT)
+            : (options.resolvePopupAssetUrl?.(path, context) ?? context.defaultUrl);
+        }));
+      } catch (error) { issues.push(`${popup.title || popup.id}: ${errorMessage(error)}`); }
+    }
     const loaded: LoadedPanoProject = {
       title: project.title,
       initialSceneId: project.initialSceneId ?? scenes[0]?.scene.id ?? "",
       scenes,
+      ...(project.popups === undefined ? {} : { popups }),
     };
     return { loaded, issues };
-  }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl]);
+  }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map((entry) => entry.scene),
     [sources, sourceKey],
@@ -255,11 +296,12 @@ export function EditorViewer({
     (entry) => entry.scene.id === activeId,
   );
   const ready = (id: string) => {
+    setReadyId(undefined);
     const initialView = project.scenes.find(
       (scene) => scene.id === id,
     )?.initialView;
-    if (initialView)
-      viewerRef.current?.setView(initialView, { immediate: true });
+    if (initialView) viewerRef.current?.setView(initialView, { immediate: true });
+    onReady?.(id);
   };
   return (
     <div className="pne-viewer-area">
@@ -293,6 +335,11 @@ export function EditorViewer({
                 ? false
                 : { keyboard: { enabled: false } }
             }
+            renderOverlay={() => <ProjectPopupDialog
+              popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
+              onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
+              onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
+            />}
             onPanoramaClick={({ position }) => {
               if (!preview) onPlace(position);
             }}
@@ -303,6 +350,18 @@ export function EditorViewer({
                 activeSceneId={activeId}
                 onActiveSceneIdChange={onActive}
                 transition="none"
+                onSceneReady={(id) => { setReadyId(id); onReady?.(id); }}
+                onTransitionError={({ error }) => onError(errorMessage(error))}
+                onPopupRequest={({ popup, sceneId }) => setPopupSelection({ id: popup.id, sceneId, preview: true })}
+                renderHotspot={(hotspot, context) => <PreviewHotspot hotspot={hotspot} context={context} test={(item, runtimeContext) => {
+                  if (!testRequest || testRequest.sceneId !== activeId || readyId !== activeId || testRequest.hotspotId !== item.id || tested.current === testRequest.token) return;
+                  tested.current = testRequest.token;
+                  onTestConsumed?.();
+                  if (item.visible === false || item.interactive === false || item.pointerEvents === "none") {
+                    onError(t("Show the hotspot and enable pointer interaction to test a click.")); return;
+                  }
+                  runtimeContext.onClick({ id: item.id, position: "position" in item ? item.position : item.vertices[0]!, source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) });
+                }} />}
                 onHotspotError={({ hotspot, error }) =>
                   onError(`${hotspot.id}: ${String(error)}`)
                 }

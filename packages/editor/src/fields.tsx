@@ -64,6 +64,7 @@ export type FieldSpec = {
   label?: string;
   help?: string;
   asset?: boolean;
+  disabled?: boolean;
   number?: {
     min?: number;
     max?: number;
@@ -175,6 +176,7 @@ export function Field({
   };
   const accessibility = {
     id,
+    disabled: spec.disabled,
     "aria-invalid": Boolean(error),
     "aria-describedby":
       [spec.help ? descriptionId : "", error ? errorId : ""]
@@ -205,9 +207,9 @@ export function Field({
         value={typeof resolvedValue === "string" ? resolvedValue : ""}
         onChange={(event) => apply(event.currentTarget.value)}
       >
-        <option value="">
-          {t(spec.name === "cursor" ? "Use viewer default" : spec.defaultValue === undefined ? "—" : "Use default")}
-        </option>
+        {spec.defaultValue === undefined && spec.name !== "graphic.kind" ? <option value="">
+          {t(spec.name === "cursor" ? "Use viewer default" : "Not set (browser default)")}
+        </option> : null}
         {spec.name === "cursor" && typeof resolvedValue === "string" && !spec.options.includes(resolvedValue) ? <option value={resolvedValue}>{t("Existing custom cursor")}</option> : null}
         {spec.options.map((option) => (
           <option key={option} value={option}>
@@ -300,11 +302,12 @@ export function Field({
       ) : null}
       {value !== undefined &&
       spec.defaultValue !== undefined &&
-      value !== spec.defaultValue ? (
+      JSON.stringify(value) !== JSON.stringify(spec.defaultValue) ? (
         <button
           type="button"
           className="pne-subtle"
-          aria-label={`${t("Use default")}: ${label}`}
+          disabled={spec.disabled}
+          aria-label={`${t("Reset")}: ${label}`}
           onClick={(event) => {
             try {
               event.currentTarget.parentElement
@@ -318,7 +321,7 @@ export function Field({
             }
           }}
         >
-          {t("Use default")}
+          {t("Reset")}
         </button>
       ) : null}
       {previewUrl ? <img src={previewUrl} alt={t("Cursor image preview")} className="pne-cursor-preview" /> : null}

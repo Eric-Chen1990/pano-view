@@ -59,3 +59,12 @@
   outline: 2px solid var(--pano-dialog-focus-color, #ffb300);
   outline-offset: 2px;
 }
+
+.pano-project-popup {
+  display: grid;
+  gap: 16px;
+}
+.pano-project-popup p { margin: 0; }
+.pano-project-popup img,
+.pano-project-popup video { display: block; width: 100%; height: auto; }
+.pano-project-popup audio { width: 100%; }

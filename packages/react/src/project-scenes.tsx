@@ -7,7 +7,7 @@ import {
 } from "react";
 import { Scenes, type ScenesProps } from "./scenes";
 import { PanoramaViewContext } from "./panorama-view-runtime";
-import type { LoadedPanoProject, ProjectHotspotDefinition } from "./data";
+import type { LoadedPanoProject, ProjectHotspotDefinition, ProjectHotspotAction, ProjectPopupDefinition } from "./data";
 import type { HotspotInteractionEvent } from "./hotspot/types";
 import { ImageHotspot } from "./hotspot/image-hotspot";
 import { GraphicHotspot } from "./hotspot/graphic-hotspot";
@@ -25,6 +25,11 @@ export type ProjectHotspotClickEvent = {
   interaction: HotspotInteractionEvent;
   defaultPrevented: boolean;
   preventDefault: () => void;
+};
+export type ProjectPopupRequestEvent = {
+  sceneId: string;
+  hotspot: ProjectHotspotDefinition;
+  popup: ProjectPopupDefinition;
 };
 export type ProjectHotspotErrorEvent = {
   sceneId: string;
@@ -45,6 +50,7 @@ export type ProjectScenesProps = Omit<
 > & {
   project: LoadedPanoProject;
   onHotspotClick?: (event: ProjectHotspotClickEvent) => void;
+  onPopupRequest?: (event: ProjectPopupRequestEvent) => void;
   onHotspotError?: (event: ProjectHotspotErrorEvent) => void;
   /** Return undefined for the default renderer, or null to hide this hotspot. */
   renderHotspot?: (
@@ -67,7 +73,8 @@ export function handleProjectHotspotClick(
   interaction: HotspotInteractionEvent,
   callback: ProjectScenesProps["onHotspotClick"],
   navigate: (id: string) => void,
-  toggle: () => void
+  toggle: () => void,
+  execute?: (action: Exclude<ProjectHotspotAction, { type: "scene" }>) => void,
 ): void {
   // Keyboard accessibility already prevents the browser's Enter/Space default.
   const nativeWasPrevented = interaction.nativeEvent.defaultPrevented;
@@ -86,7 +93,11 @@ export function handleProjectHotspotClick(
     (!nativeWasPrevented && interaction.nativeEvent.defaultPrevented)
   )
     return;
-  if (hotspot.action) navigate(hotspot.action.sceneId);
+  if (hotspot.action?.type === "scene") navigate(hotspot.action.sceneId);
+  else if (hotspot.action) {
+    if (!execute) throw new Error("No handler for hotspot action");
+    execute(hotspot.action);
+  }
   else if (isMedia(hotspot)) toggle();
 }
 
@@ -193,10 +204,12 @@ function ProjectHotspot({
   onHotspotClick,
   onHotspotError,
   renderHotspot,
+  execute,
 }: {
   hotspot: ProjectHotspotDefinition;
   sceneId: string;
   navigate: (id: string) => void;
+  execute: (action: Exclude<ProjectHotspotAction, { type: "scene" }>) => void;
 } & Pick<
   ProjectScenesProps,
   "onHotspotClick" | "onHotspotError" | "renderHotspot"
@@ -209,15 +222,11 @@ function ProjectHotspot({
     if (isMedia(hotspot)) setPlaying(false);
     onHotspotError?.({ sceneId, hotspot, error });
   };
-  const onClick = (interaction: HotspotInteractionEvent) =>
-    handleProjectHotspotClick(
-      hotspot,
-      sceneId,
-      interaction,
-      onHotspotClick,
-      navigate,
-      togglePlayback
-    );
+  const onClick = (interaction: HotspotInteractionEvent) => {
+    try {
+      handleProjectHotspotClick(hotspot, sceneId, interaction, onHotspotClick, navigate, togglePlayback, execute);
+    } catch (error) { reportError(error); }
+  };
   const renderDefault = () => (
     <ProjectHotspotSource
       hotspot={hotspot}
@@ -245,6 +254,7 @@ export function ProjectScenes({
   onSceneReady,
   onHotspotClick,
   onHotspotError,
+  onPopupRequest,
   renderHotspot,
   ...options
 }: ProjectScenesProps) {
@@ -294,6 +304,17 @@ export function ProjectScenes({
               hotspot={hotspot}
               sceneId={scene.id}
               navigate={navigate}
+              execute={(action) => {
+                if (action.type === "view") {
+                  void controls.current?.lookTo(action.view, { fov: action.view.fov, duration: action.duration })
+                    .catch((error: unknown) => onHotspotError?.({ sceneId: scene.id, hotspot, error }));
+                } else {
+                  const popup = project.popups?.find((entry) => entry.id === action.popupId);
+                  if (!popup) throw new Error(`Popup does not exist: ${action.popupId}`);
+                  if (!onPopupRequest) throw new Error("Popup action requires an onPopupRequest handler");
+                  onPopupRequest({ sceneId: scene.id, hotspot, popup });
+                }
+              }}
               onHotspotClick={onHotspotClick}
               onHotspotError={onHotspotError}
               renderHotspot={renderHotspot}

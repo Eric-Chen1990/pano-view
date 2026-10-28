@@ -500,3 +500,37 @@ test("oversized grids reject before downloading and self-contained SVG gradients
     unzipSync(new Uint8Array(await blob.arrayBuffer()))["project.json"],
   );
 });
+
+test("shared and unused popup media are packaged once and reopen with the original network unavailable", async (t) => {
+  const { resolveProjectPopupAssets } = await import("@ericchen1990/pano-view/data");
+  t.mock.method(globalThis, "fetch", () => { throw new Error("Original source unavailable"); });
+  const local = new LocalFiles([
+    file("a/viewer.json", JSON.stringify(sphere), "application/json"), file("a/preview.png", "preview"),
+    file("a/tiles/1/001_01.png", "left"), file("a/tiles/1/002_01.png", "right"),
+    file("media/image.png", "image"), file("media/audio.mp3", "audio", "audio/mpeg"), file("media/video.mp4", "video", "video/mp4"),
+  ]);
+  const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [{ id: "a", source: { viewerUrl: "a/viewer.json" }, hotspots: [
+    { id: "one", type: "image", ...point, src: "media/image.png", action: { type: "popup", popupId: "shared" } },
+    { id: "two", type: "text", ...point, text: "Two", action: { type: "popup", popupId: "shared" } },
+  ] }], popups: [
+    { id: "shared", title: "Shared", blocks: [
+      { id: "image", type: "image", src: "media/image.png" }, { id: "video", type: "video", src: "media/video.mp4", poster: "media/image.png" },
+    ] },
+    { id: "unused", title: "Unused but retained", blocks: [{ id: "audio", type: "audio", src: "media/audio.mp3" }] },
+  ] };
+  const before = JSON.stringify(project);
+  const zip = await buildProjectPackage(project, { local, signal: signal() });
+  const archive = unzipSync(new Uint8Array(await zip.arrayBuffer()));
+  assert.equal(Object.keys(archive).filter((path) => path.startsWith("assets/")).length, 3);
+  const saved = parsePanoProject(JSON.parse(strFromU8(archive["project.json"]!)));
+  assert.equal(saved.popups?.length, 2);
+  assert.equal(JSON.stringify(project), before);
+  const reopened = new LocalFiles(Object.entries(archive).map(([path, bytes]) => file(path, bytes)));
+  assert.deepEqual(await reopened.project(), saved);
+  local.dispose();
+  for (const popup of saved.popups!) {
+    const loaded = resolveProjectPopupAssets(popup, "https://pano-editor.invalid/", (path, context) => reopened.resolveFrom(path, context, "https://pano-editor.invalid/"));
+    for (const block of loaded.blocks) if (block.type !== "text") assert.match(block.src, /^blob:/);
+  }
+  reopened.dispose();
+});

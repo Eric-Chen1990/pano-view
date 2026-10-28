@@ -32,6 +32,7 @@ try {
     const ui = await readFile(join(destination, `dist/ui.${extension}`), "utf8");
     assert.ok(ui.includes(`./index.${extension}`), "UI must share the core runtime");
     assert.ok(!ui.includes("createContext("), "UI must not duplicate overlay Context");
+    assert.ok(ui.includes("ProjectPopupDialog"), "Shared popup UI must be exported");
   }
   assert.ok((await readFile(join(destination, "dist/ui/styles.css"), "utf8")).includes(".pano-dialog-content"));
   await Promise.all(["dialogs.md", "dialogs.zh-CN.md"].map((name) => access(join(destination, "docs", name))));
@@ -41,6 +42,8 @@ const scene = api.sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.t
 if(scene.previewUrl!=="https://cdn.test/room/preview.webp") throw Error("Incorrect URL");
 const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config}}]},{baseUrl:"https://cdn.test/room/"});
 if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
+const popup=api.resolveProjectPopupAssets({id:"story",title:"Story",blocks:[{id:"photo",type:"image",src:"photo.jpg"}]},"https://cdn.test/tour/");
+if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrect popup URL");
 `;
   // The extracted package has no React, Three.js or Sharp installation.
   await writeFile(
@@ -55,17 +58,18 @@ if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
 import type {ProjectScenesProps} from "@ericchen1990/pano-view";
-import type {PanoDialogProps,PanoDialogContentProps} from "@ericchen1990/pano-view/ui";
+import type {PanoDialogProps,PanoDialogContentProps,ProjectPopupDialogProps} from "@ericchen1990/pano-view/ui";
 import type {PanoOverlayRenderContext,PanoViewerProps} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
 const loaded:Promise<LoadedPanoProject>=loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config}}]},{baseUrl:"https://cdn.test/"});
 declare const project:LoadedPanoProject;
-const props:ProjectScenesProps={project};
+const props:ProjectScenesProps={project,onPopupRequest:({popup,sceneId,hotspot})=>{void [popup.blocks,sceneId,hotspot.action];}};
+const popupDialog:ProjectPopupDialogProps={popup:null,onOpenChange:()=>{}};
 const dialog:PanoDialogProps={open:true,onOpenChange:(_open:boolean)=>{},title:"Details",children:null};
 const content:PanoDialogContentProps={"aria-label":"Details"};
 const overlay:NonNullable<PanoViewerProps["renderOverlay"]>=(context:PanoOverlayRenderContext)=>{const width:number=context.size.width;const left:number=context.visibleRect.left;void [width,left,context.portalContainer,context.isFullscreen];return null;};
-void [scene,loaded,props,dialog,content,overlay];`;
+void [scene,loaded,props,dialog,content,overlay,popupDialog];`;
   for (const extension of ["mts", "cts"])
     await writeFile(join(directory, `consumer.${extension}`), typeExample);
   const tsc = fileURLToPath(

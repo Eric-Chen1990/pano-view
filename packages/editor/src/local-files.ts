@@ -102,7 +102,7 @@ export class LocalFiles {
     this.resolveFrom(path, context, LOCAL_ROOT);
   resolveFrom(
     path: string,
-    { defaultUrl }: AssetUrlContext,
+    { defaultUrl }: { defaultUrl: string },
     base: string,
   ): string {
     this.path(path, base);

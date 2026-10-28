@@ -121,3 +121,19 @@ Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (a
 Export uses up to four concurrent resource transfers, supports cancellation, and stops without downloading a ZIP if a resource is missing, unreadable or blocked by CORS. It does not substitute the editor's missing-tile placeholder. Packages are limited to 60,000 files and 1 GB. Embedded HTML/CSS/SVG that reference other resources or execute scripts cannot be proven self-contained and stop package export; use a document with inline resources and no runtime dependencies. Resource paths in an error identify the package entry; signed URL query parameters are not included.
 
 Hover cursor offers common cursor styles and local PNG selection (up to 32 × 32 pixels), preview and default reset. Imported cursor files are held in the local session and included in project packages. Existing CSS cursor configurations remain readable, including URL offsets and fallbacks. A host asset picker still owns persistent resources for host-managed sessions.
+
+## Click actions and shared content
+
+The inspector's **Click action** section supports scene navigation, current-scene view adjustment and shared popups. Capture the current view to set yaw/pitch/FOV; animation duration defaults to 700 ms. Without an explicit action, media hotspots use play/pause and other hotspots have no action.
+
+Use **Test this hotspot** to enter the real preview and execute its click once after the source scene is ready. Returning to Edit restores the original scene, camera and hotspot selection without changing the document. Hidden hotspots or hotspots with pointer interaction disabled must be enabled before testing. Edit mode deliberately keeps hotspots selectable/draggable and pauses media; Preview applies visitor settings.
+
+Switch the left sidebar to **Popup content** to create, duplicate and edit shared content. Each popup has a title and ordered text/image/video/audio blocks; add, move or remove blocks and browse media resources. Empty titles and media paths may remain in authoring drafts, but must be completed before saving/exporting. Text is plain text, without HTML execution.
+
+Hotspots reference `popups` through `{ type: "popup", popupId }`. Changing shared content updates every reference. Duplicating a hotspot preserves the shared reference; duplicating a popup makes independent content with new IDs. Referenced popups cannot be deleted: follow the listed hotspot links and change their actions first. Removing a scene does not remove content. All library content, including unused entries, is retained in JSON and included in project packages; shared files are deduplicated.
+
+Known defaults display their effective values directly. Reset appears only for overrides. Cursor inheritance remains explicit; unspecified browser settings say so. Camera distance is enabled only in floating mode, and reference FOV only for fixed screen size. Opening a project does not write default values or add undo steps.
+
+`PanoEditorProps` adds `resolvePopupAssetUrl` (same callback as the viewer loader) and `onPickPopupAsset(request)`. The latter receives `{ kind: "image" | "video" | "audio", popupId, blockId, field: "src" | "poster", currentUrl? }` and returns a durable resource path or `undefined`. The existing `onPickAsset` scene/hotspot contract is unchanged. Local sessions use directory resources instead of host pickers. Editor CSS imports the optional viewer UI styles for its preview dialog.
+
+Store content structure in project.json and media as files. A host backend can persist the same document in a database. See the [viewer popup integration](../react/README.md#hotspot-actions-and-shared-popup-content) to display exported content with `ProjectScenes.onPopupRequest` and `ProjectPopupDialog`, or a custom overlay.

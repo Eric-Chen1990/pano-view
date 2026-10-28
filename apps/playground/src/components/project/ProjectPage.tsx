@@ -1,3 +1,5 @@
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
 import { useEffect, useState } from "react";
 import {
   PanoViewer,
@@ -5,6 +7,7 @@ import {
   PanoDataError,
   loadPanoProject,
   type LoadedPanoProject,
+  type ProjectPopupDefinition,
 } from "@ericchen1990/pano-view";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
@@ -18,6 +21,7 @@ import {
 import { cn } from "../../cn";
 
 export function ProjectPage() {
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
@@ -55,7 +59,7 @@ export function ProjectPage() {
         </h1>
         <p className="my-4 text-sm text-slate-300">
           One project.json connects two viewer.json files, scene links, labels
-          and spatial audio. No database.
+          spatial audio, view actions and shared popup content. No database.
         </p>
         <p
           role={error ? "alert" : "status"}
@@ -80,17 +84,18 @@ export function ProjectPage() {
                       segmentedButtonActiveClassName
                   )}
                   aria-pressed={activeSceneId === entry.scene.id}
-                  onClick={() => setActiveSceneId(entry.scene.id)}
+                  onClick={() => { setActiveSceneId(entry.scene.id); setPopup(null); }}
                 >
                   {entry.title ?? entry.scene.id}
                 </button>
               ))}
             </div>
-            <PanoViewer style={{ height: 560 }}>
+            <PanoViewer style={{ height: 560 }} renderOverlay={() => <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />} >
               <ProjectScenes
                 project={project}
                 activeSceneId={activeSceneId}
-                onActiveSceneIdChange={setActiveSceneId}
+                onActiveSceneIdChange={(id) => { setActiveSceneId(id); setPopup(null); }}
+                onPopupRequest={({ popup }) => setPopup(popup)}
                 transition="dissolve"
                 onSceneReady={(id) => setStatus(`Ready: ${id}`)}
                 onTransitionError={({ sceneId }) =>

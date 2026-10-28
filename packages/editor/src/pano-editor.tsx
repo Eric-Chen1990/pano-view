@@ -1,3 +1,4 @@
+import { PopupLibrary, PopupInspector } from "./popup-panels";
 import { cursorImage, imageCursor } from "../../../shared/cursor-assets";
 import { validateCursorImage } from "./cursor-image";
 import { projectRoot } from "./sources";
@@ -23,6 +24,8 @@ import {
   type ProjectHotspotDefinition,
   type HotspotPosition,
   type PanoViewerHandle,
+  type PanoViewerState,
+  type ProjectPopupDefinition,
 } from "@ericchen1990/pano-view";
 import type {
   PanoAssetRequest,
@@ -39,6 +42,7 @@ import {
   readDocument,
   moveScene,
   removeScene,
+  removePopup,
   type HotspotKind,
 } from "./document";
 import { LocalFiles } from "./local-files";
@@ -48,14 +52,14 @@ import { translator } from "./i18n";
 import { getField, setField } from "./fields";
 import { FieldHelpProvider } from "./field-help";
 import { HotspotInspector } from "./inspector";
-import { EditorViewer } from "./editor-viewer";
+import { EditorViewer, type HotspotTestRequest } from "./editor-viewer";
 import { errorMessage } from "./errors";
 
 export function PanoEditor(props: PanoEditorProps) {
   const hostManaged = Boolean(
     props.onSave ||
     props.onImportPanorama ||
-    props.onPickAsset,
+    props.onPickAsset || props.onPickPopupAsset,
   );
   const t = useMemo(() => translator(props.locale ?? "en"), [props.locale]);
   const [history] = useState(
@@ -87,6 +91,13 @@ export function PanoEditor(props: PanoEditorProps) {
     directories.find((files) => active && files.containsSource(active.source)) ?? local;
   const localSession = Boolean(local || directories.length);
   const [preview, setPreview] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<"scenes" | "popups">("scenes");
+  const [selectedPopupId, setSelectedPopupId] = useState<string>();
+  const selectedPopup = project.popups?.find((popup) => popup.id === selectedPopupId);
+  const [testRequest, setTestRequest] = useState<HotspotTestRequest>();
+  const testGeneration = useRef(0);
+  const previewOrigin = useRef<{ sceneId: string; hotspotId?: string; view: PanoViewerState } | undefined>(undefined);
+  const restoreView = useRef<{ sceneId: string; view: PanoViewerState } | undefined>(undefined);
   const [tool, setTool] = useState<HotspotKind>();
   const [placement, setPlacement] = useState<ProjectHotspotDefinition>();
   const [draft, setDraft] = useState<HotspotPosition[]>([]);
@@ -177,6 +188,60 @@ export function PanoEditor(props: PanoEditorProps) {
       render();
     }
   }
+  function enterPreview(hotspotId?: string) {
+    end();
+    if (!active) return;
+    previewOrigin.current = { sceneId: active.id, hotspotId: selectedId, view: viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 } };
+    void viewerRef.current?.activateMedia().catch(report);
+    setTestRequest(hotspotId ? { sceneId: active.id, hotspotId, token: ++testGeneration.current } : undefined);
+    setPreview(true);
+    setTool(undefined); setPlacement(undefined); setDraft([]);
+  }
+  function leavePreview() {
+    const origin = previewOrigin.current;
+    setTestRequest(undefined);
+    setPreview(false);
+    if (origin && history.current.scenes.some((scene) => scene.id === origin.sceneId)) {
+      restoreView.current = origin;
+      setActiveId(origin.sceneId); setSelectedId(origin.hotspotId);
+    }
+    previewOrigin.current = undefined;
+  }
+  function updatePopup(popup: ProjectPopupDefinition) {
+    publish({ ...history.current, popups: history.current.popups?.map((item) => item.id === popup.id ? popup : item) });
+  }
+  function createPopup(linkHotspot = false) {
+    end();
+    const names = new Set(history.current.popups?.map((popup) => popup.title));
+    let index = 1;
+    while (names.has(`${t("Popup")} ${index}`)) index++;
+    const popup: ProjectPopupDefinition = { id: newId(), title: `${t("Popup")} ${index}`, blocks: [{ id: newId(), type: "text", text: "" }] };
+    const next = { ...history.current, popups: [...history.current.popups ?? [], popup] };
+    if (linkHotspot && active && selected) next.scenes = next.scenes.map((scene) => scene.id === active.id
+      ? { ...scene, hotspots: scene.hotspots?.map((hotspot) => hotspot.id === selected.id ? { ...hotspot, action: { type: "popup", popupId: popup.id } } : hotspot) } : scene);
+    publish(next);
+    setSelectedPopupId(popup.id); setSidebarMode("popups");
+  }
+  function setPopupResource(popupId: string, blockId: string, field: "src" | "poster", url: string) {
+    const popup = history.current.popups?.find((item) => item.id === popupId);
+    if (!popup) return;
+    updatePopup({ ...popup, blocks: popup.blocks.map((block) => block.id === blockId && block.type !== "text" && (field !== "poster" || block.type === "video") ? { ...block, [field]: url } : block) });
+  }
+  async function pickPopupAsset(popupId: string, blockId: string, field: "src" | "poster") {
+    end();
+    const block = history.current.popups?.find((popup) => popup.id === popupId)?.blocks.find((item) => item.id === blockId);
+    if (!block || block.type === "text") return;
+    const token = ++pickerOperation.current;
+    const documentToken = generation.current;
+    if (!localSession && props.onPickPopupAsset) {
+      try {
+        const url = await props.onPickPopupAsset({ popupId, blockId, field, kind: field === "poster" ? "image" : block.type,
+          currentUrl: field === "poster" && block.type === "video" ? block.poster : block.src });
+        if (url && alive.current && token === pickerOperation.current && documentToken === generation.current)
+          setPopupResource(popupId, blockId, field, url);
+      } catch (cause) { report(cause); }
+    } else setDialog({ kind: "asset", popupId, blockId, field, selected: field === "poster" && block.type === "video" ? block.poster ?? "" : block.src });
+  }
   function updateScene(
     id: string,
     change: (scene: PanoProjectSceneDefinition) => PanoProjectSceneDefinition,
@@ -259,6 +324,8 @@ export function PanoEditor(props: PanoEditorProps) {
     setSaved(JSON.stringify(next));
     navigate(next.initialSceneId ?? next.scenes[0]?.id ?? "");
     setPreview(false);
+    setTestRequest(undefined); previewOrigin.current = undefined; restoreView.current = undefined;
+    setSidebarMode("scenes"); setSelectedPopupId(undefined);
     setError("");
     props.onChange?.(next);
     render();
@@ -449,6 +516,7 @@ export function PanoEditor(props: PanoEditorProps) {
           baseUrl: props.baseUrl,
           requestInit: props.requestInit,
           resolveAssetUrl: props.resolveAssetUrl,
+          resolvePopupAssetUrl: props.resolvePopupAssetUrl,
         })
           .load("validate", source, new AbortController().signal)
           .catch((cause: unknown) => {
@@ -458,8 +526,11 @@ export function PanoEditor(props: PanoEditorProps) {
         addScene(source, "Scene", dialog.replace);
       } else if (dialog.kind === "asset") {
         if (!dialog.selected.trim()) throw new Error("Choose a resource path");
-        if (activeLocal) activeLocal.file(dialog.selected);
-        if (dialog.hotspotId && active) {
+        const assetLocal = directories.find((files) => files.containsPath(dialog.selected)) ?? local;
+        if (assetLocal) assetLocal.file(dialog.selected);
+        if (dialog.popupId && dialog.blockId) {
+          setPopupResource(dialog.popupId, dialog.blockId, dialog.field as "src" | "poster", dialog.selected);
+        } else if (dialog.hotspotId && active) {
           const hotspot = active.hotspots?.find(
             (item) => item.id === dialog.hotspotId,
           );
@@ -527,6 +598,7 @@ export function PanoEditor(props: PanoEditorProps) {
             baseUrl: props.baseUrl,
             requestInit: props.requestInit,
             resolveAssetUrl: props.resolveAssetUrl,
+          resolvePopupAssetUrl: props.resolvePopupAssetUrl,
           }).load("validate", result, signal);
         },
       );
@@ -752,6 +824,7 @@ export function PanoEditor(props: PanoEditorProps) {
     }
   }
   function keyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || (event.target as HTMLElement).closest("[data-pano-dialog]")) return;
     if (dialog) {
       if (event.key === "Escape" && !busy) {
         setDialog(undefined);
@@ -779,7 +852,7 @@ export function PanoEditor(props: PanoEditorProps) {
       )
     )
       return;
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+    if (!preview && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       undo(event.shiftKey);
     } else if (event.key === "Escape") {
@@ -851,6 +924,7 @@ export function PanoEditor(props: PanoEditorProps) {
           baseUrl: props.baseUrl,
           requestInit: props.requestInit,
           resolveAssetUrl: props.resolveAssetUrl,
+          resolvePopupAssetUrl: props.resolvePopupAssetUrl,
           local,
           directories,
           signal: controller.signal,
@@ -934,7 +1008,7 @@ export function PanoEditor(props: PanoEditorProps) {
     dialog?.kind === "delete" && dialog.target === "scene"
       ? project.scenes
           .flatMap((scene) => scene.hotspots ?? [])
-          .filter((hotspot) => hotspot.action?.sceneId === dialog.id).length
+          .filter((hotspot) => hotspot.action?.type === "scene" && hotspot.action.sceneId === dialog.id).length
       : 0;
 
   return (
@@ -993,11 +1067,7 @@ export function PanoEditor(props: PanoEditorProps) {
             disabled={!project.scenes.length}
             aria-pressed={preview}
             onClick={() => {
-              end();
-              setPreview((value) => !value);
-              setTool(undefined);
-              setPlacement(undefined);
-              setDraft([]);
+              if (preview) leavePreview(); else enterPreview();
             }}
           >
             {t(preview ? "Edit" : "Preview")}
@@ -1101,7 +1171,12 @@ export function PanoEditor(props: PanoEditorProps) {
         </div>
       ) : null}
       <div className={`pne-workspace ${preview ? "pne-preview" : ""}`}>
-        <SceneSidebar
+        <div className="pne-library-sidebar">
+          {!preview ? <div className="pne-sidebar-tabs" role="group" aria-label={t("Project library")}>
+            <button type="button" aria-pressed={sidebarMode === "scenes"} onClick={() => { end(); setSidebarMode("scenes"); }}>{t("Scenes")}</button>
+            <button type="button" aria-pressed={sidebarMode === "popups"} onClick={() => { end(); setSidebarMode("popups"); }}>{t("Popup content")}</button>
+          </div> : null}
+          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} t={t} /> : <SceneSidebar
           project={project}
           activeId={active?.id}
           selectedId={selectedId}
@@ -1127,7 +1202,8 @@ export function PanoEditor(props: PanoEditorProps) {
             end();
             publish(moveScene(history.current, id, beforeId));
           }}
-        />
+        />}
+        </div>
         <section className="pne-center" aria-label={t("Panorama editor")}>
           {!preview && active ? (
             <div className="pne-tools">
@@ -1178,7 +1254,15 @@ export function PanoEditor(props: PanoEditorProps) {
             onBegin={begin}
             onEnd={end}
             onPlace={place}
-            onError={setError}
+            onError={(message) => { setError(message); setTestRequest(undefined); }}
+            onReady={(id) => {
+              const restore = restoreView.current;
+              if (!preview && restore?.sceneId === id) {
+                viewerRef.current?.setView(restore.view, { immediate: true }); restoreView.current = undefined;
+              }
+            }}
+            testRequest={testRequest}
+            onTestConsumed={() => setTestRequest(undefined)}
             t={t}
           />
           <div className="pne-canvas-status" role="status">
@@ -1207,11 +1291,21 @@ export function PanoEditor(props: PanoEditorProps) {
         {!preview ? (
           <aside ref={inspectorRef} className="pne-inspector" aria-label={t("Appearance")}>
             <div className="pne-panel-title">
-              {selected
+              {sidebarMode === "popups" ? selectedPopup?.title || t("Popup content") : selected
                 ? selected.label || selected.id
                 : (active?.title ?? t("Scene source"))}
             </div>
-            {selected ? (
+            {sidebarMode === "popups" ? selectedPopup ? <PopupInspector
+              key={selectedPopup.id} popup={selectedPopup} project={project} onChange={updatePopup}
+              onBegin={begin} onEnd={end} onPick={(blockId, field) => void pickPopupAsset(selectedPopup.id, blockId, field)}
+              onDuplicate={() => {
+                end();
+                const popup = { ...structuredClone(selectedPopup), id: newId(), title: `${selectedPopup.title} (${t("Copy")})`, blocks: selectedPopup.blocks.map((block) => ({ ...block, id: newId() })) };
+                publish({ ...history.current, popups: [...history.current.popups ?? [], popup] }); setSelectedPopupId(popup.id);
+              }}
+              onDelete={() => { end(); publish(removePopup(history.current, selectedPopup.id)); setSelectedPopupId(undefined); }}
+              onReference={(sceneId, hotspotId) => { navigate(sceneId); setSelectedId(hotspotId); setSidebarMode("scenes"); }} t={t}
+            /> : <p className="pne-hint">{t("Select or create a shared popup.")}</p> : selected ? (
               <>
                 <div className="pne-inspector-context">
                   <span>{active?.title ?? active?.id} / {t("Hotspot properties")}</span>
@@ -1240,10 +1334,16 @@ export function PanoEditor(props: PanoEditorProps) {
                   </button>
                 </div>
                 <p className="pne-edit-hint">{t("Edit properties below. Drag the hotspot or its vertex handles in the panorama to change its position.")}</p>
+                <p className="pne-edit-hint">{t("Editing keeps hotspots selectable and draggable, and pauses media. Use Preview or Test this hotspot to check visitor behavior.")}</p>
                 <HotspotInspector
                   key={selected.id}
                   hotspot={selected}
                   scenes={project.scenes}
+                  popups={project.popups}
+                  getView={() => viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 }}
+                  onCreatePopup={() => createPopup(true)}
+                  onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
+                  onTest={() => enterPreview(selected.id)}
                   onChange={updateHotspot}
                   onBegin={begin}
                   onEnd={end}
@@ -1288,7 +1388,7 @@ export function PanoEditor(props: PanoEditorProps) {
       {dialog ? (
         <EditorDialog
           dialog={dialog}
-          local={dialog.kind === "asset" ? activeLocal : local}
+          local={dialog.kind === "asset" ? dialog.popupId ? directories.find((files) => files.containsPath(dialog.selected)) ?? local ?? directories[0] : activeLocal : local}
           busy={busy}
           error={error}
           incoming={incoming}

@@ -259,3 +259,36 @@ test("empty authoring sessions are valid drafts but cannot export; invalid refer
   ];
   assert.throws(() => exportDocument(geometry), /edges cannot cross/i);
 });
+
+test("shared content survives empty authoring, scene deletion and history, while referenced popup deletion is blocked", async () => {
+  const { removePopup, popupReferences } = await import("../src/document");
+  const popup = { id: "story", title: "Story", blocks: [{ id: "words", type: "text" as const, text: "Original" }] };
+  const source: PanoProjectDefinition = {
+    schemaVersion: 1, popups: [popup], scenes: [{ id: "a", source: { viewerConfig: config }, hotspots: [
+      { id: "info", type: "text", text: "Info", ...point, action: { type: "popup", popupId: "story" } },
+      { id: "copy", type: "text", text: "Copy", ...point, action: { type: "popup", popupId: "story" } },
+    ] }],
+  };
+  assert.equal(popupReferences(source, "story").length, 2);
+  assert.throws(() => removePopup(source, "story"));
+  const history = new DocumentHistory(readDocument(source));
+  history.commit(readDocument({ ...history.current, popups: [{ ...popup, title: "Updated" }] }));
+  assert.equal(history.undo().popups?.[0]?.title, "Story");
+  assert.equal(history.redo().popups?.[0]?.title, "Updated");
+  const empty = readDocument(removeScene(history.current, "a"));
+  assert.equal(empty.popups?.[0]?.title, "Updated");
+  assert.throws(() => exportDocument(empty));
+  assert.deepEqual(removePopup(empty, "story").popups, []);
+});
+
+test("popup drafts permit incomplete media but export rejects it and never rejects URL-like prose", () => {
+  const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [{ id: "a", source: { viewerConfig: config } }], popups: [
+    { id: "story", title: "Story", blocks: [{ id: "words", type: "text", text: "blob: is prose" }, { id: "image", type: "image", src: "" }] },
+  ] };
+  assert.equal(readDocument(project).popups?.length, 1);
+  assert.throws(() => exportDocument(project));
+  project.popups![0]!.blocks[1] = { id: "image", type: "image", src: "blob:temporary" };
+  assert.throws(() => exportDocument(project), /temporary or local/);
+  project.popups![0]!.blocks[1] = { id: "image", type: "image", src: "media/image.png" };
+  assert.match(exportDocument(project), /blob: is prose/);
+});

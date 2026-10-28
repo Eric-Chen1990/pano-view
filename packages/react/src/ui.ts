@@ -16,3 +16,5 @@ export type {
   PanoDialogDescriptionProps,
   PanoDialogCloseProps,
 } from "./ui/dialog";
+export { ProjectPopupDialog } from "./ui/project-popup-dialog";
+export type { ProjectPopupDialogProps } from "./ui/project-popup-dialog";

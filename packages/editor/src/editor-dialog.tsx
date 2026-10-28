@@ -11,6 +11,8 @@ export type EditorDialogState =
       kind: "asset";
       field: string;
       hotspotId?: string;
+      popupId?: string;
+      blockId?: string;
       hotspotKind?: HotspotKind;
       selected: string;
     }

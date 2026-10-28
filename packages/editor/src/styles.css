@@ -1,3 +1,5 @@
+@import "@ericchen1990/pano-view/ui/styles.css";
+
 .pne-root {
   --pne-bg: #071316;
   --pne-panel: #08191d;
@@ -829,3 +831,12 @@
   background: var(--pne-panel);
   border: 1px solid var(--pne-border);
 }
+
+.pne-sidebar-tabs { display: flex; gap: 6px; padding: 12px; border-bottom: 1px solid var(--pne-border); }
+.pne-library-sidebar { overflow: auto; min-height: 0; background: var(--pne-panel); border-right: 1px solid var(--pne-border); }
+.pne-library-sidebar .pne-sidebar { border: 0; overflow: visible; }
+.pne-popup-library { display: grid; gap: 10px; padding: 12px; }
+.pne-popup-library button { text-align: left; }
+.pne-popup-library small { display: block; color: var(--pne-muted); }
+.pne-popup-block { margin: 12px; border: 1px solid var(--pne-border); min-width: 0; }
+.pne-popup-references { display: grid; gap: 6px; overflow-wrap: anywhere; }

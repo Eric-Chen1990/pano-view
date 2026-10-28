@@ -1,3 +1,4 @@
+import { parsePopups, resolveProjectPopupAssets, type ProjectPopupDefinition, type PopupAssetUrlResolver } from "./popups";
 import {
   isRecord,
   requiredString,
@@ -39,6 +40,7 @@ export type PanoProjectDefinition = {
   title?: string;
   initialSceneId?: string;
   scenes: PanoProjectSceneDefinition[];
+  popups?: ProjectPopupDefinition[];
 };
 export type LoadedProjectScene = {
   scene: TileScene | SphereTileScene;
@@ -50,11 +52,13 @@ export type LoadedPanoProject = {
   title?: string;
   initialSceneId: string;
   scenes: LoadedProjectScene[];
+  popups?: ProjectPopupDefinition[];
 };
 export type LoadPanoProjectOptions = JsonRequestOptions & {
   /** Directory used for project-relative references. Required for object input. */
   baseUrl?: string;
   resolveAssetUrl?: AssetUrlResolver;
+  resolvePopupAssetUrl?: PopupAssetUrlResolver;
 };
 
 function optionalString(
@@ -66,7 +70,8 @@ function optionalString(
     : requiredString(record[key], key);
 }
 
-export function parsePanoProject(value: unknown): PanoProjectDefinition {
+/** Drafts permit empty scenes and unfinished popup titles/media; loading and export always validate strictly. */
+export function parsePanoProject(value: unknown, options: { draft?: boolean } = {}): PanoProjectDefinition {
   if (!isRecord(value))
     throw new PanoDataError("INVALID_PROJECT", "Expected a project object");
   if (value.schemaVersion !== 1)
@@ -76,7 +81,8 @@ export function parsePanoProject(value: unknown): PanoProjectDefinition {
       { field: "schemaVersion" }
     );
   try {
-    if (!Array.isArray(value.scenes) || !value.scenes.length)
+    const popups = parsePopups(value.popups, options.draft);
+    if (!Array.isArray(value.scenes) || (!options.draft && !value.scenes.length))
       throw new Error("scenes: expected a nonempty array");
     const ids = new Set<string>();
     const scenes = value.scenes.map(
@@ -171,8 +177,8 @@ export function parsePanoProject(value: unknown): PanoProjectDefinition {
       }
     );
     const initialSceneId =
-      optionalString(value, "initialSceneId") ?? scenes[0]!.id;
-    if (!ids.has(initialSceneId))
+      optionalString(value, "initialSceneId") ?? scenes[0]?.id;
+    if (initialSceneId !== undefined && !ids.has(initialSceneId))
       throw new PanoDataError(
         "INVALID_REFERENCE",
         "initialSceneId: scene does not exist",
@@ -180,7 +186,12 @@ export function parsePanoProject(value: unknown): PanoProjectDefinition {
       );
     for (const [index, scene] of scenes.entries()) {
       for (const [i, hotspot] of (scene.hotspots ?? []).entries()) {
-        if (hotspot.action && !ids.has(hotspot.action.sceneId))
+        const action = hotspot.action;
+        if (action?.type === "popup" && !popups?.some((popup) => popup.id === action.popupId))
+          throw new PanoDataError("INVALID_REFERENCE", "Hotspot target popup does not exist", {
+            sceneId: scene.id, field: `scenes[${index}].hotspots[${i}].action.popupId`,
+          });
+        if (hotspot.action?.type === "scene" && !ids.has(hotspot.action.sceneId))
           throw new PanoDataError(
             "INVALID_REFERENCE",
             "Hotspot target scene does not exist",
@@ -196,6 +207,7 @@ export function parsePanoProject(value: unknown): PanoProjectDefinition {
       title: optionalString(value, "title"),
       initialSceneId,
       scenes,
+      ...(popups === undefined ? {} : { popups }),
     };
   } catch (cause) {
     if (cause instanceof PanoDataError) throw cause;
@@ -315,6 +327,7 @@ export async function loadPanoProject(
       title: definition.title,
       initialSceneId: definition.initialSceneId!,
       scenes,
+      ...(definition.popups === undefined ? {} : { popups: definition.popups.map((popup) => resolveProjectPopupAssets(popup, root, options.resolvePopupAssetUrl)) }),
     };
   } finally {
     signal?.removeEventListener("abort", cancel);

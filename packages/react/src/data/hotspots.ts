@@ -1,12 +1,18 @@
 import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
+import type { PanoViewerState } from "../types";
 import type { HotspotPosition } from "../hotspot/types";
 import { PanoDataError } from "./errors";
 import { mapResource, resolveResource, type AssetUrlResolver } from "./viewer";
 
+export type ProjectHotspotAction =
+  | { type: "scene"; sceneId: string }
+  | { type: "view"; view: PanoViewerState; duration?: number }
+  | { type: "popup"; popupId: string };
+
 export type ProjectHotspotDefinition = HotspotDefinition & {
-  action?: { type: "scene"; sceneId: string };
+  action?: ProjectHotspotAction;
 };
 
 const common = [
@@ -373,12 +379,22 @@ export function parseHotspot(
     if (kind === "sequence" && !result.frameCount)
       throw new Error("frameCount: required");
     if (value.action !== undefined) {
-      if (!isRecord(value.action) || value.action.type !== "scene")
-        throw new Error("action: expected a scene action");
-      result.action = {
-        type: "scene",
-        sceneId: requiredString(value.action.sceneId, "action.sceneId"),
+      const action = value.action;
+      if (!isRecord(action)) throw new Error("action: expected an object");
+      if (action.type === "scene") result.action = {
+        type: "scene", sceneId: requiredString(action.sceneId, "action.sceneId"),
       };
+      else if (action.type === "popup") result.action = {
+        type: "popup", popupId: requiredString(action.popupId, "action.popupId"),
+      };
+      else if (action.type === "view") {
+        const position = parsePosition(action.view, "action.view");
+        const fov = finite((action.view as Record<string, unknown>).fov, "action.view.fov");
+        if (fov <= 0 || fov >= 180) throw new Error("action.view.fov: expected 0 < fov < 180");
+        const duration = action.duration === undefined ? undefined : finite(action.duration, "action.duration");
+        if (duration !== undefined && duration < 0) throw new Error("action.duration: expected a nonnegative number");
+        result.action = { type: "view", view: { ...position, fov }, ...(duration === undefined ? {} : { duration }) };
+      } else throw new Error("action.type: unsupported action");
     }
     return result as ProjectHotspotDefinition;
   } catch (cause) {

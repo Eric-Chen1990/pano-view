@@ -1,7 +1,10 @@
+import { HotspotActionEditor } from "./hotspot-action-editor";
 import { useState } from "react";
 import {
   DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
   type HotspotPosition,
+  type PanoViewerState,
+  type ProjectPopupDefinition,
   type ProjectHotspotDefinition,
   type PanoProjectSceneDefinition,
 } from "@ericchen1990/pano-view";
@@ -28,6 +31,11 @@ export function HotspotInspector({
   onPick,
   getViewPosition,
   cursorPreviewUrl,
+  popups = [],
+  getView,
+  onCreatePopup,
+  onEditPopup,
+  onTest,
   t,
 }: {
   hotspot: ProjectHotspotDefinition;
@@ -38,6 +46,11 @@ export function HotspotInspector({
   onPick: (field: string) => void;
   getViewPosition: () => HotspotPosition;
   cursorPreviewUrl?: string;
+  popups?: ProjectPopupDefinition[];
+  getView?: () => PanoViewerState;
+  onCreatePopup?: () => void;
+  onEditPopup?: (id: string) => void;
+  onTest?: () => void;
   t: Translate;
 }) {
   const [advanced, setAdvanced] = useState("");
@@ -65,6 +78,8 @@ export function HotspotInspector({
         key={spec.name}
         spec={hotspotFieldSpec({
           ...spec,
+          disabled: spec.name === "distance" ? "position" in hotspot && hotspot.mode === "surface"
+            : spec.name === "referenceFov" ? "position" in hotspot && (hotspot.scaleMode ?? "fov") !== "fixed" : spec.disabled,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
         })}
         value={
@@ -112,29 +127,13 @@ export function HotspotInspector({
         <summary>{t("General")}</summary>
         <div className="pne-fields">
           {fields(commonFields)}
-          <label>
-            {t("Target scene")}
-            <select
-              value={hotspot.action?.sceneId ?? ""}
-              onChange={(event) =>
-                onChange({
-                  ...hotspot,
-                  action: event.currentTarget.value
-                    ? { type: "scene", sceneId: event.currentTarget.value }
-                    : undefined,
-                })
-              }
-            >
-              <option value="">{t("No action")}</option>
-              {scenes.map((scene) => (
-                <option key={scene.id} value={scene.id}>
-                  {scene.title ?? scene.id}
-                </option>
-              ))}
-            </select>
-          </label>
+
         </div>
       </details>
+      <HotspotActionEditor hotspot={hotspot} scenes={scenes} popups={popups}
+        getView={getView ?? (() => ({ ...getViewPosition(), fov: 75 }))}
+        onChange={onChange} onBegin={onBegin} onEnd={onEnd}
+        onCreatePopup={onCreatePopup} onEditPopup={onEditPopup} onTest={onTest} t={t} />
       <details open>
         <summary>{t("Tooltip")}</summary>
         <div className="pne-fields">
