@@ -13,25 +13,12 @@ import "@ericchen1990/pano-view/ui/styles.css";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { CodeSnippet } from "../CodeSnippet";
+import { POPUPS_BY_SCENE, type PopupSelection } from "./multi-hotspot-example";
+import multiHotspotCode from "./multi-hotspot-example.tsx?raw";
 import { cn } from "../../cn";
 import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName } from "../../ui";
 
-const CONTENT = { article: "Story", video: "Video", gallery: "Gallery", iframe: "Visitor guide" } as const;
-type ContentKind = keyof typeof CONTENT;
 type DialogMode = "default" | "composed" | "custom";
-const kinds = Object.keys(CONTENT) as ContentKind[];
-
-function Gallery() {
-  const [index, setIndex] = useState(0);
-  return <figure className="m-0 grid gap-3">
-    <img className="block h-auto w-full" src={`/fixtures/panorama/panos/${index + 1}/sphere.webp`} alt={`Panorama ${index + 1}`} />
-    <figcaption className="flex items-center justify-between gap-3">
-      <button type="button" className={segmentedButtonClassName} onClick={() => setIndex((index + 2) % 3)}>Previous image</button>
-      <span aria-live="polite">{index + 1} / 3</span>
-      <button type="button" className={segmentedButtonClassName} onClick={() => setIndex((index + 1) % 3)}>Next image</button>
-    </figcaption>
-  </figure>;
-}
 
 function NestedTooltip() {
   const { portalContainer } = usePanoOverlay();
@@ -48,31 +35,6 @@ function NestedTooltip() {
         This tooltip shares the dialog’s fullscreen container.
       </div>, portalContainer) : null}
   </>;
-}
-
-function Content({ kind }: { kind: ContentKind }) {
-  const [failed, setFailed] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const video = videoRef.current;
-    return () => {
-      if (!video) return;
-      video.pause();
-    };
-  }, []);
-  if (failed) return <p role="alert">This media could not be loaded. Close and reopen to try again.</p>;
-  if (kind === "video") return <video ref={videoRef} className="block h-auto w-full" controls playsInline preload="metadata" src="/fixtures/hotspots/loop.webm" onError={() => setFailed(true)} />;
-  if (kind === "gallery") return <Gallery />;
-  if (kind === "iframe") return <iframe className="block h-80 w-full border-0" title="Visitor guide" src="/fixtures/hotspots/embed.html" sandbox="allow-same-origin" />;
-  return <article className="grid gap-4 text-sm leading-7">
-    <img className="block h-auto w-full" src="/fixtures/hotspots/gallery-card.svg" alt="A panorama visitor card" />
-    <p>Every place has a story. Open a marker to explore images, watch a clip, or browse a visitor guide without leaving the panorama.</p>
-    <label className="grid gap-2">Your notes
-      <input className="rounded border border-slate-500 bg-slate-900 p-2 text-white" placeholder="Keep a note while switching fullscreen" />
-    </label>
-    <NestedTooltip />
-    {Array.from({ length: 4 }, (_, index) => <p key={index}>Look around the courtyard, then follow the path into the next room. The landscape, architecture and small details each offer another way to explore this space.</p>)}
-  </article>;
 }
 
 function CustomDialog({ open, onOpenChange, title, children }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode }) {
@@ -106,14 +68,14 @@ function CustomDialog({ open, onOpenChange, title, children }: { open: boolean; 
   </Dialog.Root>;
 }
 
-function OverlayDialogs({ mode, selected, onClose, toggleFullscreen }: { mode: DialogMode; selected: ContentKind | null; onClose: () => void; toggleFullscreen: () => void }) {
-  const { isFullscreen } = usePanoOverlay();
-  const open = selected !== null;
-  const title = selected ? CONTENT[selected] : "Hotspot content";
-  const content = selected ? <>
-    <button type="button" className={cn(segmentedButtonClassName, "mb-4")} onClick={toggleFullscreen}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
-    <Content key={selected} kind={selected} />
-  </> : null;
+function OverlayDialogs({ mode, selected, onClose }: { mode: DialogMode; selected: PopupSelection | null; onClose: () => void }) {
+  const popup = selected ? POPUPS_BY_SCENE[selected.sceneId]?.[selected.hotspotId] : undefined;
+  const open = popup !== undefined;
+  const title = popup?.title ?? "Hotspot content";
+  const content = popup && selected ? <div key={JSON.stringify([selected.sceneId, selected.hotspotId])}>
+    {popup.body}
+    {popup.kind === "article" ? <NestedTooltip /> : null}
+  </div> : null;
   const onOpenChange = (next: boolean) => { if (!next) onClose(); };
   if (mode === "custom") return <CustomDialog open={open} onOpenChange={onOpenChange} title={title}>
     {content}
@@ -135,7 +97,8 @@ function OverlayDialogs({ mode, selected, onClose, toggleFullscreen }: { mode: D
 export function OverlayPage() {
   const viewer = usePanoViewer();
   const [mode, setMode] = useState<DialogMode>("default");
-  const [selected, setSelected] = useState<ContentKind | null>(() => new URLSearchParams(window.location.search).has("initialOpen") ? "article" : null);
+  const [selected, setSelected] = useState<PopupSelection | null>(() => new URLSearchParams(window.location.search).has("initialOpen") ? { sceneId: "entrance", hotspotId: "story" } : null);
+  const [activeSceneId, setActiveSceneId] = useState("entrance");
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [autoRotate, setAutoRotate] = useState(false);
@@ -144,11 +107,19 @@ export function OverlayPage() {
     loadPanoProject("/fixtures/projects/tour/project.json", { requestInit: { signal: controller.signal } })
       .then((loaded) => {
         if (controller.signal.aborted) return;
+        setActiveSceneId(loaded.initialSceneId);
         setProject({ ...loaded, scenes: loaded.scenes.map((entry) => ({ ...entry,
-          hotspots: kinds.map((id, index): ProjectHotspotDefinition => ({
-            type: "graphic", id, label: CONTENT[id], position: { yaw: (index - 1.5) * 17, pitch: 0 }, width: 7, height: 7,
-            graphic: { kind: "circle", fill: "#df6b42", stroke: "#ffffff", strokeWidth: 3 }, tooltip: CONTENT[id],
-          })),
+          hotspots: [
+            ...Object.entries(POPUPS_BY_SCENE[entry.scene.id] ?? {}).flatMap(([id, popup], index): ProjectHotspotDefinition[] => popup ? [{
+              type: "graphic", id, label: popup.title, position: { yaw: (index - 2) * 14, pitch: 0 }, width: 7, height: 7,
+              graphic: { kind: "circle", fill: "#df6b42", stroke: "#ffffff", strokeWidth: 3 }, tooltip: popup.title,
+            }] : []),
+            {
+              type: "graphic", id: "next-room", label: "Go to next room", position: { yaw: 0, pitch: -18 }, width: 7, height: 7,
+              graphic: { kind: "arrow", fill: "#67e8f9" }, tooltip: "Go to next room",
+              action: { type: "scene", sceneId: entry.scene.id === "entrance" ? "hall" : "entrance" },
+            },
+          ],
         })) });
       }).catch((cause: unknown) => { if (!controller.signal.aborted) setError(String(cause)); });
     return () => controller.abort();
@@ -159,7 +130,7 @@ export function OverlayPage() {
     <section className={cn(pageSectionClassName, "mt-8")} aria-labelledby="overlay-title">
       <div className={pageHeadingWrapClassName}>
         <h1 className={pageHeadingTitleClassName} id="overlay-title">Hotspot stories</h1>
-        <p className={pageHeadingStatusClassName}>Choose a marker, or open its content below. Try the same dialog in fullscreen.</p>
+        <p className={pageHeadingStatusClassName}>Five hotspots open five different pieces of content in one shared dialog. The scene arrow keeps its default navigation.</p>
       </div>
       <div className={pageControlsClassName} role="group" aria-label="Dialog implementation">
         {(["default", "composed", "custom"] as const).map((value) => <button key={value} type="button" className={cn(segmentedButtonClassName, mode === value && segmentedButtonActiveClassName)} aria-pressed={mode === value} onClick={() => setMode(value)}>
@@ -170,22 +141,32 @@ export function OverlayPage() {
       <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}
         renderOverlay={({ isFullscreen }) => <>
           <div className="absolute right-4 bottom-4 left-4 flex flex-wrap justify-center gap-2" style={{ pointerEvents: "auto" }}>
-            {kinds.map((kind) => <button type="button" className={segmentedButtonClassName} key={kind} onClick={() => setSelected(kind)}>Open {CONTENT[kind]}</button>)}
+            {Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([hotspotId, popup]) => popup ? <button type="button" className={segmentedButtonClassName} key={hotspotId} onClick={() => setSelected({ sceneId: activeSceneId, hotspotId })}>Open {popup.title}</button> : null)}
             <button type="button" className={segmentedButtonClassName} onClick={() => void viewer.toggleFullscreen()}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
             <button type="button" className={segmentedButtonClassName} disabled={!project} onClick={() => { setSelected(null); viewer.nextScene(); }}>Next scene</button>
           </div>
-          <OverlayDialogs mode={mode} selected={selected} onClose={() => setSelected(null)} toggleFullscreen={() => void viewer.toggleFullscreen()} />
+          <OverlayDialogs mode={mode} selected={selected} onClose={() => setSelected(null)} />
         </>}>
         <AutoRotate enabled={autoRotate} speed={8} />
-        {project ? <ProjectScenes project={project} transition="dissolve" onActiveSceneIdChange={() => setSelected(null)}
+        {project ? <ProjectScenes project={project} activeSceneId={activeSceneId} transition="dissolve" onActiveSceneIdChange={(id) => { setActiveSceneId(id); setSelected(null); }}
           onHotspotClick={(event) => {
+            const popup = POPUPS_BY_SCENE[event.sceneId]?.[event.hotspot.id];
+            if (!popup) return;
             event.preventDefault();
-            if (event.hotspot.id in CONTENT) setSelected(event.hotspot.id as ContentKind);
+            setSelected({ sceneId: event.sceneId, hotspotId: event.hotspot.id });
           }} /> : null}
       </PanoViewer>
       {error ? <p role="alert" className="p-4">{error}</p> : null}
-      <CodeSnippet label="Fullscreen-safe content" blurb="Keep content in the DOM overlay and let your application choose what a hotspot opens."
-        code={`import { PanoDialog } from "@ericchen1990/pano-view/ui";\nimport "@ericchen1990/pano-view/ui/styles.css";\n\n<PanoViewer renderOverlay={() => (\n  <PanoDialog open={selected !== null} onOpenChange={(open) => {\n    if (!open) setSelected(null);\n  }} title="Hotspot story">\n    <MyContent hotspot={selected} />\n  </PanoDialog>\n)}>\n  <ProjectScenes project={project} onHotspotClick={(event) => {\n    event.preventDefault();\n    setSelected(event.hotspot);\n  }} />\n</PanoViewer>`} />
+      <section aria-labelledby="hotspot-mapping-title" className="overflow-x-auto border-t border-[#244047] p-5">
+        <h2 id="hotspot-mapping-title" className="m-0 text-lg font-semibold">Hotspot → content</h2>
+        <p className="my-3 text-sm text-slate-300" aria-live="polite">Scene: {activeSceneId}. Both scenes reuse these IDs with their own titles and content. Close the dialog before choosing another marker.</p>
+        <table className="w-full text-left text-sm">
+          <thead><tr><th className="p-2">Hotspot ID</th><th className="p-2">Content type</th><th className="p-2">Dialog title</th></tr></thead>
+          <tbody>{Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([id, popup]) => popup ? <tr key={id} className="border-t border-[#244047]"><td className="p-2 font-mono">{id}</td><td className="p-2">{popup.kind}</td><td className="p-2">{popup.title}</td></tr> : null)}</tbody>
+        </table>
+      </section>
+      <CodeSnippet label="Multiple hotspots → one dialog" blurb="Look up content by scene ID and hotspot ID, then update the shared dialog’s title and body. The full example below is also used by this demo."
+        code={multiHotspotCode} />
     </section>
     <SiteFooter label="@ericchen1990/pano-view · overlays" />
   </main>;

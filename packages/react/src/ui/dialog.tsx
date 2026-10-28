@@ -122,15 +122,19 @@ export function PanoDialog({ open, onOpenChange, title, description, closeLabel 
         style={{ overflow: "hidden", ...style }}
         aria-describedby={description == null ? undefined : descriptionId}
       >
-        <header className="pano-dialog-header" style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
+        <header className="pano-dialog-header" style={{ flexShrink: 0 }}>
           <div>
             <PanoDialogTitle className="pano-dialog-title">{title}</PanoDialogTitle>
             {description == null ? null : (
               <PanoDialogDescription id={descriptionId} className="pano-dialog-description">{description}</PanoDialogDescription>
             )}
           </div>
-          <PanoDialogClose className="pano-dialog-close" aria-label={closeLabel} type="button">×</PanoDialogClose>
         </header>
+        <PanoDialogClose className="pano-dialog-close" aria-label={closeLabel} type="button">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="m4 4 8 8M12 4l-8 8" />
+          </svg>
+        </PanoDialogClose>
         <div className="pano-dialog-body" style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
       </PanoDialogContent>
     </PanoDialogRoot>

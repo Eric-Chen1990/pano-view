@@ -15,6 +15,8 @@
 .pano-dialog-header {
   padding: var(--pano-dialog-padding, 20px);
   padding-top: max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--pano-dialog-padding, 20px) + 36px + 16px);
+  min-height: calc(max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px)) + 36px + var(--pano-dialog-padding, 20px));
 }
 
 .pano-dialog-title {
@@ -35,17 +37,21 @@
 }
 
 .pano-dialog-close {
-  flex: none;
+  position: absolute;
+  top: max(var(--pano-dialog-padding, 20px), env(safe-area-inset-top, 0px));
+  right: var(--pano-dialog-padding, 20px);
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
+  padding: 0;
+  line-height: 1;
   border: 1px solid currentColor;
   border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 1.5rem;
   cursor: pointer;
 }
 

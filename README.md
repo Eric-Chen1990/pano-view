@@ -73,7 +73,7 @@ See [Static projects and JSON data](./packages/react/README.md#static-projects-a
 
 Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
 
-Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. See [DOM overlays and dialogs](./packages/react/README.md#dom-overlays-and-dialogs) for APIs, nested portals, interaction locks, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
+Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. The separate [dialog and styling guide](./packages/react/docs/dialogs.md) includes complete examples, theme variables, component APIs, nested portals, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
 
 ## Installation
 
@@ -268,6 +268,7 @@ project.
 - [@ericchen1990/pano-view](./packages/react/README.md) — component API, hotspots, controls, and hooks
 - [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling and reconstruction
 - [360 video guide](./docs/react-360-video.md) — inline playback, captions, and mobile activation
+- [Dialog and styling guide](./packages/react/docs/dialogs.md) — multiple hotspot content mappings, themes, custom layouts and third-party dialogs
 - [krpano migration guide](./docs/krpano-migration.md) — XML attributes to component props
 
 The Vite Playground in this workspace imports viewer source directly, so local

@@ -495,56 +495,19 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 ## DOM overlays and dialogs
 
-`PanoViewer.children` renders in the Three.js tree. Use `renderOverlay(context)` for DOM controls and dialogs. Its context contains `portalContainer: HTMLDivElement | null`, `size: { width, height }` in CSS pixels, and `isFullscreen`. `usePanoOverlay()` exposes the same values to DOM descendants. Keep ordinary overlay controls `pointer-events: auto`; the otherwise empty layer lets panorama input through.
+Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. `usePanoOverlay()` supplies its stable Portal target, measured viewer/visible dimensions and fullscreen state. The optional `/ui` entry provides `PanoDialog` and composable parts; your application can also integrate an existing Dialog.
 
-The container stays inside this viewer in both normal and element fullscreen modes. Do not move portals between `document.body` and the viewer on fullscreen changes: that remounts media and form content. When the container is null during SSR or initial mount, wait instead of falling back to `document.body`. Dialogs, selects, tooltips and menus must all use the appropriate local container. Container measurements update through `ResizeObserver`, independently of panorama loading.
+See the separate **[Dialog and styling guide](./docs/dialogs.md)** for complete examples, CSS variable defaults and placement, custom layouts, third-party integration, nested portals, lifecycle, API tables and troubleshooting. The guide is included in the npm package. Run `pnpm dev` and open `/overlays` for the local examples.
 
 ### Default dialog
 
-```tsx
-import { useState } from "react";
-import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectHotspotDefinition } from "@ericchen1990/pano-view";
-import { PanoDialog } from "@ericchen1990/pano-view/ui";
-import "@ericchen1990/pano-view/styles.css";
-import "@ericchen1990/pano-view/ui/styles.css";
+Start with [Quick start](./docs/dialogs.md#quick-start), then [customize the default appearance](./docs/dialogs.md#customize-the-default-appearance). Default styling is an optional import from `@ericchen1990/pano-view/ui/styles.css`.
 
-function Tour({ project }: { project: LoadedPanoProject }) {
-  const [selected, setSelected] = useState<ProjectHotspotDefinition | null>(null);
-  return (
-    <PanoViewer style={{ height: 600 }} renderOverlay={() => (
-      <PanoDialog open={selected !== null} onOpenChange={(open) => {
-        if (!open) setSelected(null);
-      }} title={selected?.label ?? "Details"} closeLabel="Close">
-        <p>{selected?.label}</p>
-        {/* Any React content: images, video, galleries, iframe or your component. */}
-      </PanoDialog>
-    )}>
-      <ProjectScenes project={project} onHotspotClick={(event) => {
-        event.preventDefault(); // Suppress the hotspot's default navigation/playback.
-        setSelected(event.hotspot);
-      }} />
-    </PanoViewer>
-  );
-}
-```
-
-`PanoDialog` is controlled through required `open` and `onOpenChange`, with required `title`, optional `description`, `closeLabel` (default `"Close"`), `className` and `style`. The separate `ui` entry uses Radix Dialog; the main viewer entry does not import Dialog code. Its stylesheet is optional: omitting it keeps structural layout and accessibility, leaving appearance to your CSS.
-
-The default dialog closes through its close button, backdrop or Escape and unmounts content on close. It restores the previous valid focus, falling back to the viewer canvas. Browsers may use Escape to exit fullscreen; iframe keyboard events do not cross document boundaries, so keep the close button available. Closing or changing scenes remains application-controlled.
-
-Use CSS variables `--pano-dialog-width`, `--pano-dialog-background`, `--pano-dialog-color`, `--pano-dialog-backdrop`, `--pano-dialog-border`, `--pano-dialog-radius`, `--pano-dialog-shadow`, `--pano-dialog-padding`, `--pano-dialog-muted-color` and `--pano-dialog-focus-color` on the viewer or dialog. Available width and height come from the measured viewer space, with a 16px minimum gutter. Long content scrolls below the default header.
+For multiple hotspots, use the [complete scene/hotspot-to-content example](./docs/dialogs.md#choose-content-by-hotspot): five content definitions, one shared dialog, matching project JSON and scene-local IDs.
 
 ### Compose parts or integrate an existing Dialog
 
-The `ui` entry exports `PanoDialogRoot`, `PanoDialogBackdrop`, `PanoDialogContent`, `PanoDialogTitle`, `PanoDialogDescription` and `PanoDialogClose`, with corresponding props types. Root takes controlled `open` / `onOpenChange`. Backdrop and Content mount their own Portal; do not add another Portal around them. Pass standard DOM/Radix props, `className`, `style` and refs to customize each part. Content owns its DOM node and nested portal target, so it does not accept `asChild` or `forceMount`. Always provide a Title; provide a Description or explicitly pass `aria-describedby={undefined}` to Content.
-
-For an existing third-party modal, use `usePanoOverlay().portalContainer` as its Portal container, size the panel from `size`, and call `usePanoModal(open)` in the component. This hook coordinates viewer input; your modal remains responsible for focus management, accessible labels and outside interaction. Third-party components do not automatically discover the container.
-
-`usePanoModal(open)` pauses dragging, zooming, keyboard navigation, gyro input and automatic rotation, makes the background viewer UI inert and closes its context menu. Locks are viewer-local, reference counted, survive a late Canvas mount and do not release another modal's or scene transition's lock. Application commands such as `setView` remain application-owned.
-
-Inside `PanoDialogContent`, `usePanoOverlay().portalContainer` points to a nested target inside that dialog, so portaled popovers stay inside its focus and interaction boundary. `size` still measures the viewer. To give a third-party dialog the same behavior, wrap its children in `PanoOverlayPortalProvider container={localContainer}` and mount that container inside its Content. Wait for a non-null nested container before creating a portal.
-
-Unmounting removes native media/iframes. Custom players must pause/dispose their resources in cleanup; keep video autoplay opt-in, configure iframe permissions for your content, and key content by hotspot ID when switching directly between hotspots. The `/overlays` playground shows text/images, video, a gallery and a local iframe using application-owned mappings without changing project JSON. Element fullscreen is supported; native video fullscreen and immersive WebXR do not show these DOM overlays.
+Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custom header/body/footer, or [connect an existing Dialog](./docs/dialogs.md#use-an-existing-dialog) through the local Portal container and `usePanoModal(open)`. Fullscreen belongs in viewer-level UI, not in dialog content.
 
 ## PanoViewer
 

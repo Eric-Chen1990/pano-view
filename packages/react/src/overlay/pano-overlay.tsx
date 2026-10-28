@@ -68,7 +68,8 @@ export function usePanoOverlayHost(isFullscreen: boolean) {
         width: visual?.width ?? win.innerWidth, height: visual?.height ?? win.innerHeight,
       });
       setGeometry((previous) => previous.size.width === width && previous.size.height === height
-        && Object.keys(visibleRect).every((key) => visibleRect[key as keyof typeof visibleRect] === previous.visibleRect[key as keyof typeof visibleRect])
+        && visibleRect.left === previous.visibleRect.left && visibleRect.top === previous.visibleRect.top
+        && visibleRect.width === previous.visibleRect.width && visibleRect.height === previous.visibleRect.height
         ? previous : { size: { width, height }, visibleRect });
     };
     let frame = 0;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,7 @@ try {
     assert.ok(!ui.includes("createContext("), "UI must not duplicate overlay Context");
   }
   assert.ok((await readFile(join(destination, "dist/ui/styles.css"), "utf8")).includes(".pano-dialog-content"));
+  await Promise.all(["dialogs.md", "dialogs.zh-CN.md"].map((name) => access(join(destination, "docs", name))));
   const example = `
 const config = {type:"tile",multires:{tileSize:512,levels:[512]},urlTemplate:"tiles/%s/%l/%v_%h.webp",previewUrl:"preview.webp",previewFaceOrder:["l","f","r","b","u","d"]};
 const scene = api.sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/room/"});
@@ -63,7 +64,7 @@ declare const project:LoadedPanoProject;
 const props:ProjectScenesProps={project};
 const dialog:PanoDialogProps={open:true,onOpenChange:(_open:boolean)=>{},title:"Details",children:null};
 const content:PanoDialogContentProps={"aria-label":"Details"};
-const overlay:NonNullable<PanoViewerProps["renderOverlay"]>=(context:PanoOverlayRenderContext)=>{const width:number=context.size.width;void [width,context.portalContainer,context.isFullscreen];return null;};
+const overlay:NonNullable<PanoViewerProps["renderOverlay"]>=(context:PanoOverlayRenderContext)=>{const width:number=context.size.width;const left:number=context.visibleRect.left;void [width,left,context.portalContainer,context.isFullscreen];return null;};
 void [scene,loaded,props,dialog,content,overlay];`;
   for (const extension of ["mts", "cts"])
     await writeFile(join(directory, `consumer.${extension}`), typeExample);

@@ -72,7 +72,7 @@ const project = await loadPanoProject("/tour/project.json");
 
 通过 `PanoViewer.renderOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
 
-本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。API、二级 Portal、交互锁、焦点和媒体清理见 [DOM Overlay 与弹窗](./packages/react/README.zh-CN.md#dom-overlay-与弹窗)。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
+本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。独立的[弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md)提供完整示例、主题变量、组件 API、二级 Portal、焦点和媒体清理说明。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
 
 ## 安装
 
@@ -235,6 +235,7 @@ Pano View 支持这种瓦片输出格式，但不是 krpano 的插件、包装�
 - [@ericchen1990/pano-view](./packages/react/README.zh-CN.md) — 组件 API、热点、控件与 Hook
 - [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) — Node.js 与 CLI 切图和还原
 - [360 视频指南](./docs/react-360-video.zh-CN.md) — 页内播放、字幕与移动端激活
+- [弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md) — 多热点内容映射、主题、布局组合与第三方弹窗
 - [krpano 迁移指南](./docs/krpano-migration.zh-CN.md) — XML 属性到组件 props
 
 本仓库中的 Vite Playground 直接导入查看器源码，因此本地修改组件后无需重新构建包即可看到效果。
