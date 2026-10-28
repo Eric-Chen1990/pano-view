@@ -1,3 +1,4 @@
+import { parseViewLimits, type PanoViewLimits } from "../view-limits";
 import { parsePopups, resolveProjectPopupAssets, type ProjectPopupDefinition, type PopupAssetUrlResolver } from "./popups";
 import {
   isRecord,
@@ -33,6 +34,7 @@ export type PanoProjectSceneDefinition = {
     | { viewerConfig: ViewerConfig; viewerUrl?: never }
   ) & { baseUrl?: string };
   initialView?: Partial<PanoViewerState>;
+  viewLimits?: PanoViewLimits;
   hotspots?: ProjectHotspotDefinition[];
 };
 export type PanoProjectDefinition = {
@@ -112,6 +114,7 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
                   baseUrl,
                 }
               : { viewerConfig: parseConfig(src.viewerConfig), baseUrl };
+          const viewLimits = parseViewLimits(entry.viewLimits);
           let initialView: Partial<PanoViewerState> | undefined;
           if (entry.initialView !== undefined) {
             if (!isRecord(entry.initialView))
@@ -154,6 +157,7 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
             title: optionalString(entry, "title"),
             source,
             initialView,
+            ...(viewLimits === undefined ? {} : { viewLimits }),
             hotspots,
           };
         } catch (cause) {
@@ -278,6 +282,7 @@ export async function loadPanoProject(
                 baseUrl: sourceBase ?? root,
               });
         aborted(controller.signal);
+        if (item.viewLimits !== undefined) scene.viewLimits = item.viewLimits;
         scenes[index] = {
           scene,
           title: item.title,

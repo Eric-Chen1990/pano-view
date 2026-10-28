@@ -324,31 +324,73 @@ export function SceneSettings({
         />
         {t("Initial scene")}
       </label>
-      <button
-        type="button"
-        onClick={() => {
-          const view = getView();
-          if (view) onChange({ ...scene, initialView: view });
-        }}
-      >
-        {t("Set current view")}
-      </button>
-      {(["yaw", "pitch", "fov"] as const).map((axis) => (
-        <Field
-          key={axis}
-          spec={{ name: axis, type: "number" }}
-          value={scene.initialView?.[axis]}
-          onBegin={onBegin}
-          onEnd={onEnd}
-          onChange={(value) =>
-            onChange(setField(scene, `initialView.${axis}`, value))
-          }
-          t={t}
-        />
-      ))}
-      <p className="pne-source-path">
-        {scene.source.viewerUrl ?? t("Scene source")}
-      </p>
+      <fieldset>
+        <legend>{t("Initial view")}</legend>
+        <button
+          type="button"
+          onClick={() => {
+            const view = getView();
+            if (view) onChange({ ...scene, initialView: view });
+          }}
+        >
+          {t("Set current view")}
+        </button>
+        {(["yaw", "pitch", "fov"] as const).map((axis) => (
+          <Field
+            key={axis}
+            spec={{ name: axis, type: "number", defaultValue: axis === "fov" ? 75 : 0,
+              number: axis === "pitch" ? { min: -90, max: 90 } : axis === "fov" ? { min: 1, max: 179 } : undefined }}
+            value={scene.initialView?.[axis]}
+            onBegin={onBegin}
+            onEnd={onEnd}
+            onChange={(value) =>
+              onChange(setField(scene, `initialView.${axis}`, value))
+            }
+            t={t}
+          />
+        ))}
+      </fieldset>
+      <fieldset>
+        <legend>{t("View limits")}</legend>
+        <p className="pne-field-help">{t("Limits apply to the center of the view in both editing and preview.")}</p>
+        {(["yaw", "pitch", "fov"] as const).map((axis) => {
+          const range = scene.viewLimits?.[axis];
+          const defaults = axis === "yaw" ? { min: -180, max: 180 }
+            : axis === "pitch" ? { min: -90, max: 90 } : { min: 30, max: 100 };
+          const label = axis === "yaw" ? "Yaw" : axis === "pitch" ? "Pitch" : "Fov";
+          return <fieldset key={axis}>
+            <legend>{t(label)}</legend>
+            <label className="pne-check">
+              <input type="checkbox" checked={Boolean(range)}
+                aria-label={`${t(label)} · ${t("Enable limits")}`}
+                onChange={(event) => {
+                  const viewLimits = { ...scene.viewLimits };
+                  if (event.currentTarget.checked) viewLimits[axis] = defaults;
+                  else delete viewLimits[axis];
+                  onChange({ ...scene, viewLimits: Object.keys(viewLimits).length ? viewLimits : undefined });
+                }} />
+              {t("Enable limits")}
+            </label>
+            {range ? <div className="pne-button-grid">
+              {(["min", "max"] as const).map((bound) => <Field
+                key={bound}
+                spec={{ name: `${axis}-${bound}`, label: bound === "min" ? "Minimum" : "Maximum", type: "number",
+                  number: { min: axis === "yaw" ? -180 : axis === "pitch" ? -90 : 1,
+                    max: axis === "yaw" ? 180 : axis === "pitch" ? 90 : 179, required: true } }}
+                value={range[bound]}
+                onBegin={onBegin} onEnd={onEnd} t={t}
+                onChange={(value) => {
+                  if (typeof value !== "number") return;
+                  const next = { ...range, [bound]: value };
+                  if (axis !== "yaw" && next.min > next.max)
+                    throw new Error("Minimum must not exceed maximum.");
+                  onChange({ ...scene, viewLimits: { ...scene.viewLimits, [axis]: next } });
+                }} />)}
+            </div> : null}
+          </fieldset>;
+        })}
+        <p className="pne-field-help">{t("Yaw minimum greater than maximum crosses ±180° (for example, 170 to -170). Equal values lock an axis.")}</p>
+      </fieldset>
       <button type="button" disabled={busy} onClick={onReplace}>
         {t("Replace source")}
       </button>

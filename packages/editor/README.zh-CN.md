@@ -134,3 +134,9 @@ import "@ericchen1990/pano-editor/styles.css";
 `PanoEditorProps` 增加 `resolvePopupAssetUrl`（与查看器加载器相同）和 `onPickPopupAsset(request)`。后者收到 `{ kind: "image" | "video" | "audio", popupId, blockId, field: "src" | "poster", currentUrl? }`，返回持久资源路径或 undefined；原有 `onPickAsset` 场景/热点契约不变。本地会话使用目录资源，不调用宿主素材选择器。编辑器 CSS 会导入查看器独立 UI 样式，用于预览弹窗。
 
 内容结构保存在 project.json，媒体保留为独立文件；宿主后端也可将同一份文档存进数据库。导出后的展示接线见[查看器弹窗集成](../react/README.zh-CN.md#热点动作与共享弹窗内容)：使用 `ProjectScenes.onPopupRequest` 配合 `ProjectPopupDialog` 或自定义 Overlay。
+
+### 场景观看范围
+
+场景设置分为“初始视角”和“观看范围”。分别启用 Yaw、Pitch 或 FOV 后输入最小值和最大值；启用默认值依次为 −180 / 180、−90 / 90 和 30 / 100。限制在编辑和预览中立即生效，支持撤销、重做；非法值在字段旁提示，不提交到项目。Yaw 最小值大于最大值表示跨越 ±180°；两值相等时锁定该轴。限制相机中心，不保证整个画面不超界。范围保存在 `project.json` 各场景可选的 `viewLimits` 中。场景设置隐藏素材源路径，仍可通过“替换场景源”更换素材。
+
+ZIP 导出对场景文件、预览图、瓦片、热点资源、光标／提示图片及弹窗媒体使用包内相对路径。解压后可将完整目录放到任意 HTTP 子目录。文字内的 URL 不变；单独 JSON 导出保留在线地址，不打包资源。

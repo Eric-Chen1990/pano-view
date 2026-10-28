@@ -137,3 +137,9 @@ Known defaults display their effective values directly. Reset appears only for o
 `PanoEditorProps` adds `resolvePopupAssetUrl` (same callback as the viewer loader) and `onPickPopupAsset(request)`. The latter receives `{ kind: "image" | "video" | "audio", popupId, blockId, field: "src" | "poster", currentUrl? }` and returns a durable resource path or `undefined`. The existing `onPickAsset` scene/hotspot contract is unchanged. Local sessions use directory resources instead of host pickers. Editor CSS imports the optional viewer UI styles for its preview dialog.
 
 Store content structure in project.json and media as files. A host backend can persist the same document in a database. See the [viewer popup integration](../react/README.md#hotspot-actions-and-shared-popup-content) to display exported content with `ProjectScenes.onPopupRequest` and `ProjectPopupDialog`, or a custom overlay.
+
+### Scene view limits
+
+Scene settings separate **Initial view** from **View limits**. Enable Yaw, Pitch or FOV individually, then enter minimum and maximum angles. Defaults on enabling are −180 / 180, −90 / 90 and 30 / 100 respectively. Limits apply immediately in editing and preview and support undo/redo. Invalid values are reported beside the field and do not update the project. Yaw min > max crosses ±180°; equal bounds lock an axis. Limits constrain the camera center, not the entire visible frame. They are saved as each scene's optional `viewLimits` in `project.json`; the source path is hidden in the settings panel, while Replace source remains available.
+
+ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images and popup media. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.

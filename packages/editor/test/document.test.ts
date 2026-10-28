@@ -292,3 +292,14 @@ test("popup drafts permit incomplete media but export rejects it and never rejec
   project.popups![0]!.blocks[1] = { id: "image", type: "image", src: "media/image.png" };
   assert.match(exportDocument(project), /blob: is prose/);
 });
+
+test("scene limits survive editing history and JSON export without changing authored initial view", () => {
+  const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [{ id: "a", source: { viewerConfig: config }, initialView: { yaw: 0, pitch: 0, fov: 75 } }] };
+  const history = new DocumentHistory(readDocument(project));
+  const viewLimits = { yaw: { min: 170, max: -170 }, pitch: { min: -10, max: 10 }, fov: { min: 60, max: 60 } };
+  history.commit(readDocument({ ...project, scenes: [{ ...project.scenes[0]!, viewLimits }] }));
+  assert.deepEqual(JSON.parse(exportDocument(history.current)).scenes[0].viewLimits, viewLimits);
+  assert.deepEqual(history.current.scenes[0]!.initialView, project.scenes[0]!.initialView);
+  assert.equal(history.undo().scenes[0]!.viewLimits, undefined);
+  assert.deepEqual(history.redo().scenes[0]!.viewLimits, viewLimits);
+});

@@ -2424,3 +2424,19 @@ Start playback from a click or keyboard gesture, check supported formats and per
 Serve files over local HTTP(S), rather than double-clicking `file://` HTML. HTTPS pages should load HTTPS assets. Use versioned asset directories and coordinate JSON/image caching so stale configs do not target replaced files. `UNSUPPORTED_SCHEMA_VERSION` requires a supported config version. Planar conversions have no `viewer.json` and need a planar viewer.
 
 For conversion failures see [converter error codes and troubleshooting](../converter/README.md#error-codes-and-troubleshooting).
+
+### Camera-center limits
+
+`PanoViewer`, every `Scenes` scene, and each `project.json` scene accept optional `viewLimits`:
+
+```ts
+viewLimits: {
+  yaw: { min: 170, max: -170 },
+  pitch: { min: -30, max: 45 },
+  fov: { min: 40, max: 90 },
+}
+```
+
+Angles are degrees. Yaw bounds are within −180…180; min > max crosses the seam. −180…180 allows a full circle. Pitch bounds are within −90…90, FOV within 1…179; both require min ≤ max. Equal bounds lock an axis. Scene axes override viewer axes individually; omitted axes inherit viewer settings, with existing `minFov` / `maxFov` (30 / 100 by default) as the FOV fallback. Bounds apply to the camera center, including pointer, touch, keyboard, inertia, auto rotation, gyro and view navigation APIs; they do not keep the entire visible image inside the bounds. Explicit axes have hard boundaries even with `bouncingLimits`. Limited yaw animations stay in the permitted arc, overriding a shorter path through forbidden angles. Immersive WebXR remains controlled by the headset.
+
+Scene limits take effect when the incoming scene takes over, before its initial view. Live changes cancel navigation and inertia and constrain the current view without rewriting authored initial views or reloading textures. Removing scene limits restores viewer limits.

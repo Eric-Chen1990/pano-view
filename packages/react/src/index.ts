@@ -266,3 +266,5 @@ export type {
   TextHotspotDefinition,
   VideoHotspotDefinition,
 } from "./hotspot/definitions";
+
+export type { PanoViewLimits } from "./view-limits";

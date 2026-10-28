@@ -1,3 +1,4 @@
+import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
 import {
@@ -154,6 +155,8 @@ export type PanoViewerProps = Omit<
   /** Viewer-local DOM UI, rendered outside the Three.js tree, including in fullscreen. */
   renderOverlay?: (context: PanoOverlayRenderContext) => ReactNode;
   initialView?: Partial<PanoViewerState>;
+  /** Camera-center limits; scene limits override individual axes. */
+  viewLimits?: PanoViewLimits;
   minFov?: number;
   maxFov?: number;
   controls?: boolean | PanoramaControlsOptions;
@@ -289,6 +292,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       children,
       renderOverlay,
       initialView,
+      viewLimits,
       minFov = 30,
       maxFov = 100,
       controls = true,
@@ -473,6 +477,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       shouldActivateMedia,
       videoHost,
     ]);
+    const limitsKey = JSON.stringify(viewLimits);
+    const parsedLimits = useMemo(() => parseViewLimits(viewLimits), [limitsKey]);
     const fallbackViewRef = useRef<PanoViewerState>(DEFAULT_VIEW);
     const normalizedMinFov = Math.max(1, Math.min(minFov, maxFov - 1));
     const normalizedMaxFov = Math.min(
@@ -483,17 +489,14 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       () => ({
         yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
         pitch: clampPanoPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),
-        fov: Math.max(
-          normalizedMinFov,
-          Math.min(initialView?.fov ?? DEFAULT_VIEW.fov, normalizedMaxFov),
-        ),
+        // The runtime applies the effective scene/viewer range, including FOVs
+        // outside the legacy minFov/maxFov defaults.
+        fov: initialView?.fov ?? DEFAULT_VIEW.fov,
       }),
       [
         initialView?.fov,
         initialView?.pitch,
         initialView?.yaw,
-        normalizedMaxFov,
-        normalizedMinFov,
       ],
     );
     fallbackViewRef.current = normalizedInitialView;
@@ -852,6 +855,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     ref={setControlsRuntime}
                     eventBus={eventBus}
                     initialView={normalizedInitialView}
+                    viewLimits={parsedLimits}
                     maxFov={normalizedMaxFov}
                     minFov={normalizedMinFov}
                     options={controlOptions}

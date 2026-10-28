@@ -27,3 +27,5 @@ export type {
 
 export { resolveProjectPopupAssets } from "./data/popups";
 export type { ProjectPopupDefinition, ProjectPopupBlock, PopupAssetUrlContext, PopupAssetUrlResolver } from "./data/popups";
+
+export type { PanoViewLimits } from "./view-limits";

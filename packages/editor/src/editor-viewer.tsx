@@ -262,7 +262,7 @@ export function EditorViewer({
         }
       }
       scenes.push({
-        scene,
+        scene: { ...scene, ...(definition.viewLimits === undefined ? {} : { viewLimits: definition.viewLimits }) },
         title: definition.title,
         initialView: definition.initialView
           ? { yaw: 0, pitch: 0, fov: 75, ...definition.initialView }
@@ -290,7 +290,7 @@ export function EditorViewer({
   }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map((entry) => entry.scene),
-    [sources, sourceKey],
+    [runtime.loaded.scenes],
   );
   const active = runtime.loaded.scenes.find(
     (entry) => entry.scene.id === activeId,

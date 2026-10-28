@@ -455,7 +455,7 @@ export async function buildProjectPackage(
     );
     if (failure) {
       zip.terminate();
-      throw failure.reason;
+      throw primaryFailure ?? failure.reason;
     }
     signal.throwIfAborted();
     zip.end();

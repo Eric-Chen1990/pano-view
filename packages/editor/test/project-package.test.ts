@@ -37,6 +37,32 @@ function file(path: string, content: string | Uint8Array, type = "image/png") {
 const signal = () => new AbortController().signal;
 const point = { position: { yaw: 0, pitch: 0 } };
 
+function assertPortable(archive: Record<string, Uint8Array>) {
+  const resourceKeys = new Set(["viewerUrl", "previewUrl", "urlTemplate", "src", "poster", "icon", "playingIcon", "image", "baseUrl"]);
+  for (const [path, bytes] of Object.entries(archive)) {
+    if (!path.endsWith(".json")) continue;
+    const base = new URL(path, "https://relocated.test/nested/tour/");
+    const check = (reference: string) => {
+      assert.ok(reference && !/^(?:[a-z][a-z\d+.-]*:|[\\/])/i.test(reference), reference);
+      const resolved = new URL(reference, base);
+      assert.ok(resolved.href.startsWith("https://relocated.test/nested/tour/"), reference);
+      const target = resolved.pathname.slice("/nested/tour/".length);
+      if (target.includes("%")) {
+        const pattern = new RegExp("^" + target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/%s/g, "[frblud]").replace(/%[lvh]/g, "[0-9]+") + "$");
+        assert.ok(Object.keys(archive).some((entry) => pattern.test(entry)), target);
+      } else assert.ok(archive[target], target);
+    };
+    const walk = (value: unknown, key = "") => {
+      if (typeof value === "string") {
+        if (resourceKeys.has(key)) check(value);
+        if (key === "cursor" || key === "background") mapCursorAssets(value, (ref) => { check(ref); return ref; });
+      } else if (Array.isArray(value)) value.forEach((item) => walk(item, key));
+      else if (value && typeof value === "object") Object.entries(value).forEach(([name, item]) => walk(item, name));
+    };
+    walk(JSON.parse(strFromU8(bytes)));
+  }
+}
+
 test("local package contains every sphere tile and media, preserves metadata, and reloads without the original source", async (t) => {
   t.mock.method(globalThis, "fetch", () => {
     throw new Error("Original network unavailable");
@@ -67,6 +93,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
         title: "Room",
         initialView: { yaw: 1, pitch: 2, fov: 60 },
         source: { viewerUrl: "a/viewer.json" },
+        viewLimits: { yaw: { min: 170, max: -170 }, fov: { min: 40, max: 80 } },
         hotspots: [
           {
             id: "image",
@@ -145,11 +172,13 @@ test("local package contains every sphere tile and media, preserves metadata, an
     onProgress: (value) => progress.push(value),
   });
   const archive = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+  assertPortable(archive);
   const saved = parsePanoProject(
     JSON.parse(strFromU8(archive["project.json"]!)),
   );
   assert.deepEqual(project, before);
   assert.equal(saved.title, "Portable");
+  assert.deepEqual(saved.scenes[0]!.viewLimits, project.scenes[0]!.viewLimits);
   assert.equal(saved.initialSceneId, "a");
   assert.deepEqual(
     saved.scenes[0]!.initialView,
@@ -238,18 +267,19 @@ test("online cube packaging handles redirect roots, aliases, every face and leve
   assert.ok(requests.includes("https://cdn.test/room/tiles/d/2/002_02.png"));
   assert.ok(archive["panoramas/1/tiles/d/2/2_2.png"]);
   assert.ok(archive["assets/1.png"]); // extensionless remote media uses its MIME type
+  assertPortable(archive);
   const saved = JSON.parse(strFromU8(archive["project.json"]!));
   t.mock.method(globalThis, "fetch", async (url: string | URL | Request) => {
     assert.match(String(url), /^https:\/\/offline.test\//);
-    const path = new URL(String(url)).pathname.slice(1);
+    const path = new URL(String(url)).pathname.slice("/nested/tour/".length);
     const data = archive[path];
     assert.ok(data, path);
     return new Response(new Uint8Array(data).buffer);
   });
   const loaded = await loadPanoProject(saved, {
-    baseUrl: "https://offline.test/",
+    baseUrl: "https://offline.test/nested/tour/",
     resolveAssetUrl: (path, context) => {
-      assert.ok(archive[new URL(context.defaultUrl).pathname.slice(1)], path);
+      assert.ok(archive[new URL(context.defaultUrl).pathname.slice("/nested/tour/".length)], path);
       return context.defaultUrl;
     },
   });
@@ -522,6 +552,7 @@ test("shared and unused popup media are packaged once and reopen with the origin
   const zip = await buildProjectPackage(project, { local, signal: signal() });
   const archive = unzipSync(new Uint8Array(await zip.arrayBuffer()));
   assert.equal(Object.keys(archive).filter((path) => path.startsWith("assets/")).length, 3);
+  assertPortable(archive);
   const saved = parsePanoProject(JSON.parse(strFromU8(archive["project.json"]!)));
   assert.equal(saved.popups?.length, 2);
   assert.equal(JSON.stringify(project), before);

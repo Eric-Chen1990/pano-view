@@ -1,3 +1,4 @@
+import type { PanoViewLimits } from "./view-limits";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   Fragment,
@@ -52,7 +53,9 @@ import type { TileProps } from "./tile/types";
 
 export type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
 
-export type SphereScene = {
+type SceneViewOptions = { viewLimits?: PanoViewLimits };
+
+export type SphereScene = SceneViewOptions & {
   id: string;
   type: "sphere";
   src: string;
@@ -69,7 +72,7 @@ export type TileScene = Omit<
   | "onLoadProgress"
   | "onTileError"
   | "onLevelChange"
-> & {
+> & SceneViewOptions & {
   id: string;
   type: "tile";
 };
@@ -83,7 +86,7 @@ export type SphereTileScene = Omit<
   | "onLoadProgress"
   | "onTileError"
   | "onLevelChange"
-> & {
+> & SceneViewOptions & {
   id: string;
   type: "sphereTile";
 };
@@ -176,7 +179,7 @@ export function SceneSource({
         />
       );
     case "tile": {
-      const { id: _id, type: _type, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, ...tileProps } = scene;
       return (
         <Tile
           {...tileProps}
@@ -188,7 +191,7 @@ export function SceneSource({
       );
     }
     case "sphereTile": {
-      const { id: _id, type: _type, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, ...tileProps } = scene;
       return (
         <SphereTile
           {...tileProps}
@@ -344,6 +347,15 @@ function ScenesController({
   }
   liveSlotRef.current = liveSlot;
 
+  // Read metadata from the latest definitions, without replacing texture-bearing slots.
+  useEffect(() => {
+    const ready = readySceneRef.current;
+    if (ready) controlsRef?.current?.setSceneViewLimits(sceneMap.get(ready.id)?.viewLimits);
+  }, [controlsRef, sceneMap]);
+  useEffect(() => () => {
+    controlsRef?.current?.setSceneViewLimits(undefined);
+  }, [controlsRef]);
+
   const releaseInteraction = useCallback(() => {
     interactionReleaseRef.current?.();
     interactionReleaseRef.current = null;
@@ -437,8 +449,9 @@ function ScenesController({
   const notifySceneReady = useCallback((scene: Scene | null) => {
     if (!scene || readySceneRef.current === scene) return;
     readySceneRef.current = scene;
+    controlsRef?.current?.setSceneViewLimits(sceneMap.get(scene.id)?.viewLimits);
     onSceneReady?.(scene.id);
-  }, [onSceneReady]);
+  }, [controlsRef, onSceneReady, sceneMap]);
 
   const handleReady = useCallback((slot: number) => {
     if (slot === liveSlotRef.current && pendingSlot === null && phaseRef.current === "idle") {
