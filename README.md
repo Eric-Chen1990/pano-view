@@ -15,6 +15,7 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 - [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
+- [Fullscreen overlays and dialogs](#fullscreen-overlays-and-dialogs)
 - [Examples](#examples)
   - [Equirectangular image](#equirectangular-image)
   - [Cube tiles](#cube-tiles)
@@ -67,6 +68,12 @@ const project = await loadPanoProject("/tour/project.json");
 Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example.
 
 See [Static projects and JSON data](./packages/react/README.md#static-projects-and-json-data) for configuration and React loading/error/cancellation, and [FAQ and troubleshooting](./packages/react/README.md#faq-and-troubleshooting) for CORS, 404, authentication, blank canvases and playback restrictions.
+
+## Fullscreen overlays and dialogs
+
+Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
+
+Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. See [DOM overlays and dialogs](./packages/react/README.md#dom-overlays-and-dialogs) for APIs, nested portals, interaction locks, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
 
 ## Installation
 

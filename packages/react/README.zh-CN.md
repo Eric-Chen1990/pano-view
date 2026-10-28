@@ -17,6 +17,7 @@
 - [示例](#示例)
 - [导出组件](#导出组件)
 - [PanoViewer](#panoviewer)
+- [DOM Overlay 与弹窗](#dom-overlay-与弹窗)
 - [Sphere](#sphere)
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
@@ -466,6 +467,59 @@ export function Tour() {
 - `cycleSceneId` — 循环上一/下一场景 id（[`KeyboardControls`](#keyboardcontrols)）
 - 右键菜单辅助 — `createPanoContextMenuPresets`、`composePanoContextMenuItems` 及相关 API（[`PanoContextMenu`](#panocontextmenu)）
 - 多边形 / 折线校验 — `validatePolygonVertices`、`validatePolylineVertices`、`unwrapPolygonVertices`
+
+## DOM Overlay 与弹窗
+
+`PanoViewer.children` 进入 Three.js 渲染树；普通 DOM 控件与弹窗使用 `renderOverlay(context)`。context 包含 `portalContainer: HTMLDivElement | null`、以 CSS 像素计量的 `size: { width, height }` 和 `isFullscreen`。DOM 后代组件通过 `usePanoOverlay()` 获取相同值。普通 Overlay 控件需设置 `pointer-events: auto`，空白区域默认让全景输入通过。
+
+普通模式与元素全屏模式使用同一个 viewer 内的容器。不要在切换全屏时将 Portal 从 `document.body` 移至 viewer，这会重新挂载媒体和表单。SSR 或初始挂载时容器为 null，应等待就绪，不能回退到 `document.body`。Dialog、Select、Tooltip 和菜单都需使用对应本地容器。容器尺寸通过 `ResizeObserver` 更新，不依赖全景加载完成。
+
+### 默认弹窗
+
+```tsx
+import { useState } from "react";
+import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectHotspotDefinition } from "@ericchen1990/pano-view";
+import { PanoDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/styles.css";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+function Tour({ project }: { project: LoadedPanoProject }) {
+  const [selected, setSelected] = useState<ProjectHotspotDefinition | null>(null);
+  return (
+    <PanoViewer style={{ height: 600 }} renderOverlay={() => (
+      <PanoDialog open={selected !== null} onOpenChange={(open) => {
+        if (!open) setSelected(null);
+      }} title={selected?.label ?? "详情"} closeLabel="关闭">
+        <p>{selected?.label}</p>
+        {/* 任意 React 内容：图文、视频、画册、iframe 或自己的组件。 */}
+      </PanoDialog>
+    )}>
+      <ProjectScenes project={project} onHotspotClick={(event) => {
+        event.preventDefault(); // 取消热点默认的场景跳转或媒体播放。
+        setSelected(event.hotspot);
+      }} />
+    </PanoViewer>
+  );
+}
+```
+
+`PanoDialog` 使用必填的 `open` 和 `onOpenChange` 受控；`title` 必填，`description`、`closeLabel`（默认 `"Close"`）、`className` 和 `style` 可选。独立 `ui` 入口使用 Radix Dialog，viewer 主入口不引入 Dialog 代码。默认样式可不导入：组件保留结构布局和无障碍行为，外观由自己的 CSS 提供。
+
+默认弹窗通过关闭按钮、遮罩点击或 Escape 关闭，并在关闭时卸载内容。关闭后恢复原先仍有效的焦点，否则回到当前 viewer 的 Canvas。浏览器可能优先用 Escape 退出全屏，iframe 的键盘事件也不会跨文档传播，因此应始终提供关闭按钮。关闭弹窗或切换场景的业务策略由应用控制。
+
+可在 viewer 或弹窗上设置 CSS 变量：`--pano-dialog-width`、`--pano-dialog-background`、`--pano-dialog-color`、`--pano-dialog-backdrop`、`--pano-dialog-border`、`--pano-dialog-radius`、`--pano-dialog-shadow`、`--pano-dialog-padding`、`--pano-dialog-muted-color`、`--pano-dialog-focus-color`。可用宽高来自 viewer 实际测量空间，最小边距为 16px；默认标题栏下的长内容可以滚动。
+
+### 组成组件与已有 Dialog 接入
+
+`ui` 入口导出 `PanoDialogRoot`、`PanoDialogBackdrop`、`PanoDialogContent`、`PanoDialogTitle`、`PanoDialogDescription`、`PanoDialogClose` 及对应 props 类型。Root 使用受控的 `open` / `onOpenChange`。Backdrop 和 Content 自带 Portal，不需再包一层 Portal。各部分通过标准 DOM/Radix props、`className`、`style` 和 ref 定制。Content 拥有自己的 DOM 节点和二级 Portal 容器，不接受 `asChild` 或 `forceMount`。必须提供 Title；提供 Description，或给 Content 显式传入 `aria-describedby={undefined}`。
+
+使用已有第三方弹窗时，将 `usePanoOverlay().portalContainer` 传给其 Portal，以 `size` 限制面板尺寸，并在组件中调用 `usePanoModal(open)`。此 hook 协调 viewer 输入；焦点管理、无障碍名称和外部交互仍由第三方弹窗负责。第三方组件不会自动发现该容器。
+
+`usePanoModal(open)` 暂停拖拽、缩放、键盘导航、陀螺仪输入和自动旋转，让背景 viewer 界面 inert 并关闭其右键菜单。锁按 viewer 隔离、引用计数，支持 Canvas 延迟挂载；关闭时不会释放其他弹窗或场景转场持有的锁。`setView` 等应用主动调用仍由应用管理。
+
+在 `PanoDialogContent` 内，`usePanoOverlay().portalContainer` 指向该弹窗内部的二级容器，使 Popover 等 Portal 内容仍处于弹窗焦点与交互范围内；`size` 仍代表 viewer 尺寸。第三方 Dialog 可通过 `PanoOverlayPortalProvider container={localContainer}` 包裹内容，并将该容器挂载在其 Content 内，获得相同能力。二级容器非 null 后才创建 Portal。
+
+卸载会移除原生媒体与 iframe；自定义播放器需在 cleanup 中暂停、释放资源。视频自动播放应由使用者明确开启，iframe 权限按内容需要配置；在热点间直接切换时以热点 ID 为内容 key。`/overlays` 示例通过应用自己的映射展示图文、视频、画册与本地 iframe，无需修改项目 JSON。支持元素全屏；原生视频全屏和沉浸式 WebXR 不显示这些 DOM Overlay。
 
 ## PanoViewer
 

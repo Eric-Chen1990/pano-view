@@ -695,6 +695,7 @@ export function PanoContextMenu({
   const openMenu = useCallback(
     (event: PanoramaPointerEvent) => {
       event.nativeEvent.preventDefault();
+      if (controlsRef.current?.isInteractionLocked()) return;
       const view = controlsRef.current?.getView() ?? {
         yaw: 0,
         pitch: 0,

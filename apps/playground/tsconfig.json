@@ -4,6 +4,7 @@
     "paths": {
       "@ericchen1990/pano-editor": ["../../packages/editor/src/index.ts"],
       "@ericchen1990/pano-view/data": ["../../packages/react/src/data.ts"],
+      "@ericchen1990/pano-view/ui": ["../../packages/react/src/ui.ts"],
       "@ericchen1990/pano-view": ["../../packages/react/src/index.ts"]
     }
   },

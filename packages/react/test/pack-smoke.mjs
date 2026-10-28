@@ -26,6 +26,14 @@ try {
   const data = await readFile(join(destination, "dist/data.mjs"), "utf8");
   assert.ok(!data.includes('"use client"') && !data.includes("'use client'"));
   assert.ok(!data.includes("../../../shared/"));
+  const main = await readFile(join(destination, "dist/index.mjs"), "utf8");
+  assert.ok(!main.includes("@radix-ui/react-dialog"), "Core must not load Dialog code");
+  for (const extension of ["mjs", "cjs"]) {
+    const ui = await readFile(join(destination, `dist/ui.${extension}`), "utf8");
+    assert.ok(ui.includes(`./index.${extension}`), "UI must share the core runtime");
+    assert.ok(!ui.includes("createContext("), "UI must not duplicate overlay Context");
+  }
+  assert.ok((await readFile(join(destination, "dist/ui/styles.css"), "utf8")).includes(".pano-dialog-content"));
   const example = `
 const config = {type:"tile",multires:{tileSize:512,levels:[512]},urlTemplate:"tiles/%s/%l/%v_%h.webp",previewUrl:"preview.webp",previewFaceOrder:["l","f","r","b","u","d"]};
 const scene = api.sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/room/"});
@@ -46,11 +54,17 @@ if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
 import type {ProjectScenesProps} from "@ericchen1990/pano-view";
+import type {PanoDialogProps,PanoDialogContentProps} from "@ericchen1990/pano-view/ui";
+import type {PanoOverlayRenderContext,PanoViewerProps} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
 const loaded:Promise<LoadedPanoProject>=loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config}}]},{baseUrl:"https://cdn.test/"});
 declare const project:LoadedPanoProject;
-const props:ProjectScenesProps={project};void [scene,loaded,props];`;
+const props:ProjectScenesProps={project};
+const dialog:PanoDialogProps={open:true,onOpenChange:(_open:boolean)=>{},title:"Details",children:null};
+const content:PanoDialogContentProps={"aria-label":"Details"};
+const overlay:NonNullable<PanoViewerProps["renderOverlay"]>=(context:PanoOverlayRenderContext)=>{const width:number=context.size.width;void [width,context.portalContainer,context.isFullscreen];return null;};
+void [scene,loaded,props,dialog,content,overlay];`;
   for (const extension of ["mts", "cts"])
     await writeFile(join(directory, `consumer.${extension}`), typeExample);
   const tsc = fileURLToPath(
@@ -71,7 +85,7 @@ const props:ProjectScenesProps={project};void [scene,loaded,props];`;
     "consumer.cts",
   ]);
   console.log(
-    "Isolated tarball: ESM/CJS data runtime, client-free entry and NodeNext declarations passed"
+    "Isolated tarball: ESM/CJS data runtime, client-free entry, UI runtime boundary, CSS and NodeNext declarations passed"
   );
 } finally {
   await rm(directory, { recursive: true, force: true });

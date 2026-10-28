@@ -20,6 +20,14 @@ export default defineConfig({
     ],
     alias: [
       {
+        find: /^@ericchen1990\/pano-view\/ui\/styles\.css$/,
+        replacement: fileURLToPath(new URL("../../packages/react/src/ui/styles.css", import.meta.url)),
+      },
+      {
+        find: /^@ericchen1990\/pano-view\/ui$/,
+        replacement: fileURLToPath(new URL("../../packages/react/src/ui.ts", import.meta.url)),
+      },
+      {
         find: /^@ericchen1990\/pano-editor\/styles\.css$/,
         replacement: fileURLToPath(
           new URL("../../packages/editor/src/styles.css", import.meta.url),

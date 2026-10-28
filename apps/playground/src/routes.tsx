@@ -13,6 +13,7 @@ const EditorPage = lazy(() =>
     default: module.EditorPage,
   })),
 );
+const OverlayPage = lazy(() => import("./components/overlays/OverlayPage").then((module) => ({ default: module.OverlayPage })));
 
 export type PlaygroundRoute = {
   path: string;
@@ -31,6 +32,7 @@ export const HOME_ROUTE: PlaygroundRoute = {
  * this list so the demo navigation remains focused on runnable feature examples.
  */
 export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
+  { path: "/overlays", navLabel: "Overlays", Component: OverlayPage },
   { path: "/editor", navLabel: "Editor", Component: EditorPage },
   { path: "/project", navLabel: "Static project", Component: ProjectPage },
   {

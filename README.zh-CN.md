@@ -14,6 +14,7 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器�
 - [数据来源与选型](#数据来源与选型)
 - [静态多场景项目](#静态多场景项目)
 - [安装](#安装)
+- [全屏 Overlay 与弹窗](#全屏-overlay-与弹窗)
 - [示例](#示例)
   - [等距圆柱图像](#等距圆柱图像)
   - [立方体瓦片](#立方体瓦片)
@@ -66,6 +67,12 @@ const project = await loadPanoProject("/tour/project.json");
 保留输出目录结构即可上传静态托管；自定义域名和云目录使用 `baseUrl`，重命名资源使用同步 URL 映射。服务端纯数据方法从 `@ericchen1990/pano-view/data` 导入。运行 `pnpm dev` 后访问 `/project` 查看静态双场景示例。
 
 完整配置、React 加载/错误/取消示例见 [静态项目与 JSON 数据](./packages/react/README.zh-CN.md#静态项目与-json-数据)；跨域、404、认证、空白画面及媒体限制见 [常见问题与故障排查](./packages/react/README.zh-CN.md#常见问题与故障排查)。
+
+## 全屏 Overlay 与弹窗
+
+通过 `PanoViewer.renderOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
+
+本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。API、二级 Portal、交互锁、焦点和媒体清理见 [DOM Overlay 与弹窗](./packages/react/README.zh-CN.md#dom-overlay-与弹窗)。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
 
 ## 安装
 
