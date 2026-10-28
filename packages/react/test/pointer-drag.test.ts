@@ -36,6 +36,144 @@ for (const [width, height] of [[1600, 900], [600, 900], [800, 800]]) {
   }
 }
 
+test("passing the pointer across a pole does not spin the view", () => {
+  for (const pitch of [75, -75]) {
+    const view = { yaw: 0, pitch, fov: 75 };
+    const width = 1600;
+    const height = 900;
+    const camera = cameraFor(view, width, height);
+    const pole = new Vector3(0, Math.sign(pitch), 0).project(camera);
+    const polePoint = { x: (pole.x + 1) * width / 2, y: (1 - pole.y) * height / 2 };
+    const start = { x: polePoint.x - 40, y: polePoint.y };
+    const anchor = new PointerDragAnchor(start, view, { left: 0, top: 0, width, height }, camera);
+    let previous = camera;
+    for (let x = start.x; x <= polePoint.x + 40; x += 2) {
+      const delta = anchor.solve({ x, y: polePoint.y });
+      const next = cameraFor({
+        yaw: view.yaw + delta.yaw,
+        pitch: view.pitch + delta.pitch,
+        fov: view.fov,
+      }, width, height);
+      const turn = previous.quaternion.angleTo(next.quaternion) * 180 / Math.PI;
+      assert.ok(turn < 5, `pitch ${pitch} spun ${turn.toFixed(2)}° while crossing the pole`);
+      assert.ok(Math.abs(view.pitch + delta.pitch) <= 90);
+      previous = next;
+    }
+  }
+});
+
+test("dragging through a pole does not hitch the view", () => {
+  for (const pitch of [85, -85, 89, -89]) {
+    const view = { yaw: 15, pitch, fov: 75 };
+    const width = 1600;
+    const height = 900;
+    const camera = cameraFor(view, width, height);
+    const pole = new Vector3(0, Math.sign(pitch), 0).project(camera);
+    const polePoint = { x: (pole.x + 1) * width / 2, y: (1 - pole.y) * height / 2 };
+    for (const axis of ["x", "y"] as const) {
+      const span = 50;
+      const start = {
+        x: polePoint.x - (axis === "x" ? span : 0),
+        y: polePoint.y - (axis === "y" ? span : 0),
+      };
+      const anchor = new PointerDragAnchor(start, view, { left: 0, top: 0, width, height }, camera);
+      const grabbed = new Vector3(
+        (start.x / width) * 2 - 1,
+        1 - (start.y / height) * 2,
+        0.5,
+      ).unproject(camera).normalize().multiplyScalar(100);
+      let previous = camera;
+      let previousGrab = { x: start.x, y: start.y };
+      for (let step = 0; step <= span * 2; step += 1) {
+        const point = {
+          x: start.x + (axis === "x" ? step : 0),
+          y: start.y + (axis === "y" ? step : 0),
+        };
+        const delta = anchor.solve(point);
+        const nextView = {
+          yaw: view.yaw + delta.yaw,
+          pitch: view.pitch + delta.pitch,
+          fov: view.fov,
+        };
+        const next = cameraFor(nextView, width, height);
+        const turn = previous.quaternion.angleTo(next.quaternion) * 180 / Math.PI;
+        const projected = grabbed.clone().project(next);
+        const grab = { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2 };
+        assert.ok(turn < 0.25, `pitch ${pitch} ${axis} step ${step} turned ${turn.toFixed(2)}°`);
+        if (step > 0) {
+          const grabStep = Math.hypot(grab.x - previousGrab.x, grab.y - previousGrab.y);
+          assert.ok(grabStep < 2, `pitch ${pitch} ${axis} step ${step} moved the grabbed point ${grabStep.toFixed(1)}px`);
+        }
+        previous = next;
+        previousGrab = grab;
+      }
+    }
+  }
+});
+
+test("pressing past a pole keeps the current view", () => {
+  for (const pitch of [85, -85, 89, -89]) {
+    const view = { yaw: 15, pitch, fov: 75 };
+    const width = 1600;
+    const height = 900;
+    for (const y of [160, 240, 660, 740]) {
+      for (const x of [400, 800, 1200]) {
+        const start = { x, y };
+        const camera = cameraFor(view, width, height);
+        const anchor = new PointerDragAnchor(start, view, { left: 0, top: 0, width, height }, camera);
+        const resting = anchor.solve(start);
+        const rested = cameraFor({
+          yaw: view.yaw + resting.yaw,
+          pitch: view.pitch + resting.pitch,
+          fov: view.fov,
+        }, width, height);
+        const pressTurn = camera.quaternion.angleTo(rested.quaternion) * 180 / Math.PI;
+        assert.ok(pressTurn < 0.05, `press ${x},${y} at pitch ${pitch} turned ${pressTurn.toFixed(2)}°`);
+        for (const [dx, dy] of [[8, 0], [-8, 0], [0, 8], [0, -8]]) {
+          const delta = anchor.solve({ x: start.x + dx!, y: start.y + dy! });
+          const next = cameraFor({
+            yaw: view.yaw + delta.yaw,
+            pitch: view.pitch + delta.pitch,
+            fov: view.fov,
+          }, width, height);
+          const turn = rested.quaternion.angleTo(next.quaternion) * 180 / Math.PI;
+          assert.ok(turn < 12, `pitch ${pitch} at ${x},${y} moved ${dx},${dy} turned ${turn.toFixed(2)}°`);
+        }
+      }
+    }
+  }
+});
+
+test("dragging across a pole does not flip the view", () => {
+  for (const pitch of [70, -70, 40, -40]) {
+    const view = { yaw: 30, pitch, fov: 75 };
+    const anchor = new PointerDragAnchor(
+      { x: 800, y: 450 },
+      view,
+      { left: 0, top: 0, width: 1600, height: 900 },
+      cameraFor(view, 1600, 900),
+    );
+    for (const direction of [1, -1]) {
+      let previous = cameraFor(view, 1600, 900);
+      for (let step = 1; step <= 80; step += 1) {
+        const delta = anchor.solve({
+          x: 800 + direction * step * 4,
+          y: 450 - direction * step * 6,
+        });
+        const next = cameraFor({
+          yaw: view.yaw + delta.yaw,
+          pitch: view.pitch + delta.pitch,
+          fov: view.fov,
+        }, 1600, 900);
+        const turn = previous.quaternion.angleTo(next.quaternion) * 180 / Math.PI;
+        assert.ok(turn < 20, `pitch ${pitch} turned ${turn}° across one pole step`);
+        assert.ok(Math.abs(view.pitch + delta.pitch) <= 90);
+        previous = next;
+      }
+    }
+  }
+});
+
 test("speed, invert, invalid values and pole inputs remain deterministic", () => {
   const view = { yaw: 0, pitch: 0, fov: 75 };
   const anchor = new PointerDragAnchor({ x: 800, y: 450 }, view, { left: 0, top: 0, width: 1600, height: 900 }, cameraFor(view, 1600, 900));
