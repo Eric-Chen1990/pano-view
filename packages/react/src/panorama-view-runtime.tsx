@@ -46,12 +46,15 @@ const POINTER_VELOCITY_MAX_AGE_MS = 100;
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
   recordVelocity?: boolean;
+  /** Absolute rotation relative to the rendered pose at drag start. */
+  pointerOrigin?: PanoViewerState;
   /** Input channel applying the delta. */
   source?: "mouse" | "touch" | "keyboard";
 };
 
 export type PanoramaViewRuntimeHandle = {
   getView: () => PanoViewerState;
+  getPointerDragState: () => { revision: number; anchored: boolean };
   /** Internal scene override, applied before the incoming initial view. */
   setSceneViewLimits: (limits: PanoViewLimits | undefined) => void;
   /** Target view used by drag/zoom input before camera smoothing. */
@@ -199,6 +202,7 @@ export const PanoramaViewRuntime = forwardRef<
   const { camera, gl } = useThree();
   const xrSession = useXR((state) => state.session);
   const xrSessionRef = useRef(xrSession);
+  const pointerRevisionRef = useRef(0);
   const viewRef = useRef<PanoViewerState>({ ...initialView });
   const targetViewRef = useRef<PanoViewerState>({ ...initialView });
   const initialViewRef = useRef<PanoViewerState>({ ...initialView });
@@ -325,6 +329,7 @@ export const PanoramaViewRuntime = forwardRef<
 
   const acquireInteractionLock = () => {
     cancelNavigation();
+    pointerRevisionRef.current += 1;
     interactionLockCountRef.current += 1;
     stopVelocity();
     if (mouseActiveRef.current) {
@@ -356,6 +361,7 @@ export const PanoramaViewRuntime = forwardRef<
       legacyFovRef.current.minFov, legacyFovRef.current.maxFov,
     );
     if (JSON.stringify(next) === JSON.stringify(limitsRef.current)) return;
+    pointerRevisionRef.current += 1;
     limitsRef.current = next;
     cancelNavigation();
     stopVelocity();
@@ -375,6 +381,7 @@ export const PanoramaViewRuntime = forwardRef<
     setOptions?: SetPanoViewerOptions,
   ) => {
     cancelNavigation();
+    pointerRevisionRef.current += 1;
     const nextView = hardConstrainView(view);
     if (gyroActiveRef.current) {
       gyroOffsetRef.current = {
@@ -403,6 +410,7 @@ export const PanoramaViewRuntime = forwardRef<
       return Promise.resolve({ status: "cancelled" });
     }
 
+    pointerRevisionRef.current += 1;
     const from = { ...viewRef.current };
     const safeTargetInput = {
       yaw:
@@ -504,6 +512,8 @@ export const PanoramaViewRuntime = forwardRef<
     }
 
     const current = targetViewRef.current;
+    const origin = !gyroActiveRef.current ? applyOptions?.pointerOrigin : undefined;
+    const reference = origin ?? current;
     const gyroMode = gyroTouchModeRef.current;
     const gyroControlsView = gyroActiveRef.current;
     const appliesTouchMode =
@@ -515,11 +525,11 @@ export const PanoramaViewRuntime = forwardRef<
     const acceptsPitch = !appliesTouchMode || gyroMode === "full";
     const nextYaw =
       acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)
-        ? applyLimitedYawDelta(current.yaw, delta.yaw, limitsRef.current.yaw)
+        ? applyLimitedYawDelta(reference.yaw, delta.yaw, limitsRef.current.yaw)
         : current.yaw;
     const nextPitch =
       acceptsPitch && delta.pitch !== undefined && Number.isFinite(delta.pitch)
-        ? current.pitch + delta.pitch
+        ? reference.pitch + delta.pitch
         : current.pitch;
     const nextFov =
       delta.fov !== undefined && Number.isFinite(delta.fov)
@@ -531,6 +541,9 @@ export const PanoramaViewRuntime = forwardRef<
       pitch: nextPitch,
       fov: nextFov,
     });
+    if (origin) {
+      viewRef.current = { ...viewRef.current, yaw: targetViewRef.current.yaw, pitch: targetViewRef.current.pitch };
+    }
     if (gyroControlsView) {
       if (acceptsYaw && delta.yaw !== undefined && Number.isFinite(delta.yaw)) {
         gyroOffsetRef.current.yaw = shortestYawDelta(gyroPoseRef.current.yaw, targetViewRef.current.yaw);
@@ -555,10 +568,10 @@ export const PanoramaViewRuntime = forwardRef<
       lastVelocitySampleAtRef.current = now;
 
       if (delta.yaw !== undefined && Number.isFinite(delta.yaw)) {
-        yawVelocityRef.current = delta.yaw / elapsed;
+        yawVelocityRef.current = limitedYawDelta(current.yaw, targetViewRef.current.yaw, limitsRef.current.yaw) / elapsed;
       }
       if (delta.pitch !== undefined && Number.isFinite(delta.pitch)) {
-        pitchVelocityRef.current = delta.pitch / elapsed;
+        pitchVelocityRef.current = (targetViewRef.current.pitch - current.pitch) / elapsed;
       }
       if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
         zoomVelocityRef.current = clamp(delta.fov / elapsed, -180, 180);
@@ -576,6 +589,7 @@ export const PanoramaViewRuntime = forwardRef<
     ref,
     () => ({
       getView: () => ({ ...viewRef.current }),
+      getPointerDragState: () => ({ revision: pointerRevisionRef.current, anchored: !gyroActiveRef.current && xrSessionRef.current == null }),
       setSceneViewLimits: (limits) => {
         sceneLimitsRef.current = parseViewLimits(limits);
         refreshLimits();
@@ -618,6 +632,9 @@ export const PanoramaViewRuntime = forwardRef<
         }
         syncInteracting();
         if (active && !wasActive) {
+          if (!gyroActiveRef.current) {
+            targetViewRef.current = { ...targetViewRef.current, yaw: viewRef.current.yaw, pitch: viewRef.current.pitch };
+          }
           eventBusRef.current.emit("viewinteractionstart", { source });
         } else if (!active && wasActive) {
           eventBusRef.current.emit("viewinteractionend", { source });
@@ -637,6 +654,7 @@ export const PanoramaViewRuntime = forwardRef<
       isInteractionLocked: () => interactionLockCountRef.current > 0,
       isUserInteracting,
       setGyroActive: (active: boolean) => {
+        if (gyroActiveRef.current !== active) pointerRevisionRef.current += 1;
         if (active) {
           cancelNavigation();
         }
