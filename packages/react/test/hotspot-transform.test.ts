@@ -7,7 +7,7 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { applyHotspotTransform } from "../src/hotspot/transform";
+import { applyHotspotTransform, selectionFrameScale } from "../src/hotspot/transform";
 
 function projectedSize(
   group: Object3D,
@@ -163,4 +163,29 @@ test("fixed billboards behind the camera never acquire a negative or invalid sca
     10,
   );
   assert.deepEqual(group.scale.toArray(), [0, 0, 1]);
+});
+
+test("selection frame scale keeps a screen-pixel gap outside a non-square hotspot", () => {
+  const fov = 75;
+  const depth = 1000;
+  const viewportHeight = 800;
+  const outset = 4.5;
+  const worldScaleX = 120;
+  const worldScaleY = 40;
+  const [scaleX, scaleY] = selectionFrameScale(
+    worldScaleX,
+    worldScaleY,
+    depth,
+    fov,
+    viewportHeight,
+    outset,
+  );
+  const pixelsPerWorldUnit =
+    viewportHeight / (2 * Math.tan(MathUtils.degToRad(fov) * 0.5) * depth);
+  const extraPixels = (scale: number, worldScale: number) =>
+    (scale * 0.5 - 0.5) * worldScale * pixelsPerWorldUnit;
+  assert.ok(Math.abs(extraPixels(scaleX, worldScaleX) - outset) < 1e-6);
+  assert.ok(Math.abs(extraPixels(scaleY, worldScaleY) - outset) < 1e-6);
+  assert.ok(scaleX > 1 && scaleY > scaleX);
+  assert.deepEqual(selectionFrameScale(0, 0, depth, fov, viewportHeight, outset), [1, 1]);
 });

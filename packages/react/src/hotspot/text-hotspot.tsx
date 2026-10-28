@@ -382,15 +382,19 @@ function createTextTexture(
   if (!context) {
     throw new Error("Canvas 2D is unavailable for this text hotspot.");
   }
-  // Scale absolute canvas-pixel paint into the bitmap. Fractions such as
-  // padding already follow the destination size.
-  drawTextHotspot(context, canvasWidth, canvasHeight, text, {
-    ...style,
-    fontSize: resolvePositive(style.fontSize, DEFAULT_FONT_SIZE) * scale,
-    strokeWidth: Number.isFinite(style.strokeWidth)
-      ? style.strokeWidth! * scale
-      : style.strokeWidth,
-  });
+  // Paint in the fixed layout space, then scale into this bitmap. Wrapping at
+  // the raster font size reflows on zoom: optical sizes (system-ui) have
+  // advance widths that are not linear with font-size. The transform only
+  // changes raster density, so line breaks stay put as FOV changes.
+  context.setTransform(
+    canvasWidth / layout.canvasWidth,
+    0,
+    0,
+    canvasHeight / layout.canvasHeight,
+    0,
+    0,
+  );
+  drawTextHotspot(context, layout.canvasWidth, layout.canvasHeight, text, style);
 
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -475,13 +479,7 @@ function useTextTexture(
 
     const run = async () => {
       try {
-        const layout = textureSize(width, height);
-        const layoutLong = Math.max(layout.canvasWidth, layout.canvasHeight);
-        const drawScale = rasterLong / layoutLong;
-        const { font } = resolveTextFont({
-          ...style,
-          fontSize: resolvePositive(style.fontSize, DEFAULT_FONT_SIZE) * drawScale,
-        });
+        const { font } = resolveTextFont(style);
         try {
           await document.fonts?.load(font);
         } catch {

@@ -16,6 +16,7 @@ import {
   MathUtils,
   Matrix4,
   Object3D,
+  PerspectiveCamera,
   Plane,
   PlaneGeometry,
   Quaternion,
@@ -50,7 +51,7 @@ import {
   resolveHotspotTooltipOffset,
 } from "./hotspot-tooltip";
 import { HotspotTargetRegistryContext } from "./target-registry";
-import { applyHotspotTransform } from "./transform";
+import { applyHotspotTransform, selectionFrameScale } from "./transform";
 import { HotspotStrokeLine, type HotspotStrokePoint } from "./hotspot-stroke-line";
 import {
   acceptsHotspotPointerEvents,
@@ -70,6 +71,12 @@ const DEFAULT_REFERENCE_FOV = 75;
 const MIN_ANGULAR_SIZE = 0.01;
 const MAX_ANGULAR_SIZE = 179;
 const DRAG_EPSILON_DEGREES = 0.001;
+const SELECTION_BORDER_WIDTH = 3;
+/** Clear CSS pixels between the hotspot image and the inner edge of the border. */
+const SELECTION_BORDER_GAP = 3;
+const SELECTION_BORDER_OUTSET = SELECTION_BORDER_GAP + SELECTION_BORDER_WIDTH / 2;
+const SELECTION_CAMERA_POSITION = new Vector3();
+const SELECTION_WORLD_SCALE = new Vector3();
 const SELECTION_BORDER_POINTS: HotspotStrokePoint[] = [
   [-0.5, -0.5, 0.001],
   [0.5, -0.5, 0.001],
@@ -517,6 +524,30 @@ function updateTooltipAnchor(
   setTooltipAnchorOnLocalBox(anchor, placement, -0.5, 0.5, -0.5, 0.5);
 }
 
+function placeSelectionFrame(
+  frame: Object3D | null,
+  group: Object3D,
+  camera: Camera,
+  viewportHeight: number,
+) {
+  if (!frame) {
+    return;
+  }
+  group.getWorldScale(SELECTION_WORLD_SCALE);
+  SELECTION_CAMERA_POSITION.setFromMatrixPosition(group.matrixWorld).applyMatrix4(
+    camera.matrixWorldInverse,
+  );
+  const [scaleX, scaleY] = selectionFrameScale(
+    SELECTION_WORLD_SCALE.x,
+    SELECTION_WORLD_SCALE.y,
+    -SELECTION_CAMERA_POSITION.z,
+    camera instanceof PerspectiveCamera ? camera.fov : DEFAULT_REFERENCE_FOV,
+    viewportHeight,
+    SELECTION_BORDER_OUTSET,
+  );
+  frame.scale.set(scaleX, scaleY, 1);
+}
+
 /** Internal spatial and interaction primitive shared by concrete hotspots. */
 export function HotspotAnchor({
   id,
@@ -559,6 +590,7 @@ export function HotspotAnchor({
   const cursorApi = usePanoCursor();
   const { camera, gl, size } = useThree();
   const groupRef = useRef<Object3D>(null);
+  const selectionFrameRef = useRef<Object3D>(null);
   const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const updateDragRef = useRef<(event: DragPointerLike) => void>(() => undefined);
@@ -731,6 +763,7 @@ export function HotspotAnchor({
       worldHeight,
       resolvedDistance,
     );
+    placeSelectionFrame(selectionFrameRef.current, group, camera, size.height);
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(
         tooltipAnchorRef.current,
@@ -749,6 +782,7 @@ export function HotspotAnchor({
     rotation,
     scaleMode,
     size,
+    selected,
     surfaceQuaternion,
     tooltipOpen,
     tooltipPlacement,
@@ -774,6 +808,12 @@ export function HotspotAnchor({
       worldWidth,
       worldHeight,
       resolvedDistance,
+    );
+    placeSelectionFrame(
+      selectionFrameRef.current,
+      group,
+      state.camera,
+      state.size.height,
     );
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(
@@ -995,13 +1035,15 @@ export function HotspotAnchor({
       )) : null}
       {children}
       {selected && useAngularScale ? (
-        <HotspotStrokeLine
-          points={SELECTION_BORDER_POINTS}
-          color="#ffb300"
-          lineWidth={3}
-          opacity={1}
-          renderOrder={renderOrder + 1}
-        />
+        <group ref={selectionFrameRef}>
+          <HotspotStrokeLine
+            points={SELECTION_BORDER_POINTS}
+            color="#ffb300"
+            lineWidth={SELECTION_BORDER_WIDTH}
+            opacity={1}
+            renderOrder={renderOrder + 1}
+          />
+        </group>
       ) : null}
       {tooltipOpen && tooltipContent ? (
         <group ref={tooltipAnchorRef}>
