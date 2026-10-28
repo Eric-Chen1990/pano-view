@@ -1,6 +1,6 @@
 {
   "name": "@ericchen1990/pano-editor",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Embeddable React panorama authoring with local project editing and host-owned conversion.",
   "license": "MIT",
   "author": "Eric Chen",
