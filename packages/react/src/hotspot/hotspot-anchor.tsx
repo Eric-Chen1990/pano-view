@@ -20,6 +20,8 @@ import {
   PlaneGeometry,
   Quaternion,
   Ray,
+  Raycaster,
+  Vector2,
   Vector3,
 } from "three";
 import { PanoEventBusContext } from "../pano-event-bus";
@@ -33,8 +35,15 @@ import { useHotspotAccessibility } from "./accessibility";
 import {
   normalizePanoPosition,
   panoPositionToVector3,
+  translateHotspotPosition,
   vector3ToPanoPosition,
 } from "./coordinates";
+import {
+  suppressFollowingClick,
+  trackPointerDrag,
+  type DragEventSource,
+  type DragPointerLike,
+} from "./drag-session";
 import {
   HotspotTooltip,
   resolveHotspotTooltipContent,
@@ -105,8 +114,13 @@ const HOTSPOT_MODE_RENDERING: Record<
 type DragState = {
   pointerId: number;
   startPosition: HotspotPosition;
+  pointerOrigin: HotspotPosition;
+  lastPosition: HotspotPosition;
   releaseInteractionLock: () => void;
   moved: boolean;
+  /** Window listeners follow the pointer after it leaves the mesh. */
+  tracksOutsideMesh: boolean;
+  stopTracking: () => void;
 };
 
 export type HotspotAnchorProps = Omit<HotspotCommonProps, "opacity"> & {
@@ -200,6 +214,51 @@ function angularDistance(a: HotspotPosition, b: HotspotPosition): number {
   const aVector = panoPositionToVector3(a);
   const bVector = panoPositionToVector3(b);
   return MathUtils.radToDeg(aVector.angleTo(bVector));
+}
+
+const DRAG_POINTER = new Vector2();
+const DRAG_RAYCASTER = new Raycaster();
+
+function aimDragRaycaster(
+  event: { clientX: number; clientY: number },
+  element: HTMLElement,
+  camera: Camera,
+): boolean {
+  const rect = element.getBoundingClientRect();
+  if (!(rect.width > 0) || !(rect.height > 0)) {
+    return false;
+  }
+  DRAG_POINTER.set(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  camera.updateMatrixWorld();
+  DRAG_RAYCASTER.setFromCamera(DRAG_POINTER, camera);
+  return true;
+}
+
+function pointerToPanoPosition(
+  event: { clientX: number; clientY: number },
+  element: HTMLElement,
+  camera: Camera,
+): HotspotPosition | null {
+  if (!aimDragRaycaster(event, element, camera)) {
+    return null;
+  }
+  return vector3ToPanoPosition(DRAG_RAYCASTER.ray.direction);
+}
+
+function pointerHitsHotspot(
+  event: { clientX: number; clientY: number },
+  element: HTMLElement,
+  camera: Camera,
+  group: Object3D | null,
+): boolean {
+  if (!group || !aimDragRaycaster(event, element, camera)) {
+    return false;
+  }
+  group.updateMatrixWorld(true);
+  return DRAG_RAYCASTER.intersectObject(group, true).length > 0;
 }
 
 function isTooltipOpen(
@@ -498,10 +557,14 @@ export function HotspotAnchor({
   const hotspotTargetRegistry = useContext(HotspotTargetRegistryContext);
   const eventBus = useContext(PanoEventBusContext);
   const cursorApi = usePanoCursor();
-  const { camera, size } = useThree();
+  const { camera, gl, size } = useThree();
   const groupRef = useRef<Object3D>(null);
   const tooltipAnchorRef = useRef<Object3D>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const updateDragRef = useRef<(event: DragPointerLike) => void>(() => undefined);
+  const endDragRef = useRef<
+    (event: DragPointerLike, emitDragEnd: boolean) => void
+  >(() => undefined);
   const suppressNextClickRef = useRef(false);
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -579,7 +642,9 @@ export function HotspotAnchor({
 
   useEffect(
     () => () => {
-      dragStateRef.current?.releaseInteractionLock();
+      const dragState = dragStateRef.current;
+      dragState?.stopTracking();
+      dragState?.releaseInteractionLock();
       dragStateRef.current = null;
     },
     [],
@@ -642,6 +707,7 @@ export function HotspotAnchor({
     if (!dragState) {
       return;
     }
+    dragState.stopTracking();
     dragState.releaseInteractionLock();
     dragStateRef.current = null;
     setDragging(false);
@@ -726,35 +792,84 @@ export function HotspotAnchor({
     event.nativeEvent.stopImmediatePropagation?.();
   };
 
-  const releasePointer = (
-    event: ThreeEvent<PointerEvent>,
-    emitDragEnd: boolean,
-  ) => {
+  const dragPosition = (dragState: DragState, event: DragPointerLike) => {
+    const pointerPosition = pointerToPanoPosition(event, gl.domElement, camera);
+    if (!pointerPosition) {
+      return dragState.lastPosition;
+    }
+    return translateHotspotPosition(
+      dragState.startPosition,
+      dragState.pointerOrigin,
+      pointerPosition,
+    );
+  };
+
+  updateDragRef.current = (nativeEvent) => {
     const dragState = dragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
+    if (!dragState || dragState.pointerId !== nativeEvent.pointerId) {
       return;
     }
+    const nextPosition = dragPosition(dragState, nativeEvent);
+    dragState.lastPosition = nextPosition;
+    dragState.moved ||=
+      angularDistance(dragState.startPosition, nextPosition) >
+      DRAG_EPSILON_DEGREES;
+    onPositionChange?.({
+      id,
+      position: nextPosition,
+      source: "pointer",
+      nativeEvent: nativeEvent as PointerEvent,
+      startPosition: dragState.startPosition,
+    });
+  };
 
-    stopPointerEvent(event);
-    const target = event.target as Element;
-    if (target.hasPointerCapture?.(event.pointerId)) {
-      target.releasePointerCapture?.(event.pointerId);
+  endDragRef.current = (nativeEvent, emitDragEnd) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== nativeEvent.pointerId) {
+      return;
     }
-    const nextPosition = vector3ToPanoPosition(event.ray.direction);
-    if (emitDragEnd) {
-      onDragEnd?.({
-        ...makeInteractionEvent(id, nextPosition, event),
-        source: "pointer",
-        startPosition: dragState.startPosition,
-      });
-    }
-    suppressNextClickRef.current = dragState.moved;
+    const nextPosition = dragPosition(dragState, nativeEvent);
+    dragState.lastPosition = nextPosition;
+    dragState.moved ||=
+      angularDistance(dragState.startPosition, nextPosition) >
+      DRAG_EPSILON_DEGREES;
+    const moved = dragState.moved;
+    const startPosition = dragState.startPosition;
+    dragState.stopTracking();
     dragState.releaseInteractionLock();
     dragStateRef.current = null;
+    suppressNextClickRef.current = moved;
     setDragging(false);
-    if (emitDragEnd) {
-      setHovered(true);
+    if (!emitDragEnd) {
+      return;
     }
+    const overHotspot = pointerHitsHotspot(
+      nativeEvent,
+      gl.domElement,
+      camera,
+      groupRef.current,
+    );
+    eventHovered.current = overHotspot;
+    setHovered(overHotspot);
+    if (moved && typeof window !== "undefined") {
+      suppressFollowingClick(window);
+    }
+    if (moved) {
+      onPositionChange?.({
+        id,
+        position: nextPosition,
+        source: "pointer",
+        nativeEvent: nativeEvent as PointerEvent,
+        startPosition,
+      });
+    }
+    onDragEnd?.({
+      id,
+      position: nextPosition,
+      source: "pointer",
+      nativeEvent: nativeEvent as PointerEvent,
+      startPosition,
+    });
   };
 
   return (
@@ -774,24 +889,50 @@ export function HotspotAnchor({
         }
         suppressNextClickRef.current = false;
       } : undefined}
-      onLostPointerCapture={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
-      onPointerCancel={acceptsPointer ? (event) => releasePointer(event, false) : undefined}
+      onLostPointerCapture={acceptsPointer ? (event) => {
+        endDragRef.current(event.nativeEvent, true);
+      } : undefined}
+      onPointerCancel={acceptsPointer ? (event) => {
+        endDragRef.current(event.nativeEvent, true);
+      } : undefined}
       onPointerDown={acceptsPointer ? (event) => {
-        stopPointerEvent(event);
+        const native = event.nativeEvent;
         if (!draggable || dragStateRef.current) {
+          stopPointerEvent(event);
           return;
         }
+        const pointerId = native.pointerId;
+        // Capture on the canvas element, not R3F's event target. R3F records the
+        // hit before calling the DOM API, so a failed capture leaves later events
+        // stuck on this mesh. Window listeners follow the pointer either way.
+        stopPointerEvent(event);
         const releaseInteractionLock =
           controlsRef?.current?.acquireInteractionLock() ?? (() => undefined);
-        const target = event.target as Element;
-        target.setPointerCapture?.(event.pointerId);
+        const pointerOrigin =
+          pointerToPanoPosition(native, gl.domElement, camera) ??
+          vector3ToPanoPosition(event.ray.direction);
         const startPosition = { ...normalizedPosition };
+        const tracksOutsideMesh = typeof window !== "undefined";
+        const stopTracking = tracksOutsideMesh
+          ? trackPointerDrag(
+              window as DragEventSource,
+              gl.domElement,
+              pointerId,
+              (pointerEvent) => updateDragRef.current(pointerEvent),
+              (pointerEvent) => endDragRef.current(pointerEvent, true),
+            )
+          : () => undefined;
         dragStateRef.current = {
-          pointerId: event.pointerId,
+          pointerId,
           startPosition,
+          pointerOrigin,
+          lastPosition: startPosition,
           releaseInteractionLock,
           moved: false,
+          tracksOutsideMesh,
+          stopTracking,
         };
+        eventHovered.current = false;
         setHovered(false);
         setDragging(true);
         onDragStart?.({
@@ -802,19 +943,13 @@ export function HotspotAnchor({
       } : undefined}
       onPointerMove={acceptsPointer ? (event) => {
         const dragState = dragStateRef.current;
-        if (!dragState || dragState.pointerId !== event.pointerId) {
+        if (!dragState || dragState.pointerId !== event.nativeEvent.pointerId) {
           return;
         }
         stopPointerEvent(event);
-        const nextPosition = vector3ToPanoPosition(event.ray.direction);
-        dragState.moved ||=
-          angularDistance(dragState.startPosition, nextPosition) >
-          DRAG_EPSILON_DEGREES;
-        onPositionChange?.({
-          ...makeInteractionEvent(id, nextPosition, event),
-          source: "pointer",
-          startPosition: dragState.startPosition,
-        });
+        if (!dragState.tracksOutsideMesh) {
+          updateDragRef.current(event.nativeEvent);
+        }
       } : undefined}
       onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
@@ -843,7 +978,10 @@ export function HotspotAnchor({
           );
         }
       } : undefined}
-      onPointerUp={acceptsPointer ? (event) => releasePointer(event, true) : undefined}
+      onPointerUp={acceptsPointer ? (event) => {
+        stopPointerEvent(event);
+        endDragRef.current(event.nativeEvent, true);
+      } : undefined}
     >
       {focused ? (focusContent ?? (
         <lineSegments
