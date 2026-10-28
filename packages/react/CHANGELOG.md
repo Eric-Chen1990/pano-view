@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.5
+
+### Patch Changes
+
+- Clear hotspot drag click suppression with an explicit capture option, so the next press is not swallowed when the event target ignores the boolean capture flag.
+
 ## 3.6.4
 
 ### Patch Changes
