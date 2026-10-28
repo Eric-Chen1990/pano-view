@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.2
+
+### Patch Changes
+
+- e3b2856: Finish each panorama drag on pointer release and base flick inertia on the latest pointer motion, so repeated drags no longer stall or coast from a lagged sample.
+
 ## 3.6.1
 
 ### Patch Changes
