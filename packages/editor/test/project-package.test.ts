@@ -53,6 +53,7 @@ function assertPortable(archive: Record<string, Uint8Array>) {
       } else assert.ok(archive[target], target);
     };
     const walk = (value: unknown, key = "") => {
+      if (key === "params") return;
       if (typeof value === "string") {
         if (resourceKeys.has(key)) check(value);
         if (key === "cursor" || key === "background") mapCursorAssets(value, (ref) => { check(ref); return ref; });
@@ -96,6 +97,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
         viewLimits: { yaw: { min: 170, max: -170 }, fov: { min: 40, max: 80 } },
         hotspots: [
           {
+            events: { pointerenter: { type: "custom", actionId: "preview", params: { src: "https://business.test/ignored.png" } } },
             id: "image",
             type: "image",
             ...point,
@@ -172,6 +174,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
     onProgress: (value) => progress.push(value),
   });
   const archive = unzipSync(new Uint8Array(await blob.arrayBuffer()));
+  assert.equal(JSON.parse(strFromU8(archive["project.json"]!)).scenes[0].hotspots[0].events.pointerenter.params.src, "https://business.test/ignored.png");
   assertPortable(archive);
   const saved = parsePanoProject(
     JSON.parse(strFromU8(archive["project.json"]!)),

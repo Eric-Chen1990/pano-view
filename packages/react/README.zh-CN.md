@@ -2078,3 +2078,17 @@ viewLimits: {
 角度单位为度。Yaw 上下限在 −180…180 内；min > max 表示跨接缝，−180…180 表示完整一圈。Pitch 在 −90…90、FOV 在 1…179 内，均要求 min ≤ max。相等时锁定该轴。场景逐轴覆盖播放器设置；未配置的轴继承播放器，FOV 最后回退到原有 `minFov` / `maxFov`（默认 30 / 100）。范围限制相机中心，覆盖鼠标、触摸、键盘、惯性、自动旋转、陀螺仪及视角导航 API，不保证整个可见画面不超界。显式配置的轴即使启用 `bouncingLimits` 也使用硬边界。Yaw 动画沿允许区间插值，不走穿过禁区的最短路径；沉浸式 WebXR 继续由头显控制姿态。
 
 新场景接管画面时先应用范围，再设置初始视角。实时修改会取消导航与惯性、收回越界视角，不修改保存的初始视角或重新加载纹理。移除场景范围时恢复播放器设置。
+
+### 热点交互事件与自定义动作
+
+`events` 为 `click`、`pointerenter`、`pointerleave` 分别绑定一个动作。三个事件均支持 `scene`、`view`、`popup` 和 `{ type: "custom", actionId, params? }`。`params` 是 JSON 对象；函数、凭据、API 实现和表单定义由宿主维护。参数内的字符串不作为素材解析或打包。
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+旧 `action` 继续作为点击动作的后备，`events.click` 优先；编辑或清除点击时移除旧字段。打开项目不自动迁移。新事件配置需要升级后的播放器，项目 schemaVersion 仍为 1。没有点击动作的媒体继续切换播放，悬停没有默认动作。
+
+`ProjectScenes.onHotspotEvent(event)` 提供 `trigger`、`sceneId`、`hotspot`、`interaction` 和 `preventDefault()`。点击时先调用它，再调用原有 `onHotspotClick`，任一回调均可取消动作。`onCustomAction(event)` 额外提供 `action`，支持返回 Promise。宿主按稳定的 `action.actionId` 分发，校验业务参数，对未知动作抛出错误。缺少执行器、同步异常和 Promise 拒绝进入附带 `trigger` 的 `onHotspotError`。请求、鉴权、取消、防重复和迟到响应由宿主负责；各事件独立分发，不自动重试。
+
+悬停按整个热点的边界触发一次，跳过触屏和键盘焦点，并遵循可见性、指针交互设置。切换场景、隐藏和卸载仅清理状态，不执行离开动作。原有 tooltip 行为独立保留。自定义渲染器需同时转发 `context.onHoverChange(hovered, interaction)` 和 `context.onClick`；调用 `context.renderDefault()` 会自动接线。

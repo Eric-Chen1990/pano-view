@@ -1,3 +1,5 @@
+import type { ProjectCustomActionEvent } from "@ericchen1990/pano-view";
+import type { PanoCustomActionDefinition } from "./custom-actions";
 import type { CSSProperties } from "react";
 import type {
   AssetUrlResolver,
@@ -33,6 +35,8 @@ export type PanoPopupAssetRequest = {
 };
 
 export type PanoEditorProps = {
+  customActions?: readonly PanoCustomActionDefinition[];
+  onPreviewCustomAction?: (event: ProjectCustomActionEvent) => void | Promise<void>;
   /** Controlled document. Empty scenes are allowed while authoring, but cannot be exported. */
   value?: PanoProjectDefinition;
   defaultValue?: PanoProjectDefinition;

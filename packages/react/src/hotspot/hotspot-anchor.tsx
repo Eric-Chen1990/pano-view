@@ -548,6 +548,8 @@ export function HotspotAnchor({
     planeGeometry.dispose();
     return geometry;
   }, []);
+  const eventHovered = useRef(false);
+  useEffect(() => { if (!visible || !interactive || pointerEvents === "none") eventHovered.current = false; }, [visible, interactive, pointerEvents]);
   const acceptsPointer = acceptsHotspotPointerEvents(interactive, pointerEvents);
   const canActivateFromKeyboard = Boolean(
     visible && interactive && (onClick || tooltipTrigger === "click"),
@@ -816,6 +818,13 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          if (!visible || event.nativeEvent.pointerType === "touch" || !eventHovered.current) return;
+          const inside = event.intersections.some(({ object }) => {
+            for (let node: typeof object | null = object; node; node = node.parent) if (node === groupRef.current) return true;
+            return false;
+          });
+          if (inside) return;
+          eventHovered.current = false;
           setHovered(false);
           onHoverChange?.(
             false,
@@ -825,6 +834,8 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOver={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
+          if (!visible || event.nativeEvent.pointerType === "touch" || eventHovered.current) return;
+          eventHovered.current = true;
           setHovered(true);
           onHoverChange?.(
             true,

@@ -1,3 +1,5 @@
+import { hotspotAction } from "./data";
+import type { ProjectHotspotTrigger, ProjectCustomHotspotAction } from "./data";
 import {
   useContext,
   useMemo,
@@ -26,6 +28,8 @@ export type ProjectHotspotClickEvent = {
   defaultPrevented: boolean;
   preventDefault: () => void;
 };
+export type ProjectHotspotEvent = ProjectHotspotClickEvent & { trigger: ProjectHotspotTrigger };
+export type ProjectCustomActionEvent = ProjectHotspotEvent & { action: ProjectCustomHotspotAction };
 export type ProjectPopupRequestEvent = {
   sceneId: string;
   hotspot: ProjectHotspotDefinition;
@@ -35,11 +39,13 @@ export type ProjectHotspotErrorEvent = {
   sceneId: string;
   hotspot: ProjectHotspotDefinition;
   error: unknown;
+  trigger?: ProjectHotspotTrigger;
 };
 export type ProjectHotspotRenderContext = {
   sceneId: string;
   playing: boolean;
   onClick: (event: HotspotInteractionEvent) => void;
+  onHoverChange: (hovered: boolean, event: HotspotInteractionEvent) => void;
   togglePlayback: () => void;
   reportError: (error: unknown) => void;
   renderDefault: () => ReactNode;
@@ -49,6 +55,8 @@ export type ProjectScenesProps = Omit<
   "scenes" | "defaultActiveSceneId" | "renderHotspots"
 > & {
   project: LoadedPanoProject;
+  onHotspotEvent?: (event: ProjectHotspotEvent) => void;
+  onCustomAction?: (event: ProjectCustomActionEvent) => void | Promise<void>;
   onHotspotClick?: (event: ProjectHotspotClickEvent) => void;
   onPopupRequest?: (event: ProjectPopupRequestEvent) => void;
   onHotspotError?: (event: ProjectHotspotErrorEvent) => void;
@@ -74,11 +82,14 @@ export function handleProjectHotspotClick(
   callback: ProjectScenesProps["onHotspotClick"],
   navigate: (id: string) => void,
   toggle: () => void,
-  execute?: (action: Exclude<ProjectHotspotAction, { type: "scene" }>) => void,
-): void {
+  execute?: (action: Exclude<ProjectHotspotAction, { type: "scene" }>, event: ProjectHotspotEvent) => void | Promise<void>,
+  trigger: ProjectHotspotTrigger = "click",
+  onEvent?: ProjectScenesProps["onHotspotEvent"],
+): void | Promise<void> {
   // Keyboard accessibility already prevents the browser's Enter/Space default.
   const nativeWasPrevented = interaction.nativeEvent.defaultPrevented;
-  const event: ProjectHotspotClickEvent = {
+  const event: ProjectHotspotEvent = {
+    trigger,
     sceneId,
     hotspot,
     interaction,
@@ -87,23 +98,25 @@ export function handleProjectHotspotClick(
       event.defaultPrevented = true;
     },
   };
-  callback?.(event);
+  onEvent?.(event);
+  if (trigger === "click") callback?.(event);
   if (
     event.defaultPrevented ||
     (!nativeWasPrevented && interaction.nativeEvent.defaultPrevented)
   )
     return;
-  if (hotspot.action?.type === "scene") navigate(hotspot.action.sceneId);
-  else if (hotspot.action) {
+  const action = hotspotAction(hotspot, trigger);
+  if (action?.type === "scene") navigate(action.sceneId);
+  else if (action) {
     if (!execute) throw new Error("No handler for hotspot action");
-    execute(hotspot.action);
-  }
-  else if (isMedia(hotspot)) toggle();
+    return execute(action, event);
+  } else if (trigger === "click" && isMedia(hotspot)) toggle();
 }
 
 function hotspotProps<T extends ProjectHotspotDefinition>({
   type: _type,
   action: _action,
+  events: _events,
   label: _label,
   ...props
 }: T) {
@@ -115,16 +128,18 @@ export function ProjectHotspotSource({
   hotspot,
   playing,
   onClick,
+  onHoverChange,
   onEnded,
   onError,
 }: {
   hotspot: ProjectHotspotDefinition;
   playing: boolean;
   onClick: (event: HotspotInteractionEvent) => void;
+  onHoverChange?: (hovered: boolean, event: HotspotInteractionEvent) => void;
   onEnded: () => void;
   onError: (error: unknown) => void;
 }) {
-  const common = { ariaLabel: hotspot.label || hotspot.id, onClick };
+  const common = { ariaLabel: hotspot.label || hotspot.id, onClick, onHoverChange };
   // Narrow each variant before passing serializable data to its existing component.
   switch (hotspot.type) {
     case "image":
@@ -202,6 +217,7 @@ function ProjectHotspot({
   sceneId,
   navigate,
   onHotspotClick,
+  onHotspotEvent,
   onHotspotError,
   renderHotspot,
   execute,
@@ -209,10 +225,10 @@ function ProjectHotspot({
   hotspot: ProjectHotspotDefinition;
   sceneId: string;
   navigate: (id: string) => void;
-  execute: (action: Exclude<ProjectHotspotAction, { type: "scene" }>) => void;
+  execute: (action: Exclude<ProjectHotspotAction, { type: "scene" }>, event: ProjectHotspotEvent) => void | Promise<void>;
 } & Pick<
   ProjectScenesProps,
-  "onHotspotClick" | "onHotspotError" | "renderHotspot"
+  "onHotspotClick" | "onHotspotEvent" | "onHotspotError" | "renderHotspot"
 >) {
   const [playing, setPlaying] = useState(
     "playing" in hotspot ? hotspot.playing ?? false : false
@@ -222,16 +238,23 @@ function ProjectHotspot({
     if (isMedia(hotspot)) setPlaying(false);
     onHotspotError?.({ sceneId, hotspot, error });
   };
-  const onClick = (interaction: HotspotInteractionEvent) => {
+  const dispatch = (trigger: ProjectHotspotTrigger, interaction: HotspotInteractionEvent) => {
+    if (hotspot.visible === false || hotspot.interactive === false || (interaction.source === "pointer" && hotspot.pointerEvents === "none")) return;
+    if (trigger !== "click" && (interaction.source !== "pointer" || ("pointerType" in interaction.nativeEvent && interaction.nativeEvent.pointerType === "touch"))) return;
+    const failed = (error: unknown) => onHotspotError?.({ sceneId, hotspot, error, trigger });
     try {
-      handleProjectHotspotClick(hotspot, sceneId, interaction, onHotspotClick, navigate, togglePlayback, execute);
-    } catch (error) { reportError(error); }
+      const result = handleProjectHotspotClick(hotspot, sceneId, interaction, onHotspotClick, navigate, togglePlayback, execute, trigger, onHotspotEvent);
+      if (result) void Promise.resolve(result).catch(failed);
+    } catch (error) { failed(error); }
   };
+  const onClick = (event: HotspotInteractionEvent) => dispatch("click", event);
+  const onHoverChange = (hovered: boolean, event: HotspotInteractionEvent) => dispatch(hovered ? "pointerenter" : "pointerleave", event);
   const renderDefault = () => (
     <ProjectHotspotSource
       hotspot={hotspot}
       playing={playing}
       onClick={onClick}
+      onHoverChange={onHoverChange}
       onEnded={() => setPlaying(false)}
       onError={reportError}
     />
@@ -240,6 +263,7 @@ function ProjectHotspot({
     sceneId,
     playing,
     onClick,
+    onHoverChange,
     togglePlayback,
     reportError,
     renderDefault,
@@ -253,8 +277,10 @@ export function ProjectScenes({
   onActiveSceneIdChange,
   onSceneReady,
   onHotspotClick,
+  onHotspotEvent,
   onHotspotError,
   onPopupRequest,
+  onCustomAction,
   renderHotspot,
   ...options
 }: ProjectScenesProps) {
@@ -304,10 +330,12 @@ export function ProjectScenes({
               hotspot={hotspot}
               sceneId={scene.id}
               navigate={navigate}
-              execute={(action) => {
+              execute={(action, event) => {
                 if (action.type === "view") {
-                  void controls.current?.lookTo(action.view, { fov: action.view.fov, duration: action.duration })
-                    .catch((error: unknown) => onHotspotError?.({ sceneId: scene.id, hotspot, error }));
+                  return controls.current?.lookTo(action.view, { fov: action.view.fov, duration: action.duration }).then(() => {});
+                } else if (action.type === "custom") {
+                  if (!onCustomAction) throw new Error("Custom action requires an onCustomAction handler");
+                  return onCustomAction({ ...event, action });
                 } else {
                   const popup = project.popups?.find((entry) => entry.id === action.popupId);
                   if (!popup) throw new Error(`Popup does not exist: ${action.popupId}`);
@@ -315,6 +343,7 @@ export function ProjectScenes({
                   onPopupRequest({ sceneId: scene.id, hotspot, popup });
                 }
               }}
+              onHotspotEvent={onHotspotEvent}
               onHotspotClick={onHotspotClick}
               onHotspotError={onHotspotError}
               renderHotspot={renderHotspot}

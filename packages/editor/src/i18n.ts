@@ -1,4 +1,15 @@
 const zh: Record<string, string> = {
+  "Required": "必填",
+  "Invalid value": "无效值",
+  "Interaction events": "交互事件",
+  "Click": "点击",
+  "Pointer enter": "指针移入",
+  "Pointer leave": "指针移出",
+  "Custom action": "自定义动作",
+  "Test this event": "测试此事件",
+  "Action is not registered in this environment": "当前环境未注册此动作",
+  "No custom action preview handler": "未配置自定义动作预览方法",
+
   Reset: "重置",
   "Not set (browser default)": "未设置（使用浏览器默认值）",
   "Click action": "点击动作",

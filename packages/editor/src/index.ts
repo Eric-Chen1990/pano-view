@@ -6,3 +6,5 @@ export type {
   PanoImportContext,
   PanoImportProgress,
 } from "./types";
+
+export type { PanoCustomActionDefinition, PanoCustomActionField } from "./custom-actions";

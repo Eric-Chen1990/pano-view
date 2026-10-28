@@ -2440,3 +2440,17 @@ viewLimits: {
 Angles are degrees. Yaw bounds are within −180…180; min > max crosses the seam. −180…180 allows a full circle. Pitch bounds are within −90…90, FOV within 1…179; both require min ≤ max. Equal bounds lock an axis. Scene axes override viewer axes individually; omitted axes inherit viewer settings, with existing `minFov` / `maxFov` (30 / 100 by default) as the FOV fallback. Bounds apply to the camera center, including pointer, touch, keyboard, inertia, auto rotation, gyro and view navigation APIs; they do not keep the entire visible image inside the bounds. Explicit axes have hard boundaries even with `bouncingLimits`. Limited yaw animations stay in the permitted arc, overriding a shorter path through forbidden angles. Immersive WebXR remains controlled by the headset.
 
 Scene limits take effect when the incoming scene takes over, before its initial view. Live changes cancel navigation and inertia and constrain the current view without rewriting authored initial views or reloading textures. Removing scene limits restores viewer limits.
+
+### Hotspot interaction events and custom actions
+
+`events` maps `click`, `pointerenter`, and `pointerleave` to one action each. Every event supports `scene`, `view`, `popup`, and `{ type: "custom", actionId, params? }`. `params` is a JSON object; functions, credentials, API implementations and form definitions belong to the host. Parameter strings are not resolved or packaged as assets.
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+Legacy `action` remains a click fallback; `events.click` wins. Editing or clearing click removes the legacy fallback. Loading a project does not migrate it. New event configurations require an updated viewer (project schemaVersion remains 1). Media without a click action still toggles playback; hover has no default action.
+
+`ProjectScenes.onHotspotEvent(event)` receives `trigger`, `sceneId`, `hotspot`, `interaction` and `preventDefault()`. On clicks it runs before the existing `onHotspotClick`; either callback can cancel the action. `onCustomAction(event)` additionally receives `action` and may return a Promise. Dispatch by the stable `action.actionId`, validate business parameters and throw for unknown actions. Missing handlers, synchronous exceptions and rejected Promises reach `onHotspotError` with `trigger`. Requests, authentication, cancellation, duplicate prevention and response ordering are host responsibilities; events dispatch independently without automatic retries.
+
+Hover runs once per logical hotspot boundary, skips touch and keyboard focus, and respects visibility and pointer interaction settings. Scene changes, hiding and unmounting clear hover state without executing leave actions. Existing tooltip behavior is independent. Custom renderers must forward `context.onHoverChange(hovered, interaction)` as well as `context.onClick`; `context.renderDefault()` wires both automatically.

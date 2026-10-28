@@ -1,3 +1,5 @@
+import { hotspotAction, setHotspotAction, projectHotspotTriggers, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
+import { customActionIssue, validateCustomActions } from "./custom-actions";
 import { PopupLibrary, PopupInspector } from "./popup-panels";
 import { cursorImage, imageCursor } from "../../../shared/cursor-assets";
 import { validateCursorImage } from "./cursor-image";
@@ -188,12 +190,18 @@ export function PanoEditor(props: PanoEditorProps) {
       render();
     }
   }
-  function enterPreview(hotspotId?: string) {
+  function enterPreview(hotspotId?: string, trigger: ProjectHotspotTrigger = "click") {
     end();
     if (!active) return;
+    if (hotspotId) {
+      const target = active.hotspots?.find(item => item.id === hotspotId);
+      const action = target && hotspotAction(target, trigger);
+      const issue = action?.type === "custom" ? customActionIssue(action, props.customActions) : undefined;
+      if (issue) { report(new Error(issue)); return; }
+    }
     previewOrigin.current = { sceneId: active.id, hotspotId: selectedId, view: viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 } };
     void viewerRef.current?.activateMedia().catch(report);
-    setTestRequest(hotspotId ? { sceneId: active.id, hotspotId, token: ++testGeneration.current } : undefined);
+    setTestRequest(hotspotId ? { sceneId: active.id, hotspotId, trigger, token: ++testGeneration.current } : undefined);
     setPreview(true);
     setTool(undefined); setPlacement(undefined); setDraft([]);
   }
@@ -210,7 +218,7 @@ export function PanoEditor(props: PanoEditorProps) {
   function updatePopup(popup: ProjectPopupDefinition) {
     publish({ ...history.current, popups: history.current.popups?.map((item) => item.id === popup.id ? popup : item) });
   }
-  function createPopup(linkHotspot = false) {
+  function createPopup(linkHotspot = false, trigger: ProjectHotspotTrigger = "click") {
     end();
     const names = new Set(history.current.popups?.map((popup) => popup.title));
     let index = 1;
@@ -218,7 +226,7 @@ export function PanoEditor(props: PanoEditorProps) {
     const popup: ProjectPopupDefinition = { id: newId(), title: `${t("Popup")} ${index}`, blocks: [{ id: newId(), type: "text", text: "" }] };
     const next = { ...history.current, popups: [...history.current.popups ?? [], popup] };
     if (linkHotspot && active && selected) next.scenes = next.scenes.map((scene) => scene.id === active.id
-      ? { ...scene, hotspots: scene.hotspots?.map((hotspot) => hotspot.id === selected.id ? { ...hotspot, action: { type: "popup", popupId: popup.id } } : hotspot) } : scene);
+      ? { ...scene, hotspots: scene.hotspots?.map((hotspot) => hotspot.id === selected.id ? setHotspotAction(hotspot, trigger, { type: "popup", popupId: popup.id }) : hotspot) } : scene);
     publish(next);
     setSelectedPopupId(popup.id); setSidebarMode("popups");
   }
@@ -882,6 +890,7 @@ export function PanoEditor(props: PanoEditorProps) {
     const token = generation.current;
     try {
       end();
+      validateCustomActions(history.current, props.customActions);
       const text = exportDocument(history.current);
       const snapshot = JSON.stringify(history.current);
       if (download) {
@@ -910,6 +919,7 @@ export function PanoEditor(props: PanoEditorProps) {
   async function exportPackage() {
     if (exportController.current) return;
     end();
+    try { validateCustomActions(history.current, props.customActions); } catch (error) { report(error); return; }
     const controller = new AbortController();
     exportController.current = controller;
     const token = generation.current;
@@ -1008,7 +1018,7 @@ export function PanoEditor(props: PanoEditorProps) {
     dialog?.kind === "delete" && dialog.target === "scene"
       ? project.scenes
           .flatMap((scene) => scene.hotspots ?? [])
-          .filter((hotspot) => hotspot.action?.type === "scene" && hotspot.action.sceneId === dialog.id).length
+          .filter((hotspot) => projectHotspotTriggers.some(trigger => { const action = hotspotAction(hotspot, trigger); return action?.type === "scene" && action.sceneId === dialog.id; })).length
       : 0;
 
   return (
@@ -1336,14 +1346,15 @@ export function PanoEditor(props: PanoEditorProps) {
                 <p className="pne-edit-hint">{t("Edit properties below. Drag the hotspot or its vertex handles in the panorama to change its position.")}</p>
                 <p className="pne-edit-hint">{t("Editing keeps hotspots selectable and draggable, and pauses media. Use Preview or Test this hotspot to check visitor behavior.")}</p>
                 <HotspotInspector
+                  customActions={props.customActions}
                   key={selected.id}
                   hotspot={selected}
                   scenes={project.scenes}
                   popups={project.popups}
                   getView={() => viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 }}
-                  onCreatePopup={() => createPopup(true)}
+                  onCreatePopup={(trigger) => createPopup(true, trigger)}
                   onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
-                  onTest={() => enterPreview(selected.id)}
+                  onTest={(trigger) => enterPreview(selected.id, trigger)}
                   onChange={updateHotspot}
                   onBegin={begin}
                   onEnd={end}

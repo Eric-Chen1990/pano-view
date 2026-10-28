@@ -1,3 +1,5 @@
+import { customActionIssue } from "./custom-actions";
+import { type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import {
   Component,
@@ -50,7 +52,7 @@ class ViewerBoundary extends Component<
   }
 }
 
-export type HotspotTestRequest = { sceneId: string; hotspotId: string; token: number };
+export type HotspotTestRequest = { sceneId: string; hotspotId: string; trigger?: ProjectHotspotTrigger; token: number };
 function PreviewHotspot({ context, hotspot, test }: {
   context: ProjectHotspotRenderContext;
   hotspot: ProjectHotspotDefinition;
@@ -352,6 +354,13 @@ export function EditorViewer({
                 transition="none"
                 onSceneReady={(id) => { setReadyId(id); onReady?.(id); }}
                 onTransitionError={({ error }) => onError(errorMessage(error))}
+                onCustomAction={event => {
+                  const issue = customActionIssue(event.action, options.customActions);
+                  if (issue) throw new Error(issue);
+                  if (!options.customActions?.some(item => item.id === event.action.actionId)) throw new Error(t("Action is not registered in this environment"));
+                  if (!options.onPreviewCustomAction) throw new Error(t("No custom action preview handler"));
+                  return options.onPreviewCustomAction(event);
+                }}
                 onPopupRequest={({ popup, sceneId }) => setPopupSelection({ id: popup.id, sceneId, preview: true })}
                 renderHotspot={(hotspot, context) => <PreviewHotspot hotspot={hotspot} context={context} test={(item, runtimeContext) => {
                   if (!testRequest || testRequest.sceneId !== activeId || readyId !== activeId || testRequest.hotspotId !== item.id || tested.current === testRequest.token) return;
@@ -360,7 +369,10 @@ export function EditorViewer({
                   if (item.visible === false || item.interactive === false || item.pointerEvents === "none") {
                     onError(t("Show the hotspot and enable pointer interaction to test a click.")); return;
                   }
-                  runtimeContext.onClick({ id: item.id, position: "position" in item ? item.position : item.vertices[0]!, source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) });
+                  const interaction = { id: item.id, position: "position" in item ? item.position : item.vertices[0]!, source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
+                  const trigger = testRequest.trigger ?? "click";
+                  if (trigger === "click") runtimeContext.onClick(interaction);
+                  else runtimeContext.onHoverChange(trigger === "pointerenter", interaction);
                 }} />}
                 onHotspotError={({ hotspot, error }) =>
                   onError(`${hotspot.id}: ${String(error)}`)

@@ -1,3 +1,5 @@
+import type { PanoCustomActionDefinition } from "./custom-actions";
+import type { ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { HotspotActionEditor } from "./hotspot-action-editor";
 import { useState } from "react";
 import {
@@ -36,6 +38,7 @@ export function HotspotInspector({
   onCreatePopup,
   onEditPopup,
   onTest,
+  customActions,
   t,
 }: {
   hotspot: ProjectHotspotDefinition;
@@ -48,9 +51,10 @@ export function HotspotInspector({
   cursorPreviewUrl?: string;
   popups?: ProjectPopupDefinition[];
   getView?: () => PanoViewerState;
-  onCreatePopup?: () => void;
+  customActions?: readonly PanoCustomActionDefinition[];
+  onCreatePopup?: (trigger: ProjectHotspotTrigger) => void;
   onEditPopup?: (id: string) => void;
-  onTest?: () => void;
+  onTest?: (trigger: ProjectHotspotTrigger) => void;
   t: Translate;
 }) {
   const [advanced, setAdvanced] = useState("");
@@ -130,7 +134,7 @@ export function HotspotInspector({
 
         </div>
       </details>
-      <HotspotActionEditor hotspot={hotspot} scenes={scenes} popups={popups}
+      <HotspotActionEditor customActions={customActions} hotspot={hotspot} scenes={scenes} popups={popups}
         getView={getView ?? (() => ({ ...getViewPosition(), fov: 75 }))}
         onChange={onChange} onBegin={onBegin} onEnd={onEnd}
         onCreatePopup={onCreatePopup} onEditPopup={onEditPopup} onTest={onTest} t={t} />

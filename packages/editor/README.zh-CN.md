@@ -140,3 +140,33 @@ import "@ericchen1990/pano-editor/styles.css";
 场景设置分为“初始视角”和“观看范围”。分别启用 Yaw、Pitch 或 FOV 后输入最小值和最大值；启用默认值依次为 −180 / 180、−90 / 90 和 30 / 100。限制在编辑和预览中立即生效，支持撤销、重做；非法值在字段旁提示，不提交到项目。Yaw 最小值大于最大值表示跨越 ±180°；两值相等时锁定该轴。限制相机中心，不保证整个画面不超界。范围保存在 `project.json` 各场景可选的 `viewLimits` 中。场景设置隐藏素材源路径，仍可通过“替换场景源”更换素材。
 
 ZIP 导出对场景文件、预览图、瓦片、热点资源、光标／提示图片及弹窗媒体使用包内相对路径。解压后可将完整目录放到任意 HTTP 子目录。文字内的 URL 不变；单独 JSON 导出保留在线地址，不打包资源。
+
+### 热点交互事件与自定义动作
+
+`events` 为 `click`、`pointerenter`、`pointerleave` 分别绑定一个动作。三个事件均支持 `scene`、`view`、`popup` 和 `{ type: "custom", actionId, params? }`。`params` 是 JSON 对象；函数、凭据、API 实现和表单定义由宿主维护。参数内的字符串不作为素材解析或打包。
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+旧 `action` 继续作为点击动作的后备，`events.click` 优先；编辑或清除点击时移除旧字段。打开项目不自动迁移。新事件配置需要升级后的播放器，项目 schemaVersion 仍为 1。没有点击动作的媒体继续切换播放，悬停没有默认动作。
+
+`ProjectScenes.onHotspotEvent(event)` 提供 `trigger`、`sceneId`、`hotspot`、`interaction` 和 `preventDefault()`。点击时先调用它，再调用原有 `onHotspotClick`，任一回调均可取消动作。`onCustomAction(event)` 额外提供 `action`，支持返回 Promise。宿主按稳定的 `action.actionId` 分发，校验业务参数，对未知动作抛出错误。缺少执行器、同步异常和 Promise 拒绝进入附带 `trigger` 的 `onHotspotError`。请求、鉴权、取消、防重复和迟到响应由宿主负责；各事件独立分发，不自动重试。
+
+悬停按整个热点的边界触发一次，跳过触屏和键盘焦点，并遵循可见性、指针交互设置。切换场景、隐藏和卸载仅清理状态，不执行离开动作。原有 tooltip 行为独立保留。自定义渲染器需同时转发 `context.onHoverChange(hovered, interaction)` 和 `context.onClick`；调用 `context.renderDefault()` 会自动接线。
+
+`PanoEditor.customActions` 注入 `{ id, label, description?, fields }` 动作定义。字段结构为 `{ name, label, type, required?, min?, max?, options?, defaultValue? }`，支持 `string`、`textarea`、`number`、`boolean`、`select`（字符串选项）。默认值仅在选择新动作时写入；编辑保留已有额外参数。已注册参数非法时阻止事件测试、保存及两种导出。未注册动作保留只读参数，仍可保存、导出。
+
+```tsx
+const customActions = [{
+  id: "product.preview", label: "预览商品",
+  fields: [{ name: "visible", label: "显示", type: "boolean" as const, defaultValue: true }],
+}];
+<PanoEditor defaultValue={project} customActions={customActions}
+  onPreviewCustomAction={async ({ action, trigger, sceneId }) => {
+    // 宿主预览分发器：使用模拟方法，或明确选择的真实方法。
+    await previewActions.execute(action.actionId, action.params ?? {}, { trigger, sceneId });
+  }} />;
+```
+
+“交互事件”面板分别配置、测试三个触发时机。编辑态不执行业务动作。预览单独使用 `onPreviewCustomAction`；未提供时提示缺少预览方法，保存仍可用。场景、弹窗引用覆盖全部事件并标明触发时机。导出项目保留配置，播放器宿主仍需接入 `ProjectScenes.onCustomAction`。

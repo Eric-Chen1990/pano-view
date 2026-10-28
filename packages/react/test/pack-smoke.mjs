@@ -44,6 +44,9 @@ if(scene.previewUrl!=="https://cdn.test/room/preview.webp") throw Error("Incorre
 const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/room/"});
 if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
 if(project.scenes[0].scene.viewLimits.yaw.min!==170)throw Error("Limits missing from packed loader");
+const marker={id:"custom",type:"text",text:"Hi",position:{yaw:0,pitch:0},events:{pointerenter:{type:"custom",actionId:"show",params:{src:"blob:business"}}}};
+const parsed=api.parsePanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},hotspots:[marker]}]});
+if(api.hotspotAction(parsed.scenes[0].hotspots[0],"pointerenter").params.src!=="blob:business")throw Error("Missing custom action parameters");
 const popup=api.resolveProjectPopupAssets({id:"story",title:"Story",blocks:[{id:"photo",type:"image",src:"photo.jpg"}]},"https://cdn.test/tour/");
 if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrect popup URL");
 `;
@@ -68,7 +71,7 @@ const viewer:PanoViewerProps={viewLimits:limits};
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
 const loaded:Promise<LoadedPanoProject>=loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/"});
 declare const project:LoadedPanoProject;
-const props:ProjectScenesProps={project,onPopupRequest:({popup,sceneId,hotspot})=>{void [popup.blocks,sceneId,hotspot.action];}};
+const props:ProjectScenesProps={project,onHotspotEvent:event=>{void event.trigger;event.preventDefault();},onCustomAction:async event=>{void [event.action.actionId,event.action.params,event.trigger];},onPopupRequest:({popup,sceneId,hotspot})=>{void [popup.blocks,sceneId,hotspot.action];}};
 const popupDialog:ProjectPopupDialogProps={popup:null,onOpenChange:()=>{}};
 const dialog:PanoDialogProps={open:true,onOpenChange:(_open:boolean)=>{},title:"Details",children:null};
 const content:PanoDialogContentProps={"aria-label":"Details"};

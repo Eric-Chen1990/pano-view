@@ -10,6 +10,8 @@ import type { PanoViewerState } from "../types";
 import { PanoDataError, aborted } from "./errors";
 import {
   parseHotspot,
+  projectHotspotTriggers,
+  hotspotAction,
   parsePosition,
   resolveHotspotAssets,
   type ProjectHotspotDefinition,
@@ -190,20 +192,22 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
       );
     for (const [index, scene] of scenes.entries()) {
       for (const [i, hotspot] of (scene.hotspots ?? []).entries()) {
-        const action = hotspot.action;
-        if (action?.type === "popup" && !popups?.some((popup) => popup.id === action.popupId))
-          throw new PanoDataError("INVALID_REFERENCE", "Hotspot target popup does not exist", {
-            sceneId: scene.id, field: `scenes[${index}].hotspots[${i}].action.popupId`,
-          });
-        if (hotspot.action?.type === "scene" && !ids.has(hotspot.action.sceneId))
-          throw new PanoDataError(
-            "INVALID_REFERENCE",
-            "Hotspot target scene does not exist",
-            {
-              sceneId: scene.id,
-              field: `scenes[${index}].hotspots[${i}].action.sceneId`,
-            }
-          );
+        for (const trigger of projectHotspotTriggers) {
+          const action = hotspotAction(hotspot, trigger);
+          if (action?.type === "popup" && !popups?.some((popup) => popup.id === action.popupId))
+            throw new PanoDataError("INVALID_REFERENCE", "Hotspot target popup does not exist", {
+              sceneId: scene.id, field: `scenes[${index}].hotspots[${i}].${hotspot.events?.[trigger] ? `events.${trigger}` : "action"}.popupId`,
+            });
+          if (action?.type === "scene" && !ids.has(action.sceneId))
+            throw new PanoDataError(
+              "INVALID_REFERENCE",
+              "Hotspot target scene does not exist",
+              {
+                sceneId: scene.id,
+                field: `scenes[${index}].hotspots[${i}].${hotspot.events?.[trigger] ? `events.${trigger}` : "action"}.sceneId`,
+              }
+            );
+        }
       }
     }
     return {

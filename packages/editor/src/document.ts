@@ -1,3 +1,4 @@
+import { hotspotAction, setHotspotAction, projectHotspotTriggers } from "@ericchen1990/pano-view/data";
 import { mapCursorAssets } from "../../../shared/cursor-assets";
 import {
   parsePanoProject,
@@ -93,9 +94,14 @@ export function removeScene(
     .map((scene) => ({
       ...scene,
       hotspots: scene.hotspots?.map((hotspot) => {
-        if (hotspot.action?.type !== "scene" || hotspot.action.sceneId !== id) return hotspot;
-        const { action: _action, ...rest } = hotspot;
-        return rest;
+        let next = hotspot;
+        for (const trigger of projectHotspotTriggers) {
+          const action = hotspotAction(next, trigger);
+          if (action?.type === "scene" && action.sceneId === id) next = setHotspotAction(next, trigger);
+        }
+        // Remove a shadowed legacy reference too.
+        if (next.action?.type === "scene" && next.action.sceneId === id) { next = { ...next }; delete next.action; }
+        return next;
       }),
     }));
   return {
@@ -218,9 +224,10 @@ export function createHotspot(
 }
 
 export function popupReferences(project: PanoProjectDefinition, popupId: string) {
-  return project.scenes.flatMap((scene) => (scene.hotspots ?? [])
-    .filter((hotspot) => hotspot.action?.type === "popup" && hotspot.action.popupId === popupId)
-    .map((hotspot) => ({ sceneId: scene.id, hotspotId: hotspot.id, label: `${scene.title ?? scene.id} / ${hotspot.label || hotspot.id}` })));
+  return project.scenes.flatMap(scene => (scene.hotspots ?? []).flatMap(hotspot => projectHotspotTriggers.flatMap(trigger => {
+    const action = hotspotAction(hotspot, trigger);
+    return action?.type === "popup" && action.popupId === popupId ? [{ sceneId: scene.id, hotspotId: hotspot.id, trigger, label: `${scene.title ?? scene.id} / ${hotspot.label || hotspot.id} / ${trigger}` }] : [];
+  })));
 }
 export function removePopup(project: PanoProjectDefinition, popupId: string): PanoProjectDefinition {
   if (popupReferences(project, popupId).length) throw new Error("Unlink this popup from its hotspots before deleting it.");

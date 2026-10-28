@@ -143,3 +143,33 @@ Store content structure in project.json and media as files. A host backend can p
 Scene settings separate **Initial view** from **View limits**. Enable Yaw, Pitch or FOV individually, then enter minimum and maximum angles. Defaults on enabling are −180 / 180, −90 / 90 and 30 / 100 respectively. Limits apply immediately in editing and preview and support undo/redo. Invalid values are reported beside the field and do not update the project. Yaw min > max crosses ±180°; equal bounds lock an axis. Limits constrain the camera center, not the entire visible frame. They are saved as each scene's optional `viewLimits` in `project.json`; the source path is hidden in the settings panel, while Replace source remains available.
 
 ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images and popup media. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.
+
+### Hotspot interaction events and custom actions
+
+`events` maps `click`, `pointerenter`, and `pointerleave` to one action each. Every event supports `scene`, `view`, `popup`, and `{ type: "custom", actionId, params? }`. `params` is a JSON object; functions, credentials, API implementations and form definitions belong to the host. Parameter strings are not resolved or packaged as assets.
+
+```json
+{"events":{"click":{"type":"scene","sceneId":"hall"},"pointerenter":{"type":"custom","actionId":"product.preview","params":{"visible":true}},"pointerleave":{"type":"custom","actionId":"product.preview","params":{"visible":false}}}}
+```
+
+Legacy `action` remains a click fallback; `events.click` wins. Editing or clearing click removes the legacy fallback. Loading a project does not migrate it. New event configurations require an updated viewer (project schemaVersion remains 1). Media without a click action still toggles playback; hover has no default action.
+
+`ProjectScenes.onHotspotEvent(event)` receives `trigger`, `sceneId`, `hotspot`, `interaction` and `preventDefault()`. On clicks it runs before the existing `onHotspotClick`; either callback can cancel the action. `onCustomAction(event)` additionally receives `action` and may return a Promise. Dispatch by the stable `action.actionId`, validate business parameters and throw for unknown actions. Missing handlers, synchronous exceptions and rejected Promises reach `onHotspotError` with `trigger`. Requests, authentication, cancellation, duplicate prevention and response ordering are host responsibilities; events dispatch independently without automatic retries.
+
+Hover runs once per logical hotspot boundary, skips touch and keyboard focus, and respects visibility and pointer interaction settings. Scene changes, hiding and unmounting clear hover state without executing leave actions. Existing tooltip behavior is independent. Custom renderers must forward `context.onHoverChange(hovered, interaction)` as well as `context.onClick`; `context.renderDefault()` wires both automatically.
+
+`PanoEditor.customActions` supplies `{ id, label, description?, fields }` definitions. Fields use `{ name, label, type, required?, min?, max?, options?, defaultValue? }`, with types `string`, `textarea`, `number`, `boolean`, `select` (string options). Defaults apply only when selecting a new action; extra existing parameters survive edits. Invalid registered parameters block event tests, saving and both exports. Unregistered actions retain read-only parameters and can be saved/exported.
+
+```tsx
+const customActions = [{
+  id: "product.preview", label: "Preview product",
+  fields: [{ name: "visible", label: "Visible", type: "boolean" as const, defaultValue: true }],
+}];
+<PanoEditor defaultValue={project} customActions={customActions}
+  onPreviewCustomAction={async ({ action, trigger, sceneId }) => {
+    // Host-owned preview dispatcher: mock methods or explicitly chosen real methods.
+    await previewActions.execute(action.actionId, action.params ?? {}, { trigger, sceneId });
+  }} />;
+```
+
+The Interaction events panel configures and tests each trigger separately. Edit mode never executes business actions. Preview uses the separate `onPreviewCustomAction`; without it, testing reports that a preview handler is missing and saving remains available. Scene and popup references cover all events and show their trigger. Exported projects retain configuration; the player host still needs `ProjectScenes.onCustomAction`.
