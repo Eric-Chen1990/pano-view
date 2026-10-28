@@ -41,6 +41,7 @@ const DEFAULT_ZOOM_DAMPING = 16;
 const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
 const DEFAULT_NAVIGATION_DURATION = 700;
+const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
 export type ApplyViewDeltaOptions = {
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
@@ -83,7 +84,11 @@ export type PanoramaViewRuntimeHandle = {
   /** Marks whether keyboard navigation is currently driving the view. */
   setKeyboardActive: (active: boolean) => void;
   /** Marks whether mouse or touch input is currently driving the view. */
-  setPointerActive: (source: "mouse" | "touch", active: boolean) => void;
+  setPointerActive: (
+    source: "mouse" | "touch",
+    active: boolean,
+    options?: { cancelled?: boolean },
+  ) => void;
   /** Whether hotspot / transition locks currently block user input. */
   isInteractionLocked: () => boolean;
   /**
@@ -146,6 +151,16 @@ function resolveDamping(value: number | undefined, fallback: number): number {
 
 function resolveFrictionStop(value: number | undefined): number {
   return Number.isFinite(value) && value! >= 0 ? value! : DEFAULT_FRICTION_STOP;
+}
+
+/** Only a recent, normally released drag may continue as a flick. */
+export function shouldKeepPointerInertia(
+  sampledAt: number | null,
+  releasedAt: number,
+  cancelled = false,
+): boolean {
+  return !cancelled && sampledAt !== null && releasedAt >= sampledAt &&
+    releasedAt - sampledAt <= POINTER_VELOCITY_MAX_AGE_MS;
 }
 
 function resolveNavigationDuration(value: number | undefined): number {
@@ -548,6 +563,10 @@ export const PanoramaViewRuntime = forwardRef<
       if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
         zoomVelocityRef.current = clamp(delta.fov / elapsed, -180, 180);
       }
+    } else if (delta.fov !== undefined && Number.isFinite(delta.fov)) {
+      // Wheel / keyboard zoom replaces any earlier zoom inertia. Browser wheel
+      // events already include trackpad momentum; camera damping still applies.
+      zoomVelocityRef.current = 0;
     }
 
     return true;
@@ -584,7 +603,7 @@ export const PanoramaViewRuntime = forwardRef<
           });
         }
       },
-      setPointerActive: (source, active) => {
+      setPointerActive: (source, active, releaseOptions) => {
         const wasActive =
           source === "mouse"
             ? mouseActiveRef.current
@@ -603,9 +622,14 @@ export const PanoramaViewRuntime = forwardRef<
         } else if (!active && wasActive) {
           eventBusRef.current.emit("viewinteractionend", { source });
         }
-        if (active) {
+        if (active || !shouldKeepPointerInertia(
+          lastVelocitySampleAtRef.current,
+          performance.now(),
+          releaseOptions?.cancelled,
+        )) {
           stopVelocity();
-        } else if (!mouseActiveRef.current && !touchActiveRef.current) {
+        }
+        if (!active && !mouseActiveRef.current && !touchActiveRef.current) {
           lastVelocitySampleAtRef.current = null;
           snapTargetToHardLimits();
         }

@@ -83,7 +83,7 @@ export function MouseControls({
         }
       }
       pointersRef.current.clear();
-      controlsRef.current?.setPointerActive("mouse", false);
+      controlsRef.current?.setPointerActive("mouse", false, { cancelled: true });
     };
 
     if (!enabled) {
@@ -94,10 +94,11 @@ export function MouseControls({
     const isMouseLike = (event: PointerEvent) =>
       event.pointerType === "mouse" || event.pointerType === "pen";
 
-    const syncActive = () => {
+    const syncActive = (cancelled = false) => {
       controlsRef.current?.setPointerActive(
         "mouse",
         pointersRef.current.size > 0,
+        { cancelled },
       );
     };
 
@@ -169,7 +170,7 @@ export function MouseControls({
       if (element.hasPointerCapture?.(event.pointerId)) {
         element.releasePointerCapture?.(event.pointerId);
       }
-      syncActive();
+      syncActive(event.type !== "pointerup");
     };
 
     const onWheel = (event: WheelEvent) => {
@@ -194,7 +195,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { fov: delta },
-        { recordVelocity: true, source: "mouse" },
+        { source: "mouse" },
       );
     };
 
@@ -202,6 +203,7 @@ export function MouseControls({
     element.addEventListener("pointermove", onPointerMove);
     element.addEventListener("pointerup", releasePointer);
     element.addEventListener("pointercancel", releasePointer);
+    element.addEventListener("lostpointercapture", releasePointer);
     element.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
@@ -209,6 +211,7 @@ export function MouseControls({
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", releasePointer);
       element.removeEventListener("pointercancel", releasePointer);
+      element.removeEventListener("lostpointercapture", releasePointer);
       element.removeEventListener("wheel", onWheel);
       clearPointers();
     };

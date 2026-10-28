@@ -56,7 +56,7 @@ export function TouchControls({
       }
       pointersRef.current.clear();
       pinchDistanceRef.current = null;
-      controlsRef.current?.setPointerActive("touch", false);
+      controlsRef.current?.setPointerActive("touch", false, { cancelled: true });
     };
 
     if (!enabled) {
@@ -64,10 +64,11 @@ export function TouchControls({
       return;
     }
 
-    const syncActive = () => {
+    const syncActive = (cancelled = false) => {
       controlsRef.current?.setPointerActive(
         "touch",
         pointersRef.current.size > 0,
+        { cancelled },
       );
     };
 
@@ -165,19 +166,21 @@ export function TouchControls({
       if (pointersRef.current.size < 2) {
         pinchDistanceRef.current = null;
       }
-      syncActive();
+      syncActive(event.type !== "pointerup");
     };
 
     element.addEventListener("pointerdown", onPointerDown);
     element.addEventListener("pointermove", onPointerMove);
     element.addEventListener("pointerup", releasePointer);
     element.addEventListener("pointercancel", releasePointer);
+    element.addEventListener("lostpointercapture", releasePointer);
 
     return () => {
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", releasePointer);
       element.removeEventListener("pointercancel", releasePointer);
+      element.removeEventListener("lostpointercapture", releasePointer);
       clearPointers();
     };
   }, [controlsRef, enabled, gl]);
