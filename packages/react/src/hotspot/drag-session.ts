@@ -113,18 +113,23 @@ export function trackPointerDrag(
   return stop;
 }
 
+type ListenerOptions = boolean | { capture?: boolean };
+
 type ClickSuppressTarget = {
   addEventListener(
     type: "click" | "pointerdown",
     listener: (event: Event) => void,
-    capture?: boolean,
+    options?: ListenerOptions,
   ): void;
   removeEventListener(
     type: "click" | "pointerdown",
     listener: (event: Event) => void,
-    capture?: boolean,
+    options?: ListenerOptions,
   ): void;
 };
+
+// Node reads removeEventListener(type, listener, true) as capture: false.
+const CAPTURE: { capture: true } = { capture: true };
 
 /** Ignore the click that follows a drag, including when it lands outside the mesh. */
 export function suppressFollowingClick(target: ClickSuppressTarget): void {
@@ -134,8 +139,8 @@ export function suppressFollowingClick(target: ClickSuppressTarget): void {
       return;
     }
     cleaned = true;
-    target.removeEventListener("click", swallowClick, true);
-    target.removeEventListener("pointerdown", cancel, true);
+    target.removeEventListener("click", swallowClick, CAPTURE);
+    target.removeEventListener("pointerdown", cancel, CAPTURE);
   };
   const swallowClick = (event: Event) => {
     event.preventDefault();
@@ -146,7 +151,7 @@ export function suppressFollowingClick(target: ClickSuppressTarget): void {
   const cancel = () => {
     cleanup();
   };
-  target.addEventListener("click", swallowClick, true);
-  target.addEventListener("pointerdown", cancel, true);
+  target.addEventListener("click", swallowClick, CAPTURE);
+  target.addEventListener("pointerdown", cancel, CAPTURE);
   setTimeout(cleanup, CLICK_SUPPRESS_MS);
 }
