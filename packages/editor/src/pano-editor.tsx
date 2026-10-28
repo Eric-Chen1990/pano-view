@@ -218,6 +218,11 @@ export function PanoEditor(props: PanoEditorProps) {
   function updatePopup(popup: ProjectPopupDefinition) {
     publish({ ...history.current, popups: history.current.popups?.map((item) => item.id === popup.id ? popup : item) });
   }
+  function deletePopup(id: string) {
+    end();
+    publish(removePopup(history.current, id));
+    setSelectedPopupId((current) => current === id ? undefined : current);
+  }
   function createPopup(linkHotspot = false, trigger: ProjectHotspotTrigger = "click") {
     end();
     const names = new Set(history.current.popups?.map((popup) => popup.title));
@@ -1186,7 +1191,7 @@ export function PanoEditor(props: PanoEditorProps) {
             <button type="button" aria-pressed={sidebarMode === "scenes"} onClick={() => { end(); setSidebarMode("scenes"); }}>{t("Scenes")}</button>
             <button type="button" aria-pressed={sidebarMode === "popups"} onClick={() => { end(); setSidebarMode("popups"); }}>{t("Popup content")}</button>
           </div> : null}
-          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} t={t} /> : <SceneSidebar
+          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} onDelete={deletePopup} t={t} /> : <SceneSidebar
           project={project}
           activeId={active?.id}
           selectedId={selectedId}
@@ -1313,7 +1318,7 @@ export function PanoEditor(props: PanoEditorProps) {
                 const popup = { ...structuredClone(selectedPopup), id: newId(), title: `${selectedPopup.title} (${t("Copy")})`, blocks: selectedPopup.blocks.map((block) => ({ ...block, id: newId() })) };
                 publish({ ...history.current, popups: [...history.current.popups ?? [], popup] }); setSelectedPopupId(popup.id);
               }}
-              onDelete={() => { end(); publish(removePopup(history.current, selectedPopup.id)); setSelectedPopupId(undefined); }}
+              onDelete={() => deletePopup(selectedPopup.id)}
               onReference={(sceneId, hotspotId) => { navigate(sceneId); setSelectedId(hotspotId); setSidebarMode("scenes"); }} t={t}
             /> : <p className="pne-hint">{t("Select or create a shared popup.")}</p> : selected ? (
               <>

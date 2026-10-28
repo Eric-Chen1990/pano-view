@@ -37,7 +37,7 @@ const zh: Record<string, string> = {
   "Delete popup": "删除弹窗",
   "Edit once to update every hotspot that uses this popup.": "修改一份内容，所有引用它的热点会一起更新。",
   "Shared content is saved in project.json. Media files are included when exporting a project package.": "共享内容保存在 project.json 中。导出项目包时会包含媒体文件。",
-  "Unlink this popup from its hotspots before deleting it.": "请先解除下列热点的引用，再删除弹窗。",
+  "Deleting this popup also removes its hotspot actions. You can undo the deletion.": "删除弹窗会同时移除引用它的热点动作，可撤销恢复。",
   "Image description": "图片说明",
   "Poster image": "视频封面",
   "Move up": "上移",

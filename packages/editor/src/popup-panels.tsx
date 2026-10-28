@@ -3,17 +3,31 @@ import { Field } from "./fields";
 import { newId, popupReferences } from "./document";
 import type { Translate } from "./i18n";
 
-export function PopupLibrary({ project, selectedId, onSelect, onAdd, t }: {
+export function PopupLibrary({ project, selectedId, onSelect, onAdd, onDelete, t }: {
   project: PanoProjectDefinition; selectedId?: string;
-  onSelect: (id: string) => void; onAdd: () => void; t: Translate;
+  onSelect: (id: string) => void; onAdd: () => void; onDelete: (id: string) => void; t: Translate;
 }) {
   return <div className="pne-popup-library">
     <button type="button" className="pne-primary" onClick={onAdd}>{t("New shared popup")}</button>
     <p className="pne-field-help">{t("Edit once to update every hotspot that uses this popup.")}</p>
-    {(project.popups ?? []).map((popup) => <button type="button" key={popup.id} aria-pressed={selectedId === popup.id} onClick={() => onSelect(popup.id)}>
-      <span>{popup.title || t("Untitled popup")}</span>
-      <small>{t("References")}: {popupReferences(project, popup.id).length}</small>
-    </button>)}
+    {(project.popups ?? []).map((popup) => {
+      const references = popupReferences(project, popup.id).length;
+      const title = popup.title || t("Untitled popup");
+      return <div key={popup.id} className="pne-popup-row">
+        <button type="button" className="pne-popup-select" aria-pressed={selectedId === popup.id} onClick={() => onSelect(popup.id)}>
+          <span>{title}</span>
+          <small>{t("References")}: {references}</small>
+        </button>
+        <button type="button" className="pne-scene-delete"
+          aria-label={`${t("Delete popup")}: ${title}`}
+          title={t("Delete popup")}
+          onClick={() => onDelete(popup.id)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+          </svg>
+        </button>
+      </div>;
+    })}
   </div>;
 }
 
@@ -42,11 +56,11 @@ export function PopupInspector({ popup, project, onChange, onBegin, onEnd, onPic
       <p className="pne-field-help">{t("Shared content is saved in project.json. Media files are included when exporting a project package.")}</p>
       <div className="pne-button-grid">
         <button type="button" onClick={onDuplicate}>{t("Duplicate popup")}</button>
-        <button type="button" disabled={refs.length > 0} onClick={onDelete}>{t("Delete popup")}</button>
+        <button type="button" onClick={onDelete}>{t("Delete popup")}</button>
       </div>
       {refs.length ? <div className="pne-popup-references">
-        <p>{t("Unlink this popup from its hotspots before deleting it.")}</p>
-        {refs.map((ref) => <button type="button" key={`${ref.sceneId}:${ref.hotspotId}`} onClick={() => onReference(ref.sceneId, ref.hotspotId)}>{ref.label}</button>)}
+        <p>{t("Deleting this popup also removes its hotspot actions. You can undo the deletion.")}</p>
+        {refs.map((ref) => <button type="button" key={`${ref.sceneId}:${ref.hotspotId}:${ref.trigger}`} onClick={() => onReference(ref.sceneId, ref.hotspotId)}>{ref.label}</button>)}
       </div> : null}
     </div>
     {popup.blocks.map((block, index) => <fieldset key={block.id} className="pne-popup-block">

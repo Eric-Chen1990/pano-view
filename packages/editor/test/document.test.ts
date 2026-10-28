@@ -260,7 +260,7 @@ test("empty authoring sessions are valid drafts but cannot export; invalid refer
   assert.throws(() => exportDocument(geometry), /edges cannot cross/i);
 });
 
-test("shared content survives empty authoring, scene deletion and history, while referenced popup deletion is blocked", async () => {
+test("shared content survives empty authoring, scene deletion and history, while popup deletion clears references", async () => {
   const { removePopup, popupReferences } = await import("../src/document");
   const popup = { id: "story", title: "Story", blocks: [{ id: "words", type: "text" as const, text: "Original" }] };
   const source: PanoProjectDefinition = {
@@ -270,7 +270,10 @@ test("shared content survives empty authoring, scene deletion and history, while
     ] }],
   };
   assert.equal(popupReferences(source, "story").length, 2);
-  assert.throws(() => removePopup(source, "story"));
+  const deleted = removePopup(source, "story");
+  assert.deepEqual(deleted.popups, []);
+  assert.equal(popupReferences(deleted, "story").length, 0);
+  assert.ok(deleted.scenes[0]!.hotspots!.every((hotspot) => hotspot.action === undefined));
   const history = new DocumentHistory(readDocument(source));
   history.commit(readDocument({ ...history.current, popups: [{ ...popup, title: "Updated" }] }));
   assert.equal(history.undo().popups?.[0]?.title, "Story");
@@ -279,6 +282,39 @@ test("shared content survives empty authoring, scene deletion and history, while
   assert.equal(empty.popups?.[0]?.title, "Updated");
   assert.throws(() => exportDocument(empty));
   assert.deepEqual(removePopup(empty, "story").popups, []);
+});
+
+test("popup deletion clears all scene triggers and shadowed legacy references in one undo step", async () => {
+  const { removePopup, popupReferences } = await import("../src/document");
+  const source: PanoProjectDefinition = {
+    schemaVersion: 1,
+    popups: [{ id: "remove", title: "Remove", blocks: [] }, { id: "keep", title: "Keep", blocks: [] }],
+    scenes: ["a", "b"].map((id) => ({ id, source: { viewerConfig: config }, hotspots: [
+      { id: "all", type: "text", text: "All", ...point, events: {
+        click: { type: "popup", popupId: "remove" },
+        pointerenter: { type: "popup", popupId: "remove" },
+        pointerleave: { type: "popup", popupId: "remove" },
+      } },
+      { id: "shadowed", type: "text", text: "Shadowed", ...point,
+        action: { type: "popup", popupId: "remove" },
+        events: { click: { type: "popup", popupId: "keep" }, pointerenter: { type: "scene", sceneId: "a" } } },
+    ] })),
+  };
+  const before = structuredClone(source);
+  const history = new DocumentHistory(source);
+  history.commit(removePopup(history.current, "remove"));
+  assert.deepEqual(source, before);
+  assert.deepEqual(history.current.popups, [source.popups![1]]);
+  assert.equal(popupReferences(history.current, "remove").length, 0);
+  for (const scene of history.current.scenes) {
+    assert.equal(scene.hotspots![0]!.events, undefined);
+    assert.equal(scene.hotspots![1]!.action, undefined);
+    assert.deepEqual(scene.hotspots![1]!.events, source.scenes[0]!.hotspots![1]!.events);
+  }
+  assert.doesNotThrow(() => exportDocument(history.current));
+  const deleted = history.current;
+  assert.deepEqual(history.undo(), source);
+  assert.deepEqual(history.redo(), deleted);
 });
 
 test("popup drafts permit incomplete media but export rejects it and never rejects URL-like prose", () => {

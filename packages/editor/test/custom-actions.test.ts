@@ -14,9 +14,11 @@ test("action forms validate required fields, false/zero, ranges and enums withou
   assert.equal(customActionIssue({ type: "custom", actionId: "unknown" }, definitions), undefined);
   assert.match(exportDocument(project), /blob:do-not-rewrite/);
 });
-test("hover references participate in deletion protection, atomic cleanup and history", () => {
+test("hover references participate in atomic deletion cleanup and history", () => {
   assert.equal(popupReferences(project, "info")[0]!.trigger, "pointerleave");
-  assert.throws(() => removePopup(project, "info"));
+  const withoutPopup = removePopup(project, "info");
+  assert.equal(withoutPopup.scenes[0]!.hotspots![0]!.events!.pointerleave, undefined);
+  assert.deepEqual(withoutPopup.scenes[0]!.hotspots![0]!.events!.click, project.scenes[0]!.hotspots![0]!.events!.click);
   const withSecond = { ...project, scenes: [...project.scenes, { ...project.scenes[0]!, id: "second" }] };
   const history = new DocumentHistory(withSecond); history.commit(removeScene(withSecond, "room"));
   assert.equal(history.current.scenes[0]!.hotspots![0]!.events!.pointerenter, undefined);

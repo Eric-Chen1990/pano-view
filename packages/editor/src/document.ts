@@ -230,6 +230,21 @@ export function popupReferences(project: PanoProjectDefinition, popupId: string)
   })));
 }
 export function removePopup(project: PanoProjectDefinition, popupId: string): PanoProjectDefinition {
-  if (popupReferences(project, popupId).length) throw new Error("Unlink this popup from its hotspots before deleting it.");
-  return { ...project, popups: project.popups?.filter((popup) => popup.id !== popupId) };
+  return {
+    ...project,
+    popups: project.popups?.filter((popup) => popup.id !== popupId),
+    scenes: project.scenes.map((scene) => ({
+      ...scene,
+      hotspots: scene.hotspots?.map((hotspot) => {
+        let next = hotspot;
+        for (const trigger of projectHotspotTriggers) {
+          const action = hotspotAction(next, trigger);
+          if (action?.type === "popup" && action.popupId === popupId) next = setHotspotAction(next, trigger);
+        }
+        // Remove a shadowed legacy reference too.
+        if (next.action?.type === "popup" && next.action.popupId === popupId) { next = { ...next }; delete next.action; }
+        return next;
+      }),
+    })),
+  };
 }
