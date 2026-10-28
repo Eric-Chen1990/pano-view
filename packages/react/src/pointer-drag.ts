@@ -44,6 +44,10 @@ export function pointerReleaseVelocity(
 /** A fixed world ray, rather than accumulated rotations, makes paths reversible. */
 export class PointerDragAnchor {
   private readonly anchor: Vector3;
+  private readonly baseAzimuth: number;
+  private readonly baseElevation: number;
+  /** The press can lie past a pole, where only the supplementary pitch root matches the view. */
+  private readonly useSupplementary: boolean;
   private readonly local = new Vector3();
   private readonly rotation = new Euler(0, 0, 0, "YXZ");
 
@@ -53,9 +57,15 @@ export class PointerDragAnchor {
     readonly rect: Rect,
     private readonly projection: PerspectiveCamera,
   ) {
-    this.anchor = this.ray(start).clone().applyEuler(this.rotation.set(
+    const startRay = this.ray(start).clone();
+    this.baseAzimuth = Math.atan2(startRay.x, -startRay.z);
+    this.baseElevation = Math.atan2(startRay.y, -startRay.z);
+    this.anchor = startRay.clone().applyEuler(this.rotation.set(
       MathUtils.degToRad(origin.pitch), MathUtils.degToRad(-origin.yaw), 0, "YXZ",
     ));
+    const originPitch = MathUtils.degToRad(origin.pitch);
+    const roots = this.pitchRoots(startRay, originPitch);
+    this.useSupplementary = Math.abs(roots.supplementary - originPitch) + 1e-6 < Math.abs(roots.principal - originPitch);
   }
 
   private ray(point: Point): Vector3 {
@@ -66,6 +76,22 @@ export class PointerDragAnchor {
     ).applyMatrix4(this.projection.projectionMatrixInverse).normalize();
   }
 
+  /** Pitch roots of the level-camera constraint. The supplementary root is unwrapped toward the press. */
+  private pitchRoots(ray: Vector3, originPitch: number): { principal: number; supplementary: number } {
+    const latitude = Math.asin(MathUtils.clamp(
+      this.anchor.y / Math.max(Math.hypot(ray.y, ray.z), 1e-12),
+      -1,
+      1,
+    ));
+    const offset = Math.atan2(ray.y, -ray.z);
+    const principal = latitude - offset;
+    const turned = Math.PI - latitude - offset;
+    return {
+      principal,
+      supplementary: originPitch + Math.atan2(Math.sin(turned - originPitch), Math.cos(turned - originPitch)),
+    };
+  }
+
   solve(point: Point, speed = DEFAULT_POINTER_DRAG_SPEED, invert = false): { yaw: number; pitch: number } {
     const multiplier = (Number.isFinite(speed) && speed >= 0 ? speed : DEFAULT_POINTER_DRAG_SPEED) /
       DEFAULT_POINTER_DRAG_SPEED * (invert ? -1 : 1);
@@ -74,20 +100,29 @@ export class PointerDragAnchor {
       x: this.start.x + (point.x - this.start.x) * multiplier,
       y: this.start.y + (point.y - this.start.y) * multiplier,
     });
-    const latitude = Math.asin(MathUtils.clamp(this.anchor.y / Math.max(Math.hypot(ray.y, ray.z), 1e-12), -1, 1));
-    const offset = Math.atan2(ray.y, -ray.z);
     const originPitch = MathUtils.degToRad(this.origin.pitch);
-    // Both solutions are valid near the poles. Select the branch of the initial pose.
-    const candidates = [latitude - offset, Math.PI - latitude - offset, -Math.PI - latitude - offset];
-    let pitch = candidates[0]!;
-    let distance = Infinity;
-    for (const candidate of candidates) {
-      const bounded = MathUtils.clamp(candidate, -Math.PI / 2, Math.PI / 2);
-      const nextDistance = Math.abs(candidate - bounded) * 10 + Math.abs(bounded - originPitch);
-      if (nextDistance < distance) { pitch = bounded; distance = nextDistance; }
-    }
-    const z = Math.sin(pitch) * ray.y + Math.cos(pitch) * ray.z;
-    const yaw = MathUtils.radToDeg(Math.atan2(this.anchor.x, -this.anchor.z) - Math.atan2(ray.x, -z));
+    const roots = this.pitchRoots(ray, originPitch);
+    // Keep the root chosen at the press. Switching toward the original pitch flips the view.
+    const exactPitch = MathUtils.clamp(
+      this.useSupplementary ? roots.supplementary : roots.principal,
+      -Math.PI / 2,
+      Math.PI / 2,
+    );
+    const stablePitch = originPitch - (Math.atan2(ray.y, -ray.z) - this.baseElevation);
+    // A grabbed point near a pole makes point-lock pitch and yaw swing as the pointer passes it.
+    const fromPole = Math.asin(Math.min(1, Math.hypot(this.anchor.x, this.anchor.z)));
+    const pointerLock = MathUtils.smoothstep(fromPole, MathUtils.degToRad(8), MathUtils.degToRad(18));
+    const pitchTurn = Math.atan2(Math.sin(exactPitch - stablePitch), Math.cos(exactPitch - stablePitch));
+    const pitch = MathUtils.clamp(
+      pointerLock >= 1 ? exactPitch : stablePitch + pointerLock * pitchTurn,
+      -Math.PI / 2,
+      Math.PI / 2,
+    );
+    const pitchedZ = Math.sin(exactPitch) * ray.y + Math.cos(exactPitch) * ray.z;
+    const exactYaw = Math.atan2(this.anchor.x, -this.anchor.z) - Math.atan2(ray.x, -pitchedZ);
+    const stableYaw = MathUtils.degToRad(this.origin.yaw) + Math.atan2(ray.x, -ray.z) - this.baseAzimuth;
+    const yawTurn = Math.atan2(Math.sin(exactYaw - stableYaw), Math.cos(exactYaw - stableYaw));
+    const yaw = MathUtils.radToDeg(stableYaw + pointerLock * yawTurn);
     return { yaw: normalizeViewYaw(yaw - this.origin.yaw), pitch: MathUtils.radToDeg(pitch) - this.origin.pitch };
   }
 }

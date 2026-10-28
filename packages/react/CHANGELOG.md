@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.3
+
+### Patch Changes
+
+- Keep panorama dragging continuous when the pointer crosses a pole, including while the camera is aimed at one.
+
 ## 3.6.2
 
 ### Patch Changes
