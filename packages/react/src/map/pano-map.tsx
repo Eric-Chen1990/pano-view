@@ -62,6 +62,12 @@ export type PanoMapProps = {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** Extra chrome rendered above the map surface. */
   renderChrome?: (controls: ReactNode) => ReactNode;
+  /**
+   * Opening zoom relative to the contain-fit scale.
+   * Clamped to `[1, maxScale]`. Applies after the image is measured and recenters.
+   * Resets only when this value or interaction mode changes.
+   */
+  initialScale?: number;
 };
 
 type DragState =
@@ -225,6 +231,7 @@ export function PanoMap({
   collapsed: controlledCollapsed,
   onCollapsedChange,
   renderChrome,
+  initialScale,
 }: PanoMapProps) {
   const reactId = useId().replace(/:/g, "");
   const view = useMapView(controlledView);
@@ -238,11 +245,19 @@ export function PanoMap({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [uncontrolledCollapsed, setUncontrolledCollapsed] = useState(false);
   const dragRef = useRef<DragState | null>(null);
+  const initialViewKeyRef = useRef<string | null>(null);
   const spots = map.spots;
   const iconSize = map.iconSize ?? DEFAULT_ICON_SIZE;
   const interaction = map.interaction ?? "fixed";
   const gestureZoom = interaction === "zoom";
   const maxScale = Math.max(MIN_SCALE, map.maxScale ?? DEFAULT_MAX_SCALE);
+  const resolvedInitialScale = Math.min(
+    maxScale,
+    Math.max(
+      MIN_SCALE,
+      Number.isFinite(initialScale) ? (initialScale as number) : MIN_SCALE,
+    ),
+  );
   // Zoom buttons only apply when interaction allows zooming.
   const zoomControls =
     gestureZoom && (showZoomControls ?? map.controls?.zoom === true);
@@ -316,6 +331,7 @@ export function PanoMap({
 
   useEffect(() => {
     if (!gestureZoom) {
+      initialViewKeyRef.current = null;
       setScale(1);
       setPan({ x: 0, y: 0 });
       return;
@@ -328,6 +344,36 @@ export function PanoMap({
       return next;
     });
   }, [clampPan, gestureZoom, maxScale]);
+
+  // Apply opening zoom after the image and container are measured. Reset only
+  // when initialScale or interaction mode changes; leave later user zoom alone.
+  useEffect(() => {
+    if (!gestureZoom) return;
+    if (!(fit.width > 0) || !(fit.height > 0)) return;
+    if (!(size.width > 0) || !(size.height > 0)) return;
+    const key = `${interaction}:${initialScale ?? MIN_SCALE}`;
+    if (initialViewKeyRef.current === key) return;
+    initialViewKeyRef.current = key;
+    const pivot = { x: size.width / 2, y: size.height / 2 };
+    const nextPan = {
+      x: pivot.x - (pivot.x - fit.left) * resolvedInitialScale - fit.left,
+      y: pivot.y - (pivot.y - fit.top) * resolvedInitialScale - fit.top,
+    };
+    setScale(resolvedInitialScale);
+    setPan(clampPan(resolvedInitialScale, nextPan));
+  }, [
+    clampPan,
+    fit.height,
+    fit.left,
+    fit.top,
+    fit.width,
+    gestureZoom,
+    initialScale,
+    interaction,
+    resolvedInitialScale,
+    size.height,
+    size.width,
+  ]);
 
   const applyZoom = useCallback(
     (nextScale: number, origin?: { x: number; y: number }) => {

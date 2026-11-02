@@ -293,7 +293,11 @@ An optional project-level `map` places scene spots on one floor image. Projects 
 
 `presentation.mode` is `"docked"` (the default) or `"dialog"`. Both accept `corner` (`top-left`, `top-right`, `bottom-left`, or `bottom-right`; default `bottom-left`), `offsetX` and `offsetY` (default 16), plus `width` and `height`. A docked panel defaults to 220×160. Dialog mode docks a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it.
 
-Mount `PanoMapOverlay` from `PanoViewer.renderOverlay`, and pass the same `activeSceneId` you pass to `ProjectScenes`. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer. `PanoMap` is the surface alone, for a host-owned frame. `mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports the next spots. Visitor playback stays on the default `mode="view"`.
+The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` → individual props. Spot geometry and sector styling stay in the document.
+
+#### Mounting `PanoMapOverlay`
+
+Mount it from `PanoViewer.renderOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer. `PanoMap` is the surface alone, for a host-owned frame.
 
 ```tsx
 import { useState } from "react";
@@ -321,7 +325,82 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. Run `pnpm dev` and open `/map` for the playground. Authoring the same document is described in the [editor floor-plan section](../editor/README.md#floor-plan).
+#### Size, corner, and inset
+
+- `presentation` — `"docked"` | `"dialog"` (defaults from the document, otherwise `"docked"`).
+- `corner` — `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"` (default `"bottom-left"`).
+- `width` / `height` — docked panel size, or the dialog launcher size, in CSS pixels. Docked defaults to 220×160; the dialog launcher defaults to 48×48.
+- `offsetX` / `offsetY` — inset from the chosen corner in CSS pixels (default 16).
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  presentation="docked"
+  corner="bottom-right"
+  width={280}
+  height={200}
+  offsetX={20}
+  offsetY={20}
+/>
+```
+
+#### Dialog mode
+
+Dialog mode docks a launcher button and opens the map in a viewer-local modal. Launcher size uses `width` / `height` (and `corner` / offsets). The dialog body uses a separate pair:
+
+- `dialogWidth` / `dialogHeight` — preferred dialog size in CSS pixels (default 720×520). Both are clamped to the viewer with a 16 px margin on each side.
+- `openLabel` / `closeLabel` / `title` — launcher accessible name, close button label, and dialog heading (defaults `"Map"`, `"Close"`, `"Map"`).
+
+Choosing a spot closes the dialog.
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  presentation="dialog"
+  corner="bottom-left"
+  width={52}
+  height={52}
+  dialogWidth={640}
+  dialogHeight={480}
+  openLabel="Floor plan"
+  title="Floor plan"
+  closeLabel="Close"
+/>
+```
+
+#### Zoom and controls
+
+These props override the map document for the current mount:
+
+- `interaction` — `"fixed"` | `"zoom"`.
+- `maxScale` — maximum multiple of the contain-fit size; values below 1 are treated as 1.
+- `initialScale` — opening zoom relative to the contain-fit size, clamped to `[1, maxScale]`. View state only; not written back to the document. Applies after the image is measured and recenters. Resets only when `initialScale` or `interaction` changes; later wheel and drag keep the user's view. Shrinking `maxScale` only clamps the current scale.
+- `showZoomControls` / `showCollapseControl` — force zoom or collapse chrome on or off.
+- `iconSize` — marker edge in CSS pixels.
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  interaction="zoom"
+  maxScale={4}
+  initialScale={1.5}
+  showZoomControls
+  showCollapseControl
+  iconSize={32}
+/>
+```
+
+#### Edit mode
+
+`mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports the next spots. Visitor playback stays on the default `mode="view"`. `editorSurface` enlarges the panel for authoring; pass `width` / `height` to size that surface, otherwise it scales with the viewer.
+
+Run `pnpm dev` and open `/map` for the playground. Authoring the same document is described in the [editor floor-plan section](../editor/README.md#floor-plan).
 
 The schema remains version 1 and old projects remain valid. Projects using new actions or a floor-plan map require a viewer that supports them. `parsePanoProject(input, { draft: true })` is for authoring only: it permits empty scene lists, unfinished popup titles/media, and an empty floor-plan image. Loading, saving and package export validate strictly. Host applications may save the same document in a database or map it to tables; the viewer has no database connection.
 

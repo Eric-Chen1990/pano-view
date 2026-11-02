@@ -289,7 +289,11 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `presentation.mode` 为 `"docked"`（默认）或 `"dialog"`。两者都接受 `corner`（`top-left`、`top-right`、`bottom-left`、`bottom-right`，默认 `bottom-left`）、`offsetX` 与 `offsetY`（默认 16），以及 `width` 和 `height`。停靠面板默认 220×160。对话框模式停靠一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。
 
-在 `PanoViewer.renderOverlay` 中挂载 `PanoMapOverlay`，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`。`PanoMap` 只负责图面，由宿主自己安排外框。`mode="edit"` 用于编辑：设置 `placementSceneId` 后点击地图会新增点位，其 `heading` 取当前 yaw 的相反数，因此在该 yaw 下扇形指向图像上方；拖动点位改变位置，拖动扇形设置 `heading`。`onEditChange` 返回更新后的点位。访客播放保持默认的 `mode="view"`。
+文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride` → 单独 props。点位几何与扇形样式仍写在文档里。
+
+#### 挂载 `PanoMapOverlay`
+
+在 `PanoViewer.renderOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`。`PanoMap` 只负责图面，由宿主自己安排外框。
 
 ```tsx
 import { useState } from "react";
@@ -317,7 +321,82 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。运行 `pnpm dev` 并打开 `/map` 可查看示例。同一份文档的编辑方式见[编辑器平面图](../editor/README.zh-CN.md#平面图)。
+#### 尺寸、角落与边距
+
+- `presentation` — `"docked"` | `"dialog"`（默认取自文档，否则为 `"docked"`）。
+- `corner` — `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"`（默认 `"bottom-left"`）。
+- `width` / `height` — 停靠面板尺寸，或对话框打开按钮尺寸，单位为 CSS 像素。停靠默认 220×160；打开按钮默认 48×48。
+- `offsetX` / `offsetY` — 相对所选角落的边距，单位为 CSS 像素（默认 16）。
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  presentation="docked"
+  corner="bottom-right"
+  width={280}
+  height={200}
+  offsetX={20}
+  offsetY={20}
+/>
+```
+
+#### 对话框模式
+
+对话框模式停靠一个打开按钮，并在查看器内部打开地图。打开按钮尺寸使用 `width` / `height`（以及 `corner` 与边距）。对话框本体使用另一组尺寸：
+
+- `dialogWidth` / `dialogHeight` — 期望的对话框宽高，单位为 CSS 像素（默认 720×520）。两者都会按查看器可用区域夹紧，四周各留 16 像素边距。
+- `openLabel` / `closeLabel` / `title` — 打开按钮无障碍名称、关闭按钮文案与对话框标题（默认分别为 `"Map"`、`"Close"`、`"Map"`）。
+
+选中点位后关闭对话框。
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  presentation="dialog"
+  corner="bottom-left"
+  width={52}
+  height={52}
+  dialogWidth={640}
+  dialogHeight={480}
+  openLabel="Floor plan"
+  title="Floor plan"
+  closeLabel="Close"
+/>
+```
+
+#### 缩放与控件
+
+下列 props 仅覆盖本次挂载，不写回地图文档：
+
+- `interaction` — `"fixed"` | `"zoom"`。
+- `maxScale` — 相对适配尺寸的最大倍数；小于 1 时按 1 处理。
+- `initialScale` — 打开时的缩放倍数，相对适配尺寸，限制在 `[1, maxScale]`。这是视图状态，不会写回文档。图像测量完成后居中应用。仅在 `initialScale` 或 `interaction` 变化时重置；之后滚轮与拖拽保持用户操作。`maxScale` 变小时只夹紧当前缩放。
+- `showZoomControls` / `showCollapseControl` — 强制显示或隐藏缩放、收起控件。
+- `iconSize` — 标记边长，单位为 CSS 像素。
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  interaction="zoom"
+  maxScale={4}
+  initialScale={1.5}
+  showZoomControls
+  showCollapseControl
+  iconSize={32}
+/>
+```
+
+#### 编辑模式
+
+`mode="edit"` 用于编辑：设置 `placementSceneId` 后点击地图会新增点位，其 `heading` 取当前 yaw 的相反数，因此在该 yaw 下扇形指向图像上方；拖动点位改变位置，拖动扇形设置 `heading`。`onEditChange` 返回更新后的点位。访客播放保持默认的 `mode="view"`。`editorSurface` 会放大编辑面板；传入 `width` / `height` 可指定尺寸，否则按查看器比例计算。
+
+运行 `pnpm dev` 并打开 `/map` 可查看示例。同一份文档的编辑方式见[编辑器平面图](../editor/README.zh-CN.md#平面图)。
 
 继续使用 schemaVersion 1，旧项目仍可读取。包含新动作或平面图的项目需使用支持它们的查看器。`parsePanoProject(input, { draft: true })` 仅用于编辑草稿，允许空场景列表、未完成的弹窗标题/媒体，以及空的平面图路径；加载、保存和导出仍严格校验。宿主可将同一份文档存入数据库或映射到表，查看器不直接连接数据库。
 

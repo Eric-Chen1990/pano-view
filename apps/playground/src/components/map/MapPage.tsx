@@ -9,7 +9,7 @@ import {
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "../../cn";
 import {
   pageHeadingTitleClassName,
@@ -49,23 +49,6 @@ const DEMO_MAP: PanoMapDefinition = {
   ],
 };
 
-function withPresentation(
-  map: PanoMapDefinition,
-  mode: PresentationMode,
-): PanoMapDefinition {
-  return {
-    ...map,
-    presentation: {
-      mode,
-      corner: "bottom-left",
-      width: mode === "dialog" ? 52 : 260,
-      height: mode === "dialog" ? 52 : 180,
-      offsetX: 16,
-      offsetY: 16,
-    },
-  };
-}
-
 export function MapPage() {
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
@@ -95,10 +78,7 @@ export function MapPage() {
     return () => controller.abort();
   }, []);
 
-  const map = useMemo(
-    () => (project?.map ? withPresentation(project.map, presentation) : undefined),
-    [project?.map, presentation],
-  );
+  const map = project?.map;
 
   return (
     <main className={shellClassName}>
@@ -155,6 +135,14 @@ export function MapPage() {
                   key={presentation}
                   map={map}
                   activeSceneId={activeSceneId}
+                  presentation={presentation}
+                  corner="bottom-left"
+                  width={presentation === "dialog" ? 52 : 260}
+                  height={presentation === "dialog" ? 52 : 180}
+                  offsetX={16}
+                  offsetY={16}
+                  dialogWidth={640}
+                  dialogHeight={480}
                   onSelectScene={(sceneId) => {
                     setActiveSceneId(sceneId);
                     setStatus(`Map selected: ${sceneId}`);
