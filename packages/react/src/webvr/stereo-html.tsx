@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { Group, Vector3 } from "three";
 import { subscribeWebVRHost, WebVRRuntimeContext } from "./host";
+import { usePortraitOrientation } from "./orientation";
 import {
   isFallbackStereoMode,
   projectStereoHtmlPosition,
@@ -123,7 +124,19 @@ function ProjectedHtml({
 
 /** Labels project into both eye viewports in MobileVR / Simulated VR. */
 export function PanoHtml(props: PanoHtmlProps) {
+  const runtime = useContext(WebVRRuntimeContext);
+  const host = runtime?.host ?? null;
+  const mode = useSyncExternalStore(
+    (onStoreChange) =>
+      host ? subscribeWebVRHost(host, onStoreChange) : () => undefined,
+    () => host?.snapshot.mode ?? null,
+    () => null,
+  );
+  const portrait = usePortraitOrientation();
   const stereoView = useFallbackStereoView();
+  if (mode === "mobilevr" && portrait) {
+    return null;
+  }
   return stereoView ? (
     <>
       <ProjectedHtml {...props} stereoView={stereoView} eye="left" />

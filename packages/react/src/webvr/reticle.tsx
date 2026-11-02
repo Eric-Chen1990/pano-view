@@ -15,6 +15,8 @@ import {
 const CENTER_NDC = new Vector2(0, 0);
 const HUD_DISTANCE = 2;
 const RETICLE_SCALE = 1;
+/** MobileVR's wide field of view shrinks a world-size crosshair to a few pixels. */
+export const MOBILE_VR_RETICLE_SCALE = 3;
 const RETICLE_RENDER_ORDER = 100_000;
 const CROSSHAIR_LENGTH = 0.044;
 const CROSSHAIR_THICKNESS = 0.008;
@@ -126,9 +128,11 @@ function resolveDwellMs(value: number | undefined): number {
 
 export function WebVRReticle({
   dwellMs,
+  scale = RETICLE_SCALE,
   visible,
 }: {
   dwellMs?: number;
+  scale?: number;
   visible: boolean;
 }) {
   const groupRef = useRef<Group>(null);
@@ -218,7 +222,7 @@ export function WebVRReticle({
       .copy(activeCamera.position)
       .addScaledVector(directionRef.current, HUD_DISTANCE);
     group.quaternion.copy(activeCamera.quaternion);
-    group.scale.setScalar(RETICLE_SCALE);
+    group.scale.setScalar(scale);
   });
 
   return (

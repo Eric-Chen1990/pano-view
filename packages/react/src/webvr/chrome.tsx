@@ -1,10 +1,11 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
   subscribeWebVRHost,
   type WebVRHost,
 } from "./host";
 import { DEFAULT_WEBVR_CHROME_APPEARANCE } from "./appearance";
+import { usePortraitOrientation } from "./orientation";
 import { cycleWebVRProfileId, WEBVR_PROFILES } from "./profiles";
 import type { WebVRChromeAppearance, WebVRSettings } from "./types";
 
@@ -69,7 +70,6 @@ function SetupPanel({
     color: appearance.color,
     fontSize: appearance.fontSize,
   };
-
   return (
     <div
       aria-label="Mobile VR setup"
@@ -152,38 +152,95 @@ function SetupPanel({
   );
 }
 
+function SessionActions({
+  appearance,
+  host,
+  mode,
+}: {
+  appearance: ReturnType<typeof resolveAppearance>;
+  host: WebVRHost;
+  mode: NonNullable<WebVRHost["snapshot"]["mode"]>;
+}) {
+  return (
+    <div className="pano-webvr-toolbar-actions">
+      {mode !== "webxr" ? (
+        <ChromeButton
+          appearance={appearance}
+          onClick={() => host.controller?.openSetup()}
+        >
+          VR Setup
+        </ChromeButton>
+      ) : null}
+      <ChromeButton
+        appearance={appearance}
+        onClick={() => void host.controller?.exitVR()}
+      >
+        Exit VR
+      </ChromeButton>
+    </div>
+  );
+}
+
+function RotatePhoneIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pano-webvr-portrait-icon"
+      fill="none"
+      height="48"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 48 48"
+      width="48"
+    >
+      <rect height="28" rx="3" width="18" x="15" y="6" />
+      <path d="M10 34c-3-3-4-7-3-11" />
+      <path d="M8 36l2-2 2 2" />
+      <path d="M38 14c3 3 4 7 3 11" />
+      <path d="M40 12l-2 2-2-2" />
+    </svg>
+  );
+}
+
+function PortraitPrompt() {
+  return (
+    <div className="pano-webvr-portrait-prompt" role="status">
+      <RotatePhoneIcon />
+      <p className="pano-webvr-portrait-text">Rotate your phone to landscape</p>
+    </div>
+  );
+}
+
 export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
   useSyncExternalStore(
     (listener) => subscribeWebVRHost(host, listener),
     () => host.revision,
     () => host.revision,
   );
+  const portrait = usePortraitOrientation();
   const { available, chrome, mode, settings, setupOpen } = host.snapshot;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (chrome === false || !host.controller) {
     return null;
   }
   const appearance = resolveAppearance(chrome);
+  const showPortraitPrompt = mode === "mobilevr" && mounted && portrait;
+
+  if (showPortraitPrompt) {
+    return <PortraitPrompt />;
+  }
 
   return (
     <>
       <div className="pano-webvr-toolbar">
         {mode ? (
-          <div className="pano-webvr-toolbar-actions">
-            {mode !== "webxr" ? (
-              <ChromeButton
-                appearance={appearance}
-                onClick={() => host.controller?.openSetup()}
-              >
-                VR Setup
-              </ChromeButton>
-            ) : null}
-            <ChromeButton
-              appearance={appearance}
-              onClick={() => void host.controller?.exitVR()}
-            >
-              Exit VR
-            </ChromeButton>
-          </div>
+          <SessionActions appearance={appearance} host={host} mode={mode} />
         ) : (
           <ChromeButton
             appearance={appearance}
@@ -194,20 +251,13 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
         )}
       </div>
       {mode === "fake" ? (
-        <p
-          className="pano-webvr-hint"
-          style={{ color: appearance.color }}
-        >
+        <p className="pano-webvr-hint" style={{ color: appearance.color }}>
           Simulated VR Mode · Click the view to lock the mouse, then move to
           look around. Use a headset or phone for real VR.
         </p>
       ) : null}
       {setupOpen ? (
-        <SetupPanel
-          appearance={appearance}
-          host={host}
-          settings={settings}
-        />
+        <SetupPanel appearance={appearance} host={host} settings={settings} />
       ) : null}
     </>
   );
