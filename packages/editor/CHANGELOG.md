@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 1.2.0
+
+### Minor Changes
+
+- 9f0222a: Add configurable pan/scroll inertia and edge bounce for floor maps and `PanoSceneMenu`, with editor toggles for map drag motion.
+
 ## 1.1.0
 
 ### Minor Changes

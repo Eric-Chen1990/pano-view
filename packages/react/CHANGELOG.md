@@ -1,5 +1,14 @@
 # @ericchen1990/pano-view
 
+## 3.9.0
+
+### Minor Changes
+
+- 9f0222a: Add configurable pan/scroll inertia and edge bounce for floor maps and `PanoSceneMenu`, with editor toggles for map drag motion.
+- e5cc6af: Add runtime size, position, dialog, and zoom props on `PanoMapOverlay`, plus `initialScale` on `PanoMap`, with clearer floor-plan usage docs.
+- aa67c00: Add `loop` to `PanoSceneMenu` for wrapping previous/next, draw the active selection ring above the thumbnail, and support `appearance.labelAlign` for scene title alignment.
+- cfb0fe5: Add `PanoSceneMenu`, a scrollable thumbnail scene picker for `renderOverlay`, with placement, `align` (default center), inset, size, collapsible slide-off chrome with an inner-edge toggle, end arrows, and customizable appearance.
+
 ## 3.8.0
 
 ### Minor Changes
