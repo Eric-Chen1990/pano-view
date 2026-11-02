@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.7.0
+
+### Minor Changes
+
+- 0448aab: Add an iPhone landscape fullscreen fallback that scrolls Safari’s URL and toolbar away when the Fullscreen API is unavailable, including swipe prompts, viewer/VR session wiring, and touch passthrough while bars are visible.
+
 ## 3.6.7
 
 ### Patch Changes
