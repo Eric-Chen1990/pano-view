@@ -967,17 +967,19 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
         </div>
-        <PanoModalHostContext.Provider value={modalHost}>
-          <PanoOverlayContext.Provider value={overlayContext}>
-            <div
-              data-pano-overlay=""
-              ref={setPortalContainer}
-              style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
-            >
-              {renderOverlay?.(overlayContext)}
-            </div>
-          </PanoOverlayContext.Provider>
-        </PanoModalHostContext.Provider>
+        <PanoEventBusContext.Provider value={eventBus}>
+          <PanoModalHostContext.Provider value={modalHost}>
+            <PanoOverlayContext.Provider value={overlayContext}>
+              <div
+                data-pano-overlay=""
+                ref={setPortalContainer}
+                style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
+              >
+                {renderOverlay?.(overlayContext)}
+              </div>
+            </PanoOverlayContext.Provider>
+          </PanoModalHostContext.Provider>
+        </PanoEventBusContext.Provider>
       </div>
     );
   },

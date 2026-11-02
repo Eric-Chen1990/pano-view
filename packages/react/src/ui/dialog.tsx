@@ -10,7 +10,13 @@ export type PanoDialogRootProps = {
 
 export function PanoDialogRoot({ open, onOpenChange, children }: PanoDialogRootProps) {
   usePanoModal(open);
-  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>{children}</DialogPrimitive.Root>;
+  // Keep modality inside the viewer overlay. Radix modal mode would lock page
+  // scroll and disable the host document; viewer input is already gated by usePanoModal.
+  return (
+    <DialogPrimitive.Root modal={false} open={open} onOpenChange={onOpenChange}>
+      {children}
+    </DialogPrimitive.Root>
+  );
 }
 
 export type PanoDialogBackdropProps = Omit<ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>, "forceMount">;

@@ -11,7 +11,7 @@ import { PanoDataError, aborted } from "./errors";
 
 export type AssetUrlContext = {
   defaultUrl: string;
-  kind: "tile" | "preview" | "hotspot";
+  kind: "tile" | "preview" | "hotspot" | "map";
   sceneId: string;
   hotspotId?: string;
 };

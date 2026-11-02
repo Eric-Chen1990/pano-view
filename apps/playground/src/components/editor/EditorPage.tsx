@@ -6,6 +6,7 @@ import {
   type PanoProjectDefinition,
 } from "@ericchen1990/pano-view/data";
 import "@ericchen1990/pano-editor/styles.css";
+import "@ericchen1990/pano-view/ui/styles.css";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
 

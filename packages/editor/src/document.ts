@@ -24,7 +24,13 @@ export function readDocument(value: unknown): PanoProjectDefinition {
   const empty = value && typeof value === "object" && "scenes" in value && Array.isArray(value.scenes) && value.scenes.length === 0;
   const input = empty ? { ...value, title: "title" in value && typeof value.title === "string" && value.title.trim() ? value.title : undefined } : value;
   const parsed = parsePanoProject(input, { draft: true });
-  return empty ? { schemaVersion: 1, scenes: [], ...(parsed.title ? { title: parsed.title } : {}), ...(parsed.popups === undefined ? {} : { popups: parsed.popups }) } : parsed;
+  return empty ? {
+    schemaVersion: 1,
+    scenes: [],
+    ...(parsed.title ? { title: parsed.title } : {}),
+    ...(parsed.popups === undefined ? {} : { popups: parsed.popups }),
+    ...(parsed.map === undefined ? {} : { map: parsed.map }),
+  } : parsed;
 }
 
 export function geometryIssue(
@@ -82,6 +88,12 @@ export function exportDocument(project: PanoProjectDefinition): string {
       if (block.type === "video" && block.poster) check(block.poster, `popups.${popup.id}.${block.id}.poster`);
     }
   }
+  if (parsed.map) {
+    check(parsed.map.image, "map.image");
+    for (const spot of parsed.map.spots) {
+      if (spot.icon) check(spot.icon, `map.spots.${spot.id}.icon`);
+    }
+  }
   return JSON.stringify(parsed, null, 2) + "\n";
 }
 
@@ -104,11 +116,18 @@ export function removeScene(
         return next;
       }),
     }));
+  const map = project.map
+    ? {
+        ...project.map,
+        spots: project.map.spots.filter((spot) => spot.sceneId !== id),
+      }
+    : undefined;
   return {
     ...project,
     scenes,
     initialSceneId:
       project.initialSceneId === id ? scenes[0]?.id : project.initialSceneId,
+    ...(map === undefined ? {} : { map }),
   };
 }
 
