@@ -1,28 +1,36 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { trackCta } from "../analytics";
 import { cn } from "../cn";
 import { HEADER_LINKS } from "../links";
-import { HOME_ROUTE, matchPlaygroundRoute, PLAYGROUND_ROUTES } from "../routes";
+import {
+  HOME_ROUTE,
+  matchPlaygroundRoute,
+  playgroundNavSections,
+  type PlaygroundNavGroupId,
+} from "../routes";
 
 const NAV_BREAKPOINT_PX = 960;
 
 const inlineLinkClassName =
-  "border border-transparent px-[9px] py-[7px] font-mono text-[0.64rem] tracking-[0.06em] text-[#769198] uppercase no-underline transition hover:border-[#3e6c73] hover:text-[#dcecef]";
+  "border border-transparent bg-transparent px-[9px] py-[7px] font-mono text-[0.64rem] tracking-[0.06em] text-[#769198] uppercase no-underline transition hover:border-[#3e6c73] hover:text-[#dcecef]";
 
 const inlineLinkActiveClassName =
   "border-[#3e6c73] text-[#dcecef] shadow-[inset_0_-2px_0_0_#df6b42]";
 
 const externalLinkClassName =
-  "group relative inline-flex size-9 items-center justify-center border border-transparent text-[#75cbd3] no-underline transition hover:border-[#3e6c73] hover:text-[#dcecef]";
+  "group relative inline-flex size-9 items-center justify-center border border-transparent text-[#75cbd3] no-underline transition hover:border-[#3e6c73] hover:text-[#dcecef] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 const externalLinkTooltipClassName =
   "pointer-events-none absolute top-full left-1/2 z-30 mt-1.5 -translate-x-1/2 border border-[#244047] bg-[#08191d] px-2 py-1 font-mono text-[0.62rem] tracking-[0.08em] text-[#dcecef] uppercase opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100";
 
 const menuLinkClassName =
-  "block px-3 py-2 font-mono text-[0.64rem] tracking-[0.06em] text-[#769198] uppercase no-underline transition hover:bg-[#102b31] hover:text-[#dcecef]";
+  "block px-3 py-2 font-mono text-[0.64rem] tracking-[0.06em] text-[#769198] uppercase no-underline transition hover:bg-[#102b31] hover:text-[#dcecef] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent";
 
 const menuLinkActiveClassName =
   "bg-[#102b31] text-[#dcecef] shadow-[inset_2px_0_0_0_#df6b42]";
+
+const menuPanelClassName =
+  "z-40 max-h-[min(70vh,24rem)] overflow-y-auto border border-[#3e6c73] bg-[#08191d] py-1 shadow-[0_18px_40px_rgb(0_0_0_/_0.45)]";
 
 function MenuIcon() {
   return (
@@ -60,6 +68,28 @@ function CloseIcon() {
   );
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      className={cn(
+        "size-2.5 shrink-0 opacity-70 transition-transform motion-reduce:transition-none",
+        open && "rotate-180",
+      )}
+      fill="none"
+      viewBox="0 0 12 12"
+    >
+      <path
+        d="M2.5 4.5 6 8l3.5-3.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
 function GitHubIcon() {
   return (
     <svg aria-hidden className="size-4" fill="currentColor" viewBox="0 0 16 16">
@@ -74,27 +104,6 @@ function NpmIcon() {
       <path d="M0 0v16h16V0zm13 13h-2V5H8v8H3V3h10z" />
     </svg>
   );
-}
-
-function PlaygroundLinks({
-  activePath,
-  itemClassName,
-  activeItemClassName,
-}: {
-  activePath: string;
-  itemClassName: string;
-  activeItemClassName: string;
-}) {
-  return PLAYGROUND_ROUTES.map((route) => (
-    <a
-      aria-current={activePath === route.path ? "page" : undefined}
-      className={cn(itemClassName, activePath === route.path && activeItemClassName)}
-      href={route.path}
-      key={route.path}
-    >
-      {route.navLabel}
-    </a>
-  ));
 }
 
 function ProjectLinks({ className }: { className?: string }) {
@@ -132,33 +141,63 @@ function ProjectLinks({ className }: { className?: string }) {
 
 export function SiteHeader() {
   const activeRoute = matchPlaygroundRoute(window.location.pathname);
+  const sections = playgroundNavSections();
+  const navId = useId();
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const desktopNavRef = useRef<HTMLElement>(null);
+  const openGroupIdRef = useRef<PlaygroundNavGroupId | null>(null);
+  const buttonRefs = useRef(new Map<PlaygroundNavGroupId, HTMLButtonElement>());
+  const [openGroupId, setOpenGroupId] = useState<PlaygroundNavGroupId | null>(null);
+
+  function updateOpenGroupId(next: PlaygroundNavGroupId | null) {
+    openGroupIdRef.current = next;
+    setOpenGroupId(next);
+  }
 
   useEffect(() => {
-    function closeMenu() {
+    function closeDesktop(restoreFocus: boolean) {
+      const current = openGroupIdRef.current;
+      if (!current) {
+        return;
+      }
+      openGroupIdRef.current = null;
+      setOpenGroupId(null);
+      if (restoreFocus) {
+        buttonRefs.current.get(current)?.focus();
+      }
+    }
+
+    function closeMobile() {
       detailsRef.current?.removeAttribute("open");
     }
 
     function onPointerDown(event: PointerEvent) {
       const menu = detailsRef.current;
-      if (!menu?.open) {
-        return;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) {
+        closeMobile();
       }
-      if (event.target instanceof Node && menu.contains(event.target)) {
-        return;
+      if (
+        openGroupIdRef.current &&
+        event.target instanceof Node &&
+        !desktopNavRef.current?.contains(event.target)
+      ) {
+        closeDesktop(false);
       }
-      closeMenu();
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        closeMenu();
+      if (event.key !== "Escape") {
+        return;
       }
+      closeMobile();
+      closeDesktop(true);
     }
 
     function onResize() {
       if (window.innerWidth >= NAV_BREAKPOINT_PX) {
-        closeMenu();
+        closeMobile();
+      } else {
+        closeDesktop(false);
       }
     }
 
@@ -172,8 +211,18 @@ export function SiteHeader() {
     };
   }, []);
 
+  function focusGroupButton(index: number) {
+    const next = (index + sections.length) % sections.length;
+    const id = sections[next]?.id;
+    if (!id) {
+      return;
+    }
+    updateOpenGroupId(null);
+    buttonRefs.current.get(id)?.focus();
+  }
+
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-[#244047] pb-[17px]">
+    <header className="relative z-20 flex items-center justify-between gap-3 border-b border-[#244047] pb-[17px]">
       <a
         aria-label="Pano View home"
         className="shrink-0 text-base font-extrabold tracking-[-0.06em] text-[#f5fbfc] no-underline"
@@ -183,32 +232,146 @@ export function SiteHeader() {
       </a>
       <nav
         aria-label="Playground pages"
-        className="ml-auto hidden gap-1.5 min-[960px]:flex"
+        className="hidden gap-1.5 min-[960px]:flex"
+        ref={desktopNavRef}
       >
-        <PlaygroundLinks
-          activeItemClassName={inlineLinkActiveClassName}
-          activePath={activeRoute.path}
-          itemClassName={inlineLinkClassName}
-        />
+        {sections.map((section, index) => {
+          const isCurrent = activeRoute.group === section.id;
+          const open = openGroupId === section.id;
+          const panelId = `${navId}-${section.id}`;
+          return (
+            <div className="relative" key={section.id}>
+              <button
+                aria-controls={panelId}
+                aria-expanded={open}
+                className={cn(
+                  inlineLinkClassName,
+                  "inline-flex items-center gap-1.5 whitespace-nowrap",
+                  (isCurrent || open) && inlineLinkActiveClassName,
+                )}
+                onClick={() => updateOpenGroupId(open ? null : section.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    updateOpenGroupId(section.id);
+                    const firstLinkId = `${panelId}-link-0`;
+                    requestAnimationFrame(() => document.getElementById(firstLinkId)?.focus());
+                  } else if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    focusGroupButton(index + 1);
+                  } else if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    focusGroupButton(index - 1);
+                  }
+                }}
+                ref={(node) => {
+                  if (node) {
+                    buttonRefs.current.set(section.id, node);
+                  } else {
+                    buttonRefs.current.delete(section.id);
+                  }
+                }}
+                type="button"
+              >
+                {isCurrent ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[0.58rem] text-[#769198]">{section.label}</span>
+                    <span aria-hidden className="text-[#df6b42]">
+                      /
+                    </span>
+                    <span>{activeRoute.navLabel}</span>
+                  </span>
+                ) : (
+                  section.label
+                )}
+                <ChevronIcon open={open} />
+              </button>
+              {open ? (
+                <div
+                  className={cn(
+                    menuPanelClassName,
+                    "absolute top-[calc(100%+6px)] left-0 min-w-[max(12rem,100%)]",
+                  )}
+                  id={panelId}
+                  onKeyDown={(event) => {
+                    const links = Array.from(
+                      event.currentTarget.querySelectorAll<HTMLAnchorElement>("a[href]"),
+                    );
+                    const currentIndex = links.findIndex((link) => link === document.activeElement);
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      links[Math.min(currentIndex + 1, links.length - 1)]?.focus();
+                    } else if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      if (currentIndex <= 0) {
+                        buttonRefs.current.get(section.id)?.focus();
+                      } else {
+                        links[currentIndex - 1]?.focus();
+                      }
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      updateOpenGroupId(null);
+                      buttonRefs.current.get(section.id)?.focus();
+                    }
+                  }}
+                >
+                  {section.routes.map((route, routeIndex) => (
+                    <a
+                      aria-current={activeRoute.path === route.path ? "page" : undefined}
+                      className={cn(
+                        menuLinkClassName,
+                        "whitespace-nowrap",
+                        activeRoute.path === route.path && menuLinkActiveClassName,
+                      )}
+                      href={route.path}
+                      id={`${panelId}-link-${routeIndex}`}
+                      key={route.path}
+                    >
+                      {route.navLabel}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </nav>
-      <ProjectLinks className="ml-auto min-[960px]:ml-1.5" />
+      <ProjectLinks className="ml-auto" />
       <details className="group relative min-[960px]:hidden" ref={detailsRef}>
         <summary
           aria-label="Open playground pages"
-          className="flex size-9 cursor-pointer list-none items-center justify-center border border-[#3e6c73] text-[#dcecef] transition hover:border-[#75cbd3] marker:content-none group-open:border-[#df6b42] [&::-webkit-details-marker]:hidden"
+          className="flex size-9 cursor-pointer list-none items-center justify-center border border-[#3e6c73] text-[#dcecef] transition hover:border-[#75cbd3] marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent group-open:border-[#df6b42] [&::-webkit-details-marker]:hidden"
         >
           <MenuIcon />
           <CloseIcon />
         </summary>
         <nav
           aria-label="Playground pages"
-          className="absolute right-0 z-20 mt-1.5 min-w-[13.5rem] border border-[#244047] bg-[#08191d] py-1"
+          className={cn(
+            menuPanelClassName,
+            "absolute right-0 mt-1.5 w-60",
+          )}
         >
-          <PlaygroundLinks
-            activeItemClassName={menuLinkActiveClassName}
-            activePath={activeRoute.path}
-            itemClassName={menuLinkClassName}
-          />
+          {sections.map((section, index) => (
+            <div className={cn(index > 0 && "mt-1 border-t border-[#244047] pt-1")} key={section.id}>
+              <p className="px-3 pt-1.5 pb-1 font-mono text-[0.6rem] tracking-[0.08em] text-[#75cbd3] uppercase">
+                {section.label}
+              </p>
+              {section.routes.map((route) => (
+                <a
+                  aria-current={activeRoute.path === route.path ? "page" : undefined}
+                  className={cn(
+                    menuLinkClassName,
+                    activeRoute.path === route.path && menuLinkActiveClassName,
+                  )}
+                  href={route.path}
+                  key={route.path}
+                >
+                  {route.navLabel}
+                </a>
+              ))}
+            </div>
+          ))}
         </nav>
       </details>
     </header>

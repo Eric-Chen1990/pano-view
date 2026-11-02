@@ -319,6 +319,51 @@ export function MapInspector({
             />
             <span>{t("Show zoom buttons")}</span>
           </label>
+          <label className="pne-checkbox">
+            <input
+              type="checkbox"
+              checked={map.dragMotion !== false && map.dragMotion?.inertia !== false}
+              onChange={(event) => {
+                const bounce =
+                  map.dragMotion !== false && map.dragMotion?.bounce !== false;
+                const inertia = event.target.checked;
+                if (inertia && bounce) {
+                  const { dragMotion: _removed, ...rest } = map;
+                  patch(rest);
+                  return;
+                }
+                patch({
+                  ...map,
+                  dragMotion: { inertia, bounce },
+                });
+              }}
+            />
+            <span>{t("Pan inertia")}</span>
+          </label>
+          <label className="pne-checkbox">
+            <input
+              type="checkbox"
+              checked={map.dragMotion !== false && map.dragMotion?.bounce !== false}
+              onChange={(event) => {
+                const inertia =
+                  map.dragMotion !== false && map.dragMotion?.inertia !== false;
+                const bounce = event.target.checked;
+                if (inertia && bounce) {
+                  const { dragMotion: _removed, ...rest } = map;
+                  patch(rest);
+                  return;
+                }
+                patch({
+                  ...map,
+                  dragMotion: { inertia, bounce },
+                });
+              }}
+            />
+            <span>{t("Edge bounce")}</span>
+          </label>
+          <p className="pne-field-help">
+            {t("After a pan drag, inertia keeps sliding; bounce rubber-bands past the edge.")}
+          </p>
         </>
       ) : null}
       <label className="pne-checkbox">

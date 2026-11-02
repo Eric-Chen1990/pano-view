@@ -15,6 +15,14 @@ import type {
   PanoMapSectorDefinition,
   PanoMapSpotDefinition,
 } from "../data/map";
+import {
+  constrainDragPosition,
+  integrateAxis,
+  pushSample,
+  resolveDragMotion,
+  velocityFromSamples,
+  type PointerSample,
+} from "../drag-motion";
 import type { PanoViewerState } from "../types";
 import {
   clamp01,
@@ -62,10 +70,25 @@ export type PanoMapProps = {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** Extra chrome rendered above the map surface. */
   renderChrome?: (controls: ReactNode) => ReactNode;
+  /**
+   * Opening zoom relative to the contain-fit scale.
+   * Clamped to `[1, maxScale]`. Applies after the image is measured and recenters.
+   * Resets only when this value or interaction mode changes.
+   */
+  initialScale?: number;
 };
 
 type DragState =
-  | { kind: "pan"; pointerId: number; originX: number; originY: number; panX: number; panY: number }
+  | {
+      kind: "pan";
+      pointerId: number;
+      originX: number;
+      originY: number;
+      panX: number;
+      panY: number;
+      samplesX: PointerSample[];
+      samplesY: PointerSample[];
+    }
   | {
       kind: "spot";
       pointerId: number;
@@ -78,6 +101,13 @@ type DragState =
       pointerId: number;
       spotId: string;
     };
+
+type PanBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
 
 function defaultGradientId(prefix: string): string {
   return `${prefix}-sector-gradient`;
@@ -225,6 +255,7 @@ export function PanoMap({
   collapsed: controlledCollapsed,
   onCollapsedChange,
   renderChrome,
+  initialScale,
 }: PanoMapProps) {
   const reactId = useId().replace(/:/g, "");
   const view = useMapView(controlledView);
@@ -238,11 +269,28 @@ export function PanoMap({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [uncontrolledCollapsed, setUncontrolledCollapsed] = useState(false);
   const dragRef = useRef<DragState | null>(null);
+  const panAnimRef = useRef<{
+    raf: number | null;
+    lastTime: number;
+    x: { position: number; velocity: number };
+    y: { position: number; velocity: number };
+  } | null>(null);
+  const panRef = useRef(pan);
+  const scaleRef = useRef(scale);
+  const initialViewKeyRef = useRef<string | null>(null);
   const spots = map.spots;
   const iconSize = map.iconSize ?? DEFAULT_ICON_SIZE;
   const interaction = map.interaction ?? "fixed";
   const gestureZoom = interaction === "zoom";
+  const dragMotion = resolveDragMotion(map.dragMotion);
   const maxScale = Math.max(MIN_SCALE, map.maxScale ?? DEFAULT_MAX_SCALE);
+  const resolvedInitialScale = Math.min(
+    maxScale,
+    Math.max(
+      MIN_SCALE,
+      Number.isFinite(initialScale) ? (initialScale as number) : MIN_SCALE,
+    ),
+  );
   // Zoom buttons only apply when interaction allows zooming.
   const zoomControls =
     gestureZoom && (showZoomControls ?? map.controls?.zoom === true);
@@ -297,25 +345,122 @@ export function PanoMap({
     if (controlledCollapsed === undefined) setUncontrolledCollapsed(next);
   };
 
-  const clampPan = useCallback(
-    (nextScale: number, nextPan: { x: number; y: number }) => {
+  panRef.current = pan;
+  scaleRef.current = scale;
+
+  const panBoundsFor = useCallback(
+    (nextScale: number): PanBounds => {
       const width = fit.width * nextScale;
       const height = fit.height * nextScale;
-      if (!(fit.width > 0) || !(fit.height > 0)) return nextPan;
-      const minX = Math.min(0, size.width - (fit.left + width));
-      const maxX = Math.max(0, -fit.left);
-      const minY = Math.min(0, size.height - (fit.top + height));
-      const maxY = Math.max(0, -fit.top);
+      if (!(fit.width > 0) || !(fit.height > 0)) {
+        return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+      }
       return {
-        x: Math.min(maxX, Math.max(minX, nextPan.x)),
-        y: Math.min(maxY, Math.max(minY, nextPan.y)),
+        minX: Math.min(0, size.width - (fit.left + width)),
+        maxX: Math.max(0, -fit.left),
+        minY: Math.min(0, size.height - (fit.top + height)),
+        maxY: Math.max(0, -fit.top),
       };
     },
     [fit, size],
   );
 
+  const clampPan = useCallback(
+    (nextScale: number, nextPan: { x: number; y: number }) => {
+      const bounds = panBoundsFor(nextScale);
+      return {
+        x: Math.min(bounds.maxX, Math.max(bounds.minX, nextPan.x)),
+        y: Math.min(bounds.maxY, Math.max(bounds.minY, nextPan.y)),
+      };
+    },
+    [panBoundsFor],
+  );
+
+  const cancelPanAnimation = useCallback(() => {
+    const anim = panAnimRef.current;
+    if (anim?.raf != null) {
+      cancelAnimationFrame(anim.raf);
+    }
+    panAnimRef.current = null;
+  }, []);
+
+  const startPanAnimation = useCallback(
+    (velocity: { x: number; y: number }) => {
+      cancelPanAnimation();
+      const current = panRef.current;
+      const currentScale = scaleRef.current;
+      const bounds = panBoundsFor(currentScale);
+      const needsSpring =
+        dragMotion.bounce &&
+        (current.x < bounds.minX ||
+          current.x > bounds.maxX ||
+          current.y < bounds.minY ||
+          current.y > bounds.maxY);
+      const vx = dragMotion.inertia ? velocity.x : 0;
+      const vy = dragMotion.inertia ? velocity.y : 0;
+      if (!needsSpring && Math.abs(vx) < 1 && Math.abs(vy) < 1) {
+        setPan(clampPan(currentScale, current));
+        return;
+      }
+      if (!dragMotion.inertia && !dragMotion.bounce) {
+        setPan(clampPan(currentScale, current));
+        return;
+      }
+
+      const anim = {
+        raf: null as number | null,
+        lastTime: performance.now(),
+        x: { position: current.x, velocity: vx },
+        y: { position: current.y, velocity: vy },
+      };
+      panAnimRef.current = anim;
+
+      const tick = (now: number) => {
+        if (panAnimRef.current !== anim) return;
+        const dt = Math.min(0.064, Math.max(0, (now - anim.lastTime) / 1000));
+        anim.lastTime = now;
+        const liveBounds = panBoundsFor(scaleRef.current);
+        const nextX = integrateAxis(anim.x, dt, {
+          min: liveBounds.minX,
+          max: liveBounds.maxX,
+          inertia: dragMotion.inertia,
+          bounce: dragMotion.bounce,
+        });
+        const nextY = integrateAxis(anim.y, dt, {
+          min: liveBounds.minY,
+          max: liveBounds.maxY,
+          inertia: dragMotion.inertia,
+          bounce: dragMotion.bounce,
+        });
+        anim.x = { position: nextX.position, velocity: nextX.velocity };
+        anim.y = { position: nextY.position, velocity: nextY.velocity };
+        setPan({ x: nextX.position, y: nextY.position });
+        if (nextX.settled && nextY.settled) {
+          setPan(
+            clampPan(scaleRef.current, {
+              x: nextX.position,
+              y: nextY.position,
+            }),
+          );
+          panAnimRef.current = null;
+          return;
+        }
+        anim.raf = requestAnimationFrame(tick);
+      };
+      anim.raf = requestAnimationFrame(tick);
+    },
+    [cancelPanAnimation, clampPan, dragMotion.bounce, dragMotion.inertia, panBoundsFor],
+  );
+
+  useEffect(() => () => cancelPanAnimation(), [cancelPanAnimation]);
+
+  useEffect(() => {
+    if (collapsed) cancelPanAnimation();
+  }, [cancelPanAnimation, collapsed]);
+
   useEffect(() => {
     if (!gestureZoom) {
+      initialViewKeyRef.current = null;
       setScale(1);
       setPan({ x: 0, y: 0 });
       return;
@@ -329,9 +474,40 @@ export function PanoMap({
     });
   }, [clampPan, gestureZoom, maxScale]);
 
+  // Apply opening zoom after the image and container are measured. Reset only
+  // when initialScale or interaction mode changes; leave later user zoom alone.
+  useEffect(() => {
+    if (!gestureZoom) return;
+    if (!(fit.width > 0) || !(fit.height > 0)) return;
+    if (!(size.width > 0) || !(size.height > 0)) return;
+    const key = `${interaction}:${initialScale ?? MIN_SCALE}`;
+    if (initialViewKeyRef.current === key) return;
+    initialViewKeyRef.current = key;
+    const pivot = { x: size.width / 2, y: size.height / 2 };
+    const nextPan = {
+      x: pivot.x - (pivot.x - fit.left) * resolvedInitialScale - fit.left,
+      y: pivot.y - (pivot.y - fit.top) * resolvedInitialScale - fit.top,
+    };
+    setScale(resolvedInitialScale);
+    setPan(clampPan(resolvedInitialScale, nextPan));
+  }, [
+    clampPan,
+    fit.height,
+    fit.left,
+    fit.top,
+    fit.width,
+    gestureZoom,
+    initialScale,
+    interaction,
+    resolvedInitialScale,
+    size.height,
+    size.width,
+  ]);
+
   const applyZoom = useCallback(
     (nextScale: number, origin?: { x: number; y: number }) => {
       if (!gestureZoom) return;
+      cancelPanAnimation();
       const clamped = Math.min(maxScale, Math.max(MIN_SCALE, nextScale));
       const pivot = origin ?? { x: size.width / 2, y: size.height / 2 };
       const ratio = clamped / scale;
@@ -343,6 +519,7 @@ export function PanoMap({
       setPan(clampPan(clamped, nextPan));
     },
     [
+      cancelPanAnimation,
       clampPan,
       fit.left,
       fit.top,
@@ -415,6 +592,8 @@ export function PanoMap({
     }
 
     if (gestureZoom && scale > 1) {
+      cancelPanAnimation();
+      const now = performance.now();
       dragRef.current = {
         kind: "pan",
         pointerId: event.pointerId,
@@ -422,8 +601,14 @@ export function PanoMap({
         originY: point.y,
         panX: pan.x,
         panY: pan.y,
+        samplesX: [{ t: now, position: pan.x }],
+        samplesY: [{ t: now, position: pan.y }],
       };
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic or already-released pointers may reject capture.
+      }
       event.preventDefault();
       event.stopPropagation();
     }
@@ -435,12 +620,28 @@ export function PanoMap({
     const point = localPoint(event);
     if (!point) return;
     if (drag.kind === "pan") {
-      setPan(
-        clampPan(scale, {
-          x: drag.panX + (point.x - drag.originX),
-          y: drag.panY + (point.y - drag.originY),
-        }),
-      );
+      const rawX = drag.panX + (point.x - drag.originX);
+      const rawY = drag.panY + (point.y - drag.originY);
+      const bounds = panBoundsFor(scale);
+      const now = performance.now();
+      drag.samplesX = pushSample(drag.samplesX, { t: now, position: rawX });
+      drag.samplesY = pushSample(drag.samplesY, { t: now, position: rawY });
+      setPan({
+        x: constrainDragPosition(
+          rawX,
+          bounds.minX,
+          bounds.maxX,
+          size.width,
+          dragMotion.bounce,
+        ),
+        y: constrainDragPosition(
+          rawY,
+          bounds.minY,
+          bounds.maxY,
+          size.height,
+          dragMotion.bounce,
+        ),
+      });
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -484,11 +685,25 @@ export function PanoMap({
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
     dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Ignore release failures for synthetic pointers.
     }
+    if (drag.kind !== "pan") return;
+    if (event.type === "pointercancel") {
+      setPan(clampPan(scale, panRef.current));
+      return;
+    }
+    startPanAnimation({
+      x: velocityFromSamples(drag.samplesX),
+      y: velocityFromSamples(drag.samplesY),
+    });
   };
 
   const sectorAngle = (() => {

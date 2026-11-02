@@ -1,13 +1,36 @@
+import { useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { shellClassName } from "../../ui";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
+import { buildHotspotBenchSnippet } from "./build-hotspot-snippet";
 import { CanvasPanel } from "./CanvasPanel";
 import { Inspector } from "./Inspector";
+import { useHotspotBenchStore } from "./store";
 import { ToolRail } from "./ToolRail";
 import { useHotspotBenchKeyboard } from "./use-hotspot-bench-keyboard";
 
 export function HotspotBenchPage() {
   useHotspotBenchKeyboard();
+  const { selectedId, hotspots, polygons, polylines } = useHotspotBenchStore(
+    useShallow((state) => ({
+      selectedId: state.selectedId,
+      hotspots: state.hotspots,
+      polygons: state.polygons,
+      polylines: state.polylines,
+    })),
+  );
+  const snippet = useMemo(
+    () =>
+      buildHotspotBenchSnippet({
+        selectedId,
+        hotspots,
+        polygons,
+        polylines,
+      }),
+    [hotspots, polygons, polylines, selectedId],
+  );
 
   return (
     <main className={shellClassName}>
@@ -44,6 +67,14 @@ export function HotspotBenchPage() {
         <ToolRail />
         <CanvasPanel />
         <Inspector />
+      </section>
+
+      <section className="mt-6" aria-label="Hotspot code example">
+        <CodeSnippet
+          blurb={snippet.blurb}
+          code={snippet.code}
+          label={snippet.label}
+        />
       </section>
 
       <SiteFooter label="@ericchen1990/pano-view · point, polygon + polyline hotspots" />

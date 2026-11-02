@@ -30,11 +30,11 @@ hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
 ## Packages
 
-The [embeddable tour editor](./packages/editor/README.md) provides local-directory scene and hotspot authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
+The [embeddable tour editor](./packages/editor/README.md) provides local-directory scene, hotspot, and floor-plan authoring with JSON export. Run `pnpm dev` and open `/editor`; files remain on your computer. Hosts can connect their own saving, asset library and converter service through callbacks.
 
 | Package | What it does |
 | --- | --- |
-| [@ericchen1990/pano-editor](./packages/editor/README.md) | Embeddable scene and hotspot editing, local directory previews, JSON export, and host-owned conversion and saving callbacks. |
+| [@ericchen1990/pano-editor](./packages/editor/README.md) | Embeddable scene, hotspot, and floor-plan editing, local directory previews, JSON export, and host-owned conversion and saving callbacks. |
 | [@ericchen1990/pano-view](./packages/react/README.md) | Composable React components for equirectangular images, 360 video, and krpano-style multiresolution cube tiles. |
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
@@ -53,7 +53,7 @@ See [Data sources and choosing an approach](./packages/react/README.md#data-sour
 
 ## Static multi-scene projects
 
-The converter writes a complete `manifest.json` for archiving/reconstruction and a compact `viewer.json` for rendering. Without a database, author one `project.json` referencing each scene's `viewer.json`, plus its views, hotspots and scene links.
+The converter writes a complete `manifest.json` for archiving/reconstruction and a compact `viewer.json` for rendering. Without a database, author one `project.json` referencing each scene's `viewer.json`, plus its views, hotspots, scene links, and an optional floor-plan map.
 
 ```tsx
 import { loadPanoProject, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
@@ -65,7 +65,7 @@ const project = await loadPanoProject("/tour/project.json");
 </PanoViewer>;
 ```
 
-Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example.
+Preserve the output directory structure when uploading to static hosting. Use `baseUrl` for custom domains/cloud prefixes, or synchronous URL mapping for renamed files. Server-side data consumers import from `@ericchen1990/pano-view/data`. Run `pnpm dev` and visit `/project` for the static two-scene example, or `/map` for the floor-plan overlay.
 
 See [Static projects and JSON data](./packages/react/README.md#static-projects-and-json-data) for configuration and React loading/error/cancellation, and [FAQ and troubleshooting](./packages/react/README.md#faq-and-troubleshooting) for CORS, 404, authentication, blank canvases and playback restrictions.
 
@@ -269,6 +269,7 @@ project.
 - [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling and reconstruction
 - [360 video guide](./docs/react-360-video.md) — inline playback, captions, and mobile activation
 - [Dialog and styling guide](./packages/react/docs/dialogs.md) — multiple hotspot content mappings, themes, custom layouts and third-party dialogs
+- [Floor plan maps](./packages/react/README.md#floor-plan-maps) — project `map`, scene spots, yaw-linked sectors, and docked or dialog presentation
 - [krpano migration guide](./docs/krpano-migration.md) — XML attributes to component props
 
 The Vite Playground in this workspace imports viewer source directly, so local

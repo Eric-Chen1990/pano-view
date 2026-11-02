@@ -1,6 +1,6 @@
 # @ericchen1990/pano-editor
 
-可嵌入的 React 漫游编辑器，支持场景、初始视角、九种热点和场景跳转。输出沿用 `schemaVersion: 1` 的 `project.json`，可交给现有 `loadPanoProject` 与 `ProjectScenes` 播放。
+可嵌入的 React 漫游编辑器，支持场景、初始视角、九种热点、场景跳转，以及可选的平面图。输出沿用 `schemaVersion: 1` 的 `project.json`，可交给现有 `loadPanoProject` 与 `ProjectScenes` 播放。
 
 [English](./README.md)
 
@@ -97,9 +97,13 @@ import "@ericchen1990/pano-editor/styles.css";
 | `value/defaultValue/onChange` | 复用现有 `PanoProjectDefinition`。 |
 | `baseUrl` | HTTP(S) 项目资源根目录，默认宿主页面所在目录。 |
 | `requestInit/resolveAssetUrl` | 复用查看器的 JSON 请求选项和同步资源映射；运行时映射结果不写回文档。 |
+| `resolvePopupAssetUrl` | 与查看器加载器相同的弹窗媒体地址映射。 |
 | `onImportPanorama` | 宿主负责 `File` → `PanoProjectSceneDefinition["source"]`。 |
-| `onPickAsset` | 收到素材种类、场景/热点 ID、字段和当前地址，返回持久地址或 `undefined`。 |
+| `onPickAsset` | 收到素材种类、场景/热点 ID、字段和当前地址，返回持久地址或 `undefined`。`field` 常见值为热点侧的 `src`、`poster`、`icon`、`playingIcon`、`graphic.src`、`tooltip.image`、`cursor`，以及平面图的 `map.image` / `map.icon`。`kind` 为 `image` \| `video` \| `audio` \| `document`。 |
+| `onPickPopupAsset` | 弹窗内容块选材；请求含 `kind`、`popupId`、`blockId`、`field: "src" \| "poster"`、可选 `currentUrl`。 |
 | `onSave` | 接收校验后的项目，失败保留未保存状态。 |
+| `customActions` | 注入可配置的自定义动作定义（`id`、`label`、`fields` 等）。 |
+| `onPreviewCustomAction` | 编辑器内测试自定义动作时的宿主分发器。 |
 | `locale` | 默认 `en`，支持 `zh-CN`。 |
 | `className/style` | 设置尺寸和宿主样式。 |
 
@@ -113,7 +117,7 @@ import "@ericchen1990/pano-editor/styles.css";
 
 ### 可携带的项目包
 
-“导出项目包”下载 `panorama-project.zip`，包含 `project.json`、各场景的 `panoramas/<序号>/viewer.json`、所有预览图和全部层级的瓦片，以及 `assets/` 中的热点媒体、提示图片和光标图片。本地和在线资源均会复制到包中，并改写为包内相对路径。重新打开前请先解压，再通过“打开项目目录”选择解压目录。使用现有播放器时，通过 HTTP 托管该目录；包中不包含播放器页面。“导出 JSON”仍然仅下载配置。
+“导出项目包”下载 `panorama-project.zip`，包含 `project.json`、各场景的 `panoramas/<序号>/viewer.json`、所有预览图和全部层级的瓦片，以及 `assets/` 中的热点媒体、提示图片、光标图片、平面图和点位图标。本地和在线资源均会复制到包中，并改写为包内相对路径。重新打开前请先解压，再通过“打开项目目录”选择解压目录。使用现有播放器时，通过 HTTP 托管该目录；包中不包含播放器页面。“导出 JSON”仍然仅下载配置。
 
 打包最多同时传输四个资源，支持取消。任何资源缺失、无法读取或受到跨域限制时，会明确报错，且不会下载不完整 ZIP；不会拿编辑器的缺失瓦片占位图代替原文件。项目包限制为 60000 个文件、1 GB。含外部资源或脚本依赖的 HTML/CSS/SVG 无法保证资源完整，会停止导出；需先提供资源内嵌且没有运行时依赖的文档。错误中的路径指向包内条目，不包含签名地址的查询参数。
 
@@ -139,7 +143,7 @@ import "@ericchen1990/pano-editor/styles.css";
 
 场景设置分为“初始视角”和“观看范围”。分别启用 Yaw、Pitch 或 FOV 后输入最小值和最大值；启用默认值依次为 −180 / 180、−90 / 90 和 30 / 100。限制在编辑和预览中立即生效，支持撤销、重做；非法值在字段旁提示，不提交到项目。Yaw 最小值大于最大值表示跨越 ±180°；两值相等时锁定该轴。限制相机中心，不保证整个画面不超界。范围保存在 `project.json` 各场景可选的 `viewLimits` 中。场景设置隐藏素材源路径，仍可通过“替换场景源”更换素材。
 
-ZIP 导出对场景文件、预览图、瓦片、热点资源、光标／提示图片及弹窗媒体使用包内相对路径。解压后可将完整目录放到任意 HTTP 子目录。文字内的 URL 不变；单独 JSON 导出保留在线地址，不打包资源。
+ZIP 导出对场景文件、预览图、瓦片、热点资源、光标／提示图片、弹窗媒体、平面图和点位图标使用包内相对路径。解压后可将完整目录放到任意 HTTP 子目录。文字内的 URL 不变；单独 JSON 导出保留在线地址，不打包资源。
 
 ### 热点交互事件与自定义动作
 
@@ -170,3 +174,22 @@ const customActions = [{
 ```
 
 “交互事件”面板分别配置、测试三个触发时机。编辑态不执行业务动作。预览单独使用 `onPreviewCustomAction`；未提供时提示缺少预览方法，保存仍可用。场景、弹窗引用覆盖全部事件并标明触发时机。导出项目保留配置，播放器宿主仍需接入 `ProjectScenes.onCustomAction`。
+
+## 平面图
+
+左栏切换到“地图”，可为整个项目添加一张平面图。选择平面图后，在“下一次点击的场景”中选好场景，再点击地图放置点位。拖动点位改变位置。选中点位时，查看器会切到该点位的场景。扇形画在当前场景的第一个匹配点位上；拖动扇形设置朝向。新点位的 `heading` 取放置时 yaw 的相反数，因此相机停在该 yaw 时扇形指向图像上方。
+
+地图页签的编辑模式使用较大的编辑面板，不使用已保存的访客布局。预览以及其他侧栏页签使用这份已保存的布局，点击点位会切换场景。可从列表、属性面板，或在地图页签选中点位后按 Delete / Backspace 删除点位；删除点位不再确认。撤销会恢复放置、移动、朝向、属性修改和删除。删除场景会同时去掉指向该场景的点位。移除平面图会删除整个 `map`。
+
+属性面板把呈现方式、交互和共用扇形写入 `project.map`：
+
+- **呈现方式**为停靠面板或对话框按钮，可设置角落、宽度和高度。
+- **地图交互**为固定（仅适配面板，手势和缩放按钮关闭）或缩放并平移。缩放模式可设置最大倍数，并选择是否显示缩放按钮。
+- 停靠面板可显示展开和收起。图标尺寸单位为 CSS 像素。
+- 扇形可以关闭。打开后可设置角度、半径、是否跟随查看器视场角、纯色或径向／线性渐变、整体不透明度，以及描边颜色、宽度和不透明度。扇形不透明度缩放整块填充；渐变色标只描述渐隐形状。颜色控件会把渐变色标同步为该颜色。
+
+编辑过程中平面图路径可以暂空。保存和两种导出都要求图像路径非空，且每个点位都指向已有场景。坐标为归一化值：X、Y 从左上角的 0 到右下角的 1。朝向是 yaw 为 0 时、从图像向上方向起算的顺时针角度。
+
+宿主托管会话里，平面图和点位图标都通过 `onPickAsset` 选择。请求的 `kind` 为 `"image"`，`sceneId` 为空字符串，`field` 为 `"map.image"` 或 `"map.icon"`。点位图标还会把 `hotspotId` 设为当前点位 id。返回持久路径，或返回 `undefined` 取消。本地会话通过目录选择读取文件，路径记在 `assets/map/<id>/` 下，不会交给宿主选择器。运行时的地址映射不会写回文档。
+
+项目包会复制平面图和点位图标，并改写为包内相对路径。仅导出 JSON 时保留文档中的原路径。播放已保存的 `map` 见[查看器平面图](../react/README.zh-CN.md#平面图地图)：在 `PanoViewer.renderOverlay` 中挂载 `PanoMapOverlay`，并在 `onSelectScene` 中切换场景。

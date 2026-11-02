@@ -8,7 +8,7 @@ import {
   usePanoViewer,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -24,6 +24,7 @@ import {
   shellClassName,
 } from "../../ui";
 import { BlendSelect } from "./BlendSelect";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -36,15 +37,88 @@ const PER_SCENE_SOURCES = {
   "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
 } as const;
 
+type BackgroundMode = "shared" | "per-scene";
+
+function buildSceneTransitionSnippet(
+  preset: SceneTransitionPreset,
+  backgroundPlaying: boolean,
+  backgroundMode: BackgroundMode,
+): string {
+  const audioBlock = !backgroundPlaying
+    ? `  {/* BackgroundAudio omitted while BGM is off */}`
+    : backgroundMode === "shared"
+      ? `  <BackgroundAudio src="${BGM_SHARED}" playing={true} />`
+      : `  <BackgroundAudio
+    playing={true}
+    sceneId={activeSceneId}
+    sources={{
+      "sphere-1": "/fixtures/bgm/ambient-light.mp3",
+      "sphere-2": "/fixtures/bgm/death-scene.mp3",
+      "tile-3": "/fixtures/bgm/building-scene.mp3",
+      "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
+    }}
+  />`;
+
+  return `import {
+  BackgroundAudio,
+  ImageHotspot,
+  KeyboardControls,
+  PanoViewer,
+  Scenes,
+  cycleSceneId,
+  usePanoViewer,
+} from "@ericchen1990/pano-view";
+
+const scenes = [/* sphere + cube scenes */];
+const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+const viewer = usePanoViewer();
+
+<PanoViewer
+  ref={viewer.ref}
+  style={{ height: "min(540px, 68dvh)" }}
+>
+  <KeyboardControls
+    onNextScene={() => {
+      const next = cycleSceneId(scenes, activeSceneId, 1);
+      if (next) setActiveSceneId(next);
+    }}
+    onPreviousScene={() => {
+      const next = cycleSceneId(scenes, activeSceneId, -1);
+      if (next) setActiveSceneId(next);
+    }}
+  />
+${audioBlock}
+  <Scenes
+    activeSceneId={activeSceneId}
+    onActiveSceneIdChange={setActiveSceneId}
+    scenes={scenes}
+    transition="${preset}"
+    renderHotspots={(scene) => (
+      <ImageHotspot
+        id={\`marker-\${scene.id}\`}
+        position={{ yaw: 18, pitch: 5 }}
+        src="/fixtures/hotspots/signal.svg"
+        width={6}
+        height={6}
+      />
+    )}
+  />
+</PanoViewer>`;
+}
+
 export function SceneTransitionPage() {
   const viewer = usePanoViewer();
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState("Choose a scene and a blend.");
-  const [backgroundMode, setBackgroundMode] = useState<"shared" | "per-scene">(
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(
     "shared",
   );
   const [backgroundPlaying, setBackgroundPlaying] = useState(false);
+  const snippet = useMemo(
+    () => buildSceneTransitionSnippet(preset, backgroundPlaying, backgroundMode),
+    [backgroundMode, backgroundPlaying, preset],
+  );
 
   return (
     <main className={shellClassName}>
@@ -221,6 +295,11 @@ export function SceneTransitionPage() {
             />
           </PanoViewer>
         </div>
+        <CodeSnippet
+          blurb="Scenes blend with the selected preset. BackgroundAudio sits beside Scenes so music survives transitions."
+          code={snippet}
+          label="Scenes + BackgroundAudio"
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · panorama scene transitions" />
     </main>

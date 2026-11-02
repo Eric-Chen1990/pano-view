@@ -40,6 +40,7 @@ export type {
   PanoMapDockedPresentation,
   PanoMapDialogPresentation,
   PanoMapCorner,
+  PanoDragMotion,
 } from "./data/map";
 
 export type { PanoViewLimits } from "./view-limits";

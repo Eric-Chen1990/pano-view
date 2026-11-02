@@ -7,7 +7,11 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import type { PanoMapDefinition, PanoMapSpotDefinition } from "../data/map";
+import type {
+  PanoMapCorner,
+  PanoMapDefinition,
+  PanoMapSpotDefinition,
+} from "../data/map";
 import { usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
 import type { PanoViewerState } from "../types";
 import { PanoMap, type PanoMapEditChange, type PanoMapProps } from "./pano-map";
@@ -24,6 +28,38 @@ export type PanoMapOverlayProps = {
   placementSceneId?: string | null;
   /** Force presentation while authoring, ignoring document presentation temporarily. */
   presentationOverride?: PanoMapDefinition["presentation"];
+  /** Override presentation mode for this mount. */
+  presentation?: "docked" | "dialog";
+  /** Override docked corner (or dialog launcher corner). */
+  corner?: PanoMapCorner;
+  /** Override docked panel or dialog-launcher width in CSS pixels. */
+  width?: number;
+  /** Override docked panel or dialog-launcher height in CSS pixels. */
+  height?: number;
+  /** Horizontal inset from the chosen corner in CSS pixels. */
+  offsetX?: number;
+  /** Vertical inset from the chosen corner in CSS pixels. */
+  offsetY?: number;
+  /** Preferred dialog body width in CSS pixels; clamped to the viewer. */
+  dialogWidth?: number;
+  /** Preferred dialog body height in CSS pixels; clamped to the viewer. */
+  dialogHeight?: number;
+  /** Override map interaction for this mount. */
+  interaction?: PanoMapDefinition["interaction"];
+  /**
+   * Maximum zoom multiplier relative to the contain-fit scale.
+   * Values below 1 are treated as 1.
+   */
+  maxScale?: number;
+  /**
+   * Opening zoom relative to the contain-fit scale.
+   * Clamped to `[1, maxScale]`. View state only; not written to the map document.
+   */
+  initialScale?: number;
+  showZoomControls?: boolean;
+  showCollapseControl?: boolean;
+  /** Override spot icon edge length in CSS pixels. */
+  iconSize?: number;
   openLabel?: string;
   closeLabel?: string;
   title?: string;
@@ -33,14 +69,15 @@ export type PanoMapOverlayProps = {
   editorSurface?: boolean;
 };
 
-type MapCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+const DEFAULT_DIALOG_WIDTH = 720;
+const DEFAULT_DIALOG_HEIGHT = 520;
 
 /**
  * Anchor the map chrome to the full viewer overlay, not the screen-visible
  * intersection. Parent page scroll must not move, shrink, or re-dock the map.
  */
 function dockedBox(
-  corner: MapCorner,
+  corner: PanoMapCorner,
   offsetX: number,
   offsetY: number,
   width: number,
@@ -63,12 +100,16 @@ function PanoMapDialogShell({
   onOpenChange,
   title,
   closeLabel,
+  dialogWidth,
+  dialogHeight,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   closeLabel: string;
+  dialogWidth: number;
+  dialogHeight: number;
   children: ReactNode;
 }) {
   usePanoModal(open);
@@ -101,8 +142,16 @@ function PanoMapDialogShell({
 
   if (!open) return null;
 
-  const width = Math.min(720, Math.max(0, size.width - 32));
-  const height = Math.min(520, Math.max(0, size.height - 32));
+  const preferredWidth =
+    Number.isFinite(dialogWidth) && dialogWidth > 0
+      ? dialogWidth
+      : DEFAULT_DIALOG_WIDTH;
+  const preferredHeight =
+    Number.isFinite(dialogHeight) && dialogHeight > 0
+      ? dialogHeight
+      : DEFAULT_DIALOG_HEIGHT;
+  const width = Math.min(preferredWidth, Math.max(0, size.width - 32));
+  const height = Math.min(preferredHeight, Math.max(0, size.height - 32));
   const left = Math.max(0, (size.width - width) / 2);
   const top = Math.max(0, (size.height - height) / 2);
 
@@ -178,6 +227,20 @@ export function PanoMapOverlay({
   onEditChange,
   placementSceneId,
   presentationOverride,
+  presentation: presentationModeProp,
+  corner: cornerProp,
+  width: widthProp,
+  height: heightProp,
+  offsetX: offsetXProp,
+  offsetY: offsetYProp,
+  dialogWidth = DEFAULT_DIALOG_WIDTH,
+  dialogHeight = DEFAULT_DIALOG_HEIGHT,
+  interaction,
+  maxScale,
+  initialScale,
+  showZoomControls,
+  showCollapseControl,
+  iconSize,
   openLabel = "Map",
   closeLabel = "Close",
   title = "Map",
@@ -188,7 +251,7 @@ export function PanoMapOverlay({
   const { size } = usePanoOverlay();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const presentation = presentationOverride ?? map.presentation ?? {
+  const basePresentation = presentationOverride ?? map.presentation ?? {
     mode: "docked" as const,
     corner: "bottom-left" as const,
     width: 220,
@@ -196,14 +259,37 @@ export function PanoMapOverlay({
     offsetX: 16,
     offsetY: 16,
   };
-  const corner = presentation.corner ?? "bottom-left";
-  const offsetX = presentation.offsetX ?? 16;
-  const offsetY = presentation.offsetY ?? 16;
-  const width = presentation.width ?? (presentation.mode === "dialog" ? 48 : 220);
-  const height = presentation.height ?? (presentation.mode === "dialog" ? 48 : 160);
+  const presentationMode = presentationModeProp ?? basePresentation.mode;
+  const corner = cornerProp ?? basePresentation.corner ?? "bottom-left";
+  const offsetX = offsetXProp ?? basePresentation.offsetX ?? 16;
+  const offsetY = offsetYProp ?? basePresentation.offsetY ?? 16;
+  const width =
+    widthProp ??
+    basePresentation.width ??
+    (presentationMode === "dialog" ? 48 : 220);
+  const height =
+    heightProp ??
+    basePresentation.height ??
+    (presentationMode === "dialog" ? 48 : 160);
+
+  const resolvedMap = useMemo((): PanoMapDefinition => {
+    if (
+      interaction === undefined &&
+      maxScale === undefined &&
+      iconSize === undefined
+    ) {
+      return map;
+    }
+    return {
+      ...map,
+      ...(interaction === undefined ? {} : { interaction }),
+      ...(maxScale === undefined ? {} : { maxScale }),
+      ...(iconSize === undefined ? {} : { iconSize }),
+    };
+  }, [iconSize, interaction, map, maxScale]);
 
   const mapProps: PanoMapProps = {
-    map,
+    map: resolvedMap,
     activeSceneId,
     view,
     mode,
@@ -211,15 +297,24 @@ export function PanoMapOverlay({
     onSelectedSpotIdChange,
     onEditChange,
     placementSceneId,
+    initialScale,
+    showZoomControls,
+    showCollapseControl,
     onSelectScene: (sceneId, spot) => {
       onSelectScene?.(sceneId, spot);
-      if (presentation.mode === "dialog") setOpen(false);
+      if (presentationMode === "dialog") setOpen(false);
     },
   };
 
   const editorBox = useMemo(() => {
-    const panelWidth = Math.min(420, Math.max(240, size.width * 0.45));
-    const panelHeight = Math.min(320, Math.max(180, size.height * 0.45));
+    const panelWidth =
+      widthProp !== undefined && Number.isFinite(widthProp) && widthProp > 0
+        ? widthProp
+        : Math.min(420, Math.max(240, size.width * 0.45));
+    const panelHeight =
+      heightProp !== undefined && Number.isFinite(heightProp) && heightProp > 0
+        ? heightProp
+        : Math.min(320, Math.max(180, size.height * 0.45));
     return {
       left: 16,
       right: "auto" as const,
@@ -228,7 +323,7 @@ export function PanoMapOverlay({
       width: panelWidth,
       height: panelHeight,
     };
-  }, [size.height, size.width]);
+  }, [heightProp, size.height, size.width, widthProp]);
 
   if (editorSurface) {
     return (
@@ -249,7 +344,7 @@ export function PanoMapOverlay({
     );
   }
 
-  if (presentation.mode === "dialog") {
+  if (presentationMode === "dialog") {
     const launcherBox = dockedBox(corner, offsetX, offsetY, width, height);
     return (
       <div className={["pano-map-overlay", className].filter(Boolean).join(" ")} data-pano-map-overlay="">
@@ -272,6 +367,8 @@ export function PanoMapOverlay({
           onOpenChange={setOpen}
           title={title}
           closeLabel={closeLabel}
+          dialogWidth={dialogWidth}
+          dialogHeight={dialogHeight}
         >
           <div style={{ height: "100%" }}>
             <PanoMap {...mapProps} showCollapseControl={false} />
