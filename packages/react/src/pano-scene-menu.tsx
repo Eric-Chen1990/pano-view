@@ -34,6 +34,9 @@ export type PanoSceneMenuItem = {
 
 export type PanoSceneMenuPlacement = "top" | "bottom" | "left" | "right";
 
+/** Cross-axis alignment along the dock edge. Defaults to `"center"`. */
+export type PanoSceneMenuAlign = "start" | "center" | "end";
+
 export type PanoSceneMenuInset =
   | number
   | string
@@ -66,6 +69,12 @@ export type PanoSceneMenuProps = {
   onSelect?: (id: string) => void;
   /** Dock edge inside the viewer overlay. Defaults to `"bottom"`. */
   placement?: PanoSceneMenuPlacement;
+  /**
+   * Align the menu along the dock edge when its main-axis size is smaller than
+   * the available space. Also aligns short lists inside the strip. Defaults to
+   * `"center"`.
+   */
+  align?: PanoSceneMenuAlign;
   /**
    * Gap from the viewer edges. A single value applies to every side;
    * an object sets each side. Numbers are pixels. Defaults to `12`.
@@ -166,30 +175,70 @@ function isHorizontal(placement: PanoSceneMenuPlacement): boolean {
   return placement === "top" || placement === "bottom";
 }
 
-function Chevron({
-  direction,
-  orientation,
-}: {
-  direction: "prev" | "next" | "expand" | "collapse";
-  orientation: "horizontal" | "vertical";
-}) {
-  const path = (() => {
-    switch (direction) {
-      case "prev":
-        return orientation === "horizontal" ? "M10 3 4 8l6 5" : "M3 10l5-6 5 6";
-      case "next":
-        return orientation === "horizontal" ? "M6 3l6 5-6 5" : "M3 6l5 6 5-6";
-      case "expand":
-        return orientation === "horizontal" ? "M3 6l5 6 5-6" : "M6 3l6 5-6 5";
-      case "collapse":
-        return orientation === "horizontal" ? "M3 10l5-6 5 6" : "M10 3 4 8l6 5";
-      default: {
-        const exhaustive: never = direction;
-        void exhaustive;
-        return "";
-      }
+type ChevronArrow = "up" | "down" | "left" | "right";
+
+const CHEVRON_PATHS: Record<ChevronArrow, string> = {
+  // Keep glyphs optically centered in the 16×16 viewBox.
+  up: "M3 11l5-6 5 6",
+  down: "M3 5l5 6 5-6",
+  left: "M11 3 5 8l6 5",
+  right: "M5 3l6 5-6 5",
+};
+
+function arrowChevron(
+  direction: "prev" | "next",
+  orientation: "horizontal" | "vertical",
+): ChevronArrow {
+  if (direction === "prev") {
+    return orientation === "horizontal" ? "left" : "up";
+  }
+  return orientation === "horizontal" ? "right" : "down";
+}
+
+/** Points toward the slide-out edge when expanded; opposite when collapsed. */
+function toggleChevron(
+  placement: PanoSceneMenuPlacement,
+  expanded: boolean,
+): ChevronArrow {
+  switch (placement) {
+    case "bottom":
+      return expanded ? "down" : "up";
+    case "top":
+      return expanded ? "up" : "down";
+    case "left":
+      return expanded ? "left" : "right";
+    case "right":
+      return expanded ? "right" : "left";
+    default: {
+      const exhaustive: never = placement;
+      void exhaustive;
+      return "down";
     }
-  })();
+  }
+}
+
+function dockInset(
+  placement: PanoSceneMenuPlacement,
+  inset: ReturnType<typeof resolveInset>,
+): string {
+  switch (placement) {
+    case "top":
+      return inset.top;
+    case "bottom":
+      return inset.bottom;
+    case "left":
+      return inset.left;
+    case "right":
+      return inset.right;
+    default: {
+      const exhaustive: never = placement;
+      void exhaustive;
+      return inset.bottom;
+    }
+  }
+}
+
+function Chevron({ arrow }: { arrow: ChevronArrow }) {
   return (
     <svg
       aria-hidden
@@ -202,7 +251,7 @@ function Chevron({
       viewBox="0 0 16 16"
       width="16"
     >
-      <path d={path} />
+      <path d={CHEVRON_PATHS[arrow]} />
     </svg>
   );
 }
@@ -237,11 +286,62 @@ function ControlButton({
   );
 }
 
+function horizontalAlignStyle(
+  align: PanoSceneMenuAlign,
+  inset: ReturnType<typeof resolveInset>,
+  widthValue: string | undefined,
+): Pick<CSSProperties, "left" | "right" | "width" | "marginInline"> {
+  const left = `calc(${inset.left} + var(--pano-safe-left))`;
+  const right = `calc(${inset.right} + var(--pano-safe-right))`;
+  if (!widthValue) {
+    return { left, right, width: undefined, marginInline: undefined };
+  }
+  switch (align) {
+    case "start":
+      return { left, right: "auto", width: widthValue, marginInline: undefined };
+    case "end":
+      return { left: "auto", right, width: widthValue, marginInline: undefined };
+    case "center":
+      return { left, right, width: widthValue, marginInline: "auto" };
+    default: {
+      const exhaustive: never = align;
+      void exhaustive;
+      return { left, right, width: widthValue, marginInline: "auto" };
+    }
+  }
+}
+
+function verticalAlignStyle(
+  align: PanoSceneMenuAlign,
+  inset: ReturnType<typeof resolveInset>,
+  heightValue: string | undefined,
+): Pick<CSSProperties, "top" | "bottom" | "height" | "marginBlock"> {
+  const top = `calc(${inset.top} + var(--pano-safe-top))`;
+  const bottom = `calc(${inset.bottom} + var(--pano-safe-bottom))`;
+  if (!heightValue) {
+    return { top, bottom, height: undefined, marginBlock: undefined };
+  }
+  switch (align) {
+    case "start":
+      return { top, bottom: "auto", height: heightValue, marginBlock: undefined };
+    case "end":
+      return { top: "auto", bottom, height: heightValue, marginBlock: undefined };
+    case "center":
+      return { top, bottom, height: heightValue, marginBlock: "auto" };
+    default: {
+      const exhaustive: never = align;
+      void exhaustive;
+      return { top, bottom, height: heightValue, marginBlock: "auto" };
+    }
+  }
+}
+
 function placementBoxStyle(
   placement: PanoSceneMenuPlacement,
   inset: ReturnType<typeof resolveInset>,
   width: number | string | undefined,
   height: number | string | undefined,
+  align: PanoSceneMenuAlign,
 ): CSSProperties {
   const widthValue = width === undefined ? undefined : cssLength(width);
   const heightValue = height === undefined ? undefined : cssLength(height);
@@ -251,54 +351,38 @@ function placementBoxStyle(
   switch (placement) {
     case "top":
       return {
+        ...horizontalAlignStyle(align, inset, widthValue),
         top: `calc(${inset.top} + var(--pano-safe-top))`,
-        right: widthValue
-          ? "auto"
-          : `calc(${inset.right} + var(--pano-safe-right))`,
         bottom: "auto",
-        left: `calc(${inset.left} + var(--pano-safe-left))`,
-        width: widthValue,
         maxWidth,
         height: heightValue,
         maxHeight,
       };
     case "bottom":
       return {
+        ...horizontalAlignStyle(align, inset, widthValue),
         top: "auto",
-        right: widthValue
-          ? "auto"
-          : `calc(${inset.right} + var(--pano-safe-right))`,
         bottom: `calc(${inset.bottom} + var(--pano-safe-bottom))`,
-        left: `calc(${inset.left} + var(--pano-safe-left))`,
-        width: widthValue,
         maxWidth,
         height: heightValue,
         maxHeight,
       };
     case "left":
       return {
-        top: `calc(${inset.top} + var(--pano-safe-top))`,
+        ...verticalAlignStyle(align, inset, heightValue),
         right: "auto",
-        bottom: heightValue
-          ? "auto"
-          : `calc(${inset.bottom} + var(--pano-safe-bottom))`,
         left: `calc(${inset.left} + var(--pano-safe-left))`,
         width: widthValue,
         maxWidth,
-        height: heightValue,
         maxHeight,
       };
     case "right":
       return {
-        top: `calc(${inset.top} + var(--pano-safe-top))`,
+        ...verticalAlignStyle(align, inset, heightValue),
         right: `calc(${inset.right} + var(--pano-safe-right))`,
-        bottom: heightValue
-          ? "auto"
-          : `calc(${inset.bottom} + var(--pano-safe-bottom))`,
         left: "auto",
         width: widthValue,
         maxWidth,
-        height: heightValue,
         maxHeight,
       };
     default: {
@@ -314,6 +398,7 @@ export function PanoSceneMenu({
   activeId = null,
   onSelect,
   placement = "bottom",
+  align = "center",
   inset,
   width,
   height,
@@ -540,16 +625,14 @@ export function PanoSceneMenu({
       "--pano-scene-menu-font-size": cssLength(resolved.fontSize),
       "--pano-scene-menu-control-color": resolved.controlColor,
       "--pano-scene-menu-control-background": resolved.controlBackground,
+      "--pano-scene-menu-dock-inset": dockInset(placement, resolvedInset),
     };
-    // Collapsed chrome should shrink to the toggle; ignore configured size.
-    const sizeWidth = expanded ? width : undefined;
-    const sizeHeight = expanded ? height : undefined;
     return {
       ...vars,
-      ...placementBoxStyle(placement, resolvedInset, sizeWidth, sizeHeight),
+      ...placementBoxStyle(placement, resolvedInset, width, height, align),
       ...style,
     };
-  }, [expanded, height, placement, resolved, resolvedInset, style, width]);
+  }, [align, height, placement, resolved, resolvedInset, style, width]);
 
   const setExpanded = (next: boolean) => {
     if (!collapsible) {
@@ -778,6 +861,7 @@ export function PanoSceneMenu({
     <div
       aria-label={label}
       className={cn("pano-scene-menu", className)}
+      data-align={align}
       data-collapsible={collapsible ? "true" : undefined}
       data-drag-motion={customDrag ? "custom" : "native"}
       data-expanded={expanded ? "true" : "false"}
@@ -786,111 +870,110 @@ export function PanoSceneMenu({
       role="group"
       style={rootStyle}
     >
-      {expanded ? (
-        <div className="pano-scene-menu-body">
-          {showArrows ? (
-            <ControlButton
-              className="pano-scene-menu-arrow"
-              disabled={!canGoPrevious}
-              label={previousLabel}
-              onClick={() => selectRelative(-1)}
-            >
-              <Chevron direction="prev" orientation={orientation} />
-            </ControlButton>
-          ) : null}
-          <div
-            aria-label={label}
-            className="pano-scene-menu-list"
-            id={listId}
-            onKeyDown={onKeyDown}
-            onPointerCancel={
-              customDrag ? finishPointerWithClickGuard : undefined
-            }
-            onPointerDown={
-              customDrag
-                ? (event) => beginListDrag(event, event.currentTarget)
-                : undefined
-            }
-            onPointerMove={customDrag ? onListPointerMove : undefined}
-            onPointerUp={customDrag ? finishPointerWithClickGuard : undefined}
-            onWheel={onWheel}
-            ref={listRef}
-            role="radiogroup"
+      <div
+        aria-hidden={expanded ? undefined : true}
+        className="pano-scene-menu-body"
+        {...(!expanded ? ({ inert: true } as { inert: boolean }) : null)}
+      >
+        {showArrows ? (
+          <ControlButton
+            className="pano-scene-menu-arrow"
+            disabled={!canGoPrevious || !expanded}
+            label={previousLabel}
+            onClick={() => selectRelative(-1)}
           >
-            <div
-              className="pano-scene-menu-track"
-              ref={trackRef}
-              style={trackStyle}
-            >
-              {items.map((item) => {
-                const name = itemLabel(item);
-                const selected = item.id === activeId;
-                return (
-                  <button
-                    aria-checked={selected}
-                    className="pano-scene-menu-item"
-                    data-active={selected ? "true" : undefined}
-                    key={item.id}
-                    onClick={(event) => onItemClick(event, item.id)}
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      const list = listRef.current;
-                      if (customDrag && list) {
-                        beginListDrag(event, list);
-                      }
-                    }}
-                    ref={(node) => {
-                      if (node) {
-                        itemRefs.current.set(item.id, node);
-                      } else {
-                        itemRefs.current.delete(item.id);
-                      }
-                    }}
-                    role="radio"
-                    tabIndex={
-                      selected || (activeId == null && item === items[0])
-                        ? 0
-                        : -1
+            <Chevron arrow={arrowChevron("prev", orientation)} />
+          </ControlButton>
+        ) : null}
+        <div
+          aria-label={label}
+          className="pano-scene-menu-list"
+          id={listId}
+          onKeyDown={onKeyDown}
+          onPointerCancel={
+            customDrag ? finishPointerWithClickGuard : undefined
+          }
+          onPointerDown={
+            customDrag
+              ? (event) => beginListDrag(event, event.currentTarget)
+              : undefined
+          }
+          onPointerMove={customDrag ? onListPointerMove : undefined}
+          onPointerUp={customDrag ? finishPointerWithClickGuard : undefined}
+          onWheel={onWheel}
+          ref={listRef}
+          role="radiogroup"
+        >
+          <div
+            className="pano-scene-menu-track"
+            ref={trackRef}
+            style={trackStyle}
+          >
+            {items.map((item) => {
+              const name = itemLabel(item);
+              const selected = item.id === activeId;
+              return (
+                <button
+                  aria-checked={selected}
+                  className="pano-scene-menu-item"
+                  data-active={selected ? "true" : undefined}
+                  key={item.id}
+                  onClick={(event) => onItemClick(event, item.id)}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    const list = listRef.current;
+                    if (customDrag && list) {
+                      beginListDrag(event, list);
                     }
-                    title={name}
-                    type="button"
-                  >
-                    <span className="pano-scene-menu-thumb">
-                      <img
-                        alt=""
-                        decoding="async"
-                        draggable={false}
-                        src={item.thumbnailUrl}
-                      />
-                      <span className="pano-scene-menu-label">{name}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                  }}
+                  ref={(node) => {
+                    if (node) {
+                      itemRefs.current.set(item.id, node);
+                    } else {
+                      itemRefs.current.delete(item.id);
+                    }
+                  }}
+                  role="radio"
+                  tabIndex={
+                    selected || (activeId == null && item === items[0])
+                      ? 0
+                      : -1
+                  }
+                  title={name}
+                  type="button"
+                >
+                  <span className="pano-scene-menu-thumb">
+                    <img
+                      alt=""
+                      decoding="async"
+                      draggable={false}
+                      src={item.thumbnailUrl}
+                    />
+                    <span className="pano-scene-menu-label">{name}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          {showArrows ? (
-            <ControlButton
-              className="pano-scene-menu-arrow"
-              disabled={!canGoNext}
-              label={nextLabel}
-              onClick={() => selectRelative(1)}
-            >
-              <Chevron direction="next" orientation={orientation} />
-            </ControlButton>
-          ) : null}
         </div>
-      ) : null}
+        {showArrows ? (
+          <ControlButton
+            className="pano-scene-menu-arrow"
+            disabled={!canGoNext || !expanded}
+            label={nextLabel}
+            onClick={() => selectRelative(1)}
+          >
+            <Chevron arrow={arrowChevron("next", orientation)} />
+          </ControlButton>
+        ) : null}
+      </div>
       {collapsible ? (
         <ControlButton
           className="pano-scene-menu-toggle"
           label={expanded ? collapseLabel : expandLabel}
           onClick={() => setExpanded(!expanded)}
         >
-          <Chevron
-            direction={expanded ? "collapse" : "expand"}
-            orientation={orientation}
-          />
+          <Chevron arrow={toggleChevron(placement, expanded)} />
         </ControlButton>
       ) : null}
     </div>

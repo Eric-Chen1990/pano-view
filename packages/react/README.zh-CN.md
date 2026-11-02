@@ -1408,6 +1408,7 @@ export function Tour() {
 ### 位置、边距与尺寸
 
 - `placement` — `"top"` | `"bottom"` | `"left"` | `"right"`（默认 `"bottom"`）。上下为横向列表，左右为纵向列表。
+- `align` — `"start"` | `"center"` | `"end"`（默认 `"center"`）。菜单主轴尺寸小于可用空间时，沿停靠边对齐；列表内容短于视口时同样对齐。
 - `inset` — 与 viewer 边缘的间隙（默认 `12`）。数字按像素；字符串可带单位（如 `"1rem"`）；对象可分别设置 `top` / `right` / `bottom` / `left`。
 - `width` / `height` — 菜单宽高。数字按像素；字符串会原样写入 CSS，因此可用 `%`、`rem`、`calc()`、`min()`、`max()`、`clamp()` 等。
 - `dragMotion` — 滚动惯性与边界回弹。省略则两者都开（自定义指针滚动，桌面也可拖）。设为 `false` 使用原生 overflow 滚动。可传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。短按仍会选中；拖过数像素后会抑制 click。
@@ -1415,6 +1416,7 @@ export function Tour() {
 ```tsx
 <PanoSceneMenu
   placement="bottom"
+  align="center"
   inset={16}
   width="min(720px, 100%)"
   items={menuItems}
@@ -1424,6 +1426,7 @@ export function Tour() {
 
 <PanoSceneMenu
   placement="right"
+  align="start"
   inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
   height="70%"
   width={160}
@@ -1439,7 +1442,7 @@ export function Tour() {
 
 ### 展开收起与箭头
 
-默认始终展开。设 `collapsible` 后会出现开关，可收起缩略图列表：
+默认始终展开。设 `collapsible` 后会出现开关，位于缩略图条朝向画面内侧的正中（底部菜单在条上方，顶部在条下方，左右在朝向画面一侧）。收起时列表沿停靠边滑出屏幕，只把展开按钮留在安全区边缘：
 
 ```tsx
 <PanoSceneMenu
@@ -1506,12 +1509,12 @@ export function Tour() {
 默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`（含 `padding: "8px 10px"`）。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
 
 - `pano-scene-menu` — 根容器
-- `pano-scene-menu-body` — 箭头与列表所在行/列
+- `pano-scene-menu-body` — 箭头与列表所在行/列（承载条背景）
 - `pano-scene-menu-list` — 可滚动列表
 - `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
 - `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
 
-根节点还带 `data-placement`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
+根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
 
 ## PanoFilter
 

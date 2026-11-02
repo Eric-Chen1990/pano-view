@@ -586,50 +586,65 @@
 }
 
 .pano-scene-menu {
-  align-items: stretch;
-  background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
-  border-radius: var(--pano-scene-menu-radius, 8px);
-  display: flex;
-  gap: 0.5rem;
-  padding: var(--pano-scene-menu-padding, 8px 10px);
-  pointer-events: auto;
+  background: transparent;
+  display: block;
+  pointer-events: none;
   position: absolute;
+  transition: transform 240ms ease;
   z-index: 2;
 }
 
-.pano-scene-menu[data-orientation="horizontal"] {
-  align-items: center;
-  flex-direction: row;
+.pano-scene-menu[data-placement="bottom"][data-expanded="false"] {
+  transform: translateY(
+    calc(100% + var(--pano-scene-menu-dock-inset, 12px))
+  );
 }
 
-.pano-scene-menu[data-orientation="vertical"] {
-  align-items: stretch;
-  flex-direction: column;
+.pano-scene-menu[data-placement="top"][data-expanded="false"] {
+  transform: translateY(
+    calc(-100% - var(--pano-scene-menu-dock-inset, 12px))
+  );
 }
 
-.pano-scene-menu[data-expanded="false"] {
-  align-items: center;
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
+.pano-scene-menu[data-placement="left"][data-expanded="false"] {
+  transform: translateX(
+    calc(-100% - var(--pano-scene-menu-dock-inset, 12px))
+  );
+}
+
+.pano-scene-menu[data-placement="right"][data-expanded="false"] {
+  transform: translateX(
+    calc(100% + var(--pano-scene-menu-dock-inset, 12px))
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pano-scene-menu {
+    transition: none;
+  }
 }
 
 .pano-scene-menu-body {
   align-items: center;
+  background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
+  border-radius: var(--pano-scene-menu-radius, 8px);
   display: flex;
-  flex: 1 1 auto;
   gap: var(--pano-scene-menu-gap, 8px);
   min-height: 0;
   min-width: 0;
+  padding: var(--pano-scene-menu-padding, 8px 10px);
+  pointer-events: auto;
+  width: 100%;
 }
 
 .pano-scene-menu[data-orientation="horizontal"] .pano-scene-menu-body {
   flex-direction: row;
+  height: 100%;
 }
 
 .pano-scene-menu[data-orientation="vertical"] .pano-scene-menu-body {
   flex-direction: column;
+  height: 100%;
 }
 
 .pano-scene-menu-list {
@@ -640,6 +655,18 @@
   min-width: 0;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
+}
+
+.pano-scene-menu[data-align="center"] .pano-scene-menu-list {
+  justify-content: safe center;
+}
+
+.pano-scene-menu[data-align="end"] .pano-scene-menu-list {
+  justify-content: safe flex-end;
+}
+
+.pano-scene-menu[data-align="start"] .pano-scene-menu-list {
+  justify-content: flex-start;
 }
 
 .pano-scene-menu-track {
@@ -764,5 +791,56 @@
 }
 
 .pano-scene-menu-toggle {
-  align-self: center;
+  background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
+  pointer-events: auto;
+  position: absolute;
+  z-index: 1;
+}
+
+.pano-scene-menu[data-placement="bottom"] .pano-scene-menu-toggle,
+.pano-scene-menu[data-placement="top"] .pano-scene-menu-toggle {
+  height: 1.5rem;
+  min-height: 1.5rem;
+  min-width: 4.5rem;
+  width: 4.5rem;
+}
+
+.pano-scene-menu[data-placement="left"] .pano-scene-menu-toggle,
+.pano-scene-menu[data-placement="right"] .pano-scene-menu-toggle {
+  height: 4.5rem;
+  min-height: 4.5rem;
+  min-width: 1.5rem;
+  width: 1.5rem;
+}
+
+.pano-scene-menu[data-placement="bottom"] .pano-scene-menu-toggle {
+  border-radius: var(--pano-scene-menu-radius, 8px)
+    var(--pano-scene-menu-radius, 8px) 0 0;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pano-scene-menu[data-placement="top"] .pano-scene-menu-toggle {
+  border-radius: 0 0 var(--pano-scene-menu-radius, 8px)
+    var(--pano-scene-menu-radius, 8px);
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+}
+
+.pano-scene-menu[data-placement="left"] .pano-scene-menu-toggle {
+  border-radius: 0 var(--pano-scene-menu-radius, 8px)
+    var(--pano-scene-menu-radius, 8px) 0;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pano-scene-menu[data-placement="right"] .pano-scene-menu-toggle {
+  border-radius: var(--pano-scene-menu-radius, 8px) 0 0
+    var(--pano-scene-menu-radius, 8px);
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
 }

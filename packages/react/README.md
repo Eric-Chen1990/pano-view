@@ -1538,6 +1538,9 @@ sit on a dark translucent bar at the bottom of each thumbnail.
 
 - `placement` — `"top"` | `"bottom"` | `"left"` | `"right"` (default `"bottom"`).
   Top/bottom render a horizontal strip; left/right render a vertical strip.
+- `align` — `"start"` | `"center"` | `"end"` (default `"center"`). When the menu
+  is smaller than the available dock space, aligns it along that edge. Short
+  lists are also aligned inside the strip the same way.
 - `inset` — gap from the viewer edges (default `12`). A number is pixels; a
   string keeps units such as `"1rem"`; an object sets `top` / `right` /
   `bottom` / `left` independently.
@@ -1551,6 +1554,7 @@ sit on a dark translucent bar at the bottom of each thumbnail.
 ```tsx
 <PanoSceneMenu
   placement="bottom"
+  align="center"
   inset={16}
   width="min(720px, 100%)"
   items={menuItems}
@@ -1560,6 +1564,7 @@ sit on a dark translucent bar at the bottom of each thumbnail.
 
 <PanoSceneMenu
   placement="right"
+  align="start"
   inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
   height="70%"
   width={160}
@@ -1578,8 +1583,10 @@ Use `style` when you need one-off positioning overrides on top of these props.
 
 ### Collapsible menu and arrows
 
-By default the menu stays open. Set `collapsible` to show a toggle that hides
-the thumbnail list:
+By default the menu stays open. Set `collapsible` to show a toggle centered on
+the inner edge of the strip (above a bottom menu, below a top menu, toward the
+viewer for left/right). Collapsing slides the list off-screen along the dock
+edge and leaves only the expand button on the safe-area edge:
 
 ```tsx
 <PanoSceneMenu
@@ -1652,12 +1659,12 @@ Pass `appearance` for common chrome tokens without writing CSS:
 use `className` / `style` against these stable classes:
 
 - `pano-scene-menu` — root chrome
-- `pano-scene-menu-body` — arrows + list row/column
+- `pano-scene-menu-body` — arrows + list row/column (owns the strip background)
 - `pano-scene-menu-list` — scrollable item list
 - `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
 - `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
 
-The root also exposes `data-placement`, `data-orientation`
+The root also exposes `data-placement`, `data-align`, `data-orientation`
 (`horizontal` | `vertical`), `data-expanded`, and `data-collapsible`. The active
 item has `data-active="true"`.
 

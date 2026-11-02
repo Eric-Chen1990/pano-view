@@ -70,6 +70,7 @@ export {
   PanoSceneMenu,
 } from "./pano-scene-menu";
 export type {
+  PanoSceneMenuAlign,
   PanoSceneMenuAppearance,
   PanoSceneMenuInset,
   PanoSceneMenuItem,
