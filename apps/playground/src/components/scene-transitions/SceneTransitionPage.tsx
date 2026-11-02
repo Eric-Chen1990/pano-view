@@ -89,9 +89,15 @@ const viewer = usePanoViewer();
   renderOverlay={() => (
     <PanoSceneMenu
       activeId={activeSceneId}
+      appearance={{
+        labelAlign: "center",
+        selectionColor: "#7dd3fc",
+        selectionWidth: 3,
+      }}
       collapsible
       inset={12}
       items={sceneMenuItems}
+      loop
       onSelect={setActiveSceneId}
       placement="bottom"
       showArrows
@@ -286,9 +292,15 @@ export function SceneTransitionPage() {
             renderOverlay={() => (
               <PanoSceneMenu
                 activeId={activeSceneId}
+                appearance={{
+                  labelAlign: "center",
+                  selectionColor: "#7dd3fc",
+                  selectionWidth: 3,
+                }}
                 collapsible
                 inset={12}
                 items={sceneMenuItems}
+                loop
                 onSelect={setActiveSceneId}
                 placement="bottom"
                 showArrows

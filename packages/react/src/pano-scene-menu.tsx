@@ -47,6 +47,8 @@ export type PanoSceneMenuInset =
       left?: number | string;
     };
 
+export type PanoSceneMenuLabelAlign = "start" | "center" | "end";
+
 export type PanoSceneMenuAppearance = {
   background?: string;
   padding?: number | string;
@@ -58,6 +60,8 @@ export type PanoSceneMenuAppearance = {
   selectionWidth?: number;
   labelBackground?: string;
   labelColor?: string;
+  /** Scene title alignment on the thumbnail. Defaults to `"start"`. */
+  labelAlign?: PanoSceneMenuLabelAlign;
   fontSize?: number | string;
   controlColor?: string;
   controlBackground?: string;
@@ -97,6 +101,11 @@ export type PanoSceneMenuProps = {
   /** Show previous/next controls at both ends of the list. Defaults to `false`. */
   showArrows?: boolean;
   /**
+   * When `true`, previous/next arrows and arrow keys wrap from the last item
+   * to the first and vice versa. Defaults to `false` (stop at the ends).
+   */
+  loop?: boolean;
+  /**
    * Scroll drag inertia and edge bounce.
    * Omit for both on (custom pointer scrolling). Set `false` for native overflow scroll.
    */
@@ -125,6 +134,7 @@ export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: Required<PanoSceneMenuAppearanc
     selectionWidth: 2,
     labelBackground: "rgba(0, 0, 0, 0.55)",
     labelColor: "#ffffff",
+    labelAlign: "start",
     fontSize: 12,
     controlColor: "#ffffff",
     controlBackground: "rgba(255, 255, 255, 0.12)",
@@ -407,6 +417,7 @@ export function PanoSceneMenu({
   expanded: expandedProp,
   onExpandedChange,
   showArrows = false,
+  loop = false,
   dragMotion: dragMotionProp,
   appearance,
   className,
@@ -622,6 +633,7 @@ export function PanoSceneMenu({
       "--pano-scene-menu-selection-width": cssLength(resolved.selectionWidth),
       "--pano-scene-menu-label-background": resolved.labelBackground,
       "--pano-scene-menu-label-color": resolved.labelColor,
+      "--pano-scene-menu-label-align": resolved.labelAlign,
       "--pano-scene-menu-font-size": cssLength(resolved.fontSize),
       "--pano-scene-menu-control-color": resolved.controlColor,
       "--pano-scene-menu-control-background": resolved.controlBackground,
@@ -658,6 +670,12 @@ export function PanoSceneMenu({
       return;
     }
     const current = activeIndex >= 0 ? activeIndex : 0;
+    if (loop) {
+      const next =
+        ((current + delta) % items.length + items.length) % items.length;
+      selectAt(next);
+      return;
+    }
     selectAt(Math.max(0, Math.min(items.length - 1, current + delta)));
   };
 
@@ -682,12 +700,20 @@ export function PanoSceneMenu({
       : event.key === "ArrowDown";
     if (backward) {
       event.preventDefault();
-      selectAt(Math.max(0, current - 1));
+      if (loop) {
+        selectAt((current - 1 + items.length) % items.length);
+      } else {
+        selectAt(Math.max(0, current - 1));
+      }
       return;
     }
     if (forward) {
       event.preventDefault();
-      selectAt(Math.min(items.length - 1, current + 1));
+      if (loop) {
+        selectAt((current + 1) % items.length);
+      } else {
+        selectAt(Math.min(items.length - 1, current + 1));
+      }
       return;
     }
     switch (event.key) {
@@ -845,8 +871,11 @@ export function PanoSceneMenu({
     onSelect?.(id);
   };
 
-  const canGoPrevious = items.length > 0 && activeIndex !== 0;
-  const canGoNext = items.length > 0 && activeIndex !== items.length - 1;
+  const canStep = items.length > 1;
+  const canGoPrevious =
+    canStep && (loop || activeIndex !== 0);
+  const canGoNext =
+    canStep && (loop || activeIndex !== items.length - 1);
   const orientation = horizontal ? "horizontal" : "vertical";
   const trackStyle: CSSProperties | undefined = customDrag
     ? {

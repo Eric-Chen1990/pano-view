@@ -1531,8 +1531,9 @@ export function Tour() {
 
 Each item needs `id` and `thumbnailUrl`. Optional `title` is shown on the
 thumbnail label and as the control tooltip; when omitted, `id` is used. The
-active item gets an inset selection border and `data-active="true"`. Scene names
-sit on a dark translucent bar at the bottom of each thumbnail.
+active item gets a selection ring above the thumbnail and `data-active="true"`.
+Scene names sit on a dark translucent bar at the bottom of each thumbnail;
+use `appearance.labelAlign` for `"center"` or `"end"` alignment.
 
 ### Placement, inset, and size
 
@@ -1608,16 +1609,19 @@ edge and leaves only the expand button on the safe-area edge:
 />
 ```
 
-Set `showArrows` to add previous/next buttons at both ends of the list. The
-buttons stop at the first and last items (they do not wrap). Customize their
-accessible names with `previousLabel` / `nextLabel`, and the toggle with
-`expandLabel` / `collapseLabel`. Defaults are `"Previous scene"`, `"Next scene"`,
+Set `showArrows` to add previous/next buttons at both ends of the list. By
+default the buttons stop at the first and last items. Set `loop` so arrows and
+arrow keys wrap from the last item to the first (and vice versa). Arrows stay
+disabled when there are fewer than two scenes. Customize their accessible names
+with `previousLabel` / `nextLabel`, and the toggle with `expandLabel` /
+`collapseLabel`. Defaults are `"Previous scene"`, `"Next scene"`,
 `"Show scenes"`, and `"Hide scenes"`. The radiogroup label defaults to `"Scenes"`
 via `label`. When collapsible, `defaultExpanded` defaults to `true`.
 
 ```tsx
 <PanoSceneMenu
   showArrows
+  loop
   collapsible
   placement="bottom"
   width="min(720px, 100%)"
@@ -1631,7 +1635,10 @@ via `label`. When collapsible, `defaultExpanded` defaults to `true`.
 
 ### Appearance and CSS hooks
 
-Pass `appearance` for common chrome tokens without writing CSS:
+Pass `appearance` for common chrome tokens without writing CSS. The active-item
+ring sits above the thumbnail and is controlled by `selectionColor` /
+`selectionWidth` (`selectionWidth: 0` hides it). Scene titles default to start
+alignment; set `labelAlign: "center"` or `"end"` to change that.
 
 ```tsx
 <PanoSceneMenu
@@ -1645,6 +1652,7 @@ Pass `appearance` for common chrome tokens without writing CSS:
     selectionWidth: 2,
     labelBackground: "rgba(0, 0, 0, 0.6)",
     labelColor: "#ffffff",
+    labelAlign: "center",
     fontSize: 12,
     controlColor: "#f8fafc",
     controlBackground: "rgba(255, 255, 255, 0.14)",
@@ -1655,7 +1663,8 @@ Pass `appearance` for common chrome tokens without writing CSS:
 />
 ```
 
-`DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults (including `padding: "8px 10px"`). For deeper styling,
+`DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults (including
+`padding: "8px 10px"` and `labelAlign: "start"`). For deeper styling,
 use `className` / `style` against these stable classes:
 
 - `pano-scene-menu` — root chrome

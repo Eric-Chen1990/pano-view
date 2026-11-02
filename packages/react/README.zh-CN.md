@@ -1403,7 +1403,7 @@ export function Tour() {
 }
 ```
 
-每项需要 `id` 与 `thumbnailUrl`。可选 `title` 显示在缩略图底部标签和控制提示上；省略时用 `id`。当前项带内缩选择框和 `data-active="true"`。场景名默认叠在缩略图底部的暗色半透明条上。
+每项需要 `id` 与 `thumbnailUrl`。可选 `title` 显示在缩略图底部标签和控制提示上；省略时用 `id`。当前项带叠在缩略图上的选择边框和 `data-active="true"`。场景名默认叠在缩略图底部的暗色半透明条上，可用 `appearance.labelAlign` 改为居中或右对齐。
 
 ### 位置、边距与尺寸
 
@@ -1464,11 +1464,12 @@ export function Tour() {
 />
 ```
 
-设 `showArrows` 会在列表两端显示上一场景 / 下一场景按钮。按钮到首尾后停住，不会循环。可用 `previousLabel` / `nextLabel` 自定义箭头无障碍名称，用 `expandLabel` / `collapseLabel` 自定义展开收起文案。默认文案为 `"Previous scene"`、`"Next scene"`、`"Show scenes"`、`"Hide scenes"`。单选组标签默认是 `"Scenes"`，可通过 `label` 修改。`defaultExpanded` 在可折叠时默认为 `true`。
+设 `showArrows` 会在列表两端显示上一场景 / 下一场景按钮。默认到首尾后停住；设 `loop` 后箭头与方向键会在首尾环绕（最后一项的下一项是第一项）。场景少于 2 个时箭头仍禁用。可用 `previousLabel` / `nextLabel` 自定义箭头无障碍名称，用 `expandLabel` / `collapseLabel` 自定义展开收起文案。默认文案为 `"Previous scene"`、`"Next scene"`、`"Show scenes"`、`"Hide scenes"`。单选组标签默认是 `"Scenes"`，可通过 `label` 修改。`defaultExpanded` 在可折叠时默认为 `true`。
 
 ```tsx
 <PanoSceneMenu
   showArrows
+  loop
   collapsible
   placement="bottom"
   width="min(720px, 100%)"
@@ -1482,7 +1483,7 @@ export function Tour() {
 
 ### 外观与样式钩子
 
-常用外观可用 `appearance`，不必手写 CSS：
+常用外观可用 `appearance`，不必手写 CSS。当前项边框叠在缩略图上方，可用 `selectionColor` / `selectionWidth` 调节（`selectionWidth: 0` 隐藏）；场景名默认左对齐，设 `labelAlign: "center"` 或 `"end"` 可改对齐。
 
 ```tsx
 <PanoSceneMenu
@@ -1496,6 +1497,7 @@ export function Tour() {
     selectionWidth: 2,
     labelBackground: "rgba(0, 0, 0, 0.6)",
     labelColor: "#ffffff",
+    labelAlign: "center",
     fontSize: 12,
     controlColor: "#f8fafc",
     controlBackground: "rgba(255, 255, 255, 0.14)",
@@ -1506,7 +1508,7 @@ export function Tour() {
 />
 ```
 
-默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`（含 `padding: "8px 10px"`）。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
+默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`（含 `padding: "8px 10px"`、`labelAlign: "start"`）。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
 
 - `pano-scene-menu` — 根容器
 - `pano-scene-menu-body` — 箭头与列表所在行/列（承载条背景）

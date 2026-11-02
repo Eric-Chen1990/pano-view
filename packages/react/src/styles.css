@@ -745,9 +745,15 @@
   width: 100%;
 }
 
-.pano-scene-menu-item[data-active="true"] .pano-scene-menu-thumb {
-  box-shadow: inset 0 0 0 var(--pano-scene-menu-selection-width, 2px)
+.pano-scene-menu-item[data-active="true"] .pano-scene-menu-thumb::after {
+  border: var(--pano-scene-menu-selection-width, 2px) solid
     var(--pano-scene-menu-selection-color, #ffffff);
+  border-radius: inherit;
+  box-sizing: border-box;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
 
 .pano-scene-menu-label {
@@ -761,7 +767,7 @@
   padding: 0.25rem 0.4rem;
   position: absolute;
   right: 0;
-  text-align: left;
+  text-align: var(--pano-scene-menu-label-align, start);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
