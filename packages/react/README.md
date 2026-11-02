@@ -287,13 +287,13 @@ An optional project-level `map` places scene spots on one floor image. Projects 
 
 `image` is a project-relative path or an absolute URL. `spots` is required. Spot IDs are unique, and each `sceneId` must name a scene in the project. `x` and `y` are normalized image coordinates in [0, 1], with the origin at the top-left. `heading` is clockwise degrees from image-up when viewer yaw is 0; the drawn sector uses `heading + yaw`. Several spots may share a scene. The sector is drawn on the first spot whose `sceneId` matches the active scene. `icon` is optional; a spot without one uses the built-in marker.
 
-`interaction` is `"fixed"` (the default) or `"zoom"`. Fixed mode fits the image in the panel and ignores the wheel, drag-pan, and zoom buttons. Zoom mode allows wheel zoom, and drag-pan once the scale is above the fitted size. Wheel events on the map do not scroll the page. `maxScale` is the maximum multiple of that fitted size, at least 1, default 8. `controls.zoom` shows the zoom buttons only when interaction is `"zoom"`. `controls.collapse` shows expand and collapse on a docked panel. `iconSize` is the marker edge in CSS pixels, default 28. Icons and the sector keep that screen size while the floor image zooms.
+`interaction` is `"fixed"` (the default) or `"zoom"`. Fixed mode fits the image in the panel and ignores the wheel, drag-pan, and zoom buttons. Zoom mode allows wheel zoom, and drag-pan once the scale is above the fitted size. Wheel events on the map do not scroll the page. `maxScale` is the maximum multiple of that fitted size, at least 1, default 8. `dragMotion` controls pan inertia and edge bounce while zoomed (both on by default). Set `false` to disable both, or `{ inertia?: boolean; bounce?: boolean }` to toggle either flag. Spot and heading edits stay direct. `controls.zoom` shows the zoom buttons only when interaction is `"zoom"`. `controls.collapse` shows expand and collapse on a docked panel. `iconSize` is the marker edge in CSS pixels, default 28. Icons and the sector keep that screen size while the floor image zooms.
 
 `sector` is optional. `angle` is the opening in degrees, greater than 0 and less than 360. `radius` is CSS pixels and does not scale with the image. `followFov` replaces `angle` with the horizontal field of view derived from the viewer FOV and the map panel's aspect ratio. Without `gradient`, the fill is solid `color` (default `#ffffff`) at `opacity` (default 0.55). `gradient.type` is `"radial"` or `"linear"`, with at least two stops. Each stop has `offset` in [0, 1], `color`, and an optional `opacity`. Stop opacities describe only the fade shape. `sector.opacity` scales the whole fill in both solid and gradient mode. `strokeColor`, `strokeWidth`, and `strokeOpacity` draw an outline when the width is greater than 0. The outline width stays in CSS pixels.
 
 `presentation.mode` is `"docked"` (the default) or `"dialog"`. Both accept `corner` (`top-left`, `top-right`, `bottom-left`, or `bottom-right`; default `bottom-left`), `offsetX` and `offsetY` (default 16), plus `width` and `height`. A docked panel defaults to 220×160. Dialog mode docks a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it.
 
-The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` → individual props. Spot geometry and sector styling stay in the document.
+The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `dragMotion`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` → individual props. Spot geometry and sector styling stay in the document.
 
 #### Mounting `PanoMapOverlay`
 
@@ -378,6 +378,7 @@ These props override the map document for the current mount:
 
 - `interaction` — `"fixed"` | `"zoom"`.
 - `maxScale` — maximum multiple of the contain-fit size; values below 1 are treated as 1.
+- `dragMotion` — pan inertia / edge bounce when `interaction` is `"zoom"`. Omit for both on; `false` disables both.
 - `initialScale` — opening zoom relative to the contain-fit size, clamped to `[1, maxScale]`. View state only; not written back to the document. Applies after the image is measured and recenters. Resets only when `initialScale` or `interaction` changes; later wheel and drag keep the user's view. Shrinking `maxScale` only clamps the current scale.
 - `showZoomControls` / `showCollapseControl` — force zoom or collapse chrome on or off.
 - `iconSize` — marker edge in CSS pixels.
@@ -1454,6 +1455,10 @@ sit on a dark translucent bar at the bottom of each thumbnail.
   `bottom` / `left` independently.
 - `width` / `height` — menu size. A number is pixels; a string is used as CSS as-is,
   including `%`, `rem`, `calc()`, `min()`, `max()`, and `clamp()`.
+- `dragMotion` — scroll inertia and edge bounce. Omit for both on (custom pointer
+  scrolling, including desktop drag). Set `false` for native overflow scroll.
+  Pass `{ inertia?: boolean; bounce?: boolean }` to toggle either flag. A short
+  press still selects; a drag past a few pixels suppresses the click.
 
 ```tsx
 <PanoSceneMenu

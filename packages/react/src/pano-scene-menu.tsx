@@ -1,15 +1,30 @@
 import {
+  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { cn } from "./cn";
+import {
+  constrainDragPosition,
+  integrateAxis,
+  pushSample,
+  resolveDragMotion,
+  velocityFromSamples,
+  type PanoDragMotion,
+  type PointerSample,
+} from "./drag-motion";
+
+export type { PanoDragMotion };
 
 export type PanoSceneMenuItem = {
   id: string;
@@ -72,6 +87,11 @@ export type PanoSceneMenuProps = {
   onExpandedChange?: (expanded: boolean) => void;
   /** Show previous/next controls at both ends of the list. Defaults to `false`. */
   showArrows?: boolean;
+  /**
+   * Scroll drag inertia and edge bounce.
+   * Omit for both on (custom pointer scrolling). Set `false` for native overflow scroll.
+   */
+  dragMotion?: PanoDragMotion | false;
   appearance?: PanoSceneMenuAppearance;
   className?: string;
   style?: CSSProperties;
@@ -81,6 +101,8 @@ export type PanoSceneMenuProps = {
   expandLabel?: string;
   collapseLabel?: string;
 };
+
+const SCENE_MENU_DRAG_THRESHOLD_PX = 6;
 
 export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: Required<PanoSceneMenuAppearance> =
   {
@@ -300,6 +322,7 @@ export function PanoSceneMenu({
   expanded: expandedProp,
   onExpandedChange,
   showArrows = false,
+  dragMotion: dragMotionProp,
   appearance,
   className,
   style,
@@ -311,10 +334,15 @@ export function PanoSceneMenu({
 }: PanoSceneMenuProps) {
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
   const resolved = resolveAppearance(appearance);
   const resolvedInset = resolveInset(inset);
   const horizontal = isHorizontal(placement);
+  const customDrag = dragMotionProp !== false;
+  const dragMotion = resolveDragMotion(
+    dragMotionProp === false ? false : dragMotionProp,
+  );
   const isExpandedControlled = expandedProp !== undefined;
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
   const expanded = collapsible
@@ -322,6 +350,27 @@ export function PanoSceneMenu({
       ? expandedProp
       : internalExpanded
     : true;
+  const [offset, setOffset] = useState(0);
+  const [viewportSize, setViewportSize] = useState(0);
+  const [contentSize, setContentSize] = useState(0);
+  const offsetRef = useRef(0);
+  const dragRef = useRef<{
+    pointerId: number;
+    origin: number;
+    startOffset: number;
+    samples: PointerSample[];
+    moved: boolean;
+    suppressClick: boolean;
+  } | null>(null);
+  const animRef = useRef<{
+    raf: number | null;
+    lastTime: number;
+    position: number;
+    velocity: number;
+  } | null>(null);
+  const maxOffset = Math.max(0, contentSize - viewportSize);
+
+  offsetRef.current = offset;
 
   const activeIndex = useMemo(() => {
     if (activeId == null) {
@@ -330,17 +379,151 @@ export function PanoSceneMenu({
     return items.findIndex((item) => item.id === activeId);
   }, [activeId, items]);
 
+  const cancelScrollAnimation = useCallback(() => {
+    const anim = animRef.current;
+    if (anim?.raf != null) {
+      cancelAnimationFrame(anim.raf);
+    }
+    animRef.current = null;
+  }, []);
+
+  const clampOffset = useCallback(
+    (value: number) => Math.min(maxOffset, Math.max(0, value)),
+    [maxOffset],
+  );
+
+  const startScrollAnimation = useCallback(
+    (velocity: number) => {
+      cancelScrollAnimation();
+      const current = offsetRef.current;
+      const needsSpring =
+        dragMotion.bounce && (current < 0 || current > maxOffset);
+      const nextVelocity = dragMotion.inertia ? velocity : 0;
+      if (!needsSpring && Math.abs(nextVelocity) < 1) {
+        setOffset(clampOffset(current));
+        return;
+      }
+      if (!dragMotion.inertia && !dragMotion.bounce) {
+        setOffset(clampOffset(current));
+        return;
+      }
+      const anim = {
+        raf: null as number | null,
+        lastTime: performance.now(),
+        position: current,
+        velocity: nextVelocity,
+      };
+      animRef.current = anim;
+      const tick = (now: number) => {
+        if (animRef.current !== anim) return;
+        const dt = Math.min(0.064, Math.max(0, (now - anim.lastTime) / 1000));
+        anim.lastTime = now;
+        const next = integrateAxis(
+          { position: anim.position, velocity: anim.velocity },
+          dt,
+          {
+            min: 0,
+            max: maxOffset,
+            inertia: dragMotion.inertia,
+            bounce: dragMotion.bounce,
+          },
+        );
+        anim.position = next.position;
+        anim.velocity = next.velocity;
+        setOffset(next.position);
+        if (next.settled) {
+          setOffset(clampOffset(next.position));
+          animRef.current = null;
+          return;
+        }
+        anim.raf = requestAnimationFrame(tick);
+      };
+      anim.raf = requestAnimationFrame(tick);
+    },
+    [
+      cancelScrollAnimation,
+      clampOffset,
+      dragMotion.bounce,
+      dragMotion.inertia,
+      maxOffset,
+    ],
+  );
+
+  useEffect(() => () => cancelScrollAnimation(), [cancelScrollAnimation]);
+
+  useLayoutEffect(() => {
+    if (!customDrag || !expanded) return;
+    const list = listRef.current;
+    const track = trackRef.current;
+    if (!list || !track) return;
+    const measure = () => {
+      const nextViewport = horizontal ? list.clientWidth : list.clientHeight;
+      const nextContent = horizontal ? track.scrollWidth : track.scrollHeight;
+      setViewportSize((previous) =>
+        previous === nextViewport ? previous : nextViewport,
+      );
+      setContentSize((previous) =>
+        previous === nextContent ? previous : nextContent,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [customDrag, expanded, horizontal, items]);
+
+  useEffect(() => {
+    if (!customDrag) return;
+    // Do not fight an active drag or coast/spring animation.
+    if (dragRef.current || animRef.current) return;
+    setOffset((previous) => Math.min(maxOffset, Math.max(0, previous)));
+  }, [customDrag, maxOffset]);
+
   useEffect(() => {
     if (!expanded || activeId == null) {
       return;
     }
     const node = itemRefs.current.get(activeId);
-    node?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "nearest",
-    });
-  }, [activeId, expanded]);
+    if (!node) return;
+    if (!customDrag) {
+      node.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+      return;
+    }
+    const list = listRef.current;
+    if (!list) return;
+    const listRect = list.getBoundingClientRect();
+    const itemRect = node.getBoundingClientRect();
+    // itemRect is already transformed; convert to content coordinates via offset.
+    if (horizontal) {
+      const itemStart = itemRect.left - listRect.left + offsetRef.current;
+      const itemEnd = itemStart + itemRect.width;
+      let next = offsetRef.current;
+      if (itemStart < next) next = itemStart;
+      else if (itemEnd > next + listRect.width) next = itemEnd - listRect.width;
+      cancelScrollAnimation();
+      setOffset(clampOffset(next));
+      return;
+    }
+    const itemStart = itemRect.top - listRect.top + offsetRef.current;
+    const itemEnd = itemStart + itemRect.height;
+    let next = offsetRef.current;
+    if (itemStart < next) next = itemStart;
+    else if (itemEnd > next + listRect.height) next = itemEnd - listRect.height;
+    cancelScrollAnimation();
+    setOffset(clampOffset(next));
+  }, [
+    activeId,
+    cancelScrollAnimation,
+    clampOffset,
+    customDrag,
+    expanded,
+    horizontal,
+  ]);
 
   const rootStyle = useMemo((): CSSProperties => {
     const vars: CSSProperties & Record<`--pano-scene-menu-${string}`, string> = {
@@ -445,34 +628,158 @@ export function PanoSceneMenu({
     if (!list) {
       return;
     }
-    if (horizontal) {
-      const canScroll = list.scrollWidth > list.clientWidth + 1;
-      if (!canScroll || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+    if (!customDrag) {
+      if (horizontal) {
+        const canScroll = list.scrollWidth > list.clientWidth + 1;
+        if (!canScroll || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        list.scrollLeft += event.deltaY;
+        return;
+      }
+      const canScroll = list.scrollHeight > list.clientHeight + 1;
+      if (!canScroll || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
         return;
       }
       event.preventDefault();
       event.stopPropagation();
-      list.scrollLeft += event.deltaY;
+      list.scrollTop += event.deltaX;
       return;
     }
-    const canScroll = list.scrollHeight > list.clientHeight + 1;
-    if (!canScroll || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
+
+    if (horizontal) {
+      if (maxOffset <= 0 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      cancelScrollAnimation();
+      setOffset((previous) => clampOffset(previous + event.deltaY));
+      return;
+    }
+    if (maxOffset <= 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    list.scrollTop += event.deltaX;
+    cancelScrollAnimation();
+    setOffset((previous) => clampOffset(previous + event.deltaX));
+  };
+
+  const axisPoint = (event: { clientX: number; clientY: number }) =>
+    horizontal ? event.clientX : event.clientY;
+
+  const endSuppressClickRef = useRef(false);
+
+  const beginListDrag = (
+    event: ReactPointerEvent<Element>,
+    captureTarget: HTMLElement,
+  ) => {
+    if (!customDrag || event.button !== 0) return;
+    cancelScrollAnimation();
+    const now = performance.now();
+    const origin = axisPoint(event);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      origin,
+      startOffset: offsetRef.current,
+      samples: [{ t: now, position: offsetRef.current }],
+      moved: false,
+      suppressClick: false,
+    };
+    try {
+      captureTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic or already-released pointers may reject capture.
+    }
+  };
+
+  const onListPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const point = axisPoint(event);
+    const delta = point - drag.origin;
+    if (!drag.moved && Math.abs(delta) >= SCENE_MENU_DRAG_THRESHOLD_PX) {
+      drag.moved = true;
+      drag.suppressClick = true;
+    }
+    if (!drag.moved) return;
+    // Content follows the finger: drag right/down decreases offset.
+    const raw = drag.startOffset - delta;
+    const now = performance.now();
+    drag.samples = pushSample(drag.samples, { t: now, position: raw });
+    setOffset(
+      constrainDragPosition(
+        raw,
+        0,
+        maxOffset,
+        Math.max(1, viewportSize),
+        dragMotion.bounce,
+      ),
+    );
+    event.preventDefault();
+  };
+
+  const finishPointerWithClickGuard = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const suppress = drag.suppressClick;
+    dragRef.current = null;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Ignore release failures for synthetic pointers.
+    }
+    if (suppress) {
+      endSuppressClickRef.current = true;
+      queueMicrotask(() => {
+        endSuppressClickRef.current = false;
+      });
+    }
+    if (!drag.moved) return;
+    if (event.type === "pointercancel") {
+      setOffset(clampOffset(offsetRef.current));
+      return;
+    }
+    startScrollAnimation(velocityFromSamples(drag.samples));
+  };
+
+  const onItemClick = (
+    event: ReactMouseEvent<HTMLButtonElement>,
+    id: string,
+  ) => {
+    if (endSuppressClickRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    onSelect?.(id);
   };
 
   const canGoPrevious = items.length > 0 && activeIndex !== 0;
   const canGoNext = items.length > 0 && activeIndex !== items.length - 1;
   const orientation = horizontal ? "horizontal" : "vertical";
+  const trackStyle: CSSProperties | undefined = customDrag
+    ? {
+        transform: horizontal
+          ? `translate3d(${-offset}px, 0, 0)`
+          : `translate3d(0, ${-offset}px, 0)`,
+        willChange: "transform",
+      }
+    : undefined;
 
   return (
     <div
       aria-label={label}
       className={cn("pano-scene-menu", className)}
       data-collapsible={collapsible ? "true" : undefined}
+      data-drag-motion={customDrag ? "custom" : "native"}
       data-expanded={expanded ? "true" : "false"}
       data-orientation={orientation}
       data-placement={placement}
@@ -496,49 +803,71 @@ export function PanoSceneMenu({
             className="pano-scene-menu-list"
             id={listId}
             onKeyDown={onKeyDown}
+            onPointerCancel={
+              customDrag ? finishPointerWithClickGuard : undefined
+            }
+            onPointerDown={
+              customDrag
+                ? (event) => beginListDrag(event, event.currentTarget)
+                : undefined
+            }
+            onPointerMove={customDrag ? onListPointerMove : undefined}
+            onPointerUp={customDrag ? finishPointerWithClickGuard : undefined}
             onWheel={onWheel}
             ref={listRef}
             role="radiogroup"
           >
-            {items.map((item) => {
-              const name = itemLabel(item);
-              const selected = item.id === activeId;
-              return (
-                <button
-                  aria-checked={selected}
-                  className="pano-scene-menu-item"
-                  data-active={selected ? "true" : undefined}
-                  key={item.id}
-                  onClick={() => onSelect?.(item.id)}
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  ref={(node) => {
-                    if (node) {
-                      itemRefs.current.set(item.id, node);
-                    } else {
-                      itemRefs.current.delete(item.id);
+            <div
+              className="pano-scene-menu-track"
+              ref={trackRef}
+              style={trackStyle}
+            >
+              {items.map((item) => {
+                const name = itemLabel(item);
+                const selected = item.id === activeId;
+                return (
+                  <button
+                    aria-checked={selected}
+                    className="pano-scene-menu-item"
+                    data-active={selected ? "true" : undefined}
+                    key={item.id}
+                    onClick={(event) => onItemClick(event, item.id)}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      const list = listRef.current;
+                      if (customDrag && list) {
+                        beginListDrag(event, list);
+                      }
+                    }}
+                    ref={(node) => {
+                      if (node) {
+                        itemRefs.current.set(item.id, node);
+                      } else {
+                        itemRefs.current.delete(item.id);
+                      }
+                    }}
+                    role="radio"
+                    tabIndex={
+                      selected || (activeId == null && item === items[0])
+                        ? 0
+                        : -1
                     }
-                  }}
-                  role="radio"
-                  tabIndex={
-                    selected || (activeId == null && item === items[0]) ? 0 : -1
-                  }
-                  title={name}
-                  type="button"
-                >
-                  <span className="pano-scene-menu-thumb">
-                    <img
-                      alt=""
-                      decoding="async"
-                      draggable={false}
-                      src={item.thumbnailUrl}
-                    />
-                    <span className="pano-scene-menu-label">{name}</span>
-                  </span>
-                </button>
-              );
-            })}
+                    title={name}
+                    type="button"
+                  >
+                    <span className="pano-scene-menu-thumb">
+                      <img
+                        alt=""
+                        decoding="async"
+                        draggable={false}
+                        src={item.thumbnailUrl}
+                      />
+                      <span className="pano-scene-menu-label">{name}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {showArrows ? (
             <ControlButton

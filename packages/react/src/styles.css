@@ -642,6 +642,22 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.pano-scene-menu-track {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--pano-scene-menu-gap, 8px);
+  min-height: 0;
+  min-width: 0;
+}
+
+.pano-scene-menu[data-orientation="horizontal"] .pano-scene-menu-track {
+  flex-direction: row;
+}
+
+.pano-scene-menu[data-orientation="vertical"] .pano-scene-menu-track {
+  flex-direction: column;
+}
+
 .pano-scene-menu[data-orientation="horizontal"] .pano-scene-menu-list {
   flex-direction: row;
   overflow-x: auto;
@@ -656,6 +672,12 @@
   overflow-y: auto;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
+}
+
+.pano-scene-menu[data-drag-motion="custom"] .pano-scene-menu-list {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .pano-scene-menu-item {

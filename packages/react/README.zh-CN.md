@@ -283,13 +283,13 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `image` 是相对项目目录的路径或绝对 URL。`spots` 必填。点位 `id` 唯一，每个 `sceneId` 必须指向项目中的场景。`x`、`y` 是归一化图像坐标，范围 [0, 1]，原点在左上角。`heading` 是查看器 yaw 为 0 时、从图像向上方向起算的顺时针角度；扇形实际旋转为 `heading + yaw`。多个点位可以指向同一场景，扇形画在第一个 `sceneId` 与当前场景相同的点位上。`icon` 可选；省略时使用内置标记。
 
-`interaction` 为 `"fixed"`（默认）或 `"zoom"`。固定模式把图像适配进面板，忽略滚轮、拖拽平移和缩放按钮。缩放模式允许滚轮缩放，并在比例大于适配尺寸后拖拽平移。地图上的滚轮不会带动页面滚动。`maxScale` 是相对适配尺寸的最大倍数，至少为 1，默认 8。`controls.zoom` 仅在 `"zoom"` 时显示缩放按钮。`controls.collapse` 在停靠面板上显示展开和收起。`iconSize` 是标记边长，单位为 CSS 像素，默认 28。图像缩放时，图标和扇形保持屏幕尺寸。
+`interaction` 为 `"fixed"`（默认）或 `"zoom"`。固定模式把图像适配进面板，忽略滚轮、拖拽平移和缩放按钮。缩放模式允许滚轮缩放，并在比例大于适配尺寸后拖拽平移。地图上的滚轮不会带动页面滚动。`maxScale` 是相对适配尺寸的最大倍数，至少为 1，默认 8。`dragMotion` 控制放大后的平移惯性与边界回弹（默认均开启）。设为 `false` 可同时关闭，或传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。点位与朝向编辑仍是直接拖动。`controls.zoom` 仅在 `"zoom"` 时显示缩放按钮。`controls.collapse` 在停靠面板上显示展开和收起。`iconSize` 是标记边长，单位为 CSS 像素，默认 28。图像缩放时，图标和扇形保持屏幕尺寸。
 
 `sector` 可选。`angle` 是开口角度，大于 0 且小于 360。`radius` 单位为 CSS 像素，不随图像缩放。`followFov` 用查看器视场角和地图面板宽高比换算水平视场，代替 `angle`。没有 `gradient` 时，填充为纯色 `color`（默认 `#ffffff`），不透明度为 `opacity`（默认 0.55）。`gradient.type` 为 `"radial"` 或 `"linear"`，至少两个色标。每个色标包含 [0, 1] 的 `offset`、`color`，以及可选 `opacity`。色标不透明度只描述渐隐形状。`sector.opacity` 在纯色和渐变两种模式下都缩放整块填充。`strokeColor`、`strokeWidth`、`strokeOpacity` 在宽度大于 0 时绘制描边，描边宽度保持 CSS 像素。
 
 `presentation.mode` 为 `"docked"`（默认）或 `"dialog"`。两者都接受 `corner`（`top-left`、`top-right`、`bottom-left`、`bottom-right`，默认 `bottom-left`）、`offsetX` 与 `offsetY`（默认 16），以及 `width` 和 `height`。停靠面板默认 220×160。对话框模式停靠一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。
 
-文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride` → 单独 props。点位几何与扇形样式仍写在文档里。
+文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`dragMotion`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride` → 单独 props。点位几何与扇形样式仍写在文档里。
 
 #### 挂载 `PanoMapOverlay`
 
@@ -374,6 +374,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 - `interaction` — `"fixed"` | `"zoom"`。
 - `maxScale` — 相对适配尺寸的最大倍数；小于 1 时按 1 处理。
+- `dragMotion` — `interaction` 为 `"zoom"` 时的平移惯性 / 边界回弹。省略则两者都开；`false` 同时关闭。
 - `initialScale` — 打开时的缩放倍数，相对适配尺寸，限制在 `[1, maxScale]`。这是视图状态，不会写回文档。图像测量完成后居中应用。仅在 `initialScale` 或 `interaction` 变化时重置；之后滚轮与拖拽保持用户操作。`maxScale` 变小时只夹紧当前缩放。
 - `showZoomControls` / `showCollapseControl` — 强制显示或隐藏缩放、收起控件。
 - `iconSize` — 标记边长，单位为 CSS 像素。
@@ -1321,6 +1322,7 @@ export function Tour() {
 - `placement` — `"top"` | `"bottom"` | `"left"` | `"right"`（默认 `"bottom"`）。上下为横向列表，左右为纵向列表。
 - `inset` — 与 viewer 边缘的间隙（默认 `12`）。数字按像素；字符串可带单位（如 `"1rem"`）；对象可分别设置 `top` / `right` / `bottom` / `left`。
 - `width` / `height` — 菜单宽高。数字按像素；字符串会原样写入 CSS，因此可用 `%`、`rem`、`calc()`、`min()`、`max()`、`clamp()` 等。
+- `dragMotion` — 滚动惯性与边界回弹。省略则两者都开（自定义指针滚动，桌面也可拖）。设为 `false` 使用原生 overflow 滚动。可传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。短按仍会选中；拖过数像素后会抑制 click。
 
 ```tsx
 <PanoSceneMenu

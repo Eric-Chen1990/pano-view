@@ -55,6 +55,7 @@ test("parsePanoMap validates spots against scenes", () => {
       controls: { collapse: true, zoom: true },
       iconSize: 28,
       maxScale: 4,
+      dragMotion: { inertia: true, bounce: false },
       sector: {
         angle: 70,
         radius: 48,
@@ -79,9 +80,21 @@ test("parsePanoMap validates spots against scenes", () => {
   assert.equal(map?.spots[0]?.sceneId, "entrance");
   assert.equal(map?.controls?.zoom, true);
   assert.equal(map?.maxScale, 4);
+  assert.deepEqual(map?.dragMotion, { inertia: true, bounce: false });
   assert.equal(map?.sector?.strokeColor, "#0f172a");
   assert.equal(map?.sector?.strokeWidth, 2);
   assert.equal(map?.sector?.color, "#38bdf8");
+  assert.equal(
+    parsePanoMap(
+      {
+        image: "floor.png",
+        dragMotion: false,
+        spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+      },
+      new Set(["entrance"]),
+    )?.dragMotion,
+    false,
+  );
   assert.throws(
     () =>
       parsePanoMap(
@@ -92,6 +105,18 @@ test("parsePanoMap validates spots against scenes", () => {
         new Set(["entrance"]),
       ),
     /scene does not exist/,
+  );
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          dragMotion: { inertia: "yes" },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /dragMotion\.inertia/,
   );
 });
 

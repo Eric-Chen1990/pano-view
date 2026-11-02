@@ -512,6 +512,10 @@ const zh: Record<string, string> = {
   "Wheel, drag-pan when zoomed, and optional zoom buttons.": "支持滚轮缩放、放大后拖动平移，以及可选的缩放按钮。",
   "Map stays fit-to-panel. Zoom buttons and gestures are disabled.": "地图保持适应面板。缩放按钮与手势均不可用。",
   "Max zoom scale": "最大缩放比例",
+  "Pan inertia": "平移惯性",
+  "Edge bounce": "边界回弹",
+  "After a pan drag, inertia keeps sliding; bounce rubber-bands past the edge.":
+    "松手后平移可继续滑行；开启回弹时拖过边界会有橡皮筋效果并弹回。",
   "Show expand / collapse": "显示展开 / 收起",
   "Show zoom buttons": "显示放大缩小按钮",
   "Icon size (px)": "图标尺寸（像素）",

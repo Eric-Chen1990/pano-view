@@ -1,10 +1,13 @@
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
+import type { PanoDragMotion } from "../drag-motion";
 import { PanoDataError } from "./errors";
 import {
   mapResource,
   resolveResource,
   type AssetUrlResolver,
 } from "./viewer";
+
+export type { PanoDragMotion };
 
 export type PanoMapCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
@@ -108,6 +111,11 @@ export type PanoMapDefinition = {
    * Only applies when `interaction` is `"zoom"`. Defaults to 8.
    */
   maxScale?: number;
+  /**
+   * Pan inertia and edge bounce when `interaction` is `"zoom"`.
+   * Omit for both on; set `false` or flag fields to disable.
+   */
+  dragMotion?: PanoDragMotion | false;
   spots: PanoMapSpotDefinition[];
   sector?: PanoMapSectorDefinition;
 };
@@ -254,6 +262,31 @@ function parsePresentation(
   };
 }
 
+function parseOptionalBoolean(
+  value: unknown,
+  field: string,
+): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (value === true) return true;
+  if (value === false) return false;
+  throw new Error(`${field}: expected a boolean`);
+}
+
+function parseDragMotion(
+  value: unknown,
+  field: string,
+): PanoDragMotion | false {
+  if (value === false) return false;
+  if (!isRecord(value)) throw new Error(`${field}: expected an object or false`);
+  const inertia = parseOptionalBoolean(value.inertia, `${field}.inertia`);
+  const bounce = parseOptionalBoolean(value.bounce, `${field}.bounce`);
+  const motion: PanoDragMotion = {
+    ...(inertia === undefined ? {} : { inertia }),
+    ...(bounce === undefined ? {} : { bounce }),
+  };
+  return motion;
+}
+
 function parseControls(
   value: unknown,
   field: string,
@@ -341,6 +374,10 @@ export function parsePanoMap(
         : parseControls(value.controls, "map.controls");
     const iconSize = optionalNumber(value, "iconSize", { exclusiveMin: 0 });
     const maxScale = optionalNumber(value, "maxScale", { min: 1 });
+    const dragMotion =
+      value.dragMotion === undefined
+        ? undefined
+        : parseDragMotion(value.dragMotion, "map.dragMotion");
     if (!Array.isArray(value.spots)) throw new Error("map.spots: expected an array");
     const spotIds = new Set<string>();
     const spots = value.spots.map((spot, index) => {
@@ -361,6 +398,7 @@ export function parsePanoMap(
       ...(controls === undefined ? {} : { controls }),
       ...(iconSize === undefined ? {} : { iconSize }),
       ...(maxScale === undefined ? {} : { maxScale }),
+      ...(dragMotion === undefined ? {} : { dragMotion }),
       spots,
       ...(sector === undefined ? {} : { sector }),
     };
