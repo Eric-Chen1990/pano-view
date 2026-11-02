@@ -9,7 +9,7 @@ import {
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "../../cn";
 import {
   pageHeadingTitleClassName,
@@ -18,6 +18,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -49,12 +50,95 @@ const DEMO_MAP: PanoMapDefinition = {
   ],
 };
 
+function buildMapSnippet(presentation: PresentationMode): string {
+  const width = presentation === "dialog" ? 52 : 260;
+  const height = presentation === "dialog" ? 52 : 180;
+  return `import { useEffect, useState } from "react";
+import {
+  PanoMapOverlay,
+  PanoViewer,
+  ProjectScenes,
+  loadPanoProject,
+  type LoadedPanoProject,
+  type PanoMapDefinition,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const map: PanoMapDefinition = {
+  image: "/fixtures/maps/floor.svg",
+  interaction: "zoom",
+  controls: { collapse: true, zoom: true },
+  iconSize: 28,
+  maxScale: 4,
+  sector: {
+    angle: 70,
+    radius: 56,
+    followFov: false,
+    color: "#ffffff",
+    opacity: 0.75,
+    gradient: {
+      type: "radial",
+      stops: [
+        { offset: 0, color: "#ffffff", opacity: 1 },
+        { offset: 1, color: "#ffffff", opacity: 0 },
+      ],
+    },
+  },
+  spots: [
+    { id: "entrance-spot", sceneId: "entrance", x: 0.31, y: 0.5, heading: 20 },
+    { id: "hall-spot", sceneId: "hall", x: 0.75, y: 0.5, heading: -40 },
+  ],
+};
+
+const [project, setProject] = useState<LoadedPanoProject>();
+const [activeSceneId, setActiveSceneId] = useState<string>();
+
+useEffect(() => {
+  void loadPanoProject("/tour/project.json").then((loaded) => {
+    setProject({ ...loaded, map });
+    setActiveSceneId(loaded.initialSceneId);
+  });
+}, []);
+
+{project ? (
+  <PanoViewer
+    style={{ height: 560 }}
+    renderOverlay={() => (
+      <PanoMapOverlay
+        map={map}
+        activeSceneId={activeSceneId}
+        presentation="${presentation}"
+        corner="bottom-left"
+        width={${width}}
+        height={${height}}
+        offsetX={16}
+        offsetY={16}
+        dialogWidth={640}
+        dialogHeight={480}
+        onSelectScene={setActiveSceneId}
+      />
+    )}
+  >
+    <ProjectScenes
+      project={project}
+      activeSceneId={activeSceneId}
+      onActiveSceneIdChange={setActiveSceneId}
+      transition="dissolve"
+    />
+  </PanoViewer>
+) : null}`;
+}
+
 export function MapPage() {
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
   const [status, setStatus] = useState("Loading map demo…");
   const [presentation, setPresentation] = useState<PresentationMode>("docked");
+  const snippet = useMemo(
+    () => buildMapSnippet(presentation),
+    [presentation],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -160,6 +244,11 @@ export function MapPage() {
             </PanoViewer>
           </>
         ) : null}
+        <CodeSnippet
+          blurb="Mount PanoMapOverlay from renderOverlay and share activeSceneId with ProjectScenes. presentation switches between a docked panel and a dialog launcher."
+          code={snippet}
+          label="PanoMapOverlay"
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · floor plan map" />
     </main>

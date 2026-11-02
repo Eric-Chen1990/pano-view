@@ -9,6 +9,7 @@ import {
   type LoadedPanoProject,
   type ProjectPopupDefinition,
 } from "@ericchen1990/pano-view";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import {
@@ -19,6 +20,64 @@ import {
   segmentedButtonActiveClassName,
 } from "../../ui";
 import { cn } from "../../cn";
+
+const PROJECT_SNIPPET = `import { useEffect, useState } from "react";
+import {
+  PanoViewer,
+  ProjectScenes,
+  loadPanoProject,
+  type LoadedPanoProject,
+  type ProjectPopupDefinition,
+} from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function Tour() {
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [activeSceneId, setActiveSceneId] = useState<string>();
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject("/tour/project.json", {
+      requestInit: { signal: controller.signal },
+    })
+      .then((loaded) => {
+        if (controller.signal.aborted) return;
+        setProject(loaded);
+        setActiveSceneId(loaded.initialSceneId);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  if (!project) return <p role="status">Loading tour…</p>;
+
+  return (
+    <PanoViewer
+      style={{ height: 560 }}
+      renderOverlay={() => (
+        <ProjectPopupDialog
+          popup={popup}
+          onOpenChange={(open) => {
+            if (!open) setPopup(null);
+          }}
+        />
+      )}
+    >
+      <ProjectScenes
+        project={project}
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={(id) => {
+          setActiveSceneId(id);
+          setPopup(null);
+        }}
+        onPopupRequest={({ popup }) => setPopup(popup)}
+        transition="dissolve"
+      />
+    </PanoViewer>
+  );
+}`;
 
 export function ProjectPage() {
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
@@ -119,6 +178,11 @@ export function ProjectPage() {
         >
           View project.json
         </a>
+        <CodeSnippet
+          blurb="loadPanoProject resolves viewer.json and hotspot assets. ProjectScenes drives navigation; onPopupRequest hands shared content to ProjectPopupDialog."
+          code={PROJECT_SNIPPET}
+          label="loadPanoProject + ProjectScenes"
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · static projects" />
     </main>

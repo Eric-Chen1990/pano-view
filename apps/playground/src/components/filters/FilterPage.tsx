@@ -7,7 +7,7 @@ import {
   Tile,
   type PanoFilterPreset,
 } from "@ericchen1990/pano-view";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FILTER_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -23,6 +23,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -58,10 +59,67 @@ function FilterHotspots() {
   );
 }
 
+function buildFilterSnippet(
+  source: SourceKind,
+  preset: PanoFilterPreset,
+  intensity: number,
+): string {
+  const intensityLiteral =
+    Number.isInteger(intensity) ? String(intensity) : intensity.toFixed(2);
+  const sourceBlock =
+    source === "sphere"
+      ? `  <Sphere
+    src="/fixtures/panorama/panos/1/sphere.webp"
+    previewUrl="preview.webp"
+  />`
+      : `  <Tile
+    baseUrl="/fixtures/panorama/cube-tiles/3"
+    multires="512,1000,2000"
+    urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
+    previewUrl="previews/cube-vertical.webp"
+  />`;
+
+  return `import {
+  GraphicHotspot,
+  ImageHotspot,
+  PanoFilter,
+  PanoViewer,
+  ${source === "sphere" ? "Sphere" : "Tile"},
+} from "@ericchen1990/pano-view";
+
+{/* PanoFilter grades only the panorama source by default; hotspots keep their color. */}
+<PanoViewer style={{ height: 540 }}>
+  <PanoFilter preset="${preset}" intensity={${intensityLiteral}} />
+${sourceBlock}
+  <ImageHotspot
+    id="filter-image-marker"
+    position={{ yaw: 18, pitch: 5 }}
+    src="/fixtures/hotspots/signal.svg"
+    tooltip="Hotspots stay unfiltered"
+    tooltipTrigger="hover"
+    width={6}
+    height={6}
+  />
+  <GraphicHotspot
+    id="filter-graphic-marker"
+    position={{ yaw: -28, pitch: -6 }}
+    graphic={{ fill: "#df6b42", kind: "circle" }}
+    tooltip="Original hotspot color"
+    tooltipTrigger="hover"
+    width={8}
+    height={8}
+  />
+</PanoViewer>`;
+}
+
 export function FilterPage() {
   const [source, setSource] = useState<SourceKind>("sphere");
   const [preset, setPreset] = useState<PanoFilterPreset>("pencil");
   const [intensity, setIntensity] = useState(1);
+  const snippet = useMemo(
+    () => buildFilterSnippet(source, preset, intensity),
+    [intensity, preset, source],
+  );
 
   return (
     <main className={shellClassName}>
@@ -169,6 +227,11 @@ export function FilterPage() {
             <FilterHotspots />
           </PanoViewer>
         </div>
+        <CodeSnippet
+          blurb="PanoFilter applies the selected preset and intensity to Sphere, Tile, or PanoVideo. Hotspots stay unfiltered unless colorMatrixScope is set to all."
+          code={snippet}
+          label="PanoFilter"
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · panorama filters" />
     </main>

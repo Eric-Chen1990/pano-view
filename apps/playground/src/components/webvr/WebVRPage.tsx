@@ -17,8 +17,98 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
+
+const WEBVR_SNIPPET = `import { useRef, useState } from "react";
+import {
+  GraphicHotspot,
+  PanoEvents,
+  PanoViewer,
+  Scenes,
+  WebVR,
+  type WebVRHandle,
+} from "@ericchen1990/pano-view";
+
+const scenes = [
+  {
+    id: "tile-1",
+    type: "tile",
+    baseUrl: "/fixtures/panorama/cube-tiles/1",
+    multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    previewUrl: "previews/cube-vertical.webp",
+  },
+  {
+    id: "tile-2",
+    type: "tile",
+    baseUrl: "/fixtures/panorama/cube-tiles/2",
+    multires: "512,1000,2000",
+    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    previewUrl: "previews/cube-vertical.webp",
+  },
+];
+
+export function WebVRTour() {
+  const webVRRef = useRef<WebVRHandle>(null);
+  const [activeSceneId, setActiveSceneId] = useState("tile-1");
+
+  return (
+    <>
+      <button type="button" onClick={() => void webVRRef.current?.toggleVR()}>
+        Toggle VR
+      </button>
+      <PanoViewer contextMenu={false} style={{ height: 560 }}>
+        <PanoEvents
+          onVRAvailable={() => {}}
+          onVREnter={(mode) => console.log("Entered", mode)}
+          onVRExit={() => {}}
+        />
+        <WebVR
+          ref={webVRRef}
+          chrome={{
+            accent: "#75cbd3",
+            background: "rgba(7, 19, 22, 0.82)",
+          }}
+        />
+        <Scenes
+          scenes={scenes}
+          activeSceneId={activeSceneId}
+          transition="crossfade"
+          renderHotspots={(scene) =>
+            scene.id === "tile-1" ? (
+              <GraphicHotspot
+                id="to-tile-2"
+                ariaLabel="Go to Tile 2"
+                graphic={{ kind: "arrow", fill: "#75cbd3" }}
+                position={{ yaw: 48, pitch: 2 }}
+                width={10}
+                height={10}
+                tooltip="Tile 2"
+                tooltipTrigger="hover"
+                onClick={() => setActiveSceneId("tile-2")}
+              />
+            ) : (
+              <GraphicHotspot
+                id="to-tile-1"
+                ariaLabel="Go to Tile 1"
+                graphic={{ kind: "arrow", fill: "#df6b42" }}
+                position={{ yaw: 155, pitch: 4 }}
+                rotation={210}
+                width={10}
+                height={10}
+                tooltip="Tile 1"
+                tooltipTrigger="hover"
+                onClick={() => setActiveSceneId("tile-1")}
+              />
+            )
+          }
+        />
+      </PanoViewer>
+    </>
+  );
+}`;
 
 const TILE_SCENE = {
   type: "tile" as const,
@@ -221,6 +311,11 @@ export function WebVRPage() {
             />
           </PanoViewer>
         </div>
+        <CodeSnippet
+          blurb="WebVR prefers WebXR on headsets, falls back to MobileVR or desktop simulation. Looking at a GraphicHotspot fills the reticle, then runs onClick to switch scenes."
+          code={WEBVR_SNIPPET}
+          label="WebVR + Scenes"
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · WebVR" />
     </main>

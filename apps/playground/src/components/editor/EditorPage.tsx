@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PanoEditor } from "@ericchen1990/pano-editor";
 import {
   PanoDataError,
@@ -7,15 +7,36 @@ import {
 } from "@ericchen1990/pano-view/data";
 import "@ericchen1990/pano-editor/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
+import { CodeSnippet } from "../CodeSnippet";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
 
 const sampleProjectUrl = "/fixtures/projects/tour/project.json";
 
+function buildEditorSnippet(locale: "en" | "zh-CN"): string {
+  return `import { PanoEditor } from "@ericchen1990/pano-editor";
+import {
+  parsePanoProject,
+  type PanoProjectDefinition,
+} from "@ericchen1990/pano-view/data";
+import "@ericchen1990/pano-editor/styles.css";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+const project: PanoProjectDefinition = parsePanoProject(/* project.json */);
+
+<PanoEditor
+  defaultValue={project}
+  baseUrl="https://cdn.example.com/tour/"
+  locale="${locale}"
+  style={{ height: "min(860px, 85vh)", minHeight: 660 }}
+/>`;
+}
+
 export function EditorPage() {
   const [locale, setLocale] = useState<"en" | "zh-CN">("en");
   const [project, setProject] = useState<PanoProjectDefinition>();
   const [error, setError] = useState<string>();
+  const snippet = useMemo(() => buildEditorSnippet(locale), [locale]);
   useEffect(() => {
     const previous = document.title;
     document.title = "Tour editor · Pano View";
@@ -100,6 +121,13 @@ export function EditorPage() {
           ? "Download sample files (.zip) · unzip, then open the folder or drag it into Add scene"
           : "下载示例文件（.zip）· 解压后打开目录，或拖入“添加场景”"}
       </a>
+      <div className="mt-6">
+        <CodeSnippet
+          blurb="Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings."
+          code={snippet}
+          label="PanoEditor"
+        />
+      </div>
     </main>
   );
 }
