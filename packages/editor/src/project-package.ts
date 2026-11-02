@@ -258,6 +258,19 @@ export async function buildProjectPackage(
         if (block.type === "video" && block.poster) block.poster = await copy(block.poster, "poster");
       }
     }
+    if (project.map) {
+      const copyMap = (path: string, spotId?: string) =>
+        mediaPath(path, {
+          kind: "map",
+          sceneId: spotId ?? "",
+          hotspotId: spotId,
+          defaultUrl: new URL(path, root).href,
+        });
+      project.map.image = await copyMap(project.map.image);
+      for (const spot of project.map.spots) {
+        if (spot.icon) spot.icon = await copyMap(spot.icon, spot.id);
+      }
+    }
     for (const [index, scene] of project.scenes.entries()) {
       signal.throwIfAborted();
       const local = scene.source.viewerUrl

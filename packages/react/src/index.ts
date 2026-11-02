@@ -268,3 +268,16 @@ export type {
 } from "./hotspot/definitions";
 
 export type { PanoViewLimits } from "./view-limits";
+
+export { PanoMap } from "./map/pano-map";
+export type { PanoMapProps, PanoMapEditChange } from "./map/pano-map";
+export { PanoMapOverlay } from "./map/pano-map-overlay";
+export type { PanoMapOverlayProps } from "./map/pano-map-overlay";
+export {
+  containRect,
+  containerPointToImage,
+  headingFromVector,
+  horizontalFov,
+  imagePointToContainer,
+  sectorRotation,
+} from "./map/geometry";

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" role="img" aria-label="Sample floor plan">
+  <rect width="640" height="400" fill="#1f2937"/>
+  <rect x="40" y="40" width="560" height="320" fill="#334155" stroke="#94a3b8" stroke-width="4" rx="8"/>
+  <rect x="80" y="80" width="160" height="240" fill="#475569" stroke="#cbd5e1" stroke-width="2" rx="4"/>
+  <rect x="280" y="80" width="80" height="240" fill="#64748b" stroke="#e2e8f0" stroke-width="2" rx="4"/>
+  <rect x="400" y="80" width="160" height="240" fill="#475569" stroke="#cbd5e1" stroke-width="2" rx="4"/>
+  <circle cx="200" cy="200" r="10" fill="#38bdf8"/>
+  <circle cx="480" cy="200" r="10" fill="#fbbf24"/>
+  <text x="120" y="70" fill="#e2e8f0" font-family="sans-serif" font-size="16">Entrance</text>
+  <text x="450" y="70" fill="#e2e8f0" font-family="sans-serif" font-size="16">Hall</text>
+</svg>

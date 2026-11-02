@@ -172,6 +172,22 @@ test("scene deletion clears incoming actions atomically and undo restores them",
   assert.equal(removeScene(history.current, "a").initialSceneId, undefined);
 });
 
+test("scene deletion removes map spots that target the scene", () => {
+  const original = project();
+  original.map = {
+    image: "maps/floor.svg",
+    spots: [
+      { id: "a-spot", sceneId: "a", x: 0.2, y: 0.3, heading: 0 },
+      { id: "b-spot", sceneId: "b", x: 0.7, y: 0.4, heading: 90 },
+    ],
+  };
+  const next = removeScene(original, "b");
+  assert.deepEqual(
+    next.map?.spots.map((spot) => spot.id),
+    ["a-spot"],
+  );
+});
+
 test("scene reordering preserves scene data, the initial scene and links, and supports undo", () => {
   const original = project();
   original.scenes.push({ id: "c", source: { viewerConfig: config } });

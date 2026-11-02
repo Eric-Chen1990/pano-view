@@ -27,6 +27,11 @@ import {
   type AssetUrlResolver,
   type JsonRequestOptions,
 } from "./viewer";
+import {
+  parsePanoMap,
+  resolvePanoMapAssets,
+  type PanoMapDefinition,
+} from "./map";
 
 export type PanoProjectSceneDefinition = {
   id: string;
@@ -45,6 +50,7 @@ export type PanoProjectDefinition = {
   initialSceneId?: string;
   scenes: PanoProjectSceneDefinition[];
   popups?: ProjectPopupDefinition[];
+  map?: PanoMapDefinition;
 };
 export type LoadedProjectScene = {
   scene: TileScene | SphereTileScene;
@@ -57,6 +63,7 @@ export type LoadedPanoProject = {
   initialSceneId: string;
   scenes: LoadedProjectScene[];
   popups?: ProjectPopupDefinition[];
+  map?: PanoMapDefinition;
 };
 export type LoadPanoProjectOptions = JsonRequestOptions & {
   /** Directory used for project-relative references. Required for object input. */
@@ -210,12 +217,14 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
         }
       }
     }
+    const map = parsePanoMap(value.map, ids, options);
     return {
       schemaVersion: 1,
       title: optionalString(value, "title"),
       initialSceneId,
       scenes,
       ...(popups === undefined ? {} : { popups }),
+      ...(map === undefined ? {} : { map }),
     };
   } catch (cause) {
     if (cause instanceof PanoDataError) throw cause;
@@ -337,6 +346,15 @@ export async function loadPanoProject(
       initialSceneId: definition.initialSceneId!,
       scenes,
       ...(definition.popups === undefined ? {} : { popups: definition.popups.map((popup) => resolveProjectPopupAssets(popup, root, options.resolvePopupAssetUrl)) }),
+      ...(definition.map === undefined
+        ? {}
+        : {
+            map: resolvePanoMapAssets(
+              definition.map,
+              root,
+              options.resolveAssetUrl,
+            ),
+          }),
     };
   } finally {
     signal?.removeEventListener("abort", cancel);

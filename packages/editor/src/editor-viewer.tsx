@@ -12,16 +12,20 @@ import {
 } from "react";
 import {
   PanoViewer,
+  PanoMapOverlay,
   Scenes,
   ProjectScenes,
   type PanoViewerHandle,
   type HotspotPosition,
   type ProjectHotspotDefinition,
   type ProjectHotspotRenderContext,
+  type PanoMapDefinition,
+  type PanoMapSpotDefinition,
 } from "@ericchen1990/pano-view";
 import {
   resolveProjectHotspotAssets,
   resolveProjectPopupAssets,
+  resolvePanoMapAssets,
   type PanoProjectDefinition,
   type LoadedPanoProject,
   type LoadedProjectScene,
@@ -84,6 +88,11 @@ export function EditorViewer({
   onReady,
   testRequest,
   onTestConsumed,
+  mapEditing = false,
+  selectedMapSpotId,
+  placementSceneId,
+  onSelectedMapSpotIdChange,
+  onMapSpotsChange,
   t,
 }: {
   project: PanoProjectDefinition;
@@ -110,6 +119,11 @@ export function EditorViewer({
   onReady?: (id: string) => void;
   testRequest?: HotspotTestRequest;
   onTestConsumed?: () => void;
+  mapEditing?: boolean;
+  selectedMapSpotId?: string;
+  placementSceneId?: string;
+  onSelectedMapSpotIdChange?: (id: string | null) => void;
+  onMapSpotsChange?: (spots: PanoMapSpotDefinition[], selectedSpotId?: string | null) => void;
   t: Translate;
 }) {
   const [popupSelection, setPopupSelection] = useState<{ id?: string; sceneId?: string; preview: boolean }>({ sceneId: activeId, preview });
@@ -282,11 +296,32 @@ export function EditorViewer({
         }));
       } catch (error) { issues.push(`${popup.title || popup.id}: ${errorMessage(error)}`); }
     }
+    let map: PanoMapDefinition | undefined;
+    if (project.map?.image) {
+      try {
+        map = resolvePanoMapAssets(
+          project.map,
+          local ? LOCAL_ROOT : projectRoot(options.baseUrl),
+          (path, context) => {
+            const files = directories.find((entry) => entry.containsPath(path)) ?? local;
+            return files
+              ? files.resolve(path, {
+                  ...context,
+                  defaultUrl: new URL(path, LOCAL_ROOT).href,
+                })
+              : (options.resolveAssetUrl?.(path, context) ?? context.defaultUrl);
+          },
+        );
+      } catch (error) {
+        issues.push(`map: ${errorMessage(error)}`);
+      }
+    }
     const loaded: LoadedPanoProject = {
       title: project.title,
       initialSceneId: project.initialSceneId ?? scenes[0]?.scene.id ?? "",
       scenes,
       ...(project.popups === undefined ? {} : { popups }),
+      ...(map === undefined ? {} : { map }),
     };
     return { loaded, issues };
   }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
@@ -337,11 +372,39 @@ export function EditorViewer({
                 ? false
                 : { keyboard: { enabled: false } }
             }
-            renderOverlay={() => <ProjectPopupDialog
-              popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
-              onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
-              onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
-            />}
+            renderOverlay={() => (
+              <>
+                <ProjectPopupDialog
+                  popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
+                  onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
+                  onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
+                />
+                {runtime.loaded.map ? (
+                  <PanoMapOverlay
+                    map={runtime.loaded.map}
+                    activeSceneId={activeId}
+                    openLabel={t("Map")}
+                    closeLabel={t("Close")}
+                    title={t("Floor plan")}
+                    editorSurface={mapEditing && !preview}
+                    mode={mapEditing && !preview ? "edit" : "view"}
+                    selectedSpotId={selectedMapSpotId}
+                    placementSceneId={mapEditing && !preview ? placementSceneId : undefined}
+                    onSelectedSpotIdChange={(id) => {
+                      onSelectedMapSpotIdChange?.(id);
+                      if (id) {
+                        const spot = runtime.loaded.map?.spots.find((entry) => entry.id === id);
+                        if (spot) onActive(spot.sceneId);
+                      }
+                    }}
+                    onEditChange={(change) => {
+                      if (change.spots) onMapSpotsChange?.(change.spots, change.selectedSpotId);
+                    }}
+                    onSelectScene={(sceneId) => onActive(sceneId)}
+                  />
+                ) : null}
+              </>
+            )}
             onPanoramaClick={({ position }) => {
               if (!preview) onPlace(position);
             }}

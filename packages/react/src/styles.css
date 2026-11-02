@@ -452,3 +452,76 @@
   min-width: 2.125rem;
   opacity: 0.85;
 }
+
+.pano-map,
+.pano-map-overlay,
+.pano-map-launcher,
+.pano-map-control,
+.pano-map-spot,
+.pano-map-heading-handle {
+  box-sizing: border-box;
+}
+
+.pano-map {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  color: #f8fafc;
+  overflow: hidden;
+}
+
+.pano-map-collapsed {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.pano-map-chrome {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 2;
+}
+
+.pano-map-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pano-map-control,
+.pano-map-launcher {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+}
+
+.pano-map-control:hover,
+.pano-map-launcher:hover {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.pano-map-launcher {
+  height: 100%;
+  width: 100%;
+}
+
+.pano-map-spot:focus-visible,
+.pano-map-control:focus-visible,
+.pano-map-launcher:focus-visible,
+.pano-map-heading-handle:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}

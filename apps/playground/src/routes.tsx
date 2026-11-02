@@ -7,6 +7,7 @@ import { SceneTransitionPage } from "./components/scene-transitions/SceneTransit
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
+import { MapPage } from "./components/map/MapPage";
 
 const EditorPage = lazy(() =>
   import("./components/editor/EditorPage").then((module) => ({
@@ -35,6 +36,7 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
   { path: "/overlays", navLabel: "Overlays", Component: OverlayPage },
   { path: "/editor", navLabel: "Editor", Component: EditorPage },
   { path: "/project", navLabel: "Static project", Component: ProjectPage },
+  { path: "/map", navLabel: "Floor plan map", Component: MapPage },
   {
     path: "/hotspots",
     navLabel: "Hotspot bench",

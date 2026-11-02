@@ -28,6 +28,20 @@ export type {
 export { resolveProjectPopupAssets } from "./data/popups";
 export type { ProjectPopupDefinition, ProjectPopupBlock, PopupAssetUrlContext, PopupAssetUrlResolver } from "./data/popups";
 
+export { parsePanoMap, resolvePanoMapAssets } from "./data/map";
+export type {
+  PanoMapDefinition,
+  PanoMapSpotDefinition,
+  PanoMapSectorDefinition,
+  PanoMapSectorGradient,
+  PanoMapGradientStop,
+  PanoMapControlsDefinition,
+  PanoMapPresentation,
+  PanoMapDockedPresentation,
+  PanoMapDialogPresentation,
+  PanoMapCorner,
+} from "./data/map";
+
 export type { PanoViewLimits } from "./view-limits";
 
 export { hotspotAction, setHotspotAction, projectHotspotTriggers } from "./data/hotspots";
