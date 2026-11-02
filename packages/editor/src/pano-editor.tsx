@@ -1215,7 +1215,7 @@ export function PanoEditor(props: PanoEditorProps) {
       <input
         ref={mapInput}
         type="file"
-        accept="image/*"
+        accept="image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp,image/svg+xml,.svg"
         hidden
         aria-label={t("Choose map image")}
         onChange={(event) => void importMapAsset(event)}
