@@ -3,6 +3,7 @@ import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { FilterPage } from "./components/filters/FilterPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { LandingPage } from "./components/landing/LandingPage";
+import { SceneMenuPage } from "./components/scene-menu/SceneMenuPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
@@ -46,6 +47,11 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
     path: "/scene-transitions",
     navLabel: "Scene transitions",
     Component: SceneTransitionPage,
+  },
+  {
+    path: "/scene-menu",
+    navLabel: "Scene menu",
+    Component: SceneMenuPage,
   },
   {
     path: "/context-menu",

@@ -2,12 +2,10 @@ import {
   BackgroundAudio,
   ImageHotspot,
   KeyboardControls,
-  PanoSceneMenu,
   Scenes,
   PanoViewer,
   cycleSceneId,
   usePanoViewer,
-  type PanoSceneMenuItem,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState } from "react";
@@ -39,13 +37,6 @@ const PER_SCENE_SOURCES = {
   "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
 } as const;
 
-const SCENE_MENU_TITLES: Record<(typeof TRANSITION_SCENES)[number]["id"], string> = {
-  "sphere-1": "Sphere 1",
-  "sphere-2": "Sphere 2",
-  "tile-3": "Cube 3",
-  "tile-4": "Cube 4",
-};
-
 type BackgroundMode = "shared" | "per-scene";
 
 function buildSceneTransitionSnippet(
@@ -72,7 +63,6 @@ function buildSceneTransitionSnippet(
   BackgroundAudio,
   ImageHotspot,
   KeyboardControls,
-  PanoSceneMenu,
   PanoViewer,
   Scenes,
   cycleSceneId,
@@ -80,30 +70,11 @@ function buildSceneTransitionSnippet(
 } from "@ericchen1990/pano-view";
 
 const scenes = [/* sphere + cube scenes */];
-const sceneMenuItems = [/* id, title, thumbnailUrl */];
 const [activeSceneId, setActiveSceneId] = useState("sphere-1");
 const viewer = usePanoViewer();
 
 <PanoViewer
   ref={viewer.ref}
-  renderOverlay={() => (
-    <PanoSceneMenu
-      activeId={activeSceneId}
-      appearance={{
-        labelAlign: "center",
-        selectionColor: "#7dd3fc",
-        selectionWidth: 3,
-      }}
-      collapsible
-      inset={12}
-      items={sceneMenuItems}
-      loop
-      onSelect={setActiveSceneId}
-      placement="bottom"
-      showArrows
-      width="80%"
-    />
-  )}
   style={{ height: "min(540px, 68dvh)" }}
 >
   <KeyboardControls
@@ -144,23 +115,6 @@ export function SceneTransitionPage() {
     "shared",
   );
   const [backgroundPlaying, setBackgroundPlaying] = useState(false);
-  const sceneMenuItems = useMemo((): PanoSceneMenuItem[] => {
-    return TRANSITION_SCENES.map((scene) => {
-      if (scene.type === "sphere") {
-        return {
-          id: scene.id,
-          title: SCENE_MENU_TITLES[scene.id],
-          thumbnailUrl: `/fixtures/panorama/panos/${scene.id === "sphere-1" ? "1" : "2"}/preview.webp`,
-        };
-      }
-      const folder = scene.id === "tile-3" ? "3" : "4";
-      return {
-        id: scene.id,
-        title: SCENE_MENU_TITLES[scene.id],
-        thumbnailUrl: `/fixtures/panorama/cube-tiles/${folder}/previews/200.webp`,
-      };
-    });
-  }, []);
   const snippet = useMemo(
     () => buildSceneTransitionSnippet(preset, backgroundPlaying, backgroundMode),
     [backgroundMode, backgroundPlaying, preset],
@@ -289,24 +243,6 @@ export function SceneTransitionPage() {
           <PanoViewer
             ref={viewer.ref}
             aria-label="Panorama scene transition demo"
-            renderOverlay={() => (
-              <PanoSceneMenu
-                activeId={activeSceneId}
-                appearance={{
-                  labelAlign: "center",
-                  selectionColor: "#7dd3fc",
-                  selectionWidth: 3,
-                }}
-                collapsible
-                inset={12}
-                items={sceneMenuItems}
-                loop
-                onSelect={setActiveSceneId}
-                placement="bottom"
-                showArrows
-                width="80%"
-              />
-            )}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <KeyboardControls
@@ -360,7 +296,7 @@ export function SceneTransitionPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="Scenes blend with the selected preset. BackgroundAudio sits beside Scenes so music survives transitions; wire PanoSceneMenu through renderOverlay."
+          blurb="Scenes blend with the selected preset. BackgroundAudio sits beside Scenes so music survives transitions."
           code={snippet}
           label="Scenes + BackgroundAudio"
         />
