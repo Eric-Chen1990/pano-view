@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.6
+
+### Patch Changes
+
+- 3307312: Make gyro follow device orientation on the same frame, reclaim touch offsets at view limits, and keep heading stable near the zenith and across sensor discontinuities.
+
 ## 3.6.5
 
 ### Patch Changes
