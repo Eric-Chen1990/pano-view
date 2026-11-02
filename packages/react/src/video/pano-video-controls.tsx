@@ -14,7 +14,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
 } from "react";
-import { isFullscreenEnabled } from "../fullscreen";
+import { canEnterViewerFullscreen } from "../ios-landscape-fullscreen";
 import { type PanoContextMenuActionsApi } from "../pano-context-menu";
 import { formatMediaTime, panoVideoTrackId } from "./format";
 import {
@@ -693,7 +693,7 @@ export function PanoVideoControlsHud({
   const moreMenuId = `${barId}-more`;
   const compact = overlayWidth < COMPACT_CONTROLS_WIDTH;
   const hideTime = overlayWidth < NARROW_CONTROLS_WIDTH;
-  const showFullscreen = isFullscreenEnabled();
+  const showFullscreen = canEnterViewerFullscreen();
 
   const bumpVisibility = useCallback(
     (playing: boolean) => {

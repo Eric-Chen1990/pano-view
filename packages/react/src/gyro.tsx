@@ -8,13 +8,17 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Quaternion } from "three";
+import { Quaternion } from "three";
 import {
   applyGyroCalibration,
   createRelativeCalibration,
   deviceOrientationToQuaternion,
   getScreenOrientationAngle,
+  gyroPoseAngleDelta,
+  posesNearlyEqual,
   quaternionToGyroPose,
+  shouldReanchorGyro,
+  shortestGyroYawDelta,
 } from "./gyro-orientation";
 import type { DeviceOrientationSample } from "./gyro-orientation";
 import type { GyroPose, GyroTouchMode } from "./gyro-types";
@@ -80,14 +84,6 @@ function isMobileDevice(): boolean {
   );
 }
 
-function normalizeYaw(value: number): number {
-  return ((value + 180) % 360 + 360) % 360 - 180;
-}
-
-function shortestYawDelta(from: number, to: number): number {
-  return normalizeYaw(to - from);
-}
-
 function finiteOr(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? value! : fallback;
 }
@@ -98,14 +94,6 @@ function resolveFriction(value: number | undefined): number {
 
 function resolveSoftstart(value: number | undefined): number {
   return Math.max(finiteOr(value, 0.5), 0);
-}
-
-function posesNearlyEqual(a: GyroPose, b: GyroPose): boolean {
-  return (
-    Math.abs(shortestYawDelta(a.yaw, b.yaw)) < 0.0001 &&
-    Math.abs(a.pitch - b.pitch) < 0.0001 &&
-    Math.abs(a.roll - b.roll) < 0.0001
-  );
 }
 
 /**
@@ -134,19 +122,30 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
   const eventBus = useContext(PanoEventBusContext);
   const { gl } = useThree();
   const [internallyDisabled, setInternallyDisabled] = useState(false);
+  const [available, setAvailableState] = useState(false);
   const availableRef = useRef(false);
   const availabilityReportedRef = useRef<boolean | null>(null);
   const activeRef = useRef(false);
   const permissionRef = useRef(deviceOrientationPermissionState);
   const absoluteEventSourceRef = useRef<"standard" | "absolute" | null>(null);
-  const rawQuaternionRef = useRef<Quaternion | null>(null);
-  const calibrationRef = useRef<Quaternion | null>(null);
+  const rawQuaternionRef = useRef(new Quaternion());
+  const hasRawQuaternionRef = useRef(false);
+  const calibrationRef = useRef(new Quaternion());
+  const hasCalibrationRef = useRef(false);
+  const calibratedQuaternionRef = useRef(new Quaternion());
   const absoluteOffsetRef = useRef({ yaw: 0, pitch: 0 });
   const screenAngleRef = useRef(getScreenOrientationAngle());
   const startPoseRef = useRef<GyroPose | null>(null);
   const enabledAtRef = useRef(0);
   const filteredPoseRef = useRef<GyroPose | null>(null);
   const lastAppliedPoseRef = useRef<GyroPose | null>(null);
+  const lastSamplePoseRef = useRef<GyroPose | null>(null);
+  const lastSampleAtRef = useRef<number | null>(null);
+  const previousYawRef = useRef<number | undefined>(undefined);
+  const absoluteRef = useRef(absolute);
+  const northRef = useRef(north);
+  absoluteRef.current = absolute;
+  northRef.current = north;
   const callbacksRef = useRef({
     onAvailable,
     onUnavailable,
@@ -202,13 +201,14 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
   );
 
   const setAvailable = useCallback(
-    (available: boolean) => {
-      availableRef.current = available;
-      if (availabilityReportedRef.current === available) {
+    (nextAvailable: boolean) => {
+      availableRef.current = nextAvailable;
+      setAvailableState(nextAvailable);
+      if (availabilityReportedRef.current === nextAvailable) {
         return;
       }
-      availabilityReportedRef.current = available;
-      emit(available ? "gyroavailable" : "gyrounavailable");
+      availabilityReportedRef.current = nextAvailable;
+      emit(nextAvailable ? "gyroavailable" : "gyrounavailable");
     },
     [emit],
   );
@@ -257,38 +257,56 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
       controlsRef.current?.setGyroActive(false);
       emit("gyrodisable");
     }
-    rawQuaternionRef.current = null;
+    hasRawQuaternionRef.current = false;
     absoluteEventSourceRef.current = null;
-    calibrationRef.current = null;
+    hasCalibrationRef.current = false;
     filteredPoseRef.current = null;
     lastAppliedPoseRef.current = null;
+    lastSamplePoseRef.current = null;
+    lastSampleAtRef.current = null;
+    previousYawRef.current = undefined;
   }, [controlsRef, emit]);
+
+  const anchorToView = useCallback(
+    (yaw: number, pitch: number) => {
+      if (!hasRawQuaternionRef.current) {
+        return;
+      }
+      if (absoluteRef.current) {
+        const rawPose = quaternionToGyroPose(
+          rawQuaternionRef.current,
+          previousYawRef.current,
+        );
+        previousYawRef.current = rawPose.yaw;
+        absoluteOffsetRef.current = {
+          yaw: shortestGyroYawDelta(
+            rawPose.yaw + finiteOr(northRef.current, 0),
+            yaw,
+          ),
+          pitch: pitch - rawPose.pitch,
+        };
+      } else {
+        createRelativeCalibration(
+          rawQuaternionRef.current,
+          yaw,
+          pitch,
+          calibrationRef.current,
+        );
+        hasCalibrationRef.current = true;
+      }
+    },
+    [],
+  );
 
   const resetSensor = useCallback(
     (yaw?: number, pitch?: number) => {
-      const rawQuaternion = rawQuaternionRef.current;
-      if (!rawQuaternion) {
+      if (!hasRawQuaternionRef.current) {
         return;
       }
       const view = controlsRef.current?.getTargetView();
       const targetYaw = finiteOr(yaw, view?.yaw ?? 0);
       const targetPitch = finiteOr(pitch, view?.pitch ?? 0);
-      if (absolute) {
-        const rawPose = quaternionToGyroPose(rawQuaternion);
-        absoluteOffsetRef.current = {
-          yaw: shortestYawDelta(
-            rawPose.yaw + finiteOr(north, 0),
-            targetYaw,
-          ),
-          pitch: targetPitch - rawPose.pitch,
-        };
-      } else {
-        calibrationRef.current = createRelativeCalibration(
-          rawQuaternion,
-          targetYaw,
-          targetPitch,
-        );
-      }
+      anchorToView(targetYaw, targetPitch);
       startPoseRef.current = {
         yaw: targetYaw,
         pitch: targetPitch,
@@ -296,8 +314,10 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
       };
       enabledAtRef.current = performance.now();
       filteredPoseRef.current = null;
+      lastSamplePoseRef.current = null;
+      lastSampleAtRef.current = null;
     },
-    [absolute, controlsRef, north],
+    [anchorToView, controlsRef],
   );
 
   useImperativeHandle(
@@ -324,9 +344,6 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
       typeof DeviceOrientationEvent !== "undefined" &&
       (desktopSupport || isMobileDevice());
     setAvailable(supported);
-    return () => {
-      availableRef.current = false;
-    };
   }, [desktopSupport, setAvailable]);
 
   useEffect(() => {
@@ -349,7 +366,7 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
   }, [enabled, gl, internallyDisabled, touchMode]);
 
   useEffect(() => {
-    if (!enabled || internallyDisabled || !availableRef.current) {
+    if (!enabled || internallyDisabled || !available) {
       deactivate();
       return;
     }
@@ -395,10 +412,12 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
             ? compassEvent.webkitCompassHeading
             : undefined,
       };
-      rawQuaternionRef.current = deviceOrientationToQuaternion(
+      deviceOrientationToQuaternion(
         sample,
         screenAngleRef.current,
+        rawQuaternionRef.current,
       );
+      hasRawQuaternionRef.current = true;
       if (!activeRef.current) {
         const view = controlsRef.current?.getTargetView() ?? {
           yaw: 0,
@@ -406,11 +425,13 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
           fov: 75,
         };
         if (!absolute) {
-          calibrationRef.current = createRelativeCalibration(
+          createRelativeCalibration(
             rawQuaternionRef.current,
             view.yaw,
             view.pitch,
+            calibrationRef.current,
           );
+          hasCalibrationRef.current = true;
         }
         absoluteOffsetRef.current = { yaw: 0, pitch: 0 };
         startPoseRef.current = { ...view, roll: 0 };
@@ -460,6 +481,7 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
     };
   }, [
     absolute,
+    available,
     controlsRef,
     deactivate,
     emit,
@@ -469,14 +491,17 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
   ]);
 
   useFrame((_, deltaSeconds) => {
-    const rawQuaternion = rawQuaternionRef.current;
-    if (!activeRef.current || !rawQuaternion) {
+    if (!activeRef.current || !hasRawQuaternionRef.current) {
       return;
     }
 
     let targetPose: GyroPose;
     if (absolute) {
-      const rawPose = quaternionToGyroPose(rawQuaternion);
+      const rawPose = quaternionToGyroPose(
+        rawQuaternionRef.current,
+        previousYawRef.current,
+      );
+      previousYawRef.current = rawPose.yaw;
       targetPose = {
         yaw:
           rawPose.yaw +
@@ -486,15 +511,72 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
         roll: rawPose.roll,
       };
     } else {
-      const calibration = calibrationRef.current;
-      if (!calibration) {
+      if (!hasCalibrationRef.current) {
         return;
       }
-      targetPose = applyGyroCalibration(rawQuaternion, calibration);
+      targetPose = applyGyroCalibration(
+        rawQuaternionRef.current,
+        calibrationRef.current,
+        calibratedQuaternionRef.current,
+        previousYawRef.current,
+      );
+      previousYawRef.current = targetPose.yaw;
     }
     if (!camroll) {
       targetPose.roll = 0;
     }
+
+    const sampleAt = performance.now();
+    const previousSample = lastSamplePoseRef.current;
+    const previousSampleAt = lastSampleAtRef.current;
+    if (previousSample && previousSampleAt !== null) {
+      const angleDelta = gyroPoseAngleDelta(previousSample, targetPose);
+      const sampleDeltaSeconds = Math.max(
+        (sampleAt - previousSampleAt) / 1000,
+        deltaSeconds,
+      );
+      if (shouldReanchorGyro(angleDelta, sampleDeltaSeconds)) {
+        const view = controlsRef.current?.getTargetView() ?? {
+          yaw: targetPose.yaw,
+          pitch: targetPose.pitch,
+          fov: 75,
+        };
+        anchorToView(view.yaw, view.pitch);
+        if (absolute) {
+          const rawPose = quaternionToGyroPose(
+            rawQuaternionRef.current,
+            previousYawRef.current,
+          );
+          previousYawRef.current = rawPose.yaw;
+          targetPose = {
+            yaw:
+              rawPose.yaw +
+              finiteOr(north, 0) +
+              absoluteOffsetRef.current.yaw,
+            pitch: rawPose.pitch + absoluteOffsetRef.current.pitch,
+            roll: rawPose.roll,
+          };
+        } else {
+          targetPose = applyGyroCalibration(
+            rawQuaternionRef.current,
+            calibrationRef.current,
+            calibratedQuaternionRef.current,
+            previousYawRef.current,
+          );
+          previousYawRef.current = targetPose.yaw;
+        }
+        if (!camroll) {
+          targetPose.roll = 0;
+        }
+        filteredPoseRef.current = {
+          yaw: view.yaw,
+          pitch: view.pitch,
+          roll: targetPose.roll,
+        };
+      }
+    }
+    lastSamplePoseRef.current = { ...targetPose };
+    lastSampleAtRef.current = sampleAt;
 
     const softstartMs = resolveSoftstart(softstart) * 1000;
     const startPose = startPoseRef.current;
@@ -506,11 +588,11 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
       targetPose = {
         yaw:
           startPose.yaw +
-          shortestYawDelta(startPose.yaw, targetPose.yaw) * progress,
+          shortestGyroYawDelta(startPose.yaw, targetPose.yaw) * progress,
         pitch: startPose.pitch + (targetPose.pitch - startPose.pitch) * progress,
         roll:
           startPose.roll +
-          shortestYawDelta(startPose.roll, targetPose.roll) * progress,
+          shortestGyroYawDelta(startPose.roll, targetPose.roll) * progress,
       };
       if (progress === 1) {
         startPoseRef.current = null;
@@ -519,16 +601,17 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
 
     const previous = filteredPoseRef.current;
     const retention = resolveFriction(friction);
-    const follow = retention === 0 ? 1 : 1 - Math.pow(retention, deltaSeconds * 60);
+    const follow =
+      retention === 0 ? 1 : 1 - Math.pow(retention, deltaSeconds * 60);
     const filteredPose = previous
       ? {
           yaw:
             previous.yaw +
-            shortestYawDelta(previous.yaw, targetPose.yaw) * follow,
+            shortestGyroYawDelta(previous.yaw, targetPose.yaw) * follow,
           pitch: previous.pitch + (targetPose.pitch - previous.pitch) * follow,
           roll:
             previous.roll +
-            shortestYawDelta(previous.roll, targetPose.roll) * follow,
+            shortestGyroYawDelta(previous.roll, targetPose.roll) * follow,
         }
       : targetPose;
     filteredPoseRef.current = filteredPose;
@@ -541,7 +624,7 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
       lastAppliedPoseRef.current = { ...filteredPose };
       controlsRef.current?.setGyroPose(filteredPose);
     }
-  });
+  }, -1);
 
   return null;
 });

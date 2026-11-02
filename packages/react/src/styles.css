@@ -217,6 +217,60 @@
   gap: 0.5rem;
 }
 
+.pano-webvr-portrait-prompt {
+  align-items: center;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  inset: 0;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: auto;
+  position: absolute;
+  text-align: center;
+  z-index: 20;
+}
+
+.pano-webvr-portrait-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.pano-webvr-portrait-text {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+  max-width: 16rem;
+}
+
+.pano-iphone-fullscreen-swipe-prompt {
+  align-items: center;
+  bottom: calc(1.25rem + var(--pano-safe-bottom));
+  display: flex;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  z-index: 20;
+}
+
+.pano-iphone-fullscreen-swipe-text {
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+  max-width: min(22rem, calc(100% - 2rem));
+  padding: 0.625rem 1rem;
+  text-align: center;
+}
+
 .pano-webvr-hint {
   bottom: calc(1.25rem + var(--pano-safe-bottom));
   color: #fff;

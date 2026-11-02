@@ -11,11 +11,6 @@ import {
 } from "react";
 import { Gyro } from "../gyro";
 import type { GyroHandle } from "../gyro";
-import {
-  exitElementFullscreen,
-  getFullscreenElement,
-  requestElementFullscreen,
-} from "../fullscreen";
 import { PanoEventBusContext } from "../pano-event-bus";
 import { PanoramaViewContext } from "../panorama-view-runtime";
 import { detectWebVRCapabilities } from "./detect";
@@ -30,7 +25,12 @@ import {
   resolveWebVRProfile,
   saveWebVRSettings,
 } from "./profiles";
-import { DEFAULT_WEBVR_CURSOR_DWELL_MS, WebVRReticle } from "./reticle";
+import {
+  enterWebVRPresentation,
+  leaveWebVRPresentation,
+  subscribeWebVRPresentationExit,
+} from "./presentation";
+import { DEFAULT_WEBVR_CURSOR_DWELL_MS, MOBILE_VR_RETICLE_SCALE, WebVRReticle } from "./reticle";
 import { WebVRStereoRenderer } from "./stereo";
 import type {
   WebVRHandle,
@@ -217,15 +217,12 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       if (wakelock) {
         void acquireWebVRWakeLock();
       }
-      void requestElementFullscreen(getViewerElement(gl.domElement)).catch(
-        () => {},
-      );
+      const viewer = getViewerElement(gl.domElement);
+      await enterWebVRPresentation(viewer);
       const granted = await requestPermission();
       if (!granted) {
         releaseWebVRWakeLock();
-        if (getFullscreenElement()) {
-          void exitElementFullscreen();
-        }
+        leaveWebVRPresentation();
         reportDenied();
         return false;
       }
@@ -240,11 +237,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       if (wakelock) {
         void acquireWebVRWakeLock();
       }
-      try {
-        await requestElementFullscreen(getViewerElement(gl.domElement));
-      } catch {
-        // Fullscreen is best-effort; pointer lock can still use the click.
-      }
+      await enterWebVRPresentation(getViewerElement(gl.domElement));
       if (mousePointerLock) {
         void requestWebVRPointerLock(gl.domElement);
       }
@@ -284,9 +277,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       return;
     }
     deactivate();
-    if (getFullscreenElement()) {
-      await exitElementFullscreen();
-    }
+    leaveWebVRPresentation();
   }, [deactivate, xrStore]);
 
   const toggleVR = useCallback(async (): Promise<boolean> => {
@@ -415,9 +406,22 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       if (modeRef.current === "fake") {
         controlsRef.current?.setGyroActive(false);
       }
+      if (modeRef.current === "mobilevr" || modeRef.current === "fake") {
+        leaveWebVRPresentation();
+      }
     },
     [controlsRef],
   );
+
+  useEffect(() => {
+    if (mode !== "mobilevr" && mode !== "fake") {
+      return;
+    }
+    const viewer = getViewerElement(gl.domElement);
+    return subscribeWebVRPresentationExit(viewer, () => {
+      void exitVR();
+    });
+  }, [exitVR, gl.domElement, mode]);
 
   useWebVRPointerLock(
     mousePointerLock && mode === "fake",
@@ -447,6 +451,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       />
       <WebVRReticle
         dwellMs={cursorDwellMs}
+        scale={mode === "mobilevr" ? MOBILE_VR_RETICLE_SCALE : 1}
         visible={cursor && mode !== null}
       />
     </>

@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import {
+  Matrix4,
   Mesh,
   OrthographicCamera,
   PerspectiveCamera,
@@ -14,8 +15,15 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { WebVRRuntimeContext } from "./host";
+import {
+  panoramaStereoHalfAngle,
+  panoramaStereoToeInYaw,
+} from "./stereo-disparity";
+import { computeStereoLayout, type StereoLayout } from "./stereo-layout";
 import { isFallbackStereoMode } from "./stereo-view";
 import type { WebVRMode, WebVRProfile } from "./types";
+
+const TOE_IN = new Matrix4();
 
 const vertexShader = `
 varying vec2 vUv;
@@ -85,15 +93,17 @@ function syncStereoCameras(
   camera: PerspectiveCamera,
   profile: WebVRProfile,
   screensize: number | "auto",
-  drawingSize: Vector2,
+  size: Vector2,
   gl: WebGLRenderer,
-): { eyeWidth: number; fullHeight: number } {
-  gl.getDrawingBufferSize(drawingSize);
-  const fullWidth = Math.max(2, Math.floor(drawingSize.x));
-  const fullHeight = Math.max(1, Math.floor(drawingSize.y));
-  const eyeWidth = Math.max(1, Math.floor(fullWidth / 2));
+): StereoLayout {
+  gl.getSize(size);
+  const layout = computeStereoLayout(
+    size.x,
+    size.y,
+    gl.getPixelRatio(),
+  );
   const screenToLensMm = profile.screenToLensMm ?? 42;
-  const displayAspect = fullWidth / fullHeight;
+  const displayAspect = layout.fullWidth / layout.fullHeight;
   const screenHeightMm =
     screensize === "auto"
       ? null
@@ -106,10 +116,22 @@ function syncStereoCameras(
         Math.PI;
   camera.fov = Math.max(30, Math.min(140, calibratedFov));
   camera.updateProjectionMatrix();
-  stereo.aspect = eyeWidth / fullWidth;
-  stereo.eyeSep = profile.ipdMm / 1000;
+  camera.updateMatrixWorld();
+  stereo.aspect = layout.stereoAspect;
+  // Keep both eyes on the panorama center. A metric IPD is invisible on the
+  // radius-1000 shell; the toe-in below is the disparity the headset fuses.
+  stereo.eyeSep = 0;
   stereo.update(camera);
-  return { eyeWidth, fullHeight };
+  const halfAngle = panoramaStereoHalfAngle(profile.ipdMm);
+  TOE_IN.makeRotationY(panoramaStereoToeInYaw("left", halfAngle));
+  stereo.cameraL.matrix.multiply(TOE_IN);
+  stereo.cameraL.matrixWorldNeedsUpdate = true;
+  TOE_IN.makeRotationY(panoramaStereoToeInYaw("right", halfAngle));
+  stereo.cameraR.matrix.multiply(TOE_IN);
+  stereo.cameraR.matrixWorldNeedsUpdate = true;
+  stereo.cameraL.updateMatrixWorld(true);
+  stereo.cameraR.updateMatrixWorld(true);
+  return layout;
 }
 
 export function WebVRStereoRenderer({
@@ -131,7 +153,7 @@ export function WebVRStereoRenderer({
   const stereoRef = useRef(stereo);
   stereoRef.current = stereo;
   const resources = useMemo(createDistortionResources, []);
-  const drawingSizeRef = useRef(new Vector2());
+  const sizeRef = useRef(new Vector2());
   const viewportRef = useRef(new Vector4());
   const scissorRef = useRef(new Vector4());
   const originalFovRef = useRef<number | null>(null);
@@ -166,12 +188,12 @@ export function WebVRStereoRenderer({
       if (originalFovRef.current === null) {
         originalFovRef.current = cameraToRender.fov;
       }
-      const { eyeWidth, fullHeight } = syncStereoCameras(
+      const layout = syncStereoCameras(
         stereoRef.current,
         cameraToRender,
         currentProfile,
         currentScreensize,
-        drawingSizeRef.current,
+        sizeRef.current,
         gl,
       );
 
@@ -187,23 +209,27 @@ export function WebVRStereoRenderer({
 
       const renderEye = (
         eyeCamera: StereoCamera["cameraL"],
-        offsetX: number,
+        eye: StereoLayout["left"],
       ) => {
         if (hasDistortion) {
           if (
-            resources.target.width !== eyeWidth ||
-            resources.target.height !== fullHeight
+            resources.target.width !== layout.renderTargetWidth ||
+            resources.target.height !== layout.renderTargetHeight
           ) {
-            resources.target.setSize(eyeWidth, fullHeight);
+            resources.target.setSize(
+              layout.renderTargetWidth,
+              layout.renderTargetHeight,
+            );
           }
+          // setRenderTarget already applies the target's physical viewport;
+          // do not call setViewport with physical sizes (pixelRatio would
+          // multiply again).
           gl.setRenderTarget(resources.target);
-          gl.setViewport(0, 0, eyeWidth, fullHeight);
-          gl.setScissor(0, 0, eyeWidth, fullHeight);
           originalRender(sceneToRender, eyeCamera);
 
           gl.setRenderTarget(null);
-          gl.setViewport(offsetX, 0, eyeWidth, fullHeight);
-          gl.setScissor(offsetX, 0, eyeWidth, fullHeight);
+          gl.setViewport(eye.offsetX, 0, eye.width, eye.height);
+          gl.setScissor(eye.offsetX, 0, eye.width, eye.height);
           resources.material.uniforms.distortion?.value.set(
             currentProfile.k1,
             currentProfile.k2,
@@ -212,13 +238,13 @@ export function WebVRStereoRenderer({
           return;
         }
         gl.setRenderTarget(null);
-        gl.setViewport(offsetX, 0, eyeWidth, fullHeight);
-        gl.setScissor(offsetX, 0, eyeWidth, fullHeight);
+        gl.setViewport(eye.offsetX, 0, eye.width, eye.height);
+        gl.setScissor(eye.offsetX, 0, eye.width, eye.height);
         originalRender(sceneToRender, eyeCamera);
       };
 
-      renderEye(stereoRef.current.cameraL, 0);
-      renderEye(stereoRef.current.cameraR, eyeWidth);
+      renderEye(stereoRef.current.cameraL, layout.left);
+      renderEye(stereoRef.current.cameraR, layout.right);
 
       gl.setRenderTarget(previousTarget);
       gl.setViewport(viewportRef.current);
@@ -252,7 +278,7 @@ export function WebVRStereoRenderer({
         camera,
         profileRef.current,
         screensizeRef.current,
-        drawingSizeRef.current,
+        sizeRef.current,
         gl,
       );
       return;

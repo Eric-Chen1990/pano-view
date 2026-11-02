@@ -19,7 +19,12 @@ import {
 } from "react";
 import type { RefObject } from "react";
 import { Euler, MathUtils, PerspectiveCamera } from "three";
+import {
+  reclaimGyroOffsets,
+  reduceGyroPitchOffset,
+} from "./gyro-orientation";
 import type { GyroPose, GyroTouchMode } from "./gyro-types";
+import { GYRO_POSE_EPSILON } from "./gyro-types";
 import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
@@ -223,6 +228,8 @@ export const PanoramaViewRuntime = forwardRef<
   const interactionLockCountRef = useRef(0);
   const keyboardActiveRef = useRef(false);
   const gyroActiveRef = useRef(false);
+  /** True only after a real device pose was applied; fake VR stays on rotateDamping. */
+  const gyroPoseDrivingRef = useRef(false);
   const gyroPoseRef = useRef<GyroPose>({ yaw: 0, pitch: 0, roll: 0 });
   const gyroOffsetRef = useRef({ yaw: 0, pitch: 0 });
   const gyroTouchModeRef = useRef<GyroTouchMode>("full");
@@ -678,6 +685,7 @@ export const PanoramaViewRuntime = forwardRef<
         gyroOffsetRef.current = { yaw: 0, pitch: 0 };
         stopVelocity();
         if (!active) {
+          gyroPoseDrivingRef.current = false;
           cameraRollRef.current = 0;
           dirtyRef.current = true;
         }
@@ -694,21 +702,40 @@ export const PanoramaViewRuntime = forwardRef<
         }
 
         const previous = gyroPoseRef.current;
+        const pitchDelta = pose.pitch - previous.pitch;
         const viewMovement =
           Math.abs(shortestYawDelta(previous.yaw, pose.yaw)) +
-          Math.abs(previous.pitch - pose.pitch);
+          Math.abs(pitchDelta);
         const movement =
           viewMovement + Math.abs(previous.roll - pose.roll);
-        if (movement < 0.0001) {
+        if (movement < GYRO_POSE_EPSILON) {
           return;
         }
+
+        if (gyroTouchModeRef.current === "full") {
+          gyroOffsetRef.current.pitch = reduceGyroPitchOffset(
+            gyroOffsetRef.current.pitch,
+            pitchDelta,
+          );
+        }
+
         gyroPoseRef.current = { ...pose };
-        targetViewRef.current = hardConstrainView({
+        gyroPoseDrivingRef.current = true;
+        const constrained = hardConstrainView({
           yaw: pose.yaw + gyroOffsetRef.current.yaw,
           pitch: pose.pitch + gyroOffsetRef.current.pitch,
         });
+        targetViewRef.current = constrained;
+        const reclaimed = reclaimGyroOffsets(
+          pose.yaw,
+          pose.pitch,
+          constrained.yaw,
+          constrained.pitch,
+        );
+        gyroOffsetRef.current.yaw = reclaimed.yaw;
+        gyroOffsetRef.current.pitch = reclaimed.pitch;
         cameraRollRef.current = pose.roll;
-        if (viewMovement >= 0.0001) {
+        if (viewMovement >= GYRO_POSE_EPSILON) {
           markDirty();
         } else {
           dirtyRef.current = true;
@@ -814,8 +841,10 @@ export const PanoramaViewRuntime = forwardRef<
         "YXZ",
       );
       camera.quaternion.setFromEuler(eulerRef.current);
-      camera.fov = viewRef.current.fov;
-      camera.updateProjectionMatrix();
+      if (camera.fov !== viewRef.current.fov) {
+        camera.fov = viewRef.current.fov;
+        camera.updateProjectionMatrix();
+      }
       camera.updateMatrixWorld();
 
       const emittedView = { ...viewRef.current };
@@ -893,7 +922,9 @@ export const PanoramaViewRuntime = forwardRef<
       optionsRef.current.zoomDamping,
       DEFAULT_ZOOM_DAMPING,
     );
-    const rotationFactor = dampingFactor(rotateDamping, deltaSeconds);
+    const rotationFactor = gyroPoseDrivingRef.current
+      ? 1
+      : dampingFactor(rotateDamping, deltaSeconds);
     const zoomFactor = dampingFactor(zoomDamping, deltaSeconds);
     const yawDelta = limitedYawDelta(viewRef.current.yaw, targetView.yaw, limitsRef.current.yaw);
     const smoothedView = {
@@ -918,8 +949,10 @@ export const PanoramaViewRuntime = forwardRef<
       "YXZ",
     );
     camera.quaternion.setFromEuler(eulerRef.current);
-    camera.fov = viewRef.current.fov;
-    camera.updateProjectionMatrix();
+    if (camera.fov !== viewRef.current.fov) {
+      camera.fov = viewRef.current.fov;
+      camera.updateProjectionMatrix();
+    }
     camera.updateMatrixWorld();
 
     const nextView = { ...viewRef.current };

@@ -2,6 +2,10 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
 import { createPointerDrag } from "./pointer-drag";
 import { useClaimControlChannel } from "./control-claims";
+import {
+  getIphoneLandscapeFullscreenSnapshot,
+  subscribeIphoneLandscapeFullscreen,
+} from "./ios-landscape-fullscreen";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import type { TouchControlsOptions } from "./types";
 
@@ -58,6 +62,8 @@ export function TouchControls({
 
     const pending = new Set<number>();
     let disposed = false;
+    let allowsDocumentScroll =
+      getIphoneLandscapeFullscreenSnapshot().allowsDocumentScroll;
     const clearPointers = () => {
       pending.clear();
       for (const pointerId of pointersRef.current.keys()) {
@@ -81,6 +87,17 @@ export function TouchControls({
       return;
     }
 
+    const unsubscribeIphone = subscribeIphoneLandscapeFullscreen(() => {
+      const next = getIphoneLandscapeFullscreenSnapshot().allowsDocumentScroll;
+      if (next === allowsDocumentScroll) {
+        return;
+      }
+      allowsDocumentScroll = next;
+      if (next) {
+        clearPointers();
+      }
+    });
+
     const syncActive = (cancelled = false) => {
       controlsRef.current?.setPointerActive(
         "touch",
@@ -91,6 +108,9 @@ export function TouchControls({
 
     const beginPointer = (event: PointerEvent) => {
       if (disposed || controlsRef.current?.isInteractionLocked()) {
+        return;
+      }
+      if (allowsDocumentScroll) {
         return;
       }
       if (pointersRef.current.has(event.pointerId)) {
@@ -123,6 +143,9 @@ export function TouchControls({
       if (controlsRef.current?.isInteractionLocked()) {
         return;
       }
+      if (allowsDocumentScroll) {
+        return;
+      }
 
       event.preventDefault();
       // Same turn as mouse controls: a hotspot locks this pointerdown before
@@ -146,6 +169,9 @@ export function TouchControls({
       }
       const previous = pointersRef.current.get(event.pointerId);
       if (!previous) {
+        return;
+      }
+      if (allowsDocumentScroll) {
         return;
       }
 
@@ -212,6 +238,7 @@ export function TouchControls({
     return () => {
       disposed = true;
       validateDragRef.current = undefined;
+      unsubscribeIphone();
       element.removeEventListener("pointerdown", onPointerDown);
       element.removeEventListener("pointermove", onPointerMove);
       element.removeEventListener("pointerup", releasePointer);

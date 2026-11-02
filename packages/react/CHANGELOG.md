@@ -1,5 +1,23 @@
 # @ericchen1990/pano-view
 
+## 3.7.0
+
+### Minor Changes
+
+- 0448aab: Add an iPhone landscape fullscreen fallback that scrolls Safari’s URL and toolbar away when the Fullscreen API is unavailable, including swipe prompts, viewer/VR session wiring, and touch passthrough while bars are visible.
+
+## 3.6.7
+
+### Patch Changes
+
+- Republish the gyro follow and stability fixes after npm staged 3.6.6 without making it publicly available.
+
+## 3.6.6
+
+### Patch Changes
+
+- 3307312: Make gyro follow device orientation on the same frame, reclaim touch offsets at view limits, and keep heading stable near the zenith and across sensor discontinuities.
+
 ## 3.6.5
 
 ### Patch Changes
