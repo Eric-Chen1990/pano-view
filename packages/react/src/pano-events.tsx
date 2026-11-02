@@ -4,6 +4,10 @@ import {
   getFullscreenElement,
   subscribeFullscreenChange,
 } from "./fullscreen";
+import {
+  isIphoneLandscapeFullscreenActive,
+  subscribeIphoneLandscapeFullscreen,
+} from "./ios-landscape-fullscreen";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import {
   PanoEventBusContext,
@@ -285,11 +289,14 @@ export function usePanoEvents({
     const wasFullscreenRef = { current: false };
 
     const isViewerFullscreen = () => {
+      const canvas = gl.domElement;
+      if (isIphoneLandscapeFullscreenActive(canvas)) {
+        return true;
+      }
       const fullscreenElement = getFullscreenElement();
       if (!fullscreenElement) {
         return false;
       }
-      const canvas = gl.domElement;
       return (
         fullscreenElement === canvas ||
         fullscreenElement.contains(canvas) ||
@@ -309,7 +316,14 @@ export function usePanoEvents({
     };
 
     wasFullscreenRef.current = isViewerFullscreen();
-    return subscribeFullscreenChange(handleFullscreenChange);
+    const unsubscribeApi = subscribeFullscreenChange(handleFullscreenChange);
+    const unsubscribeIphone = subscribeIphoneLandscapeFullscreen(
+      handleFullscreenChange,
+    );
+    return () => {
+      unsubscribeApi();
+      unsubscribeIphone();
+    };
   }, [gl]);
 
   useEffect(() => {

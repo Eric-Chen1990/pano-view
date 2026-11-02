@@ -4,6 +4,11 @@ import {
   requestElementFullscreen,
   subscribeFullscreenChange,
 } from "../fullscreen";
+import {
+  acquireIphoneLandscapeFullscreen,
+  releaseIphoneLandscapeFullscreen,
+  supportsIphoneLandscapeFullscreen,
+} from "../ios-landscape-fullscreen";
 
 const PRESENTATION_PROPERTIES = [
   "background",
@@ -41,6 +46,7 @@ type PresentationSnapshot = {
 };
 
 let activePresentation: PresentationSnapshot | null = null;
+let iphonePresentationElement: HTMLElement | null = null;
 
 function capturePresentationStyle(
   element: HTMLElement,
@@ -121,6 +127,7 @@ function tryUnlockOrientation(): void {
  * Pins the viewer to the viewport so MobileVR / simulated VR fills the screen
  * even when the Fullscreen API is unavailable (iOS Safari, WeChat, etc.).
  * Still requests the Fullscreen API in the same gesture when possible.
+ * On iPhone, uses landscape document scrolling to hide Safari chrome.
  */
 export async function enterWebVRPresentation(
   element: Element,
@@ -128,6 +135,17 @@ export async function enterWebVRPresentation(
   if (!(element instanceof HTMLElement)) {
     return;
   }
+
+  if (supportsIphoneLandscapeFullscreen()) {
+    if (iphonePresentationElement && iphonePresentationElement !== element) {
+      releaseIphoneLandscapeFullscreen(iphonePresentationElement, "vr");
+    }
+    iphonePresentationElement = element;
+    acquireIphoneLandscapeFullscreen(element, "vr");
+    void tryLockLandscape();
+    return;
+  }
+
   if (activePresentation?.element === element) {
     void requestElementFullscreen(element).catch(() => {});
     void tryLockLandscape();
@@ -153,6 +171,13 @@ export async function enterWebVRPresentation(
 }
 
 export function leaveWebVRPresentation(): void {
+  if (iphonePresentationElement) {
+    const element = iphonePresentationElement;
+    iphonePresentationElement = null;
+    releaseIphoneLandscapeFullscreen(element, "vr");
+    tryUnlockOrientation();
+  }
+
   const presentation = activePresentation;
   if (!presentation) {
     if (getFullscreenElement()) {
@@ -199,5 +224,5 @@ export function subscribeWebVRPresentationExit(
 }
 
 export function getWebVRPresentationElement(): HTMLElement | null {
-  return activePresentation?.element ?? null;
+  return iphonePresentationElement ?? activePresentation?.element ?? null;
 }

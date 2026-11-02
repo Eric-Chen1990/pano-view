@@ -650,6 +650,12 @@ function FullscreenExample() {
 }
 ```
 
+iPhone Safari 不支持 HTML5 Fullscreen API。在 iPhone 上调用 `enterFullscreen()` 或进入 MobileVR 时，查看器会铺满 visual viewport，并在横屏滚动页面，以便收起 Safari 的地址栏和工具栏。若栏仍可见，界面会提示用户滑动。宿主页面应设置：
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+```
+
 ### 命令式切换场景
 
 使用 `usePanoViewer()` 可将父组件侧命令缩短为 `viewer.setScene("roof")`。当宿主 UI 需要响应式显示当前场景 id 时，仍建议继续使用受控 `activeSceneId`。若使用非受控模式，`defaultActiveSceneId` 依然允许命令式调用直接更新内部状态。

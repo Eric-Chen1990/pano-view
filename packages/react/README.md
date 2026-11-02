@@ -677,6 +677,12 @@ function FullscreenExample() {
 }
 ```
 
+iPhone Safari does not implement the HTML5 Fullscreen API. When `enterFullscreen()` or MobileVR runs on an iPhone, the viewer covers the visual viewport and scrolls the page in landscape so Safari’s URL and toolbar can collapse. If the bars stay visible, an on-screen prompt asks the user to swipe. Host pages should set:
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+```
+
 ### Imperative scene switching
 
 Use `usePanoViewer()` to shorten parent-side commands to `viewer.setScene("roof")`. Keep using controlled `activeSceneId` when the host UI needs to render the current scene id reactively. For uncontrolled mode, `defaultActiveSceneId` still lets imperative calls update the internal state directly.

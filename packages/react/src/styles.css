@@ -246,6 +246,31 @@
   max-width: 16rem;
 }
 
+.pano-iphone-fullscreen-swipe-prompt {
+  align-items: center;
+  bottom: calc(1.25rem + var(--pano-safe-bottom));
+  display: flex;
+  justify-content: center;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  z-index: 20;
+}
+
+.pano-iphone-fullscreen-swipe-text {
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+  max-width: min(22rem, calc(100% - 2rem));
+  padding: 0.625rem 1rem;
+  text-align: center;
+}
+
 .pano-webvr-hint {
   bottom: calc(1.25rem + var(--pano-safe-bottom));
   color: #fff;

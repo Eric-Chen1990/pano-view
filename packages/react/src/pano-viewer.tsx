@@ -34,9 +34,19 @@ import {
 import {
   exitElementFullscreen,
   getFullscreenElement,
+  isFullscreenEnabled,
   requestElementFullscreen,
   subscribeFullscreenChange,
 } from "./fullscreen";
+import {
+  acquireIphoneLandscapeFullscreen,
+  getIphoneLandscapeFullscreenSnapshot,
+  isIphoneLandscapeFullscreenActive,
+  releaseIphoneLandscapeFullscreen,
+  subscribeIphoneLandscapeFullscreen,
+  supportsIphoneLandscapeFullscreen,
+} from "./ios-landscape-fullscreen";
+import { IphoneLandscapeFullscreenChrome } from "./ios-landscape-fullscreen-chrome";
 import {
   HotspotAccessibilityContext,
   useHotspotAccessibilityLayer,
@@ -556,43 +566,57 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       if (typeof document === "undefined") {
         return;
       }
-      if (getFullscreenElement()) {
-        return;
-      }
       const root = rootRef.current;
       if (!root) {
         return;
       }
-      await requestElementFullscreen(root);
+      if (getFullscreenElement() || isIphoneLandscapeFullscreenActive(root)) {
+        return;
+      }
+      if (isFullscreenEnabled()) {
+        await requestElementFullscreen(root);
+        return;
+      }
+      if (supportsIphoneLandscapeFullscreen()) {
+        acquireIphoneLandscapeFullscreen(root, "viewer");
+      }
     }, []);
 
     const exitFullscreen = useCallback(async () => {
       if (typeof document === "undefined") {
         return;
       }
-      if (!getFullscreenElement()) {
-        return;
+      const root = rootRef.current;
+      if (root && isIphoneLandscapeFullscreenActive(root)) {
+        releaseIphoneLandscapeFullscreen(root, "viewer");
       }
-      await exitElementFullscreen();
+      if (getFullscreenElement()) {
+        await exitElementFullscreen();
+      }
     }, []);
 
     const toggleFullscreen = useCallback(async () => {
       if (typeof document === "undefined") {
         return;
       }
-      if (getFullscreenElement()) {
-        await exitElementFullscreen();
-        return;
-      }
       const root = rootRef.current;
       if (!root) {
         return;
       }
-      await requestElementFullscreen(root);
-    }, []);
+      if (getFullscreenElement() || isIphoneLandscapeFullscreenActive(root)) {
+        await exitFullscreen();
+        return;
+      }
+      await enterFullscreen();
+    }, [enterFullscreen, exitFullscreen]);
 
     const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
     const { context: overlayContext, setPortalContainer } = usePanoOverlayHost(isViewerFullscreen);
+    const iphoneFullscreenAllowsScroll = useSyncExternalStore(
+      subscribeIphoneLandscapeFullscreen,
+      () => getIphoneLandscapeFullscreenSnapshot().allowsDocumentScroll,
+      () => false,
+    );
 
     useEffect(() => {
       if (modalOpen) contextMenuOverlayApi.setSession(null);
@@ -604,8 +628,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       }
 
       const syncFullscreen = () => {
-        const fullscreenElement = getFullscreenElement();
         const root = rootRef.current;
+        if (root && isIphoneLandscapeFullscreenActive(root)) {
+          setIsViewerFullscreen(true);
+          return;
+        }
+        const fullscreenElement = getFullscreenElement();
         if (!fullscreenElement || !root) {
           setIsViewerFullscreen(false);
           return;
@@ -618,7 +646,21 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       };
 
       syncFullscreen();
-      return subscribeFullscreenChange(syncFullscreen);
+      const unsubscribeApi = subscribeFullscreenChange(syncFullscreen);
+      const unsubscribeIphone = subscribeIphoneLandscapeFullscreen(syncFullscreen);
+      return () => {
+        unsubscribeApi();
+        unsubscribeIphone();
+      };
+    }, []);
+
+    useEffect(() => {
+      const root = rootRef.current;
+      return () => {
+        if (root) {
+          releaseIphoneLandscapeFullscreen(root, "viewer");
+        }
+      };
     }, []);
 
     useEffect(() => {
@@ -825,7 +867,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           }}
           style={{
             ...DEFAULT_CANVAS_STYLE,
-            touchAction: userControlsEnabled ? "none" : "auto",
+            touchAction: !userControlsEnabled
+              ? "auto"
+              : iphoneFullscreenAllowsScroll
+                ? "pan-y"
+                : "none",
           }}
         >
           <XR store={xrStore}>
@@ -916,6 +962,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             overlayElement={overlayElement}
           />
           <WebVRChromeBridge host={webVRHost} />
+          <IphoneLandscapeFullscreenChrome webVRHost={webVRHost} />
         </div>
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
