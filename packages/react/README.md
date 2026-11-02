@@ -201,7 +201,9 @@ export function Tour() {
 
 `ProjectScenes` belongs inside `PanoViewer` and reuses all nine existing hotspot types. A `scene` action navigates on click. Without an action, audio/video/sequence hotspots toggle playback. Media unmounts on leaving a scene and starts from its JSON settings on re-entry; browser autoplay restrictions still apply.
 
-Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives the scene, hotspot and original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `togglePlayback`, `reportError` and `renderDefault`.
+Configured `initialView` values apply at `onSceneReady`, defaulting missing fields to yaw 0, pitch 0, fov 75. With no view configured, the current view is retained. Hotspots hide during transitions. Control selection with `activeSceneId` / `onActiveSceneIdChange`. When uncontrolled, internal state starts at `project.initialSceneId`; a new `project` reference resets that selection. Call `event.preventDefault()` in `onHotspotClick` to cancel the default action. `onHotspotError` receives `sceneId`, the hotspot, and the original error (media errors may be events containing an `error` field). `renderHotspot(hotspot, context)` returns `undefined` for the default renderer or `null` to hide an item. Context includes `sceneId`, `playing`, `onClick`, `onHoverChange`, `togglePlayback`, `reportError`, and `renderDefault`.
+
+Beyond project-specific props, `ProjectScenes` accepts the `Scenes` transition and cache props: `transition`, `onSceneReady`, `transitionWaitForDetailMs`, `onTransitionEnd`, `onTransitionError`, `maxTextureMemoryMb`, `maxConcurrentTileLoads`, and `snapshotMaxPixels` (default `3686400`). It does not accept `scenes`, `defaultActiveSceneId`, or a host `renderHotspots` — the scene list comes from `project`, and hotspots are rendered by the component.
 
 ### Hotspot actions and shared popup content
 
@@ -293,11 +295,13 @@ An optional project-level `map` places scene spots on one floor image. Projects 
 
 `presentation.mode` is `"docked"` (the default) or `"dialog"`. Both accept `corner` (`top-left`, `top-right`, `bottom-left`, or `bottom-right`; default `bottom-left`), `offsetX` and `offsetY` (default 16), plus `width` and `height`. A docked panel defaults to 220×160. Dialog mode docks a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it.
 
-The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `dragMotion`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` → individual props. Spot geometry and sector styling stay in the document.
+The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `dragMotion`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` (same shape as `map.presentation`) → individual props. Spot geometry and sector styling stay in the document. `selectedSpotId` / `onSelectedSpotIdChange` are forwarded to the inner `PanoMap`. Docked collapse state is owned by the overlay; dialog mode and `editorSurface` force collapse controls off, so `collapsed` cannot be driven from outside.
 
 #### Mounting `PanoMapOverlay`
 
-Mount it from `PanoViewer.renderOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer. `PanoMap` is the surface alone, for a host-owned frame.
+Mount it from `PanoViewer.renderOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
+
+`PanoMap` also accepts controlled selection and collapse: `selectedSpotId` / `onSelectedSpotIdChange` (internal selection defaults to `null`); `collapsed` / `onCollapsedChange` (uncontrolled starts expanded); `renderChrome` to draw host controls above the surface. `showZoomControls` / `showCollapseControl` work on `PanoMap` the same way as on the overlay. `className` / `style` attach to the surface root.
 
 ```tsx
 import { useState } from "react";
@@ -399,7 +403,7 @@ These props override the map document for the current mount:
 
 #### Edit mode
 
-`mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports the next spots. Visitor playback stays on the default `mode="view"`. `editorSurface` enlarges the panel for authoring; pass `width` / `height` to size that surface, otherwise it scales with the viewer.
+`mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports `{ spots?, selectedSpotId? }`. Visitor playback stays on the default `mode="view"`. `editorSurface` enlarges the panel for authoring; pass `width` / `height` to size that surface, otherwise it scales with the viewer.
 
 Run `pnpm dev` and open `/map` for the playground. Authoring the same document is described in the [editor floor-plan section](../editor/README.md#floor-plan).
 
@@ -707,9 +711,7 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 ## DOM overlays and dialogs
 
-Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. `usePanoOverlay()` supplies its stable Portal target, measured viewer/visible dimensions and fullscreen state. The optional `/ui` entry provides `PanoDialog` and composable parts; your application can also integrate an existing Dialog.
-
-See the separate **[Dialog and styling guide](./docs/dialogs.md)** for complete examples, CSS variable defaults and placement, custom layouts, third-party integration, nested portals, lifecycle, API tables and troubleshooting. The guide is included in the npm package. Run `pnpm dev` and open `/overlays` for the local examples.
+Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. Call `usePanoOverlay()` inside the `renderOverlay` subtree to get `portalContainer`, `size` (viewer width/height), `visibleRect`, and `isFullscreen`. `usePanoModal(open)` holds that viewer's modal lock while `open === true` (pauses input and auto-rotate, marks the backdrop inert, closes the context menu); it does not trap focus. `PanoOverlayPortalProvider` takes a required `container` and `children` and only remaps `portalContainer` for descendants; `size` / `visibleRect` still describe the whole viewer. Field meanings, reference counting, and third-party Dialog wiring live in the separate **[Dialog and styling guide](./docs/dialogs.md)**. The optional `/ui` entry provides `PanoDialog` and composable parts. The guide ships in the npm package; run `pnpm dev` and open `/overlays` for local examples.
 
 ### Default dialog
 
@@ -801,6 +803,21 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 **Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to video controller and playback-state changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
 
 **Background Audio** (requires `<BackgroundAudio />`) — `getBackgroundAudio` returns the `BackgroundAudioController`, `subscribeBackgroundAudio` subscribes to background-audio controller and playback-state changes, plus convenience aliases `playBackgroundAudio`, `pauseBackgroundAudio`, `toggleBackgroundAudio`, `setBackgroundAudioVolume`, `setBackgroundAudioMuted`, `toggleBackgroundAudioMuted`. `BackgroundAudio` accepts `playing` (controlled) or `defaultPlaying` (uncontrolled).
+
+### Props
+
+- `initialView` — when omitted, yaw `0`, pitch `0`, fov `75`. Partial objects fill the rest from those defaults.
+- `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
+- `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
+- `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.
+- `controls` — `false` disables all user input. An object configures shared options and `mouse` / `touch` / `keyboard` channels; see [Mouse, touch, and keyboard controls](#mouse-touch-and-keyboard-controls). Shared defaults: `enabled` `true`, `inertia` `true`, `invert` `false`, `bouncingLimits` `false`, `frictionStop` `0.01`, `rotateSpeed` `0.35`, `zoomSpeed` `0.08`, `rotateDamping` / `zoomDamping` `14` / `16`. Omit `fovSpeed` for no extra cap: mouse wheel clamps each step `deltaY * zoomSpeed` to `±fovSpeed`; keyboard zoom compares degrees-per-second × frame time against `fovSpeed`.
+- `cursors` — `true` / omit uses grab / grabbing / pointer / move; `false` leaves the canvas cursor unchanged; an object overrides those four states.
+- `contextMenu` — `true` / omit mounts Reset view + Fullscreen; `false` skips the default menu; an object can change appearance or `items` / `prepend` / `append`. See [PanoContextMenu](#panocontextmenu).
+- `mediaActivation` — enabled by default when a mounted child intends to play; `false` disables automatic activation.
+- `renderOverlay` — DOM UI outside the Three.js tree and inside fullscreen; the callback receives `portalContainer`, `size`, `visibleRect`, and `isFullscreen`.
+- `onViewChange` — `{ yaw, pitch, fov }` in degrees.
+- `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — panorama pointer events with `position` (yaw / pitch), `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
+- Other standard `div` props (`className`, `style`, `id`, …) are accepted; conflicting `onChange` and `contextMenu` are omitted from the type.
 
 ### Mobile media activation
 
@@ -1092,7 +1109,7 @@ equirectangular tiles, use [`SphereTile`](#spherical-multiresolution-tiles).
 Provide a small preview to reduce download, decoding, and texture memory costs
 for the initial display.
 Relative paths resolve against the directory of `src`; root-absolute and
-`http(s)` URLs are used as-is. For krpano sphere scenes, copy
+`http(s)`, `blob:`, and `data:` URLs are used as-is. For krpano sphere scenes, copy
 [`<preview url>`](https://krpano.com/docu/xml/#preview) into `previewUrl`. That
 preview must be equirectangular, not a cube strip.
 
@@ -1112,6 +1129,17 @@ export function SphereExample() {
   );
 }
 ```
+
+### Props
+
+- `src` — required full 2:1 equirectangular image.
+- `previewUrl` — required low-resolution 2:1 preview while `src` loads.
+- `yawOffset` — horizontal rotation in degrees, default `0`. Set when the source forward direction differs from viewer yaw `0`.
+- `visible` — default `true`. `false` keeps the source mounted for preload without drawing it.
+- `onReady` — once when the first paintable texture (preview or `src`) is ready.
+- `onLoad` — when the `src` texture finishes loading; argument is a Three.js `Texture`.
+- `onError` — when `src` fails to load.
+- `onPreviewError` — when the preview fails; `src` still continues loading.
 
 ## PanoVideo
 
@@ -1192,6 +1220,30 @@ may require a user gesture; `onPlaybackStateChange` receives `"blocked"` when `p
 rejected. Remote videos and VTT files that are not same-origin should set
 `crossOrigin` (usually `"anonymous"`). For mobile delivery, provide an H.264 +
 AAC MP4 fallback, poster, CORS, and Range support.
+
+### Props
+
+- `src` — single-file shortcut; mutually exclusive with `variants`.
+- `poster` — cover image. Variants may also set `variants[].poster`.
+- `variants` / `defaultVariantId` — multi-quality list; missing `defaultVariantId` falls back to the first item. Switching keeps current time and play/pause.
+- `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
+- `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
+- `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
+- `yawOffset` — horizontal offset in degrees, default `0`.
+- `loop` — default `false`.
+- `muted` — default `true`.
+- `volume` — default `1`, range 0–1.
+- `autoPlay` — default `false`. When `true`, counts as media-activation intent.
+- `playsInline` — default `true`.
+- `preload` — `"none"` | `"metadata"` | `"auto"`, default `"metadata"`.
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; omit to leave unset.
+- `playbackRates` — speed menu list, default `[0.5, 1, 1.25, 1.5, 2]`.
+- `visible` — default `true`; `false` preloads without drawing.
+- `onLoad` — when the video becomes playable.
+- `onError` — `{ source: "poster" | "video" | "track", error }`.
+- `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`.
+- `onEnded` — when playback reaches the end without looping.
+- `onVariantChange` / `onTrackChange` — current variant id, or current track id (`null` when none).
 
 ## Tile
 
@@ -1304,6 +1356,24 @@ horizontal index and `%00v` produces a three-digit vertical index. The stereo
 `%t` and frame `%f` placeholders are not applicable to `Tile`, which represents
 a single non-stereo cube panorama.
 
+### Props
+
+- `baseUrl` / `multires` / `previewUrl` — required. `multires` may be a string or `{ tileSize, levels }`.
+- `previewFaceOrder` — default `["l", "f", "r", "b", "u", "d"]`; must list exactly six faces.
+- `urlTemplate` — package default when omitted; `resolveTileUrl` wins over the template.
+- `maxTextureMemoryMb` — standalone `Tile` default `128`.
+- `maxConcurrentLoads` — standalone `Tile` default `8` (do not confuse with `SphereTile` / `Scenes` concurrency of `4`).
+- `retryCount` — retries after the first failure, default `1`.
+- `loadMode` — `"full"` (default), `"preview"`, or `"base"`.
+- `visible` — default `true`; `false` preloads only.
+- `onReady` — when the preview is paintable (tiles may still report ready if the preview failed).
+- `onPreviewError` — preview load failure.
+- `onLoadProgress` — `{ requested, loaded, failed, active, queued }`.
+- `onTileError` — `{ address, url, error }`.
+- `onLevelChange` — current cube level, **1-based** (`SphereTile` logical levels are 0-based).
+
+Inside `Scenes` with `type: "tile"`, the shared texture cache overrides per-scene `maxTextureMemoryMb`, `maxConcurrentLoads`, and `retryCount` (the shared provider fixes retry at `1`). Visibility, `loadMode`, and the callbacks above are owned by `Scenes` and should not be set on the scene object.
+
 ## Scenes
 
 `Scenes` switches between single-image equirectangular, cube-tile, and
@@ -1378,6 +1448,24 @@ While a detail wait or transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
 is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
 apply to the whole `Scenes` viewer rather than to each tile scene.
+
+### Props
+
+- `scenes` — required. Supports `type: "sphere" | "tile" | "sphereTile"`.
+- `activeSceneId` — controlled current scene.
+- `defaultActiveSceneId` — uncontrolled initial scene. When both are omitted, uses `scenes[0].id`.
+- `onActiveSceneIdChange` — fired by imperative switches in controlled mode.
+- `transition` — defaults to `"crossfade"` for `1` second. Also accepts `{ preset, duration }`. Preset default seconds: `none` 0; `crossfade` / `whiteFlash` / most slides and opens / `pixelate` / `dissolve` / `clockWipe` / `zoomBlur` 1; `verticalOpen` 0.7; `glitch` 0.8; `hexDissolve` 1.1; the six `gridWipe*` / `shatter` / `swirl` / `ripple` 1.2; `filmBurn` 1.3; `particles` 1.4; `zoom` / `blackout` 2.
+- `transitionWaitForDetailMs` — default `0`.
+- `renderHotspots` — rendered only after a transition finishes; hidden while blending.
+- `onSceneReady` — first paintable scene, or incoming scene after snapshot takeover; not full detail.
+- `onTransitionEnd` — `{ previousSceneId, sceneId, preset }`.
+- `onTransitionError` — `{ sceneId, error }`.
+- `maxTextureMemoryMb` — shared budget, default `128`.
+- `maxConcurrentTileLoads` — shared concurrency, default `4`.
+- `snapshotMaxPixels` — max physical-pixel area of the outgoing GPU snapshot, default `3686400` (~2560×1440).
+
+Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source component. Per-scene cube cache fields are ignored under the shared cache — see [Tile](#tile).
 
 ## PanoSceneMenu
 
@@ -1516,8 +1604,9 @@ the thumbnail list:
 Set `showArrows` to add previous/next buttons at both ends of the list. The
 buttons stop at the first and last items (they do not wrap). Customize their
 accessible names with `previousLabel` / `nextLabel`, and the toggle with
-`expandLabel` / `collapseLabel`. The radiogroup label defaults to `"Scenes"`
-via `label`.
+`expandLabel` / `collapseLabel`. Defaults are `"Previous scene"`, `"Next scene"`,
+`"Show scenes"`, and `"Hide scenes"`. The radiogroup label defaults to `"Scenes"`
+via `label`. When collapsible, `defaultExpanded` defaults to `true`.
 
 ```tsx
 <PanoSceneMenu
@@ -1559,7 +1648,7 @@ Pass `appearance` for common chrome tokens without writing CSS:
 />
 ```
 
-`DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults. For deeper styling,
+`DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults (including `padding: "8px 10px"`). For deeper styling,
 use `className` / `style` against these stable classes:
 
 - `pano-scene-menu` — root chrome
@@ -1618,7 +1707,7 @@ panorama when a filter is active.
 
 ## AutoRotate
 
-Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true. While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically.
+Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true (default `2`). While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically. When the component is mounted and `enabled` is omitted, it is treated as `true`; omitting the component entirely means no auto-rotation.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1693,6 +1782,22 @@ every other scene plays `default.mp3`.
 For a sound attached to a point in the panorama that pans with the view, use
 `AudioHotspot`, not `BackgroundAudio`.
 
+### Props
+
+- `src` / `sources` — `src` is the shared track, or the fallback when a scene is missing from `sources`. Either value may be a string or a string array (Howler multi-format fallback). `sources` keys are `Scene.id` values.
+- `sceneId` — required when `sources` is set; omitting it throws.
+- `playing` / `defaultPlaying` — controlled playback, or uncontrolled initial value (default `false`).
+- `loop` — default `true`.
+- `muted` — default `false`.
+- `volume` — default `1`, range 0–1.
+- `pauseWhenHidden` — default `true`; pauses while the page is hidden.
+- `fadeMs` — crossfade milliseconds when the resolved track changes, default `400`; `0` is a hard cut.
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; omit to leave unset.
+- `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`.
+- `onPlaybackError` — `play()` and other playback failures.
+- `onEnded` — when the track finishes; uncontrolled mode also sets internal playing to `false`.
+- `onError` — resource load failure, `{ error }` (distinct from `onPlaybackError`).
+
 ## Gyro
 
 `Gyro` is an opt-in device-orientation control and is disabled by default.
@@ -1766,6 +1871,22 @@ require HTTPS. A cross-origin iframe must be permitted by the host page, for
 example with `allow="gyroscope; accelerometer"` and a compatible
 `Permissions-Policy` header.
 
+### Props
+
+- `enabled` — default `false`. On iOS, call `requestPermission()` inside a user gesture before setting `true`.
+- `camroll` — default `true`.
+- `absolute` — default `false` (relative mode); `true` follows the compass.
+- `north` — panorama yaw that represents North, in degrees, default `0`.
+- `friction` — `0`–`0.99`, default `0`.
+- `touchMode` — default `"full"`; see values above.
+- `softstart` — blend seconds when enabling, default `0.5`.
+- `desktopSupport` — default `false`.
+- `onAvailable` / `onUnavailable` — when sensor capability detection changes.
+- `onEnable` / `onDisable` — when a session actually starts / stops.
+- `onDenied` — when permission is denied (examples often set `enabled` back to `false`).
+
+These are props on `Gyro` itself. `PanoEvents` `onGyro*` callbacks subscribe to the same event bus for viewer-level listeners.
+
 ## WebVR
 
 `WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
@@ -1823,6 +1944,22 @@ DOM overlays such as iframe hotspots, tooltips, and video controls are not
 visible inside an immersive headset session; mesh-based hotspots remain
 interactive through the default WebXR controller rays.
 
+### Props
+
+- `chrome` — default `true` mounts Enter / Exit / Setup UI. An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`.
+- `mobileVr` — default `true`.
+- `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
+- `fakeSupport` — default `true` for mouse-driven desktop simulation.
+- `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
+- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`.
+- `cursor` — default `true`; `false` hides the center reticle.
+- `cursorDwellMs` — default `1500`; `0` disables auto-click.
+- `wakelock` / `mousePointerLock` — both default to `true`.
+- `onAvailable` / `onUnavailable` — VR capability changes.
+- `onEnterVR` / `onExitVR` — mode `"webxr" | "mobilevr" | "fake"`.
+- `onDenied` — permission or session denial, optional `error`.
+- `onUnknownDevice` — when screen / lens parameters cannot be identified.
+
 ## Mouse, touch, and keyboard controls
 
 `PanoViewer` enables `MouseControls`, `TouchControls`, and `KeyboardControls` by default. Configure shared options through `controls`; render a control component only to override that channel's properties. A child instance replaces the default — you do not need to set the channel to `false` first. Set `controls.mouse` / `touch` / `keyboard` to `false` to turn a channel off.
@@ -1846,15 +1983,36 @@ interactive through the default WebXR controller rays.
 
 ### MouseControls
 
-See the defaults above. Override through `controls.mouse` or by rendering `<MouseControls />` as a child.
+Override the default channel through `controls.mouse` or by rendering `<MouseControls />` as a child. A child instance does **not** inherit `controls.fovSpeed`; pass `fovSpeed` on the component when you need the cap.
+
+- `enabled` — default `true`.
+- `rotateSpeed` — default `0.35` (scales pointer displacement; `0` disables rotate).
+- `zoomSpeed` — default `0.08`; each wheel step is `deltaY * zoomSpeed`.
+- `wheel` — default `true`.
+- `invert` — default `false`; may override shared `controls.invert`.
+- `buttons` — default `["left"]`; values `"left" | "middle" | "right"`.
+- `fovSpeed` — omit for no cap; when set, clamps each wheel step to `±fovSpeed` (not a per-second rate).
 
 ### TouchControls
 
-One-finger drag and optional two-finger pinch zoom (`pinchZoom`, default `true`). Override through `controls.touch` or by rendering `<TouchControls />` as a child.
+One-finger drag and optional two-finger pinch zoom. Override through `controls.touch` or by rendering `<TouchControls />`.
+
+- `enabled` — default `true`.
+- `rotateSpeed` — default `0.35`, same meaning as mouse.
+- `invert` — default `false`.
+- `pinchZoom` — default `true`. Pinch changes FOV from the finger-distance ratio and is not limited by `fovSpeed`.
 
 ### KeyboardControls
 
-Hold arrows (or custom bindings) for continuous look / FOV; `0` resets; optional scene bindings. Defaults: `rotateSpeed` `60`, `zoomSpeed` `30`, `shiftMultiplier` `3`. Set `invert` to flip up/down only. Override through `controls.keyboard` or by rendering `<KeyboardControls />` as a child.
+Hold arrows (or custom bindings) for continuous look / FOV. Override through `controls.keyboard` or by rendering `<KeyboardControls />`. Child instances likewise do not inherit `controls.fovSpeed`.
+
+- `enabled` — default `true`.
+- `rotateSpeed` / `zoomSpeed` — default `60` / `30` (degrees per second).
+- `shiftMultiplier` — default `3`.
+- `invert` — default `false`; flips up/down only.
+- `fovSpeed` — omit for no cap; when set, limits with `min(zoom, fovSpeed * dt)`.
+- `keys` — replaces an action wholesale when that key is present; omitted actions keep defaults; an empty array unbinds the action. Matching compares both `event.key` and `event.code` (lowercased).
+- `onPreviousScene` / `onNextScene` — keys still `preventDefault` when bound; without a callback the scene does not change.
 
 Shared all-mode options on `controls`: `enabled`, `invert` (drag direction for mouse/touch), `bouncingLimits`, `fovSpeed`, `frictionStop` (default `0.01`), plus existing damping / inertia.
 
@@ -1907,7 +2065,7 @@ export function KeyboardExample({ scenes }: { scenes: Scene[] }) {
 
 Hold movement and zoom keys for continuous motion in degrees per second (`rotateSpeed` / `zoomSpeed`). Hold Shift to multiply those rates (`shiftMultiplier`, default `3`). Scene and reset bindings fire once per press. The canvas must be focused to receive keys (click the viewer first).
 
-Default bindings: arrows and WASD for look, `+/-` for FOV, `0` for reset, plus `[`/`PageUp` and `]`/`PageDown` for previous/next scene when callbacks are provided. The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
+Default bindings: arrows and WASD for look; zoom in with `+` and `=`, zoom out with `-` and `_`; `0` resets; `[` / `PageUp` and `]` / `PageDown` for previous/next scene (without callbacks the scene does not change, but the key may still be intercepted). The same child-override pattern works with `MouseControls` and `TouchControls`. Set `controls.mouse={false}` / `controls.touch={false}` / `controls.keyboard={false}` only when you want that channel off.
 
 ## Panorama coordinate events
 
@@ -1983,25 +2141,28 @@ import {
 
 Supported callbacks (krpano names in parentheses where applicable):
 
-- View: `onViewChange` (`onviewchange`), `onViewSettled`, `onViewInteractionStart` / `onViewInteractionEnd`
-- Pointer on the panorama shell (not hotspots): `onClick`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onContextMenu`
-- `onWheel` — mouse wheel only; touch pinch does not synthesize a wheel event
+- View: `onViewChange` (`onviewchange`), `onViewSettled` — both receive `{ yaw, pitch, fov }`. `viewchange` fires while the view moves; `viewsettled` fires when inertia/tween first stops or a commanded animation ends.
+- `onViewInteractionStart` / `onViewInteractionEnd` — `{ source }` with `source` `"mouse" | "touch" | "keyboard"`.
+- Pointer on the panorama shell (not hotspots): `onClick`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onContextMenu` — `PanoramaPointerEvent` with `position`, `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
+- `onWheel` — mouse wheel only; touch pinch does not synthesize a wheel event. Payload `{ delta, nativeEvent }`; `delta` matches the sign of `WheelEvent.deltaY`.
 - Idle: `onIdle` / `onIdleEnd` with per-instance `idleTime` (ms, default `2000`)
-- Fullscreen: `onEnterFullscreen` / `onExitFullscreen`
-- `onResize` — canvas content-box size via `ResizeObserver`
-- Auto-rotate: `onAutoRotateStart` / `onAutoRotateStop` / `onAutoRotateOneRound`
-- Gyro: `onGyroAvailable` / `onGyroUnavailable` / `onGyroEnable` /
-  `onGyroDisable` / `onGyroDenied`
+- Fullscreen: `onEnterFullscreen` / `onExitFullscreen` (no payload)
+- `onResize` — `{ width, height }` from a content-box `ResizeObserver`
+- Auto-rotate: `onAutoRotateStart` / `onAutoRotateStop` / `onAutoRotateOneRound` (no payload)
+- Gyro: `onGyroAvailable` / `onGyroUnavailable` / `onGyroEnable` / `onGyroDisable` / `onGyroDenied` (no payload)
+- VR: `onVRAvailable` / `onVRUnavailable` / `onVREnter` / `onVRExit` / `onVRDenied` / `onVRUnknownDevice`. Enter/exit carry mode `"webxr" | "mobilevr" | "fake"`; `onVRDenied` may include an optional `error`.
 
 `PanoViewer`'s existing `onViewChange` / `onPanoramaClick` / `onPanoramaDoubleClick` /
 `onPanoramaPointerMove` props remain supported and share the same event bus.
+`usePanoEvents` accepts the same props as `<PanoEvents>` and returns nothing.
 
 Resource callbacks belong to each source: `Sphere` provides `onLoad`,
 `onError`, and `onPreviewError`; `Tile` / `SphereTile` provide `onLoadProgress`,
 `onTileError`, and `onPreviewError`. Sources report initial render readiness
 through `onReady`. Use `Scenes` callbacks `onSceneReady`, `onTransitionEnd`,
-and `onTransitionError` for scene state. This package does not provide a
-one-to-one mapping of krpano XML-loading, VR, or frame-render events.
+and `onTransitionError` for scene state. This package does not mirror krpano
+XML-loading or frame-render events one-to-one; use the `onVR*` callbacks above
+for VR lifecycle.
 
 ## PanoContextMenu
 
@@ -2095,18 +2256,32 @@ reimplementing fullscreen enter/exit state:
 </PanoViewer>
 ```
 
-Override presentation on a preset with `{ preset: "fullscreen", label: "…" }`.
+Override presentation on a preset with `{ preset: "fullscreen", label: "…" }`;
+presets may also override `id`, `className`, `style`, `disabled`, and `hidden`.
 For fully manual assembly outside the prop (for example a custom
 `PanoContextMenu` child), call `createPanoContextMenuPresets({ reset,
 toggleFullscreen, isFullscreen })` and use `.resetView` / `.fullscreen` /
 `.defaults`.
 
-Concrete items may use an `icon` React node or an `image` URL. Separators
-always come from the `"separator"` preset. Appearance covers background, text
-color, border, radius, shadow, background-only `opacity` (clamped from
-`MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY` / `0.4` to `1`; labels and icons
-stay opaque), hover/disabled colors, and icon size. For an explicit translucent
-fill without using `opacity`, you can still pass `background: "rgba(...)"`.
+Concrete items may use an `icon` React node or an `image` URL (optional
+`imageAlt`). Items may also set `disabled`, `hidden`, `className`, and `style`.
+`onSelect` receives `position`, `view`, `nativeEvent`, and `close()`. Separators
+always come from the `"separator"` preset.
+
+When `items` is provided, `prepend` / `append` are ignored. `children` is a
+full custom render: `(props: { event, view, close }) => ReactNode`; it takes
+precedence over `items` while open/close/positioning stay with the component.
+`className`, `style`, `itemClassName`, and `separatorClassName` are also accepted.
+
+Appearance fields and defaults: `background` `#161616`, `color` `#f4f4f4`,
+`border` `"1px solid #2e2e2e"`, `borderRadius` `8`,
+`shadow` `"0 8px 24px rgba(0,0,0,0.45)"`, `opacity` `1` (background only,
+clamped to `[0.4, 1]`; labels and icons stay opaque), `fontSize` `13`,
+`minWidth` `180`, `padding` `4`, `iconSize` `16`, `itemPadding` `"6px 10px"`,
+`itemHoverBackground` `#2a2a2a`, `itemDisabledColor` `#777777`,
+`separatorColor` `#333333`, `separatorMargin` `"4px 6px"`. For an explicit
+translucent fill without using `opacity`, you can still pass
+`background: "rgba(...)"`.
 
 For a fully custom DOM menu, set `contextMenu={false}` and render
 `PanoContextMenu` as a child. Do not mount both the default menu and a child
@@ -2115,15 +2290,34 @@ For a fully custom DOM menu, set `contextMenu={false}` and render
 
 ## Shared hotspot contract and saved definitions
 
-Every hotspot has an `id`, optional `visible`, `interactive`, `pointerEvents`,
-`renderOrder`, and semantic interaction callbacks. Point hotspots additionally
-use a controlled `position`, angular `width`/`height`, hotspot mode, and the
-zoom options described below. `interactive={false}` keeps a hotspot visible
-while letting a drawing tool receive the panorama pointer events beneath it.
-`pointerEvents="none"` ignores mouse, touch, and pen so those events pass
-through to the panorama even when the hotspot stays keyboard-interactive.
-Interactive hotspots set the canvas cursor to `pointer` while hovered, or to
-the hotspot's `cursor` prop when that is set.
+Every hotspot has an `id`, optional shared fields, and semantic interaction
+callbacks. Point hotspots additionally use a controlled `position`, angular
+`width`/`height`, hotspot mode, and the zoom options described below.
+`interactive={false}` keeps a hotspot visible while letting a drawing tool
+receive the panorama pointer events beneath it. `pointerEvents="none"` ignores
+mouse, touch, and pen so those events pass through to the panorama even when
+the hotspot stays keyboard-interactive. Interactive hotspots set the canvas
+cursor to `pointer` while hovered, or to the hotspot's `cursor` prop when that
+is set.
+
+Shared field defaults and usage:
+
+- `visible` — default `true`.
+- `renderOrder` — default `0` for point hotspots; `10` for polygons / polylines.
+- `opacity` — default `1`; applies to point-hotspot textures / iframes.
+- `selected` — default `false`; when `true`, draws an ~3px selection outline (common in authoring).
+- `interactive` — default `true`; `pointerEvents` defaults to `"auto"`.
+- `onHoverChange(hovered, event)` — boolean hover state, then the interaction event.
+- `onClick` — position and input source (`"pointer"` or `"keyboard"`).
+- Point-hotspot drag: with `draggable`, `onDragStart` fires at the start,
+  `onPositionChange` reports the new position while moving (the host must write
+  it back), and `onDragEnd` fires on release. Polygon / polyline callbacks with
+  the same names carry vertex sets — see those sections.
+
+Default angular size when `width` / `height` are omitted: `ImageHotspot` /
+`SequenceHotspot` `12×8`; canvas `GraphicHotspot` `10×10` (`12×8` when
+`kind: "svg"` loads as an image); `VideoHotspot` `16×9`; `AudioHotspot` `8×8`;
+`TextHotspot` `16×6`; `IframeHotspot` `18×12`.
 
 ```tsx
 <TextHotspot
@@ -2134,11 +2328,10 @@ the hotspot's `cursor` prop when that is set.
 />
 ```
 
-`onClick` and `onHoverChange` receive a position and input source (`"pointer"`
-or `"keyboard"`). Point hotspots can use `draggable`, `onDragStart`,
-`onPositionChange`, and `onDragEnd`; the host must write the reported position
-back to its state. Polygon and polyline hotspots report the corresponding
-controlled `vertices` through `onVerticesChange`.
+Point hotspots can use `draggable`, `onDragStart`, `onPositionChange`, and
+`onDragEnd`; the host must write the reported position back to its state.
+Polygon and polyline hotspots report controlled `vertices` through
+`onVerticesChange`.
 
 Every hotspot can show a DOM tooltip at its anchor. Pass a string or
 `{ text?, image?, imageAlt? }` as `tooltip`. The default `tooltipTrigger` is
@@ -2216,7 +2409,10 @@ const hotspots: HotspotDefinition[] = [
 
 Definitions intentionally contain data only. Render them with a switch in the
 host, where application-specific click actions, controlled media state, and
-error reporting belong.
+error reporting belong. Project JSON `label` is not a component prop;
+`ProjectScenes` uses `hotspot.label || hotspot.id` as the accessible name
+(`ariaLabel`). `selected` exists only on runtime props and is not part of the
+saved definition.
 
 ## ImageHotspot
 
@@ -2246,15 +2442,19 @@ move a selected hotspot. Clickable hotspots need `ariaLabel`: PanoViewer creates
 an internal semantic control for Tab, Enter, and Space activation, with a
 visible WebGL focus outline.
 
-`ImageHotspot` calls `onLoad(texture)` and `onError(error)`.
+`ImageHotspot` calls `onLoad(texture)` and `onError(error)`. When size is
+omitted, defaults are `width={12}` and `height={8}`.
 
 ## GraphicHotspot
 
 `GraphicHotspot` accepts built-in `circle`, `triangle`, `diamond`, `star`,
 `arrow`, `rectangle`, and `ring` graphics, an SVG URL, or safe SVG path data
 with an explicit viewBox. Built-in graphics support `fill`, `stroke`, and
-`strokeWidth`; rectangles support a relative `cornerRadius` from `0` to `0.5`,
-and rings support `innerRadius`.
+`strokeWidth`; rectangles support a relative `cornerRadius` from `0` to `0.5`;
+rings support `innerRadius` (fraction of the outer radius, default `0.58`).
+Canvas `strokeWidth` is line width on the **512** texture (default `8`), not
+the CSS-pixel stroke used by polygons. `kind: "path"` needs `path` and
+`viewBox: [x, y, width, height]`.
 
 ```tsx
 import { GraphicHotspot } from "@ericchen1990/pano-view";
@@ -2304,7 +2504,8 @@ relative proportion, not a texture-pixel measurement.
 `GraphicHotspot` uses the same `onLoad(texture)` and `onError(error)` callbacks
 as `ImageHotspot`. Built-in paths are rasterized locally; only an SVG URL
 or SVG `path` data plus an explicit `viewBox` is accepted, never arbitrary SVG
-markup.
+markup. Canvas graphics default to angular size `10×10`; `kind: "svg"` image
+loads default to `12×8`.
 
 ## Hotspot mode and zoom behaviour
 
@@ -2379,6 +2580,13 @@ stroke. Dragging moves all vertices together while keeping yaw normalized and
 pitch clamped. Individual vertex editing is provided by the authoring
 workflow, not the runtime hotspot component.
 
+Defaults: `fill` `#df6b42`, `fillOpacity` `0.34`, `stroke` `#f5fbfc`,
+`strokeWidth` `2`, `strokeOpacity` `1`, `renderOrder` `10`. `onDragStart` /
+`onDragEnd` / `onVerticesChange` carry vertex events (`vertices`,
+`startVertices`, `position`, `startPosition`), not point-hotspot drag events.
+`onInvalid` codes are `too_few_vertices`, `self_intersection`,
+`contains_pole`, and `outside_hemisphere`.
+
 Set `fillOpacity={0}` for a closed outline-only polygon. The fill and outline
 share the same spherical edge sampling so the outline follows the fill boundary.
 
@@ -2407,7 +2615,10 @@ import { PolylineHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-`onInvalid` reports the only invalid runtime shape: fewer than two vertices.
+`onInvalid` reports the only invalid runtime shape: fewer than two vertices
+(`code: "too_few_vertices"`). Defaults: `stroke` `#f5fbfc`, `strokeWidth` `2`,
+`strokeOpacity` `1`, `renderOrder` `10`. Drag callbacks likewise carry a
+vertex set (`PolylineVerticesChangeEvent`).
 
 ## SequenceHotspot
 
@@ -2415,7 +2626,8 @@ import { PolylineHotspot } from "@ericchen1990/pano-view";
 frames in a vertical or horizontal strip. This matches the common krpano
 animated-hotspot format. Give `width` and `height` the aspect ratio of a single
 frame, rather than the full strip. `playing` is controlled by the host; `fps`
-defaults to `12` and `loop` defaults to `true`.
+defaults to `12`, `loop` to `true`, and `frameDirection` to `"vertical"`.
+Omitted size defaults to `12×8`.
 
 ```tsx
 import { SequenceHotspot } from "@ericchen1990/pano-view";
@@ -2437,7 +2649,10 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-Sequence loading uses `onLoadProgress` and `onError`. The component does not
+Sequence loading uses `onLoadProgress` (`{ id, total, loaded, failed }`) and
+`onError` (`{ id, src, error }`). Also available: `onFrameChange`
+(`{ id, index, src }`) and `onPlaybackStateChange`
+(`"playing" | "paused" | "ended"`, no `"blocked"`). The component does not
 change `playing` by itself: update that prop in response to your UI, click
 handler, `onEnded`, or playback error.
 
@@ -2449,7 +2664,9 @@ state. On source change or unmount, the element is paused and its texture is
 released. `playsInline` defaults to `true` and uses the same inline-playback
 attributes as `PanoVideo`. The element is mounted inside the viewer, hidden,
 so mobile browsers keep it in the page. `muted` defaults to `true`, `loop` to
-`false`, and `preload` to `"metadata"`.
+`false`, `preload` to `"metadata"` (also `"none"` | `"auto"`), and `volume` to
+`1` (0–1). Omitted size defaults to `16×9`. Cross-origin media may set
+`crossOrigin` (`""` | `"anonymous"` | `"use-credentials"`).
 
 ```tsx
 import { VideoHotspot } from "@ericchen1990/pano-view";
@@ -2478,9 +2695,10 @@ Browsers can reject unmuted or otherwise non-gesture playback. In that case
 the browser error; retain control of `playing` in the host and offer an
 explicit user action.
 
-Video reports media and poster failures through `onError`. Like
-`SequenceHotspot`, it does not change `playing` by itself. This keeps source
-changes, unmounts, and React StrictMode lifecycles deterministic.
+Video reports media and poster failures through `onError`, including
+`source: "poster" | "video"`. Like `SequenceHotspot`, it does not change
+`playing` by itself. This keeps source changes, unmounts, and React StrictMode
+lifecycles deterministic.
 
 ## AudioHotspot
 
@@ -2531,19 +2749,26 @@ import { AudioHotspot } from "@ericchen1990/pano-view";
 ```
 
 Like the other media hotspots, `AudioHotspot` does not change `playing` by
-itself.
+itself. Omitted marker size defaults to `8×8`. `crossOrigin` is also accepted;
+load failures go to `onError({ id, error })`, distinct from `onPlaybackError`.
 
 ## TextHotspot
 
 `TextHotspot` rasterizes plain text onto a canvas texture. It does not accept
 HTML or Markdown. `\n` is a hard line break; `whiteSpace="normal"` (default)
-wraps words to the hotspot's angular width. Dimensions stay in degrees like
-the other point hotspots. Typography uses the same names as CSS
-(`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`) but is painted onto the
-canvas, not applied as DOM style. `fontSize` is canvas pixels (default 96) and
-does not scale with panel height. `fontWeight` defaults to `600` and
-`fontStyle` to `"normal"`. `padding` and `borderRadius` remain fractions of
-the texture's shorter side, so they still follow `width` / `height`.
+wraps words to the hotspot's angular width; `"nowrap"` is also accepted.
+Dimensions stay in degrees like the other point hotspots; the default panel is
+`16×6`. Typography uses the same names as CSS (`fontFamily`, `fontSize`,
+`fontWeight`, `fontStyle`) but is painted onto the canvas, not applied as DOM
+style. `fontSize` is canvas pixels (default 96) and does not scale with panel
+height. `fontWeight` defaults to `600` and `fontStyle` to `"normal"`. `align`
+defaults to `"center"` (`left` | `center` | `right`); `verticalAlign` defaults
+to `"middle"` (`top` | `middle` | `bottom`). `color` defaults to `#f8fafc`;
+`background` defaults to `#111827` (empty string skips the panel fill);
+`backgroundOpacity` defaults to `0.72`. `padding` defaults to `0.08` and
+`borderRadius` to `0.08` (fractions of the shorter side, `0`–`0.5`).
+`lineHeight` defaults to `1.25` (multiple of font size). `stroke` /
+`strokeWidth` draw an outline when `strokeWidth > 0` (default width `0`).
 
 ```tsx
 import { TextHotspot } from "@ericchen1990/pano-view";
@@ -2602,8 +2827,10 @@ interactive and blocks dragging through the iframe. A hotspot
 `pointerEvents="none"` also forces the iframe overlay not to capture pointer
 events. `sandbox` defaults to
 `allow-scripts allow-popups allow-forms` without `allow-same-origin`.
-`referrerPolicy` defaults to `strict-origin-when-cross-origin`. Prefer a
-same-origin document; many third-party sites send `X-Frame-Options` and will
+`referrerPolicy` defaults to `strict-origin-when-cross-origin`. Also accepted:
+`title` (falls back to `ariaLabel`), `allow`, `loading` (`"eager"` | `"lazy"`),
+`background`, and `onLoad` / `onError`. Omitted size defaults to `18×12`. Prefer
+a same-origin document; many third-party sites send `X-Frame-Options` and will
 not load.
 
 ## Next.js and SSR

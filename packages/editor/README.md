@@ -102,9 +102,13 @@ Only a supplied `onImportPanorama` enables original-image import. The public loc
 | `value`, `defaultValue`, `onChange` | Existing `PanoProjectDefinition` authoring document. |
 | `baseUrl` | HTTP(S) project resource directory, defaulting to the host page directory. |
 | `requestInit`, `resolveAssetUrl` | Existing viewer JSON-request options and synchronous resource URL mapping. Runtime mapped URLs are never written into the document. |
+| `resolvePopupAssetUrl` | Same popup-media URL mapping as the viewer loader. |
 | `onImportPanorama` | Host-owned `File` → `PanoProjectSceneDefinition["source"]` conversion. |
-| `onPickAsset` | Host picker for image, video, audio or document paths; cancel with `undefined`. |
+| `onPickAsset` | Host picker for image, video, audio or document paths; cancel with `undefined`. Common `field` values on hotspots: `src`, `poster`, `icon`, `playingIcon`, `graphic.src`, `tooltip.image`, `cursor`; for the floor plan also `map.image` / `map.icon`. `kind` is `image` \| `video` \| `audio` \| `document`. |
+| `onPickPopupAsset` | Popup block asset picker; request includes `kind`, `popupId`, `blockId`, `field: "src" \| "poster"`, and optional `currentUrl`. |
 | `onSave` | Async persistence of a validated project. Failed saves leave changes pending. |
+| `customActions` | Inject configurable custom-action definitions (`id`, `label`, `fields`, …). |
+| `onPreviewCustomAction` | Host dispatcher when testing a custom action inside the editor. |
 | `locale` | `"en"` (default) or `"zh-CN"`. |
 | `className`, `style` | Host layout and dimensions. |
 

@@ -97,9 +97,13 @@ import "@ericchen1990/pano-editor/styles.css";
 | `value/defaultValue/onChange` | 复用现有 `PanoProjectDefinition`。 |
 | `baseUrl` | HTTP(S) 项目资源根目录，默认宿主页面所在目录。 |
 | `requestInit/resolveAssetUrl` | 复用查看器的 JSON 请求选项和同步资源映射；运行时映射结果不写回文档。 |
+| `resolvePopupAssetUrl` | 与查看器加载器相同的弹窗媒体地址映射。 |
 | `onImportPanorama` | 宿主负责 `File` → `PanoProjectSceneDefinition["source"]`。 |
-| `onPickAsset` | 收到素材种类、场景/热点 ID、字段和当前地址，返回持久地址或 `undefined`。 |
+| `onPickAsset` | 收到素材种类、场景/热点 ID、字段和当前地址，返回持久地址或 `undefined`。`field` 常见值为热点侧的 `src`、`poster`、`icon`、`playingIcon`、`graphic.src`、`tooltip.image`、`cursor`，以及平面图的 `map.image` / `map.icon`。`kind` 为 `image` \| `video` \| `audio` \| `document`。 |
+| `onPickPopupAsset` | 弹窗内容块选材；请求含 `kind`、`popupId`、`blockId`、`field: "src" \| "poster"`、可选 `currentUrl`。 |
 | `onSave` | 接收校验后的项目，失败保留未保存状态。 |
+| `customActions` | 注入可配置的自定义动作定义（`id`、`label`、`fields` 等）。 |
+| `onPreviewCustomAction` | 编辑器内测试自定义动作时的宿主分发器。 |
 | `locale` | 默认 `en`，支持 `zh-CN`。 |
 | `className/style` | 设置尺寸和宿主样式。 |
 
