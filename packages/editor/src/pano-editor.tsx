@@ -903,6 +903,19 @@ export function PanoEditor(props: PanoEditorProps) {
       });
     }
   }
+  function deleteMapSpot(id: string) {
+    if (!history.current.map) return;
+    begin();
+    publish({
+      ...history.current,
+      map: {
+        ...history.current.map,
+        spots: history.current.map.spots.filter((spot) => spot.id !== id),
+      },
+    });
+    end();
+    setSelectedMapSpotId((current) => (current === id ? undefined : current));
+  }
   function keyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.defaultPrevented || (event.target as HTMLElement).closest("[data-pano-dialog]")) return;
     if (dialog) {
@@ -949,6 +962,14 @@ export function PanoEditor(props: PanoEditorProps) {
     } else if (!preview && draft.length && event.key === "Backspace") {
       event.preventDefault();
       setDraft((vertices) => vertices.slice(0, -1));
+    } else if (
+      !preview &&
+      sidebarMode === "map" &&
+      selectedMapSpotId &&
+      ["Delete", "Backspace"].includes(event.key)
+    ) {
+      event.preventDefault();
+      deleteMapSpot(selectedMapSpotId);
     } else if (
       !preview &&
       selected &&
@@ -1276,6 +1297,7 @@ export function PanoEditor(props: PanoEditorProps) {
               const spot = project.map?.spots.find((entry) => entry.id === id);
               if (spot) navigate(spot.sceneId);
             }}
+            onDeleteSpot={deleteMapSpot}
             onAdd={() => {
               end();
               publish({ ...history.current, map: emptyMap() });
@@ -1434,18 +1456,7 @@ export function PanoEditor(props: PanoEditorProps) {
               onPickIcon={() => void pickMapAsset("icon")}
               onSelectedSpotIdChange={setSelectedMapSpotId}
               onPlacementSceneIdChange={setPlacementSceneId}
-              onDeleteSpot={(id) => {
-                if (!history.current.map) return;
-                begin();
-                publish({
-                  ...history.current,
-                  map: {
-                    ...history.current.map,
-                    spots: history.current.map.spots.filter((spot) => spot.id !== id),
-                  },
-                });
-                end();
-              }}
+              onDeleteSpot={deleteMapSpot}
               t={t}
             /> : <p className="pne-hint">{t("Add a floor plan from the Map tab.")}</p> : sidebarMode === "popups" ? selectedPopup ? <PopupInspector
               key={selectedPopup.id} popup={selectedPopup} project={project} onChange={updatePopup}

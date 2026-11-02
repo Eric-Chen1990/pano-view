@@ -54,10 +54,16 @@ test("parsePanoMap validates spots against scenes", () => {
       presentation: { mode: "docked", corner: "bottom-left", width: 240, height: 160 },
       controls: { collapse: true, zoom: true },
       iconSize: 28,
+      maxScale: 4,
       sector: {
         angle: 70,
         radius: 48,
         followFov: true,
+        color: "#38bdf8",
+        opacity: 0.6,
+        strokeColor: "#0f172a",
+        strokeWidth: 2,
+        strokeOpacity: 0.8,
         gradient: {
           type: "radial",
           stops: [
@@ -72,6 +78,10 @@ test("parsePanoMap validates spots against scenes", () => {
   );
   assert.equal(map?.spots[0]?.sceneId, "entrance");
   assert.equal(map?.controls?.zoom, true);
+  assert.equal(map?.maxScale, 4);
+  assert.equal(map?.sector?.strokeColor, "#0f172a");
+  assert.equal(map?.sector?.strokeWidth, 2);
+  assert.equal(map?.sector?.color, "#38bdf8");
   assert.throws(
     () =>
       parsePanoMap(

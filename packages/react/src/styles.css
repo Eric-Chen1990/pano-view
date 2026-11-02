@@ -457,8 +457,7 @@
 .pano-map-overlay,
 .pano-map-launcher,
 .pano-map-control,
-.pano-map-spot,
-.pano-map-heading-handle {
+.pano-map-spot {
   box-sizing: border-box;
 }
 
@@ -492,13 +491,16 @@
   gap: 4px;
 }
 
+.pano-map .pano-map-control,
+.pano-map-overlay .pano-map-control,
+.pano-map-overlay .pano-map-launcher,
 .pano-map-control,
 .pano-map-launcher {
   align-items: center;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
-  color: inherit;
+  color: #f8fafc;
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -508,9 +510,12 @@
   padding: 0 8px;
 }
 
+.pano-map .pano-map-control:hover,
+.pano-map-overlay .pano-map-control:hover,
+.pano-map-overlay .pano-map-launcher:hover,
 .pano-map-control:hover,
 .pano-map-launcher:hover {
-  background: rgba(30, 41, 59, 0.95);
+  background: rgba(30, 41, 59, 0.98);
 }
 
 .pano-map-launcher {
@@ -521,7 +526,54 @@
 .pano-map-spot:focus-visible,
 .pano-map-control:focus-visible,
 .pano-map-launcher:focus-visible,
-.pano-map-heading-handle:focus-visible {
+.pano-map-dialog-close:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
+}
+
+.pano-map-dialog-backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.pano-map-dialog {
+  background: #161b22;
+  border: 1px solid #39424e;
+  border-radius: 12px;
+  box-shadow: 0 16px 64px rgb(0 0 0 / 45%);
+  color: #f4f4f4;
+  font: inherit;
+}
+
+.pano-map-dialog-header {
+  min-height: 56px;
+  padding: 16px 56px 12px 16px;
+  position: relative;
+}
+
+.pano-map-dialog-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pano-map-dialog-close {
+  align-items: center;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 36px;
+}
+
+.pano-map-dialog-body {
+  padding: 0 16px 16px;
 }

@@ -9,7 +9,6 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
-  type WheelEvent as ReactWheelEvent,
 } from "react";
 import type {
   PanoMapDefinition,
@@ -34,7 +33,7 @@ const DEFAULT_ICON_SIZE = 28;
 const DEFAULT_SECTOR_COLOR = "#ffffff";
 const DEFAULT_SECTOR_OPACITY = 0.55;
 const MIN_SCALE = 1;
-const MAX_SCALE = 8;
+const DEFAULT_MAX_SCALE = 8;
 const ZOOM_STEP = 1.25;
 
 export type PanoMapEditChange = {
@@ -89,12 +88,16 @@ function SectorShape({
   angle,
   rotation,
   gradientId,
+  interactive,
+  onHeadingPointerDown,
   transformRef,
 }: {
   sector: PanoMapSectorDefinition;
   angle: number;
   rotation: number;
   gradientId: string;
+  interactive?: boolean;
+  onHeadingPointerDown?: (event: ReactPointerEvent<SVGPathElement>) => void;
   transformRef?: (node: SVGGElement | null) => void;
 }) {
   const half = angle / 2;
@@ -110,6 +113,18 @@ function SectorShape({
   const opacity = sector.opacity ?? DEFAULT_SECTOR_OPACITY;
   const color = sector.color ?? DEFAULT_SECTOR_COLOR;
   const gradient = sector.gradient;
+  const strokeWidth = sector.strokeWidth ?? 0;
+  const strokeColor = sector.strokeColor ?? color;
+  const strokeOpacity = sector.strokeOpacity ?? 1;
+  // Stop opacities describe the fade shape (relative). Sector opacity scales the
+  // whole fill so the editor slider stays effective in gradient mode.
+  const gradientStrength =
+    gradient && gradient.stops.length > 0
+      ? Math.max(
+          ...gradient.stops.map((stop) => stop.opacity ?? 1),
+          Number.EPSILON,
+        )
+      : 1;
   return (
     <g ref={transformRef} transform={`rotate(${rotation})`} style={{ pointerEvents: "none" }}>
       {gradient ? (
@@ -121,7 +136,7 @@ function SectorShape({
                   key={`${stop.offset}:${index}`}
                   offset={`${stop.offset * 100}%`}
                   stopColor={stop.color}
-                  stopOpacity={stop.opacity ?? opacity}
+                  stopOpacity={(stop.opacity ?? 1) / gradientStrength}
                 />
               ))}
             </radialGradient>
@@ -139,7 +154,7 @@ function SectorShape({
                   key={`${stop.offset}:${index}`}
                   offset={`${stop.offset * 100}%`}
                   stopColor={stop.color}
-                  stopOpacity={stop.opacity ?? opacity}
+                  stopOpacity={(stop.opacity ?? 1) / gradientStrength}
                 />
               ))}
             </linearGradient>
@@ -149,7 +164,16 @@ function SectorShape({
       <path
         d={path}
         fill={gradient ? `url(#${gradientId})` : color}
-        fillOpacity={gradient ? 1 : opacity}
+        fillOpacity={opacity}
+        stroke={strokeWidth > 0 ? strokeColor : "none"}
+        strokeWidth={strokeWidth > 0 ? strokeWidth : undefined}
+        strokeOpacity={strokeWidth > 0 ? strokeOpacity : undefined}
+        vectorEffect="non-scaling-stroke"
+        style={{
+          pointerEvents: interactive ? "auto" : "none",
+          cursor: interactive ? "grab" : undefined,
+        }}
+        onPointerDown={interactive ? onHeadingPointerDown : undefined}
       />
     </g>
   );
@@ -204,6 +228,7 @@ export function PanoMap({
 }: PanoMapProps) {
   const reactId = useId().replace(/:/g, "");
   const view = useMapView(controlledView);
+  const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sectorNodeRef = useRef<SVGGElement | null>(null);
   const yawRef = useRef(view.yaw);
@@ -217,7 +242,10 @@ export function PanoMap({
   const iconSize = map.iconSize ?? DEFAULT_ICON_SIZE;
   const interaction = map.interaction ?? "fixed";
   const gestureZoom = interaction === "zoom";
-  const zoomControls = showZoomControls ?? map.controls?.zoom === true;
+  const maxScale = Math.max(MIN_SCALE, map.maxScale ?? DEFAULT_MAX_SCALE);
+  // Zoom buttons only apply when interaction allows zooming.
+  const zoomControls =
+    gestureZoom && (showZoomControls ?? map.controls?.zoom === true);
   const collapseControl = showCollapseControl ?? map.controls?.collapse === true;
   const collapsed = controlledCollapsed ?? uncontrolledCollapsed;
   const editing = mode === "edit";
@@ -286,9 +314,25 @@ export function PanoMap({
     [fit, size],
   );
 
+  useEffect(() => {
+    if (!gestureZoom) {
+      setScale(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+    setScale((previous) => {
+      const next = Math.min(previous, maxScale);
+      if (next !== previous) {
+        setPan((currentPan) => clampPan(next, currentPan));
+      }
+      return next;
+    });
+  }, [clampPan, gestureZoom, maxScale]);
+
   const applyZoom = useCallback(
     (nextScale: number, origin?: { x: number; y: number }) => {
-      const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+      if (!gestureZoom) return;
+      const clamped = Math.min(maxScale, Math.max(MIN_SCALE, nextScale));
       const pivot = origin ?? { x: size.width / 2, y: size.height / 2 };
       const ratio = clamped / scale;
       const nextPan = {
@@ -298,21 +342,41 @@ export function PanoMap({
       setScale(clamped);
       setPan(clampPan(clamped, nextPan));
     },
-    [clampPan, fit.left, fit.top, pan.x, pan.y, scale, size.height, size.width],
+    [
+      clampPan,
+      fit.left,
+      fit.top,
+      gestureZoom,
+      maxScale,
+      pan.x,
+      pan.y,
+      scale,
+      size.height,
+      size.width,
+    ],
   );
 
-  const onWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    if (!gestureZoom || collapsed) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
-    applyZoom(scale * factor, {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    });
-  };
+  // React's onWheel is passive, so preventDefault cannot stop page scroll.
+  // Bind a non-passive native listener on the map root.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!gestureZoom || collapsed) return;
+      const viewport = containerRef.current;
+      if (!viewport) return;
+      const rect = viewport.getBoundingClientRect();
+      const factor = event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      applyZoom(scale * factor, {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => root.removeEventListener("wheel", onWheel);
+  }, [applyZoom, collapsed, gestureZoom, scale]);
 
   const updateSpots = (next: PanoMapSpotDefinition[], selected?: string | null) => {
     onEditChange?.({
@@ -350,7 +414,7 @@ export function PanoMap({
       return;
     }
 
-    if (gestureZoom || scale > 1) {
+    if (gestureZoom && scale > 1) {
       dragRef.current = {
         kind: "pan",
         pointerId: event.pointerId,
@@ -445,6 +509,11 @@ export function PanoMap({
           className="pano-map-control"
           aria-label={collapsed ? "Expand map" : "Collapse map"}
           aria-pressed={!collapsed}
+          style={{
+            background: "rgba(15, 23, 42, 0.92)",
+            border: "1px solid rgba(255, 255, 255, 0.28)",
+            color: "#f8fafc",
+          }}
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? "▣" : "▢"}
@@ -456,6 +525,11 @@ export function PanoMap({
             type="button"
             className="pano-map-control"
             aria-label="Zoom in"
+            style={{
+              background: "rgba(15, 23, 42, 0.92)",
+              border: "1px solid rgba(255, 255, 255, 0.28)",
+              color: "#f8fafc",
+            }}
             onClick={() => applyZoom(scale * ZOOM_STEP)}
           >
             +
@@ -464,6 +538,11 @@ export function PanoMap({
             type="button"
             className="pano-map-control"
             aria-label="Zoom out"
+            style={{
+              background: "rgba(15, 23, 42, 0.92)",
+              border: "1px solid rgba(255, 255, 255, 0.28)",
+              color: "#f8fafc",
+            }}
             onClick={() => applyZoom(scale / ZOOM_STEP)}
           >
             −
@@ -485,6 +564,7 @@ export function PanoMap({
 
   return (
     <div
+      ref={rootRef}
       className={["pano-map", collapsed ? "pano-map-collapsed" : "", className]
         .filter(Boolean)
         .join(" ")}
@@ -514,7 +594,6 @@ export function PanoMap({
           overflow: "hidden",
           visibility: collapsed ? "hidden" : "visible",
         }}
-        onWheel={onWheel}
         onPointerDown={onPointerDownSurface}
         onPointerMove={onPointerMoveSurface}
         onPointerUp={endDrag}
@@ -585,6 +664,18 @@ export function PanoMap({
                 angle={sectorAngle}
                 rotation={sectorRotation(activeSpot.heading, view.yaw)}
                 gradientId={defaultGradientId(reactId)}
+                interactive={editing}
+                onHeadingPointerDown={(event) => {
+                  event.stopPropagation();
+                  if (event.button !== 0) return;
+                  onSelectedSpotIdChange?.(activeSpot.id);
+                  dragRef.current = {
+                    kind: "heading",
+                    pointerId: event.pointerId,
+                    spotId: activeSpot.id,
+                  };
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
                 transformRef={(node) => {
                   sectorNodeRef.current = node;
                 }}
@@ -657,47 +748,6 @@ export function PanoMap({
           );
         })}
 
-        {editing && selectedSpot && map.sector ? (() => {
-          const center = imagePointToContainer(selectedSpot, viewport);
-          const rotation = sectorRotation(selectedSpot.heading, view.yaw);
-          const handleDistance = map.sector.radius;
-          const rad = ((rotation - 90) * Math.PI) / 180;
-          const handle = {
-            x: center.x + Math.cos(rad) * handleDistance,
-            y: center.y + Math.sin(rad) * handleDistance,
-          };
-          return (
-            <button
-              type="button"
-              className="pano-map-heading-handle"
-              aria-label="Adjust sector heading"
-              style={{
-                position: "absolute",
-                left: handle.x,
-                top: handle.y,
-                width: 14,
-                height: 14,
-                transform: "translate(-50%, -50%)",
-                borderRadius: "50%",
-                border: "2px solid #38bdf8",
-                background: "#0f172a",
-                padding: 0,
-                cursor: "grab",
-                pointerEvents: "auto",
-              }}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                if (event.button !== 0) return;
-                dragRef.current = {
-                  kind: "heading",
-                  pointerId: event.pointerId,
-                  spotId: selectedSpot.id,
-                };
-                event.currentTarget.setPointerCapture(event.pointerId);
-              }}
-            />
-          );
-        })() : null}
       </div>
     </div>
   );

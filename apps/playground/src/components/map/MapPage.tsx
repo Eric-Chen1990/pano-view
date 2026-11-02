@@ -28,14 +28,17 @@ const DEMO_MAP: PanoMapDefinition = {
   interaction: "zoom",
   controls: { collapse: true, zoom: true },
   iconSize: 28,
+  maxScale: 4,
   sector: {
     angle: 70,
     radius: 56,
     followFov: false,
+    color: "#ffffff",
+    opacity: 0.75,
     gradient: {
       type: "radial",
       stops: [
-        { offset: 0, color: "#ffffff", opacity: 0.75 },
+        { offset: 0, color: "#ffffff", opacity: 1 },
         { offset: 1, color: "#ffffff", opacity: 0 },
       ],
     },

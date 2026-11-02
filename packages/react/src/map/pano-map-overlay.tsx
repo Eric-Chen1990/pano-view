@@ -1,8 +1,15 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { PanoMapDefinition, PanoMapSpotDefinition } from "../data/map";
-import { usePanoOverlay } from "../overlay/pano-overlay";
+import { usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
 import type { PanoViewerState } from "../types";
-import { PanoDialog } from "../ui/dialog";
 import { PanoMap, type PanoMapEditChange, type PanoMapProps } from "./pano-map";
 
 export type PanoMapOverlayProps = {
@@ -26,23 +33,134 @@ export type PanoMapOverlayProps = {
   editorSurface?: boolean;
 };
 
+type MapCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
+/**
+ * Anchor the map chrome to the full viewer overlay, not the screen-visible
+ * intersection. Parent page scroll must not move, shrink, or re-dock the map.
+ */
 function dockedBox(
-  corner: "top-left" | "top-right" | "bottom-left" | "bottom-right",
+  corner: MapCorner,
   offsetX: number,
   offsetY: number,
   width: number,
   height: number,
-  visibleRect: { left: number; top: number; width: number; height: number },
 ): CSSProperties {
-  const left =
+  const horizontal =
     corner === "top-right" || corner === "bottom-right"
-      ? visibleRect.left + visibleRect.width - offsetX - width
-      : visibleRect.left + offsetX;
-  const top =
+      ? { left: "auto" as const, right: offsetX }
+      : { left: offsetX, right: "auto" as const };
+  const vertical =
     corner === "bottom-left" || corner === "bottom-right"
-      ? visibleRect.top + visibleRect.height - offsetY - height
-      : visibleRect.top + offsetY;
-  return { left, top, width, height };
+      ? { top: "auto" as const, bottom: offsetY }
+      : { top: offsetY, bottom: "auto" as const };
+  return { ...horizontal, ...vertical, width, height };
+}
+
+/** Viewer-local map dialog. Avoids document modal locks from Radix Dialog. */
+function PanoMapDialogShell({
+  open,
+  onOpenChange,
+  title,
+  closeLabel,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  closeLabel: string;
+  children: ReactNode;
+}) {
+  usePanoModal(open);
+  const { size } = usePanoOverlay();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const active = panelRef.current?.ownerDocument.activeElement;
+    previouslyFocused.current = active instanceof HTMLElement ? active : null;
+    const close = panelRef.current?.querySelector<HTMLElement>("[data-pano-map-dialog-close]");
+    close?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpenChange(false);
+      }
+    };
+    const doc = panelRef.current?.ownerDocument;
+    doc?.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      doc?.removeEventListener("keydown", onKeyDown, true);
+      const previous = previouslyFocused.current;
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [open, onOpenChange]);
+
+  if (!open) return null;
+
+  const width = Math.min(720, Math.max(0, size.width - 32));
+  const height = Math.min(520, Math.max(0, size.height - 32));
+  const left = Math.max(0, (size.width - width) / 2);
+  const top = Math.max(0, (size.height - height) / 2);
+
+  return (
+    <>
+      <div
+        className="pano-map-dialog-backdrop"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "auto",
+        }}
+        onClick={() => onOpenChange(false)}
+      />
+      <div
+        ref={panelRef}
+        className="pano-map-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        data-pano-map-dialog=""
+        style={{
+          position: "absolute",
+          left,
+          top,
+          width,
+          height,
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          pointerEvents: "auto",
+          zIndex: 1,
+        }}
+      >
+        <header className="pano-map-dialog-header" style={{ flexShrink: 0 }}>
+          <h2 id={titleId} className="pano-map-dialog-title">
+            {title}
+          </h2>
+          <button
+            type="button"
+            className="pano-map-dialog-close"
+            data-pano-map-dialog-close=""
+            aria-label={closeLabel}
+            onClick={() => onOpenChange(false)}
+          >
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="m4 4 8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        </header>
+        <div className="pano-map-dialog-body" style={{ minHeight: 0, flex: 1 }}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /**
@@ -67,7 +185,7 @@ export function PanoMapOverlay({
   style,
   editorSurface = false,
 }: PanoMapOverlayProps) {
-  const { visibleRect } = usePanoOverlay();
+  const { size } = usePanoOverlay();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const presentation = presentationOverride ?? map.presentation ?? {
@@ -100,15 +218,17 @@ export function PanoMapOverlay({
   };
 
   const editorBox = useMemo(() => {
-    const panelWidth = Math.min(420, Math.max(240, visibleRect.width * 0.45));
-    const panelHeight = Math.min(320, Math.max(180, visibleRect.height * 0.45));
+    const panelWidth = Math.min(420, Math.max(240, size.width * 0.45));
+    const panelHeight = Math.min(320, Math.max(180, size.height * 0.45));
     return {
-      left: visibleRect.left + 16,
-      top: visibleRect.top + visibleRect.height - panelHeight - 16,
+      left: 16,
+      right: "auto" as const,
+      top: "auto" as const,
+      bottom: 16,
       width: panelWidth,
       height: panelHeight,
     };
-  }, [visibleRect]);
+  }, [size.height, size.width]);
 
   if (editorSurface) {
     return (
@@ -130,7 +250,7 @@ export function PanoMapOverlay({
   }
 
   if (presentation.mode === "dialog") {
-    const launcherBox = dockedBox(corner, offsetX, offsetY, width, height, visibleRect);
+    const launcherBox = dockedBox(corner, offsetX, offsetY, width, height);
     return (
       <div className={["pano-map-overlay", className].filter(Boolean).join(" ")} data-pano-map-overlay="">
         <button
@@ -147,28 +267,23 @@ export function PanoMapOverlay({
         >
           {openLabel}
         </button>
-        <PanoDialog
+        <PanoMapDialogShell
           open={open}
           onOpenChange={setOpen}
           title={title}
           closeLabel={closeLabel}
-          style={{
-            width: "min(720px, var(--pano-dialog-available-width))",
-            height: "min(520px, var(--pano-dialog-available-height))",
-            ["--pano-dialog-width" as string]: "720px",
-          }}
         >
-          <div style={{ height: "min(420px, calc(var(--pano-dialog-available-height) - 72px))" }}>
+          <div style={{ height: "100%" }}>
             <PanoMap {...mapProps} showCollapseControl={false} />
           </div>
-        </PanoDialog>
+        </PanoMapDialogShell>
       </div>
     );
   }
 
   const panelWidth = collapsed ? Math.max(44, Math.min(width, 56)) : width;
   const panelHeight = collapsed ? Math.max(44, Math.min(height, 56)) : height;
-  const box = dockedBox(corner, offsetX, offsetY, panelWidth, panelHeight, visibleRect);
+  const box = dockedBox(corner, offsetX, offsetY, panelWidth, panelHeight);
 
   return (
     <div

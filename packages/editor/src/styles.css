@@ -75,6 +75,20 @@
   background: var(--pne-brand);
   color: #fff;
 }
+.pne-root .pano-map-control,
+.pne-root .pano-map-launcher {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: #f8fafc;
+  min-width: 32px;
+  padding: 0 8px;
+}
+.pne-root .pano-map-control:hover:not(:disabled),
+.pne-root .pano-map-launcher:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.98);
+  border-color: rgba(255, 255, 255, 0.4);
+}
 .pne-root
   :is(button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--pne-accent);

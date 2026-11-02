@@ -26,8 +26,24 @@ export type PanoMapSectorDefinition = {
   radius: number;
   /** When true, sector angle follows the current horizontal FOV. */
   followFov?: boolean;
+  /** Solid fill color when `gradient` is omitted. */
   color?: string;
+  /**
+   * Overall fill opacity in [0, 1].
+   * Applies in both solid and gradient modes; gradient stop opacities only
+   * describe the relative fade shape and are normalized against this value.
+   */
   opacity?: number;
+  /** Optional sector outline color. */
+  strokeColor?: string;
+  /** Outline width in CSS pixels. */
+  strokeWidth?: number;
+  /** Outline opacity in [0, 1]. Defaults to 1 when stroke is set. */
+  strokeOpacity?: number;
+  /**
+   * Optional fill gradient. When omitted, the sector uses a solid `color`.
+   * Stop colors are independent of `color` unless the author keeps them in sync.
+   */
   gradient?: PanoMapSectorGradient;
 };
 
@@ -77,11 +93,21 @@ export type PanoMapPresentation =
 
 export type PanoMapDefinition = {
   image: string;
+  /**
+   * Pointer interaction with the floor image.
+   * - `fixed`: fit-only; no wheel/pan zoom (zoom buttons are also suppressed).
+   * - `zoom`: wheel/pan zoom and optional zoom buttons.
+   */
   interaction?: "fixed" | "zoom";
   presentation?: PanoMapPresentation;
   controls?: PanoMapControlsDefinition;
   /** Spot icon edge length in CSS pixels. */
   iconSize?: number;
+  /**
+   * Maximum zoom multiplier relative to the contain-fit scale.
+   * Only applies when `interaction` is `"zoom"`. Defaults to 8.
+   */
+  maxScale?: number;
   spots: PanoMapSpotDefinition[];
   sector?: PanoMapSectorDefinition;
 };
@@ -163,6 +189,9 @@ function parseSector(value: unknown, field: string): PanoMapSectorDefinition {
             })();
   const color = optionalString(value, "color");
   const opacity = optionalNumber(value, "opacity", { min: 0, max: 1 });
+  const strokeColor = optionalString(value, "strokeColor");
+  const strokeWidth = optionalNumber(value, "strokeWidth", { min: 0 });
+  const strokeOpacity = optionalNumber(value, "strokeOpacity", { min: 0, max: 1 });
   let gradient: PanoMapSectorGradient | undefined;
   if (value.gradient !== undefined) {
     if (!isRecord(value.gradient))
@@ -185,6 +214,9 @@ function parseSector(value: unknown, field: string): PanoMapSectorDefinition {
     ...(followFov === undefined ? {} : { followFov }),
     ...(color === undefined ? {} : { color }),
     ...(opacity === undefined ? {} : { opacity }),
+    ...(strokeColor === undefined ? {} : { strokeColor }),
+    ...(strokeWidth === undefined ? {} : { strokeWidth }),
+    ...(strokeOpacity === undefined ? {} : { strokeOpacity }),
     ...(gradient === undefined ? {} : { gradient }),
   };
 }
@@ -308,6 +340,7 @@ export function parsePanoMap(
         ? undefined
         : parseControls(value.controls, "map.controls");
     const iconSize = optionalNumber(value, "iconSize", { exclusiveMin: 0 });
+    const maxScale = optionalNumber(value, "maxScale", { min: 1 });
     if (!Array.isArray(value.spots)) throw new Error("map.spots: expected an array");
     const spotIds = new Set<string>();
     const spots = value.spots.map((spot, index) => {
@@ -327,6 +360,7 @@ export function parsePanoMap(
       ...(presentation === undefined ? {} : { presentation }),
       ...(controls === undefined ? {} : { controls }),
       ...(iconSize === undefined ? {} : { iconSize }),
+      ...(maxScale === undefined ? {} : { maxScale }),
       spots,
       ...(sector === undefined ? {} : { sector }),
     };

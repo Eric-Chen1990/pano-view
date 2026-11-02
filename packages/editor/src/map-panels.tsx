@@ -27,20 +27,17 @@ export function emptyMap(): PanoMapDefinition {
     },
     controls: { collapse: true, zoom: true },
     iconSize: 28,
+    maxScale: 4,
     spots: [],
     sector: {
       angle: 70,
       radius: 56,
       followFov: false,
-      color: "#ffffff",
+      color: "#38bdf8",
       opacity: 0.55,
-      gradient: {
-        type: "radial",
-        stops: [
-          { offset: 0, color: "#ffffff", opacity: 0.7 },
-          { offset: 1, color: "#ffffff", opacity: 0 },
-        ],
-      },
+      strokeColor: "#ffffff",
+      strokeWidth: 1.5,
+      strokeOpacity: 0.9,
     },
   };
 }
@@ -50,6 +47,7 @@ export function MapLibrary({
   selectedSpotId,
   onSelectMap,
   onSelectSpot,
+  onDeleteSpot,
   onAdd,
   onClear,
   t,
@@ -58,6 +56,7 @@ export function MapLibrary({
   selectedSpotId?: string;
   onSelectMap: () => void;
   onSelectSpot: (id: string) => void;
+  onDeleteSpot: (id: string) => void;
   onAdd: () => void;
   onClear: () => void;
   t: Translate;
@@ -89,16 +88,43 @@ export function MapLibrary({
           </div>
           <div className="pne-panel-title">{t("Spots")}</div>
           {map.spots.length ? (
-            <ul className="pne-hotspot-list">
+            <ul className="pne-hotspot-list" aria-label={t("Spots")}>
               {map.spots.map((spot) => (
-                <li key={spot.id}>
+                <li
+                  key={spot.id}
+                  className="pne-hotspot-item"
+                  data-selected={selectedSpotId === spot.id}
+                >
                   <button
                     type="button"
+                    className="pne-hotspot-row"
                     aria-pressed={selectedSpotId === spot.id}
                     onClick={() => onSelectSpot(spot.id)}
                   >
-                    {spot.sceneId}
+                    <b>{spot.sceneId}</b>
                   </button>
+                  <div className="pne-hotspot-actions">
+                    <button
+                      type="button"
+                      title={t("Delete spot")}
+                      aria-label={`${t("Delete spot")}: ${spot.sceneId}`}
+                      onClick={() => onDeleteSpot(spot.id)}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
+                      </svg>
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -165,7 +191,7 @@ export function MapInspector({
   return (
     <div className="pne-fields">
       <p className="pne-edit-hint">
-        {t("Choose a floor image, then place scene spots on the map. Drag a spot to move it; drag the blue handle to set sector heading.")}
+        {t("Choose a floor image, then place scene spots on the map. Drag a spot to move it; drag the sector to set heading.")}
       </p>
       <label>
         <span>{t("Floor image")}</span>
@@ -258,6 +284,43 @@ export function MapInspector({
           <option value="zoom">{t("Zoom and pan")}</option>
         </select>
       </label>
+      <p className="pne-field-help">
+        {map.interaction === "zoom"
+          ? t("Wheel, drag-pan when zoomed, and optional zoom buttons.")
+          : t("Map stays fit-to-panel. Zoom buttons and gestures are disabled.")}
+      </p>
+      {map.interaction === "zoom" ? (
+        <>
+          <label>
+            <span>{t("Max zoom scale")}</span>
+            <input
+              type="number"
+              min={1}
+              step={0.5}
+              value={map.maxScale ?? 8}
+              onChange={(event) =>
+                patch({
+                  ...map,
+                  maxScale: Math.max(1, Number(event.target.value) || 1),
+                })
+              }
+            />
+          </label>
+          <label className="pne-checkbox">
+            <input
+              type="checkbox"
+              checked={map.controls?.zoom === true}
+              onChange={(event) =>
+                patch({
+                  ...map,
+                  controls: { ...map.controls, zoom: event.target.checked },
+                })
+              }
+            />
+            <span>{t("Show zoom buttons")}</span>
+          </label>
+        </>
+      ) : null}
       <label className="pne-checkbox">
         <input
           type="checkbox"
@@ -270,19 +333,6 @@ export function MapInspector({
           }
         />
         <span>{t("Show expand / collapse")}</span>
-      </label>
-      <label className="pne-checkbox">
-        <input
-          type="checkbox"
-          checked={map.controls?.zoom === true}
-          onChange={(event) =>
-            patch({
-              ...map,
-              controls: { ...map.controls, zoom: event.target.checked },
-            })
-          }
-        />
-        <span>{t("Show zoom buttons")}</span>
       </label>
       <label>
         <span>{t("Icon size (px)")}</span>
@@ -356,16 +406,65 @@ export function MapInspector({
             <span>{t("Follow viewer FOV")}</span>
           </label>
           <label>
+            <span>{t("Fill style")}</span>
+            <select
+              value={sector.gradient?.type ?? "none"}
+              onChange={(event) => {
+                const type = event.target.value;
+                if (type === "none") {
+                  const { gradient: _removed, ...rest } = sector;
+                  void _removed;
+                  patch({ ...map, sector: rest });
+                  return;
+                }
+                const fill = sector.color ?? "#38bdf8";
+                patch({
+                  ...map,
+                  sector: {
+                    ...sector,
+                    gradient: {
+                      type: type as "radial" | "linear",
+                      // Relative fade shape; overall strength comes from sector.opacity.
+                      stops: [
+                        { offset: 0, color: fill, opacity: 1 },
+                        { offset: 1, color: fill, opacity: 0 },
+                      ],
+                    },
+                  },
+                });
+              }}
+            >
+              <option value="none">{t("Solid color")}</option>
+              <option value="radial">{t("Radial gradient")}</option>
+              <option value="linear">{t("Linear gradient")}</option>
+            </select>
+          </label>
+          <label>
             <span>{t("Sector color")}</span>
             <input
               type="color"
-              value={sector.color ?? "#ffffff"}
-              onChange={(event) =>
+              value={sector.color ?? "#38bdf8"}
+              onChange={(event) => {
+                const color = event.target.value;
                 patch({
                   ...map,
-                  sector: { ...sector, color: event.target.value },
-                })
-              }
+                  sector: {
+                    ...sector,
+                    color,
+                    ...(sector.gradient
+                      ? {
+                          gradient: {
+                            ...sector.gradient,
+                            stops: sector.gradient.stops.map((stop) => ({
+                              ...stop,
+                              color,
+                            })),
+                          },
+                        }
+                      : {}),
+                  },
+                });
+              }}
             />
           </label>
           <label>
@@ -385,36 +484,58 @@ export function MapInspector({
             />
           </label>
           <label>
-            <span>{t("Gradient")}</span>
-            <select
-              value={sector.gradient?.type ?? "none"}
-              onChange={(event) => {
-                const type = event.target.value;
-                if (type === "none") {
-                  const next = { ...sector };
-                  delete next.gradient;
-                  patch({ ...map, sector: next });
-                  return;
-                }
+            <span>{t("Sector border color")}</span>
+            <input
+              type="color"
+              value={sector.strokeColor ?? sector.color ?? "#ffffff"}
+              onChange={(event) =>
                 patch({
                   ...map,
                   sector: {
                     ...sector,
-                    gradient: {
-                      type: type as "radial" | "linear",
-                      stops: sector.gradient?.stops ?? [
-                        { offset: 0, color: sector.color ?? "#ffffff", opacity: 0.7 },
-                        { offset: 1, color: sector.color ?? "#ffffff", opacity: 0 },
-                      ],
-                    },
+                    strokeColor: event.target.value,
+                    strokeWidth: sector.strokeWidth ?? 1.5,
                   },
-                });
-              }}
-            >
-              <option value="none">{t("Solid color")}</option>
-              <option value="radial">{t("Radial gradient")}</option>
-              <option value="linear">{t("Linear gradient")}</option>
-            </select>
+                })
+              }
+            />
+          </label>
+          <label>
+            <span>{t("Sector border width (px)")}</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={sector.strokeWidth ?? 0}
+              onChange={(event) =>
+                patch({
+                  ...map,
+                  sector: {
+                    ...sector,
+                    strokeWidth: Number(event.target.value),
+                    ...(Number(event.target.value) > 0 && !sector.strokeColor
+                      ? { strokeColor: sector.color ?? "#ffffff" }
+                      : {}),
+                  },
+                })
+              }
+            />
+          </label>
+          <label>
+            <span>{t("Sector border opacity")}</span>
+            <input
+              type="number"
+              min={0}
+              max={1}
+              step={0.05}
+              value={sector.strokeOpacity ?? 1}
+              onChange={(event) =>
+                patch({
+                  ...map,
+                  sector: { ...sector, strokeOpacity: Number(event.target.value) },
+                })
+              }
+            />
           </label>
         </>
       ) : null}
