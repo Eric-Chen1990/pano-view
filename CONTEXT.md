@@ -55,3 +55,9 @@
   (not a video hotspot). Playback chrome and captions are screen-space HUD
   overlays. Quality variants switch `HTMLVideoElement` sources while preserving
   time; subtitles are configured WebVTT tracks rendered from `TextTrack` cues.
+- **Floor plan map**: one optional project-level image with scene spots. It is
+  screen-space chrome (`PanoMap` / `PanoMapOverlay`), not a hotspot and not a
+  panorama source. Spot `x`/`y` are normalized image coordinates. `heading`
+  is clockwise degrees from image-up at yaw 0; the sector draws at
+  `heading + yaw` and keeps CSS-pixel size while the image zooms. Presentation
+  is a docked panel or a dialog launcher on the full viewer overlay.

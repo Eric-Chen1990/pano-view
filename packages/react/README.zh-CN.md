@@ -11,6 +11,7 @@
 - [pano-converter](#pano-converter)
 - [数据来源与选型](#数据来源与选型)
 - [静态项目与 JSON 数据](#静态项目与-json-数据)
+- [平面图地图](#平面图地图)
 - [常见问题与故障排查](#常见问题与故障排查)
 - [兼容 krpano 的瓦片输出](#兼容-krpano-的瓦片输出)
 - [安装](#安装)
@@ -239,7 +240,85 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `ProjectPopupDialog` 接收 `popup`（null 关闭）、`onOpenChange`，以及可选 `closeLabel` 和 `onMediaError(block)`。文字按纯文本展示，音视频使用原生控件且不自动播放；关闭或切换内容时释放媒体。全屏、尺寸和焦点行为复用 `PanoDialog`。需要自定义渲染时可替换成自己的 Overlay。
 
-继续使用 schemaVersion 1，旧项目仍可读取，包含新动作的项目需使用支持它们的新版查看器。`parsePanoProject(input, { draft: true })` 仅用于编辑草稿，允许空场景列表及未完成的弹窗标题/媒体；加载、保存和导出仍严格校验。宿主可将同一份文档存入数据库或映射到表，查看器不直接连接数据库。
+### 平面图地图
+
+项目可选字段 `map` 把场景点位放在一张平面图上。没有 `map` 的旧项目仍然有效，`schemaVersion` 仍为 1。`loadPanoProject` 返回的地图已按项目目录解析平面图和点位图标。自定义加载器也可使用 `/data` 导出的 `parsePanoMap` 与 `resolvePanoMapAssets`。
+
+```json
+"map": {
+  "image": "assets/map/floor.webp",
+  "interaction": "zoom",
+  "maxScale": 4,
+  "iconSize": 28,
+  "presentation": {
+    "mode": "docked",
+    "corner": "bottom-left",
+    "width": 240,
+    "height": 180,
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "controls": { "collapse": true, "zoom": true },
+  "sector": {
+    "angle": 70,
+    "radius": 56,
+    "followFov": false,
+    "color": "#38bdf8",
+    "opacity": 0.55,
+    "strokeColor": "#ffffff",
+    "strokeWidth": 1.5,
+    "strokeOpacity": 0.9
+  },
+  "spots": [{
+    "id": "entrance-spot",
+    "sceneId": "entrance",
+    "x": 0.31,
+    "y": 0.5,
+    "heading": 20,
+    "icon": "assets/map/pin.webp"
+  }]
+}
+```
+
+`image` 是相对项目目录的路径或绝对 URL。`spots` 必填。点位 `id` 唯一，每个 `sceneId` 必须指向项目中的场景。`x`、`y` 是归一化图像坐标，范围 [0, 1]，原点在左上角。`heading` 是查看器 yaw 为 0 时、从图像向上方向起算的顺时针角度；扇形实际旋转为 `heading + yaw`。多个点位可以指向同一场景，扇形画在第一个 `sceneId` 与当前场景相同的点位上。`icon` 可选；省略时使用内置标记。
+
+`interaction` 为 `"fixed"`（默认）或 `"zoom"`。固定模式把图像适配进面板，忽略滚轮、拖拽平移和缩放按钮。缩放模式允许滚轮缩放，并在比例大于适配尺寸后拖拽平移。地图上的滚轮不会带动页面滚动。`maxScale` 是相对适配尺寸的最大倍数，至少为 1，默认 8。`controls.zoom` 仅在 `"zoom"` 时显示缩放按钮。`controls.collapse` 在停靠面板上显示展开和收起。`iconSize` 是标记边长，单位为 CSS 像素，默认 28。图像缩放时，图标和扇形保持屏幕尺寸。
+
+`sector` 可选。`angle` 是开口角度，大于 0 且小于 360。`radius` 单位为 CSS 像素，不随图像缩放。`followFov` 用查看器视场角和地图面板宽高比换算水平视场，代替 `angle`。没有 `gradient` 时，填充为纯色 `color`（默认 `#ffffff`），不透明度为 `opacity`（默认 0.55）。`gradient.type` 为 `"radial"` 或 `"linear"`，至少两个色标。每个色标包含 [0, 1] 的 `offset`、`color`，以及可选 `opacity`。色标不透明度只描述渐隐形状。`sector.opacity` 在纯色和渐变两种模式下都缩放整块填充。`strokeColor`、`strokeWidth`、`strokeOpacity` 在宽度大于 0 时绘制描边，描边宽度保持 CSS 像素。
+
+`presentation.mode` 为 `"docked"`（默认）或 `"dialog"`。两者都接受 `corner`（`top-left`、`top-right`、`bottom-left`、`bottom-right`，默认 `bottom-left`）、`offsetX` 与 `offsetY`（默认 16），以及 `width` 和 `height`。停靠面板默认 220×160。对话框模式停靠一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。
+
+在 `PanoViewer.renderOverlay` 中挂载 `PanoMapOverlay`，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`。`PanoMap` 只负责图面，由宿主自己安排外框。`mode="edit"` 用于编辑：设置 `placementSceneId` 后点击地图会新增点位，其 `heading` 取当前 yaw 的相反数，因此在该 yaw 下扇形指向图像上方；拖动点位改变位置，拖动扇形设置 `heading`。`onEditChange` 返回更新后的点位。访客播放保持默认的 `mode="view"`。
+
+```tsx
+import { useState } from "react";
+import {
+  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
+  const map = project.map;
+  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
+    <PanoMapOverlay
+      map={map}
+      activeSceneId={activeSceneId}
+      onSelectScene={setActiveSceneId}
+    />
+  ) : undefined}>
+    <ProjectScenes
+      project={project}
+      activeSceneId={activeSceneId}
+      onActiveSceneIdChange={setActiveSceneId}
+    />
+  </PanoViewer>;
+}
+```
+
+内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。运行 `pnpm dev` 并打开 `/map` 可查看示例。同一份文档的编辑方式见[编辑器平面图](../editor/README.zh-CN.md#平面图)。
+
+继续使用 schemaVersion 1，旧项目仍可读取。包含新动作或平面图的项目需使用支持它们的查看器。`parsePanoProject(input, { draft: true })` 仅用于编辑草稿，允许空场景列表、未完成的弹窗标题/媒体，以及空的平面图路径；加载、保存和导出仍严格校验。宿主可将同一份文档存入数据库或映射到表，查看器不直接连接数据库。
 
 单图和已有配置可用纯数据入口；Next.js 的查看器组件需位于客户端边界，服务端加载数据则使用 `/data`：
 
@@ -270,14 +349,14 @@ const project = await loadPanoProject({
 
 | 引用 | 默认基准 |
 | --- | --- |
-| 项目中的 `viewerUrl`、热点资源及 `source.baseUrl` | 项目根目录 |
+| 项目中的 `viewerUrl`、热点资源、平面图与点位图标，以及 `source.baseUrl` | 项目根目录 |
 | 外部 `viewer.json` 的瓦片与预览 | 该 JSON 的目录 |
 | 内嵌配置的瓦片与预览 | 项目根目录 |
 | 设置 `source.baseUrl` 的场景资源 | 指定目录 |
 
 URL 入口以重定向后最终地址所在目录为默认根目录；对象入口必须提供 `baseUrl`，可用它覆盖项目根目录。目录末尾斜杠自动统一，域名和云前缀无需写回转换 JSON。浏览器接受相对入口地址，Node.js 需要绝对 HTTP(S) 地址。完整资源 URL 不重新拼接，`/` 开头的地址相对资源基准的 origin 解析。
 
-上传时若改名或打散目录，使用同步 `resolveAssetUrl(path, context)`。context 提供 `defaultUrl`、`kind`（`tile`、`preview` 或 `hotspot`）、`sceneId` 和可选 `hotspotId`。返回最终的完整 URL 或站点根路径；不会再次拼接。`uploadedUrls` 由业务提供：
+上传时若改名或打散目录，使用同步 `resolveAssetUrl(path, context)`。context 提供 `defaultUrl`、`kind`（`tile`、`preview`、`hotspot` 或 `map`）、`sceneId` 和可选 `hotspotId`。返回最终的完整 URL 或站点根路径；不会再次拼接。`uploadedUrls` 由业务提供：
 
 ```ts
 const project = await loadPanoProject("/tour/project.json", {
@@ -289,13 +368,13 @@ const project = await loadPanoProject("/tour/project.json", {
 });
 ```
 
-热点映射涵盖图片、SVG 图片、音频数组、视频 poster、播放图标和 tooltip 图片；文本、CSS 和 SVG path 不作为地址处理。临时签名应由业务预先取得并通过映射返回，不要在每个瓦片请求中异步签名。
+热点映射涵盖图片、SVG 图片、音频数组、视频 poster、播放图标和 tooltip 图片；文本、CSS 和 SVG path 不作为地址处理。平面图和点位图标走同一个回调，`kind` 为 `"map"`。平面图的 `sceneId` 为空字符串，且没有 `hotspotId`；点位图标的 `sceneId` 和 `hotspotId` 都是点位 id。同一路径会被多种 `kind` 使用时，上传键要带上 `kind`。临时签名应由业务预先取得并通过映射返回，不要在每个瓦片请求中异步签名。
 
 `requestInit` 只接受 `headers`、`credentials`、`signal`，仅用于 JSON 请求。它们不会传到纹理请求，JSON 地址的查询参数也不会自动继承。`parsePanoProject(unknown)` 可单独校验并复制配置。`sceneFromViewerConfig` 接受未包装的精简配置；`loadSceneFromJson` 接受带 `schemaVersion: 1` 的 `viewer.json`。
 
 `PanoDataError` 提供稳定 `code`：`INVALID_OPTIONS`、`FETCH_FAILED`、`HTTP_ERROR`、`INVALID_JSON`、`INVALID_CONFIG`、`UNSUPPORTED_SCHEMA_VERSION`、`UNSUPPORTED_PROJECTION`、`INVALID_PROJECT`、`INVALID_REFERENCE`、`ABORTED`；HTTP 错误带 `status`，项目错误尽可能带 `sceneId` 和 `field`。加载成功仅代表配置就绪，纹理就绪仍由 `onSceneReady` 等回调表示。
 
-完整静态示例见 playground 的 `/project` 页面和 `public/fixtures/projects/tour/project.json`。
+完整静态示例见 playground 的 `/project` 页面和 `public/fixtures/projects/tour/project.json`。`/map` 在该漫游上展示平面图 overlay。
 
 ## 兼容 krpano 的瓦片输出
 
@@ -357,7 +436,7 @@ bun add @ericchen1990/pano-view
 
 在宿主应用中导入一次随包样式表。WebGL 全景（`PanoViewer`、`Sphere`、`Tile`、3D 热点）无需该文件即可渲染。内置 **HTML** 叠加层依赖该文件中带 `pano-` 前缀的类名完成布局。
 
-这些叠加层包括视频控件、字幕、默认右键菜单、热点 tooltip、供辅助技术使用的界面元素，以及 WebVR 会话 UI。
+这些叠加层包括视频控件、字幕、默认右键菜单、热点 tooltip、供辅助技术使用的界面元素、WebVR 会话 UI，以及平面图。
 
 ```ts
 import "@ericchen1990/pano-view/styles.css";
@@ -374,7 +453,7 @@ import "@ericchen1990/pano-view/styles.css";
 ## 示例
 
 为 PanoViewer 提供明确尺寸，并在其内部渲染一个全景源。使用内置 HTML 叠加层
-（例如视频控件、字幕、tooltip、右键菜单或 WebVR UI）时，需导入一次样式表。
+（例如视频控件、字幕、tooltip、右键菜单、WebVR UI 或平面图）时，需导入一次样式表。
 下面是每种源的基本用法，完整 props 见对应章节。
 
 ### 等距圆柱图像
@@ -490,6 +569,11 @@ export function Tour() {
 - [`PanoEvents`](#panoevents) — 查看器级生命周期与交互回调
 - [`PanoContextMenu`](#panocontextmenu) — 右键重置 / 全屏菜单
 - [`PanoVideoControls`](#panovideo) — `PanoVideo` 的播放界面（默认挂载）
+
+### 平面图
+
+- [`PanoMap`](#平面图地图) — 平面图、场景点位，以及随水平角转动的扇形
+- [`PanoMapOverlay`](#平面图地图) — 供 `renderOverlay` 使用的停靠面板或对话框按钮
 
 ### 热点
 

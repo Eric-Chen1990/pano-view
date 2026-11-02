@@ -1,6 +1,6 @@
 # @ericchen1990/pano-editor
 
-An embeddable React tour editor for scenes, all nine pano-view hotspot types, initial views and scene links. It produces the existing `schemaVersion: 1` `project.json` consumed by `loadPanoProject` and `ProjectScenes`.
+An embeddable React tour editor for scenes, all nine pano-view hotspot types, initial views, scene links, and an optional floor-plan map. It produces the existing `schemaVersion: 1` `project.json` consumed by `loadPanoProject` and `ProjectScenes`.
 
 [简体中文](./README.zh-CN.md)
 
@@ -116,7 +116,7 @@ Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (a
 
 ### Portable project packages
 
-**Export project package** downloads `panorama-project.zip` containing `project.json`, per-scene `panoramas/<number>/viewer.json`, all preview/tile levels, and referenced hotspot media, tooltip images and cursor images under `assets/`. Both local and online resources are copied and references rewritten relative to the package. Unzip it before using Open directory; serve the extracted directory over HTTP with your existing viewer. The package does not include a player page. **Export JSON** remains configuration-only.
+**Export project package** downloads `panorama-project.zip` containing `project.json`, per-scene `panoramas/<number>/viewer.json`, all preview/tile levels, and referenced hotspot media, tooltip images, cursor images, the floor-plan image, and spot icons under `assets/`. Both local and online resources are copied and references rewritten relative to the package. Unzip it before using Open directory; serve the extracted directory over HTTP with your existing viewer. The package does not include a player page. **Export JSON** remains configuration-only.
 
 Export uses up to four concurrent resource transfers, supports cancellation, and stops without downloading a ZIP if a resource is missing, unreadable or blocked by CORS. It does not substitute the editor's missing-tile placeholder. Packages are limited to 60,000 files and 1 GB. Embedded HTML/CSS/SVG that reference other resources or execute scripts cannot be proven self-contained and stop package export; use a document with inline resources and no runtime dependencies. Resource paths in an error identify the package entry; signed URL query parameters are not included.
 
@@ -142,7 +142,7 @@ Store content structure in project.json and media as files. A host backend can p
 
 Scene settings separate **Initial view** from **View limits**. Enable Yaw, Pitch or FOV individually, then enter minimum and maximum angles. Defaults on enabling are −180 / 180, −90 / 90 and 30 / 100 respectively. Limits apply immediately in editing and preview and support undo/redo. Invalid values are reported beside the field and do not update the project. Yaw min > max crosses ±180°; equal bounds lock an axis. Limits constrain the camera center, not the entire visible frame. They are saved as each scene's optional `viewLimits` in `project.json`; the source path is hidden in the settings panel, while Replace source remains available.
 
-ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images and popup media. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.
+ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images, popup media, the floor-plan image, and spot icons. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.
 
 ### Hotspot interaction events and custom actions
 
@@ -173,3 +173,22 @@ const customActions = [{
 ```
 
 The Interaction events panel configures and tests each trigger separately. Edit mode never executes business actions. Preview uses the separate `onPreviewCustomAction`; without it, testing reports that a preview handler is missing and saving remains available. Scene and popup references cover all events and show their trigger. Exported projects retain configuration; the player host still needs `ProjectScenes.onCustomAction`.
+
+## Floor plan
+
+Switch the left sidebar to **Map** to add one floor plan for the project. Choose a floor image, select the scene for the next click, then click the map to place a spot. Drag a spot to move it. Selecting a spot also shows that spot's scene. The sector is drawn on the active scene's first matching spot; drag that sector to set its heading. A new spot's heading is the negation of the current yaw, so the sector points image-up while the camera stays at that yaw.
+
+Edit mode on the Map tab shows a large authoring panel instead of the saved visitor placement. Preview and the other sidebar tabs use that saved presentation, and clicking a spot switches scenes. Delete a spot from the list, from the inspector, or with Delete or Backspace while the Map tab is open and a spot is selected. Spot deletion does not ask for confirmation. Undo restores placement, moves, heading changes, inspector edits, and deletion. Removing a scene also removes spots that point at that scene. Removing the floor plan deletes the whole `map`.
+
+The inspector stores presentation, interaction, and the shared sector on `project.map`:
+
+- **Presentation** is a docked panel or a dialog button, with corner, width, and height.
+- **Map interaction** is fixed (fit only; gestures and zoom buttons stay off) or zoom and pan. Zoom mode can set the maximum scale and show zoom buttons.
+- Docked panels can show expand and collapse. Icon size is in CSS pixels.
+- The sector can be hidden. When shown, set its angle, radius, whether it follows the viewer FOV, a solid color or a radial/linear gradient, overall opacity, and border color, width, and opacity. Sector opacity scales the whole fill; gradient stops only describe the fade shape. The color control keeps gradient stops on that color.
+
+An empty floor-image path can remain while authoring. Save and both exports require a nonempty image, and every spot must reference an existing scene. Coordinates are normalized: X and Y run from 0 at the top-left to 1 at the bottom-right. Heading is clockwise degrees from image-up at yaw 0.
+
+In a host-managed session, `onPickAsset` supplies the floor image and spot icons. The request uses `kind: "image"`, an empty `sceneId`, and `field: "map.image"` or `"map.icon"`. A spot icon also sets `hotspotId` to the selected spot id. Return a durable path, or `undefined` to cancel. A local session reads the file through the directory picker and stores it at `assets/map/<id>/`; those files are not sent to the host picker. Runtime URL mapping is not written back into the document.
+
+Project packages copy the floor image and spot icons and rewrite them to package-relative paths. JSON-only export keeps the paths as authored. Playback of the saved `map` is described in the [viewer floor-plan section](../react/README.md#floor-plan-maps): mount `PanoMapOverlay` from `PanoViewer.renderOverlay` and switch scenes from `onSelectScene`.

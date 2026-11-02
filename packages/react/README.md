@@ -11,6 +11,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [pano-converter](#pano-converter)
 - [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static projects and JSON data](#static-projects-and-json-data)
+- [Floor plan maps](#floor-plan-maps)
 - [FAQ and troubleshooting](#faq-and-troubleshooting)
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
@@ -243,7 +244,85 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `ProjectPopupDialog` accepts `popup` (or `null` to close), `onOpenChange`, optional `closeLabel` and `onMediaError(block)`. It renders text as text, uses native audio/video controls without autoplay, and releases media when content closes or changes. It inherits `PanoDialog` fullscreen, sizing and focus behavior. Replace this component with your own overlay to customize rendering.
 
-The schema remains version 1 and old projects remain valid. Projects using new actions require a viewer that supports them. `parsePanoProject(input, { draft: true })` is for authoring only: it permits empty scene lists and unfinished popup titles/media. Loading, saving and package export validate strictly. Host applications may save the same document in a database or map it to tables; the viewer has no database connection.
+### Floor plan maps
+
+An optional project-level `map` places scene spots on one floor image. Projects without `map` stay valid, and `schemaVersion` remains 1. `loadPanoProject` returns the map with the floor image and spot icons resolved from the project directory. `parsePanoMap` and `resolvePanoMapAssets` are also exported from `/data` for custom loaders.
+
+```json
+"map": {
+  "image": "assets/map/floor.webp",
+  "interaction": "zoom",
+  "maxScale": 4,
+  "iconSize": 28,
+  "presentation": {
+    "mode": "docked",
+    "corner": "bottom-left",
+    "width": 240,
+    "height": 180,
+    "offsetX": 16,
+    "offsetY": 16
+  },
+  "controls": { "collapse": true, "zoom": true },
+  "sector": {
+    "angle": 70,
+    "radius": 56,
+    "followFov": false,
+    "color": "#38bdf8",
+    "opacity": 0.55,
+    "strokeColor": "#ffffff",
+    "strokeWidth": 1.5,
+    "strokeOpacity": 0.9
+  },
+  "spots": [{
+    "id": "entrance-spot",
+    "sceneId": "entrance",
+    "x": 0.31,
+    "y": 0.5,
+    "heading": 20,
+    "icon": "assets/map/pin.webp"
+  }]
+}
+```
+
+`image` is a project-relative path or an absolute URL. `spots` is required. Spot IDs are unique, and each `sceneId` must name a scene in the project. `x` and `y` are normalized image coordinates in [0, 1], with the origin at the top-left. `heading` is clockwise degrees from image-up when viewer yaw is 0; the drawn sector uses `heading + yaw`. Several spots may share a scene. The sector is drawn on the first spot whose `sceneId` matches the active scene. `icon` is optional; a spot without one uses the built-in marker.
+
+`interaction` is `"fixed"` (the default) or `"zoom"`. Fixed mode fits the image in the panel and ignores the wheel, drag-pan, and zoom buttons. Zoom mode allows wheel zoom, and drag-pan once the scale is above the fitted size. Wheel events on the map do not scroll the page. `maxScale` is the maximum multiple of that fitted size, at least 1, default 8. `controls.zoom` shows the zoom buttons only when interaction is `"zoom"`. `controls.collapse` shows expand and collapse on a docked panel. `iconSize` is the marker edge in CSS pixels, default 28. Icons and the sector keep that screen size while the floor image zooms.
+
+`sector` is optional. `angle` is the opening in degrees, greater than 0 and less than 360. `radius` is CSS pixels and does not scale with the image. `followFov` replaces `angle` with the horizontal field of view derived from the viewer FOV and the map panel's aspect ratio. Without `gradient`, the fill is solid `color` (default `#ffffff`) at `opacity` (default 0.55). `gradient.type` is `"radial"` or `"linear"`, with at least two stops. Each stop has `offset` in [0, 1], `color`, and an optional `opacity`. Stop opacities describe only the fade shape. `sector.opacity` scales the whole fill in both solid and gradient mode. `strokeColor`, `strokeWidth`, and `strokeOpacity` draw an outline when the width is greater than 0. The outline width stays in CSS pixels.
+
+`presentation.mode` is `"docked"` (the default) or `"dialog"`. Both accept `corner` (`top-left`, `top-right`, `bottom-left`, or `bottom-right`; default `bottom-left`), `offsetX` and `offsetY` (default 16), plus `width` and `height`. A docked panel defaults to 220×160. Dialog mode docks a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it.
+
+Mount `PanoMapOverlay` from `PanoViewer.renderOverlay`, and pass the same `activeSceneId` you pass to `ProjectScenes`. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer. `PanoMap` is the surface alone, for a host-owned frame. `mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports the next spots. Visitor playback stays on the default `mode="view"`.
+
+```tsx
+import { useState } from "react";
+import {
+  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function Tour({ project }: { project: LoadedPanoProject }) {
+  const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
+  const map = project.map;
+  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
+    <PanoMapOverlay
+      map={map}
+      activeSceneId={activeSceneId}
+      onSelectScene={setActiveSceneId}
+    />
+  ) : undefined}>
+    <ProjectScenes
+      project={project}
+      activeSceneId={activeSceneId}
+      onActiveSceneIdChange={setActiveSceneId}
+    />
+  </PanoViewer>;
+}
+```
+
+Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. Run `pnpm dev` and open `/map` for the playground. Authoring the same document is described in the [editor floor-plan section](../editor/README.md#floor-plan).
+
+The schema remains version 1 and old projects remain valid. Projects using new actions or a floor-plan map require a viewer that supports them. `parsePanoProject(input, { draft: true })` is for authoring only: it permits empty scene lists, unfinished popup titles/media, and an empty floor-plan image. Loading, saving and package export validate strictly. Host applications may save the same document in a database or map it to tables; the viewer has no database connection.
 
 For individual panoramas and existing configs use the pure data entry. Next.js viewer components need a client boundary; server-side data loading uses `/data`:
 
@@ -274,14 +353,14 @@ const project = await loadPanoProject({
 
 | Reference | Default base |
 | --- | --- |
-| Project `viewerUrl`, hotspot assets, `source.baseUrl` | Project directory |
+| Project `viewerUrl`, hotspot assets, floor-plan image and spot icons, `source.baseUrl` | Project directory |
 | Tiles and preview in external `viewer.json` | That JSON directory |
 | Tiles and preview in inline config | Project directory |
 | Panorama with `source.baseUrl` | Specified directory |
 
 URL inputs use the final response directory after redirects. Object inputs require `baseUrl`; it can also override the project directory. Directory trailing slashes are normalized. Domains and cloud prefixes stay outside converter JSON. Browsers accept relative entry URLs; Node.js requires absolute HTTP(S) entry URLs. Full resource URLs remain intact; leading `/` paths resolve against the resource base origin.
 
-If uploads rename files or scatter directories, provide synchronous `resolveAssetUrl(path, context)`. Context has `defaultUrl`, `kind` (`tile`, `preview`, `hotspot`), `sceneId` and optional `hotspotId`. Return a final absolute URL or site-root path; it is not joined again. `uploadedUrls` below is application-owned:
+If uploads rename files or scatter directories, provide synchronous `resolveAssetUrl(path, context)`. Context has `defaultUrl`, `kind` (`tile`, `preview`, `hotspot`, `map`), `sceneId` and optional `hotspotId`. Return a final absolute URL or site-root path; it is not joined again. `uploadedUrls` below is application-owned:
 
 ```ts
 const project = await loadPanoProject("/tour/project.json", {
@@ -293,13 +372,13 @@ const project = await loadPanoProject("/tour/project.json", {
 });
 ```
 
-Hotspot mapping covers images, SVG image URLs, audio source arrays, video posters, playback icons and tooltip images; text, CSS and SVG path data remain unchanged. Acquire signed URLs ahead of time in your application and return them synchronously.
+Hotspot mapping covers images, SVG image URLs, audio source arrays, video posters, playback icons and tooltip images; text, CSS and SVG path data remain unchanged. Floor-plan images and spot icons use the same callback with `kind: "map"`. The floor image has an empty `sceneId` and no `hotspotId`. A spot icon sets both `sceneId` and `hotspotId` to the spot id. Include `kind` in an upload key when one path is reused as more than one kind. Acquire signed URLs ahead of time in your application and return them synchronously.
 
 `requestInit` accepts only `headers`, `credentials` and `signal`, for JSON requests only. They are not forwarded to textures, and JSON query parameters are not inherited by assets. `parsePanoProject(unknown)` validates and copies project data independently. `sceneFromViewerConfig` accepts the unwrapped compact config; `loadSceneFromJson` accepts a versioned `viewer.json`.
 
 `PanoDataError` exposes stable codes: `INVALID_OPTIONS`, `FETCH_FAILED`, `HTTP_ERROR`, `INVALID_JSON`, `INVALID_CONFIG`, `UNSUPPORTED_SCHEMA_VERSION`, `UNSUPPORTED_PROJECTION`, `INVALID_PROJECT`, `INVALID_REFERENCE`, `ABORTED`. HTTP errors carry `status`; project errors include `sceneId` and `field` where available. Successful loading means metadata is ready, not that textures have loaded; use `onSceneReady` for render readiness.
 
-See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example.
+See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example. `/map` shows the floor-plan overlay on that tour.
 
 ## krpano-compatible tile output
 
@@ -377,7 +456,8 @@ Import the shipped stylesheet once in the host app. The WebGL panorama
 **HTML** overlays depend on its prefixed `pano-*` classes for layout.
 
 Those overlays include video controls, captions, the default context menu,
-hotspot tooltips, controls for assistive technology, and WebVR session UI.
+hotspot tooltips, controls for assistive technology, WebVR session UI, and the
+floor-plan map.
 
 ```ts
 import "@ericchen1990/pano-view/styles.css";
@@ -397,8 +477,9 @@ the stylesheet, the overlays still mount, but they render unstyled.
 
 Give PanoViewer an explicit size and render one panorama source inside it.
 Import the stylesheet once when you use built-in HTML overlays such as video
-controls, captions, tooltips, the context menu, or WebVR UI. Each example
-below shows a basic setup; the linked section has the full props.
+controls, captions, tooltips, the context menu, WebVR UI, or the floor-plan
+map. Each example below shows a basic setup; the linked section has the full
+props.
 
 ### Equirectangular image
 
@@ -515,6 +596,11 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 - [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
 - [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
+
+### Floor plan
+
+- [`PanoMap`](#floor-plan-maps) — floor image, scene spots, and the yaw-linked sector
+- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `renderOverlay`
 
 ### Hotspots
 
