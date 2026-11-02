@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 3.6.7
+
+### Patch Changes
+
+- Republish the gyro follow and stability fixes after npm staged 3.6.6 without making it publicly available.
+
 ## 3.6.6
 
 ### Patch Changes
