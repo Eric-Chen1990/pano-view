@@ -23,6 +23,7 @@
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
 - [Scenes](#scenes)
+- [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
@@ -568,6 +569,7 @@ export function Tour() {
 
 - [`PanoEvents`](#panoevents) — 查看器级生命周期与交互回调
 - [`PanoContextMenu`](#panocontextmenu) — 右键重置 / 全屏菜单
+- [`PanoSceneMenu`](#panoscenemenu) — 供 `renderOverlay` 使用的可滚动缩略图场景菜单
 - [`PanoVideoControls`](#panovideo) — `PanoVideo` 的播放界面（默认挂载）
 
 ### 平面图
@@ -1175,6 +1177,172 @@ const scenes: Scene[] = [
 `onReady` 表示源第一次可绘制。`onSceneReady` 在首个场景可绘制，或旧画面快照完成且新场景接管时触发，并不表示当前视野的完整图像或细节瓦片已加载完成。
 
 细节加载等待或转场进行时，全景拖拽/缩放输入被锁定，`renderHotspots` 被隐藏。新的 `activeSceneId` 会取代仍在准备中的目标。`maxTextureMemoryMb` 与 `maxConcurrentTileLoads` 作用于整个 `Scenes` 查看器，而非每个瓦片场景单独计算。
+
+## PanoSceneMenu
+
+`PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoViewer.renderOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。
+
+菜单由宿主驱动：传入 `items`、`activeId`、`onSelect`。它不读取 `Scenes` 状态，也不使用场景的 `previewUrl`。立方体场景的 `previewUrl` 通常是 1×6 预览条，不适合直接当菜单缩略图；请改用独立缩略图（转换器输出可优先用 `previews/200.webp` 这类小图）。
+
+### 基础接入
+
+与 `Scenes` 共用同一个受控场景 id：
+
+```tsx
+import { useState } from "react";
+import {
+  PanoSceneMenu,
+  PanoViewer,
+  Scenes,
+  type PanoSceneMenuItem,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const menuItems: PanoSceneMenuItem[] = [
+  {
+    id: "lobby",
+    title: "大厅",
+    thumbnailUrl: "/panoramas/lobby/thumb.webp",
+  },
+  {
+    id: "terrace",
+    title: "露台",
+    thumbnailUrl: "/panoramas/terrace/previews/200.webp",
+  },
+];
+
+export function Tour() {
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
+
+  return (
+    <PanoViewer
+      style={{ height: 560 }}
+      renderOverlay={() => (
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      )}
+    >
+      <Scenes
+        scenes={scenes}
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={setActiveSceneId}
+      />
+    </PanoViewer>
+  );
+}
+```
+
+每项需要 `id` 与 `thumbnailUrl`。可选 `title` 显示在缩略图底部标签和控制提示上；省略时用 `id`。当前项带内缩选择框和 `data-active="true"`。场景名默认叠在缩略图底部的暗色半透明条上。
+
+### 位置、边距与尺寸
+
+- `placement` — `"top"` | `"bottom"` | `"left"` | `"right"`（默认 `"bottom"`）。上下为横向列表，左右为纵向列表。
+- `inset` — 与 viewer 边缘的间隙（默认 `12`）。数字按像素；字符串可带单位（如 `"1rem"`）；对象可分别设置 `top` / `right` / `bottom` / `left`。
+- `width` / `height` — 菜单宽高。数字按像素；字符串会原样写入 CSS，因此可用 `%`、`rem`、`calc()`、`min()`、`max()`、`clamp()` 等。
+
+```tsx
+<PanoSceneMenu
+  placement="bottom"
+  inset={16}
+  width="min(720px, 100%)"
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+
+<PanoSceneMenu
+  placement="right"
+  inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
+  height="70%"
+  width={160}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+上下布局若省略 `width`，菜单会在左右 `inset` 之间拉伸；左右布局若省略 `height`，会在上下 `inset` 之间拉伸。组件还会按 `inset` 和安全区设置 `max-width` / `max-height`，所以即使用 `100%` 也不会超出 viewer。
+
+需要临时覆盖停靠位置时，可再叠一层 `style`。
+
+### 展开收起与箭头
+
+默认始终展开。设 `collapsible` 后会出现开关，可收起缩略图列表：
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  defaultExpanded
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+
+// 受控
+<PanoSceneMenu
+  collapsible
+  expanded={menuOpen}
+  onExpandedChange={setMenuOpen}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+设 `showArrows` 会在列表两端显示上一场景 / 下一场景按钮。按钮到首尾后停住，不会循环。可用 `previousLabel` / `nextLabel` 自定义箭头无障碍名称，用 `expandLabel` / `collapseLabel` 自定义展开收起文案。单选组标签默认是 `"Scenes"`，可通过 `label` 修改。
+
+```tsx
+<PanoSceneMenu
+  showArrows
+  collapsible
+  placement="bottom"
+  width="min(720px, 100%)"
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+  previousLabel="上一房间"
+  nextLabel="下一房间"
+/>
+```
+
+### 外观与样式钩子
+
+常用外观可用 `appearance`，不必手写 CSS：
+
+```tsx
+<PanoSceneMenu
+  appearance={{
+    background: "rgba(8, 12, 18, 0.88)",
+    itemWidth: 144,
+    itemHeight: 88,
+    gap: 10,
+    borderRadius: 10,
+    selectionColor: "#7dd3fc",
+    selectionWidth: 2,
+    labelBackground: "rgba(0, 0, 0, 0.6)",
+    labelColor: "#ffffff",
+    fontSize: 12,
+    controlColor: "#f8fafc",
+    controlBackground: "rgba(255, 255, 255, 0.14)",
+  }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
+
+- `pano-scene-menu` — 根容器
+- `pano-scene-menu-body` — 箭头与列表所在行/列
+- `pano-scene-menu-list` — 可滚动列表
+- `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
+- `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
+
+根节点还带 `data-placement`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
 
 ## PanoFilter
 

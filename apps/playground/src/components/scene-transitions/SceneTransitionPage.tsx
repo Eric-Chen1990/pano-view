@@ -2,13 +2,15 @@ import {
   BackgroundAudio,
   ImageHotspot,
   KeyboardControls,
+  PanoSceneMenu,
   Scenes,
   PanoViewer,
   cycleSceneId,
   usePanoViewer,
+  type PanoSceneMenuItem,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -36,6 +38,13 @@ const PER_SCENE_SOURCES = {
   "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
 } as const;
 
+const SCENE_MENU_TITLES: Record<(typeof TRANSITION_SCENES)[number]["id"], string> = {
+  "sphere-1": "Sphere 1",
+  "sphere-2": "Sphere 2",
+  "tile-3": "Cube 3",
+  "tile-4": "Cube 4",
+};
+
 export function SceneTransitionPage() {
   const viewer = usePanoViewer();
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
@@ -45,6 +54,23 @@ export function SceneTransitionPage() {
     "shared",
   );
   const [backgroundPlaying, setBackgroundPlaying] = useState(false);
+  const sceneMenuItems = useMemo((): PanoSceneMenuItem[] => {
+    return TRANSITION_SCENES.map((scene) => {
+      if (scene.type === "sphere") {
+        return {
+          id: scene.id,
+          title: SCENE_MENU_TITLES[scene.id],
+          thumbnailUrl: `/fixtures/panorama/panos/${scene.id === "sphere-1" ? "1" : "2"}/preview.webp`,
+        };
+      }
+      const folder = scene.id === "tile-3" ? "3" : "4";
+      return {
+        id: scene.id,
+        title: SCENE_MENU_TITLES[scene.id],
+        thumbnailUrl: `/fixtures/panorama/cube-tiles/${folder}/previews/200.webp`,
+      };
+    });
+  }, []);
 
   return (
     <main className={shellClassName}>
@@ -169,6 +195,18 @@ export function SceneTransitionPage() {
           <PanoViewer
             ref={viewer.ref}
             aria-label="Panorama scene transition demo"
+            renderOverlay={() => (
+              <PanoSceneMenu
+                activeId={activeSceneId}
+                collapsible
+                inset={12}
+                items={sceneMenuItems}
+                onSelect={setActiveSceneId}
+                placement="bottom"
+                showArrows
+                width="80%"
+              />
+            )}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <KeyboardControls

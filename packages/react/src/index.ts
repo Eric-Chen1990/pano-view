@@ -65,6 +65,17 @@ export type {
   PanoContextMenuSelectContext,
   PanoContextMenuSeparatorItem,
 } from "./pano-context-menu";
+export {
+  DEFAULT_PANO_SCENE_MENU_APPEARANCE,
+  PanoSceneMenu,
+} from "./pano-scene-menu";
+export type {
+  PanoSceneMenuAppearance,
+  PanoSceneMenuInset,
+  PanoSceneMenuItem,
+  PanoSceneMenuPlacement,
+  PanoSceneMenuProps,
+} from "./pano-scene-menu";
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
 export { usePanoViewer } from "./use-pano-viewer";

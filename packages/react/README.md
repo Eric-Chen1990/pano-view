@@ -23,6 +23,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
 - [Scenes](#scenes)
+- [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
@@ -595,6 +596,7 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 - [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
+- [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `renderOverlay`
 - [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
 
 ### Floor plan
@@ -1296,6 +1298,195 @@ While a detail wait or transition runs, panorama drag/zoom input is locked and
 `renderHotspots` is hidden. New `activeSceneId` values supersede a target that
 is still being prepared. `maxTextureMemoryMb` and `maxConcurrentTileLoads`
 apply to the whole `Scenes` viewer rather than to each tile scene.
+
+## PanoSceneMenu
+
+`PanoSceneMenu` is a scrollable thumbnail strip for switching scenes. Mount it
+from `PanoViewer.renderOverlay` so it stays inside the viewer (including
+fullscreen). Import `@ericchen1990/pano-view/styles.css` for the default layout.
+
+The menu is host-driven: you pass `items`, `activeId`, and `onSelect`. It does
+not read `Scenes` state or scene `previewUrl`. Cube `previewUrl` values are
+often 1×6 preview strips and are not suitable thumbnails — use a dedicated
+thumbnail URL (for converter output, prefer something like `previews/200.webp`).
+
+### Basic wiring
+
+Keep one controlled scene id and share it with `Scenes`:
+
+```tsx
+import { useState } from "react";
+import {
+  PanoSceneMenu,
+  PanoViewer,
+  Scenes,
+  type PanoSceneMenuItem,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const menuItems: PanoSceneMenuItem[] = [
+  {
+    id: "lobby",
+    title: "Lobby",
+    thumbnailUrl: "/panoramas/lobby/thumb.webp",
+  },
+  {
+    id: "terrace",
+    title: "Terrace",
+    thumbnailUrl: "/panoramas/terrace/previews/200.webp",
+  },
+];
+
+export function Tour() {
+  const [activeSceneId, setActiveSceneId] = useState("lobby");
+
+  return (
+    <PanoViewer
+      style={{ height: 560 }}
+      renderOverlay={() => (
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      )}
+    >
+      <Scenes
+        scenes={scenes}
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={setActiveSceneId}
+      />
+    </PanoViewer>
+  );
+}
+```
+
+Each item needs `id` and `thumbnailUrl`. Optional `title` is shown on the
+thumbnail label and as the control tooltip; when omitted, `id` is used. The
+active item gets an inset selection border and `data-active="true"`. Scene names
+sit on a dark translucent bar at the bottom of each thumbnail.
+
+### Placement, inset, and size
+
+- `placement` — `"top"` | `"bottom"` | `"left"` | `"right"` (default `"bottom"`).
+  Top/bottom render a horizontal strip; left/right render a vertical strip.
+- `inset` — gap from the viewer edges (default `12`). A number is pixels; a
+  string keeps units such as `"1rem"`; an object sets `top` / `right` /
+  `bottom` / `left` independently.
+- `width` / `height` — menu size. A number is pixels; a string is used as CSS as-is,
+  including `%`, `rem`, `calc()`, `min()`, `max()`, and `clamp()`.
+
+```tsx
+<PanoSceneMenu
+  placement="bottom"
+  inset={16}
+  width="min(720px, 100%)"
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+
+<PanoSceneMenu
+  placement="right"
+  inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
+  height="70%"
+  width={160}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+If you omit `width` on a top/bottom menu, the strip stretches between the left
+and right insets. If you omit `height` on a left/right menu, it stretches between
+the top and bottom insets. The menu also applies a max size that subtracts
+`inset` and safe-area insets, so `100%` still stays inside the viewer.
+
+Use `style` when you need one-off positioning overrides on top of these props.
+
+### Collapsible menu and arrows
+
+By default the menu stays open. Set `collapsible` to show a toggle that hides
+the thumbnail list:
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  defaultExpanded
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+
+// Controlled
+<PanoSceneMenu
+  collapsible
+  expanded={menuOpen}
+  onExpandedChange={setMenuOpen}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+Set `showArrows` to add previous/next buttons at both ends of the list. The
+buttons stop at the first and last items (they do not wrap). Customize their
+accessible names with `previousLabel` / `nextLabel`, and the toggle with
+`expandLabel` / `collapseLabel`. The radiogroup label defaults to `"Scenes"`
+via `label`.
+
+```tsx
+<PanoSceneMenu
+  showArrows
+  collapsible
+  placement="bottom"
+  width="min(720px, 100%)"
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+  previousLabel="Previous room"
+  nextLabel="Next room"
+/>
+```
+
+### Appearance and CSS hooks
+
+Pass `appearance` for common chrome tokens without writing CSS:
+
+```tsx
+<PanoSceneMenu
+  appearance={{
+    background: "rgba(8, 12, 18, 0.88)",
+    itemWidth: 144,
+    itemHeight: 88,
+    gap: 10,
+    borderRadius: 10,
+    selectionColor: "#7dd3fc",
+    selectionWidth: 2,
+    labelBackground: "rgba(0, 0, 0, 0.6)",
+    labelColor: "#ffffff",
+    fontSize: 12,
+    controlColor: "#f8fafc",
+    controlBackground: "rgba(255, 255, 255, 0.14)",
+  }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+`DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults. For deeper styling,
+use `className` / `style` against these stable classes:
+
+- `pano-scene-menu` — root chrome
+- `pano-scene-menu-body` — arrows + list row/column
+- `pano-scene-menu-list` — scrollable item list
+- `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
+- `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
+
+The root also exposes `data-placement`, `data-orientation`
+(`horizontal` | `vertical`), `data-expanded`, and `data-collapsible`. The active
+item has `data-active="true"`.
 
 ## PanoFilter
 

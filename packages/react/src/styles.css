@@ -8,7 +8,14 @@
 .pano-video-controls,
 .pano-video-chrome-button,
 .pano-video-chrome-menu,
-.pano-video-volume-popover {
+.pano-video-volume-popover,
+.pano-scene-menu,
+.pano-scene-menu-body,
+.pano-scene-menu-list,
+.pano-scene-menu-item,
+.pano-scene-menu-thumb,
+.pano-scene-menu-label,
+.pano-scene-menu-control {
   box-sizing: border-box;
 }
 
@@ -576,4 +583,164 @@
 
 .pano-map-dialog-body {
   padding: 0 16px 16px;
+}
+
+.pano-scene-menu {
+  align-items: stretch;
+  background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
+  border-radius: var(--pano-scene-menu-radius, 8px);
+  display: flex;
+  gap: 0.5rem;
+  padding: var(--pano-scene-menu-padding, 8px 10px);
+  pointer-events: auto;
+  position: absolute;
+  z-index: 2;
+}
+
+.pano-scene-menu[data-orientation="horizontal"] {
+  align-items: center;
+  flex-direction: row;
+}
+
+.pano-scene-menu[data-orientation="vertical"] {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.pano-scene-menu[data-expanded="false"] {
+  align-items: center;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+}
+
+.pano-scene-menu-body {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--pano-scene-menu-gap, 8px);
+  min-height: 0;
+  min-width: 0;
+}
+
+.pano-scene-menu[data-orientation="horizontal"] .pano-scene-menu-body {
+  flex-direction: row;
+}
+
+.pano-scene-menu[data-orientation="vertical"] .pano-scene-menu-body {
+  flex-direction: column;
+}
+
+.pano-scene-menu-list {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--pano-scene-menu-gap, 8px);
+  min-height: 0;
+  min-width: 0;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pano-scene-menu[data-orientation="horizontal"] .pano-scene-menu-list {
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+.pano-scene-menu[data-orientation="vertical"] .pano-scene-menu-list {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+.pano-scene-menu-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  flex: 0 0 auto;
+  font: inherit;
+  height: var(--pano-scene-menu-item-height, 80px);
+  padding: 0;
+  width: var(--pano-scene-menu-item-width, 128px);
+}
+
+.pano-scene-menu-item:focus-visible,
+.pano-scene-menu-control:focus-visible {
+  outline: 2px solid var(--pano-scene-menu-selection-color, #ffffff);
+  outline-offset: 2px;
+}
+
+.pano-scene-menu-thumb {
+  border-radius: var(--pano-scene-menu-radius, 8px);
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.pano-scene-menu-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+  width: 100%;
+}
+
+.pano-scene-menu-item[data-active="true"] .pano-scene-menu-thumb {
+  box-shadow: inset 0 0 0 var(--pano-scene-menu-selection-width, 2px)
+    var(--pano-scene-menu-selection-color, #ffffff);
+}
+
+.pano-scene-menu-label {
+  background: var(--pano-scene-menu-label-background, rgba(0, 0, 0, 0.55));
+  bottom: 0;
+  color: var(--pano-scene-menu-label-color, #ffffff);
+  font-size: var(--pano-scene-menu-font-size, 12px);
+  left: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  padding: 0.25rem 0.4rem;
+  position: absolute;
+  right: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pano-scene-menu-control {
+  align-items: center;
+  appearance: none;
+  background: var(--pano-scene-menu-control-background, rgba(255, 255, 255, 0.12));
+  border: 0;
+  border-radius: var(--pano-scene-menu-radius, 8px);
+  color: var(--pano-scene-menu-control-color, #ffffff);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  height: 2rem;
+  justify-content: center;
+  min-height: 2rem;
+  min-width: 2rem;
+  padding: 0;
+  width: 2rem;
+}
+
+.pano-scene-menu-control:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.pano-scene-menu-toggle {
+  align-self: center;
 }
