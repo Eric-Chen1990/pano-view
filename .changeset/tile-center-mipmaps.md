@@ -2,4 +2,4 @@
 "@ericchen1990/pano-view": patch
 ---
 
-Filter cube and equirectangular tiles with mipmaps, and choose their level from the screen-center focal length so wide views no longer alias fine lines in the middle of the picture.
+Filter cube and equirectangular tiles with mipmaps, and choose a level that keeps the left and right edges of a wide view near one texel per pixel. Mipmaps still anti-alias the minified center.

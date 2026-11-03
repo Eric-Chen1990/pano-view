@@ -610,6 +610,7 @@ export function Tile({
               pixelRatio,
               camera.fov,
               currentLevelRef.current,
+              size.width,
             );
       if (targetLevel !== currentLevelRef.current) {
         currentLevelRef.current = targetLevel;

@@ -293,7 +293,13 @@ function SphereTileSource({
           ? -1
           : loadMode === "base"
             ? 0
-            : preferredSphereLevel(config.levels, size.height, dpr, camera.fov);
+            : preferredSphereLevel(
+                config.levels,
+                size.height,
+                dpr,
+                camera.fov,
+                size.width,
+              );
       const next: Layer[] = [];
       let residentBytes = 0;
       for (let index = 0; index <= level; index++) {

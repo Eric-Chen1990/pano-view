@@ -58,7 +58,7 @@ export function configureMipmappedTexture(
   texture.magFilter = LinearFilter;
   texture.minFilter = LinearMipmapLinearFilter;
   texture.generateMipmaps = true;
-  texture.anisotropy = Math.min(4, anisotropy);
+  texture.anisotropy = Math.max(1, anisotropy);
   texture.needsUpdate = true;
 }
 
