@@ -213,7 +213,7 @@ function PanoMapDialogShell({
 }
 
 /**
- * Visitor-facing map chrome for `PanoViewer.renderOverlay`.
+ * Visitor-facing map chrome for `PanoOverlay`.
  * Docked panels stay in a corner; dialog mode opens the same map in a modal.
  */
 export function PanoMapOverlay({

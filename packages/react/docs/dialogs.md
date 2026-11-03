@@ -22,9 +22,9 @@ This guide covers hotspot dialogs with text/images, video, galleries and iframes
 
 | Need | Approach | What you own |
 | --- | --- | --- |
-| A working modal with minor theme changes | `PanoDialog` + CSS variables | Open state and content |
-| Different header, close button, footer or layout | Compose the `PanoDialog*` parts | Markup, styling and content |
-| An existing Dialog / design system | `renderOverlay` + `usePanoOverlay` + `usePanoModal` | Dialog implementation, accessibility and styling |
+| A working modal with minor theme changes | `PanoOverlay` + `PanoDialog` + CSS variables | Open state and content |
+| Different header, close button, footer or layout | `PanoOverlay` + compose the `PanoDialog*` parts | Markup, styling and content |
+| An existing Dialog / design system | `PanoOverlay` + `usePanoOverlay` + `usePanoModal` | Dialog implementation, accessibility and styling |
 
 The default and composed dialogs handle focus, backdrop dismissal, Escape and viewer input locking. A third-party dialog keeps its own accessibility behavior; `usePanoModal` only coordinates viewer input. None of these approaches changes hotspot definitions or project JSON.
 
@@ -36,8 +36,10 @@ Install the viewer and its existing peer dependencies as described in [Install](
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
+  usePanoOverlay,
   usePanoViewer,
   type LoadedPanoProject,
   type ProjectHotspotDefinition,
@@ -46,6 +48,19 @@ import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 import "./tour.css";
+
+function FullscreenButton({ onToggle }: { onToggle: () => void }) {
+  const { isFullscreen } = usePanoOverlay();
+  return (
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={onToggle}
+    >
+      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+    </button>
+  );
+}
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const viewer = usePanoViewer();
@@ -56,26 +71,6 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
       ref={viewer.ref}
       className="my-tour"
       style={{ height: 560 }}
-      renderOverlay={({ isFullscreen }) => (
-        <>
-          <button
-            type="button"
-            style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
-            onClick={() => void viewer.toggleFullscreen()}
-          >
-            {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          </button>
-          <PanoDialog
-            open={selected !== null}
-            onOpenChange={(open) => { if (!open) setSelected(null); }}
-            title={selected?.label ?? "Details"}
-            description="Discover more about this place."
-            closeLabel="Close details"
-          >
-            {selected ? <p key={selected.id}>Content for {selected.label ?? selected.id}</p> : null}
-          </PanoDialog>
-        </>
-      )}
     >
       <ProjectScenes
         project={project}
@@ -86,6 +81,18 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
         }}
         onActiveSceneIdChange={() => setSelected(null)}
       />
+      <PanoOverlay>
+        <FullscreenButton onToggle={() => void viewer.toggleFullscreen()} />
+        <PanoDialog
+          open={selected !== null}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          title={selected?.label ?? "Details"}
+          description="Discover more about this place."
+          closeLabel="Close details"
+        >
+          {selected ? <p key={selected.id}>Content for {selected.label ?? selected.id}</p> : null}
+        </PanoDialog>
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -93,7 +100,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 Supply a loaded project containing a hotspot with ID `details`; see [Static projects and JSON data](../README.md#static-projects-and-json-data) for `loadPanoProject`. Adapt the selection condition to your content mapping. Only call `preventDefault()` when handling a hotspot yourself: other hotspots retain their normal scene navigation or media playback. The example explicitly closes the dialog on scene changes; the library does not impose that policy.
 
-`PanoViewer.children` is the Three.js scene tree. Put ordinary DOM dialogs in `renderOverlay`, not beside `Sphere` or `ProjectScenes` in that tree. Keep the returned component tree stable when `isFullscreen` changes; a key based on fullscreen state would reset its content.
+`PanoViewer` scene children stay in the Three.js tree. Put ordinary DOM dialogs inside `PanoOverlay`, not as bare siblings of `Sphere` or `ProjectScenes` that would enter that tree. Keep the overlay tree stable when `isFullscreen` changes; a key based on fullscreen state would reset its content.
 
 For multiple hotspots, continue with the [complete mapping example below](#choose-content-by-hotspot): it reuses one dialog for five pieces of content and includes the matching project JSON.
 
@@ -120,6 +127,7 @@ The complete source defines every content component, the registry, selection sta
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   type LoadedPanoProject,
@@ -199,15 +207,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
   const contentKey = selected ? JSON.stringify([selected.sceneId, selected.hotspotId]) : "closed";
 
   return (
-    <PanoViewer style={{ height: 560 }} renderOverlay={() => (
-      <PanoDialog
-        open={popup !== undefined}
-        onOpenChange={(open) => { if (!open) setSelected(null); }}
-        title={popup?.title ?? "Hotspot content"}
-      >
-        {popup ? <div key={contentKey}>{popup.body}</div> : null}
-      </PanoDialog>
-    )}>
+    <PanoViewer style={{ height: 560 }}>
       <ProjectScenes
         project={project}
         onHotspotClick={(event) => {
@@ -218,6 +218,15 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
         }}
         onActiveSceneIdChange={() => setSelected(null)}
       />
+      <PanoOverlay>
+        <PanoDialog
+          open={popup !== undefined}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          title={popup?.title ?? "Hotspot content"}
+        >
+          {popup ? <div key={contentKey}>{popup.body}</div> : null}
+        </PanoDialog>
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -340,7 +349,7 @@ const style: CSSProperties & { "--pano-dialog-width": string } = {
   borderRadius: 8,
 };
 
-// Render this component inside PanoViewer.renderOverlay.
+// Render this component inside PanoOverlay.
 export function StyledDialog(props: PanoDialogProps) {
   return <PanoDialog {...props} className="my-dialog" style={style} />;
 }
@@ -361,7 +370,7 @@ The default panel has inline structural styles for positioning, width, maximum h
 <a id="compose-a-different-layout"></a>
 ## Compose a different layout
 
-Use parts when you need a footer, a different close control, or full ownership of the markup. This example supplies its own visual CSS and does not need `ui/styles.css`. Render `CustomLayoutDialog` from `renderOverlay` and pass the desired state and content.
+Use parts when you need a footer, a different close control, or full ownership of the markup. This example supplies its own visual CSS and does not need `ui/styles.css`. Render `CustomLayoutDialog` inside `PanoOverlay` and pass the desired state and content.
 
 ```tsx
 import type { ReactNode } from "react";
@@ -426,7 +435,7 @@ To prevent Escape dismissal or outside dismissal, use Content's `onEscapeKeyDown
 <a id="use-an-existing-dialog"></a>
 ## Use an existing Dialog
 
-The viewer does not require your application to use the optional UI components. A third-party integration needs three connections: the local Portal container, measured layout and viewer input coordination. The following Radix example is a component to render from `renderOverlay`. Install `@radix-ui/react-dialog` as a direct dependency in the consuming app if you import it there.
+The viewer does not require your application to use the optional UI components. A third-party integration needs three connections: the local Portal container, measured layout and viewer input coordination. The following Radix example is a component to render inside `PanoOverlay`. Install `@radix-ui/react-dialog` as a direct dependency in the consuming app if you import it there.
 
 ```tsx
 import { useRef, useState, type ReactNode } from "react";
@@ -490,9 +499,9 @@ export function ExistingDialog({ open, onOpenChange, children }: {
 }
 ```
 
-Wait for a non-null container. Do not let a third-party Portal default to `document.body` while the viewer is mounting. Existing MUI, Ant Design, shadcn or other wrappers need an equivalent configurable mount target; adapt or wrap the actual Portal API your component exposes. An unsupported wrapper is not made fullscreen-safe merely by rendering it in `renderOverlay`.
+Wait for a non-null container. Do not let a third-party Portal default to `document.body` while the viewer is mounting. Existing MUI, Ant Design, shadcn or other wrappers need an equivalent configurable mount target; adapt or wrap the actual Portal API your component exposes. An unsupported wrapper is not made fullscreen-safe merely by rendering it in `PanoOverlay`.
 
-`usePanoModal(open)` pauses viewer input and automatic rotation, makes the background viewer UI inert and closes its context menu. It does not supply the third-party modal's focus trap, accessible names, close controls or page scroll handling. Locks are scoped per viewer and reference counted; releasing a modal does not release another modal's or transition's lock. Call hooks unconditionally in a child component, not directly in the `renderOverlay` callback.
+`usePanoModal(open)` pauses viewer input and automatic rotation, makes the background viewer UI inert and closes its context menu. It does not supply the third-party modal's focus trap, accessible names, close controls or page scroll handling. Locks are scoped per viewer and reference counted; releasing a modal does not release another modal's or transition's lock. Call hooks unconditionally in a child component under `PanoOverlay`, not in the parent of `PanoViewer`.
 
 <a id="nested-portals"></a>
 ## Nested portals
@@ -574,7 +583,8 @@ Each export has a corresponding `*Props` type. Root is controlled and does not e
 
 | API | Contract |
 | --- | --- |
-| `PanoViewer.renderOverlay(context)` | Returns DOM React content outside the Canvas; not a hook invocation site |
+| `PanoOverlay` | Preferred screen-plane wrapper; direct child of `PanoViewer` (or a Fragment under it) |
+| `PanoViewer.renderOverlay(context)` | Optional callback-style DOM content outside the Canvas; not a hook invocation site |
 | `usePanoOverlay()` | Same context for DOM descendants; throws outside the Overlay provider |
 | `usePanoModal(open)` | Acquires/releases this viewer's modal input lock; no return value |
 | `PanoOverlayPortalProvider` | Required `container: HTMLDivElement \| null` and `children`; overrides only the descendant Portal target |
@@ -599,8 +609,8 @@ Each export has a corresponding `*Props` type. Root is controlled and does not e
 | Unstyled mode still has layout styles | Structural sizing/positioning and pointer behavior are inline by design. Omit `ui/styles.css` and supply visual styling, or use your own Dialog for full DOM ownership. |
 | Long content hides Close | In a composed dialog, keep header/footer `flex-shrink: 0`, body `min-height: 0; overflow: auto`, and Content within measured space. |
 | Video/form resets on fullscreen changes | Remove fullscreen-dependent keys, container swaps, conditional dialog implementations and component definitions nested in render callbacks. |
-| Viewer still moves behind a custom modal | Call `usePanoModal(open)` from the custom component under `renderOverlay`. Default/composed Root already does this. |
+| Viewer still moves behind a custom modal | Call `usePanoModal(open)` from the custom component under `PanoOverlay`. Default/composed Root already does this. |
 | Nested popover is hidden or cannot receive input | Pass the Content-local target from `usePanoOverlay()` and enable pointer events on its actual panel. |
-| A hook reports a missing provider | Render the custom DOM component from `renderOverlay`; do not call Overlay hooks in the parent of `PanoViewer` or directly in its callback. |
+| A hook reports a missing provider | Render the custom DOM component inside `PanoOverlay`; do not call Overlay hooks in the parent of `PanoViewer`. |
 
 Before integrating, verify normal and real element fullscreen modes, a partially scrolled viewer, keyboard open/close and focus restoration, long content, nested portals, media cleanup and your supported Safari/mobile devices. A maximized browser window does not exercise the Fullscreen API.

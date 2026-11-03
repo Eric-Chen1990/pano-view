@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   type LoadedPanoProject,
@@ -79,15 +80,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
   const contentKey = selected ? JSON.stringify([selected.sceneId, selected.hotspotId]) : "closed";
 
   return (
-    <PanoViewer style={{ height: 560 }} renderOverlay={() => (
-      <PanoDialog
-        open={popup !== undefined}
-        onOpenChange={(open) => { if (!open) setSelected(null); }}
-        title={popup?.title ?? "Hotspot content"}
-      >
-        {popup ? <div key={contentKey}>{popup.body}</div> : null}
-      </PanoDialog>
-    )}>
+    <PanoViewer style={{ height: 560 }}>
       <ProjectScenes
         project={project}
         onHotspotClick={(event) => {
@@ -98,6 +91,15 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
         }}
         onActiveSceneIdChange={() => setSelected(null)}
       />
+      <PanoOverlay>
+        <PanoDialog
+          open={popup !== undefined}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          title={popup?.title ?? "Hotspot content"}
+        >
+          {popup ? <div key={contentKey}>{popup.body}</div> : null}
+        </PanoDialog>
+      </PanoOverlay>
     </PanoViewer>
   );
 }

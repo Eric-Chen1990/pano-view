@@ -1,4 +1,5 @@
 import {
+  PanoOverlay,
   PanoSceneMenu,
   Scenes,
   PanoViewer,
@@ -86,6 +87,7 @@ function buildSceneMenuSnippet(options: {
 
   return `import { useState } from "react";
 import {
+  PanoOverlay,
   PanoSceneMenu,
   PanoViewer,
   Scenes,
@@ -97,8 +99,14 @@ const scenes = [/* sphere + cube scenes */];
 const sceneMenuItems: PanoSceneMenuItem[] = [/* id, title, thumbnailUrl */];
 const [activeSceneId, setActiveSceneId] = useState("sphere-1");
 
-<PanoViewer
-  renderOverlay={() => (
+<PanoViewer style={{ height: "min(640px, 72dvh)" }}>
+  <Scenes
+    activeSceneId={activeSceneId}
+    onActiveSceneIdChange={setActiveSceneId}
+    scenes={scenes}
+    transition="dissolve"
+  />
+  <PanoOverlay>
     <PanoSceneMenu
       activeId={activeSceneId}
       align="${align}"
@@ -113,15 +121,7 @@ ${optionalProps ? `${optionalProps}\n` : ""}      inset={12}
       placement="${placement}"
 ${sizeProps}
     />
-  )}
-  style={{ height: "min(640px, 72dvh)" }}
->
-  <Scenes
-    activeSceneId={activeSceneId}
-    onActiveSceneIdChange={setActiveSceneId}
-    scenes={scenes}
-    transition="dissolve"
-  />
+  </PanoOverlay>
 </PanoViewer>`;
 }
 
@@ -357,7 +357,17 @@ export function SceneMenuPage() {
         <div className="bg-[#020607] p-0">
           <PanoViewer
             aria-label="Panorama scene menu demo"
-            renderOverlay={() => (
+            style={{ height: "min(640px, 72dvh)" }}
+          >
+            <Scenes
+              activeSceneId={activeSceneId}
+              maxConcurrentTileLoads={3}
+              maxTextureMemoryMb={96}
+              onActiveSceneIdChange={setActiveSceneId}
+              scenes={TRANSITION_SCENES}
+              transition="dissolve"
+            />
+            <PanoOverlay>
               <PanoSceneMenu
                 activeId={activeSceneId}
                 align={align}
@@ -380,21 +390,11 @@ export function SceneMenuPage() {
                 showArrows={showArrows}
                 width={horizontal ? "80%" : 160}
               />
-            )}
-            style={{ height: "min(640px, 72dvh)" }}
-          >
-            <Scenes
-              activeSceneId={activeSceneId}
-              maxConcurrentTileLoads={3}
-              maxTextureMemoryMb={96}
-              onActiveSceneIdChange={setActiveSceneId}
-              scenes={TRANSITION_SCENES}
-              transition="dissolve"
-            />
+            </PanoOverlay>
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="PanoSceneMenu is host-driven: pass items, activeId, and onSelect through renderOverlay. Placement, align, chrome, and appearance update live."
+          blurb="PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Placement, align, chrome, and appearance update live."
           code={snippet}
           label="PanoSceneMenu"
         />

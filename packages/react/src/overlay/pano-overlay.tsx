@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type { PanoModalHost } from "./modal-host";
+import { PANO_OVERLAY_TYPE } from "./partition";
 import { getOverlayVisibleRect } from "./visible-rect";
 
 export type PanoOverlayRenderContext = {
@@ -22,18 +23,49 @@ export type PanoOverlayRenderContext = {
 export const PanoOverlayContext = createContext<PanoOverlayRenderContext | null>(null);
 export const PanoModalHostContext = createContext<PanoModalHost | null>(null);
 
-/** Read inside PanoViewer.renderOverlay or its DOM descendants. */
+/** True only inside the viewer-plane overlay outlet (not the Three.js tree). */
+export const PanoOverlayOutletContext = createContext(false);
+
+export type PanoOverlayProps = {
+  children?: ReactNode;
+};
+
+/**
+ * Screen-plane DOM UI for PanoViewer. Place it as a direct child of PanoViewer
+ * (or inside a Fragment under PanoViewer). It stays outside the panorama sphere
+ * and remains visible in fullscreen. Interactive children need `pointerEvents: "auto"`.
+ */
+export function PanoOverlay({ children }: PanoOverlayProps) {
+  const inOutlet = useContext(PanoOverlayOutletContext);
+  if (!inOutlet) {
+    throw new Error(
+      "PanoOverlay must be a direct child of PanoViewer (or of a Fragment under PanoViewer), not nested inside scene components.",
+    );
+  }
+  return <>{children}</>;
+}
+
+(PanoOverlay as typeof PanoOverlay & { [PANO_OVERLAY_TYPE]: true })[PANO_OVERLAY_TYPE] =
+  true;
+
+const OVERLAY_HOOK_SCOPE = "PanoOverlay or PanoViewer.renderOverlay";
+
+/** Read inside PanoOverlay, renderOverlay, or their DOM descendants. */
 export function usePanoOverlay(): PanoOverlayRenderContext {
   const context = useContext(PanoOverlayContext);
-  if (!context) throw new Error("usePanoOverlay must be used inside PanoViewer.renderOverlay.");
+  if (!context) {
+    throw new Error(`usePanoOverlay must be used inside ${OVERLAY_HOOK_SCOPE}.`);
+  }
   return context;
 }
 
 /** Coordinate a custom modal with viewer inputs. Accessibility stays with the modal. */
 export function usePanoModal(open: boolean): void {
   const host = useContext(PanoModalHostContext);
-  if (!host) throw new Error("usePanoModal must be used inside PanoViewer.renderOverlay.");
-  useLayoutEffect(() => open ? host.acquire() : undefined, [host, open]);
+  if (!host) {
+    throw new Error(`usePanoModal must be used inside ${OVERLAY_HOOK_SCOPE}.`);
+  }
+  useLayoutEffect(() => (open ? host.acquire() : undefined), [host, open]);
 }
 
 /** Keep nested portals inside the active dialog's interactive subtree. */

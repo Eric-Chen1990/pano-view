@@ -226,17 +226,18 @@ export function Tour() {
 
 ```tsx
 import { useState } from "react";
-import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { PanoOverlay, PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
-  return <PanoViewer renderOverlay={() => (
-    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
-  )}>
+  return <PanoViewer>
     <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
       onActiveSceneIdChange={() => setPopup(null)} />
+    <PanoOverlay>
+      <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+    </PanoOverlay>
   </PanoViewer>;
 }
 ```
@@ -295,32 +296,35 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 #### 挂载 `PanoMapOverlay`
 
-在 `PanoViewer.renderOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`；查看器外又不传 `view` 时，图面停在 yaw `0`、pitch `0`、fov `75`。`PanoMap` 只负责图面，由宿主自己安排外框。
+在 `PanoOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`；查看器外又不传 `view` 时，图面停在 yaw `0`、pitch `0`、fov `75`。`PanoMap` 只负责图面，由宿主自己安排外框。
 
 `PanoMap` 还可受控选中与收起：`selectedSpotId` / `onSelectedSpotIdChange`（省略时内部选中，默认 `null`）；`collapsed` / `onCollapsedChange`（非受控初始为展开）；`renderChrome` 在图面之上渲染宿主控件。`showZoomControls` / `showCollapseControl` 与 overlay 相同，也可直接传给 `PanoMap`。`className` / `style` 挂在表面根节点上。
 
 ```tsx
 import { useState } from "react";
 import {
-  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+  PanoOverlay, PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
   const map = project.map;
-  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
-    <PanoMapOverlay
-      map={map}
-      activeSceneId={activeSceneId}
-      onSelectScene={setActiveSceneId}
-    />
-  ) : undefined}>
+  return <PanoViewer style={{ height: 600 }}>
     <ProjectScenes
       project={project}
       activeSceneId={activeSceneId}
       onActiveSceneIdChange={setActiveSceneId}
     />
+    {map ? (
+      <PanoOverlay>
+        <PanoMapOverlay
+          map={map}
+          activeSceneId={activeSceneId}
+          onSelectScene={setActiveSceneId}
+        />
+      </PanoOverlay>
+    ) : null}
   </PanoViewer>;
 }
 ```
@@ -652,14 +656,15 @@ export function Tour() {
 ### 事件与界面元素
 
 - [`PanoEvents`](#panoevents) — 查看器级生命周期与交互回调
+- [`PanoOverlay`](#dom-overlay-与弹窗) — 查看器平面上的 DOM 包裹，全屏时仍可见
 - [`PanoContextMenu`](#panocontextmenu) — 右键重置 / 全屏菜单
-- [`PanoSceneMenu`](#panoscenemenu) — 供 `renderOverlay` 使用的可滚动缩略图场景菜单
+- [`PanoSceneMenu`](#panoscenemenu) — 供 `PanoOverlay` 使用的可滚动缩略图场景菜单
 - [`PanoVideoControls`](#panovideo) — `PanoVideo` 的播放界面（默认挂载）
 
 ### 平面图
 
 - [`PanoMap`](#平面图地图) — 平面图、场景点位，以及随水平角转动的扇形
-- [`PanoMapOverlay`](#平面图地图) — 供 `renderOverlay` 使用的停靠面板或对话框按钮
+- [`PanoMapOverlay`](#平面图地图) — 供 `PanoOverlay` 使用的停靠面板或对话框按钮
 
 ### 热点
 
@@ -684,7 +689,25 @@ export function Tour() {
 
 ## DOM Overlay 与弹窗
 
-普通 DOM 界面使用 `PanoViewer.renderOverlay`，位于 Three.js 渲染树之外。`usePanoOverlay()` 必须在 `renderOverlay` 子树内调用，返回 `portalContainer`、`size`（viewer 宽高）、`visibleRect`（可见矩形）与 `isFullscreen`。`usePanoModal(open)` 在 `open === true` 时占用该 viewer 的模态锁（暂停输入与自动旋转、背景 inert、关闭右键菜单）；不负责焦点陷阱。`PanoOverlayPortalProvider` 接收必填的 `container` 与 `children`，只替换后代读到的 `portalContainer`；`size` / `visibleRect` 仍是整个 viewer。字段含义、引用计数与第三方 Dialog 接线见独立的 **[弹窗使用与自定义样式指南](./docs/dialogs.zh-CN.md)**。可选 `/ui` 入口提供 `PanoDialog` 与组成组件。指南随 npm 包分发；在本仓库运行 `pnpm dev`，打开 `/overlays` 可体验示例。
+普通 DOM 界面优先使用 `PanoOverlay`，位于 Three.js 渲染树之外，挂在全屏根节点内的查看器平面上，因此全屏时仍可见。把它作为 `PanoViewer` 的直接子节点（或包在其下的 Fragment 里），与场景内容并列。`renderOverlay` 仍可用，适合回调式挂载：
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <Sphere src="/pano.jpg" />
+  <PanoOverlay>
+    <PanoSceneMenu items={items} activeId={id} onSelect={setId} />
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={() => void viewer.toggleFullscreen()}
+    >
+      Fullscreen
+    </button>
+  </PanoOverlay>
+</PanoViewer>
+```
+
+该层已是 `position: absolute; inset: 0; pointer-events: none`。子节点自行定位，可点击节点设置 `pointerEvents: "auto"`。同时使用时，`renderOverlay` 先渲染，其后按出现顺序渲染各个 `PanoOverlay`。`usePanoOverlay()` 必须在 `PanoOverlay`（或 `renderOverlay`）子树内调用，返回 `portalContainer`、`size`（viewer 宽高）、`visibleRect`（可见矩形）与 `isFullscreen`。`usePanoModal(open)` 在 `open === true` 时占用该 viewer 的模态锁（暂停输入与自动旋转、背景 inert、关闭右键菜单）；不负责焦点陷阱。`PanoOverlayPortalProvider` 接收必填的 `container` 与 `children`，只替换后代读到的 `portalContainer`；`size` / `visibleRect` 仍是整个 viewer。字段含义、引用计数与第三方 Dialog 接线见独立的 **[弹窗使用与自定义样式指南](./docs/dialogs.zh-CN.md)**。可选 `/ui` 入口提供 `PanoDialog` 与组成组件。指南随 npm 包分发；在本仓库运行 `pnpm dev`，打开 `/overlays` 可体验示例。
 
 ### 默认弹窗
 
@@ -785,7 +808,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `cursors` — `true` / 省略使用 grab / grabbing / pointer / move；`false` 不改画布光标；对象可覆盖四个状态。
 - `contextMenu` — `true` / 省略挂载「重置视图 + 全屏」；`false` 不挂默认菜单；对象可改外观或 `items` / `prepend` / `append`。详见 [PanoContextMenu](#panocontextmenu)。
 - `mediaActivation` — 有播放意图的子组件时默认开启；`false` 关闭自动激活。
-- `renderOverlay` — 在画布外、全屏内渲染 DOM UI；回调收到 `portalContainer`、`size`、`visibleRect`、`isFullscreen`。
+- `renderOverlay` — 可选的回调式 DOM UI，在画布外、全屏内渲染；回调收到 `portalContainer`、`size`、`visibleRect`、`isFullscreen`。优先用子组件 `<PanoOverlay>`。
 - `onViewChange` — 参数为 `{ yaw, pitch, fov }`（度）。
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — 参数为全景指针事件：`position`（yaw / pitch）、`nativeEvent`、`button`、`buttons`、`clientX`、`clientY`，以及可选的 `pointerId`。
 - 其余标准 `div` 属性（如 `className`、`style`、`id`）可原样传入；类型已去掉冲突的 `onChange` 与 `contextMenu`。
@@ -1352,7 +1375,7 @@ const scenes: Scene[] = [
 
 ## PanoSceneMenu
 
-`PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoViewer.renderOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。
+`PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。
 
 菜单由宿主驱动：传入 `items`、`activeId`、`onSelect`。它不读取 `Scenes` 状态，也不使用场景的 `previewUrl`。立方体场景的 `previewUrl` 通常是 1×6 预览条，不适合直接当菜单缩略图；请改用独立缩略图（转换器输出可优先用 `previews/200.webp` 这类小图）。
 
@@ -1363,6 +1386,7 @@ const scenes: Scene[] = [
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoSceneMenu,
   PanoViewer,
   Scenes,
@@ -1387,21 +1411,19 @@ export function Tour() {
   const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
-    <PanoViewer
-      style={{ height: 560 }}
-      renderOverlay={() => (
-        <PanoSceneMenu
-          activeId={activeSceneId}
-          items={menuItems}
-          onSelect={setActiveSceneId}
-        />
-      )}
-    >
+    <PanoViewer style={{ height: 560 }}>
       <Scenes
         scenes={scenes}
         activeSceneId={activeSceneId}
         onActiveSceneIdChange={setActiveSceneId}
       />
+      <PanoOverlay>
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      </PanoOverlay>
     </PanoViewer>
   );
 }

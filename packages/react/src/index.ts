@@ -1,6 +1,14 @@
 export { PanoViewer } from "./pano-viewer";
-export { usePanoOverlay, usePanoModal, PanoOverlayPortalProvider } from "./overlay/pano-overlay";
-export type { PanoOverlayRenderContext } from "./overlay/pano-overlay";
+export {
+  PanoOverlay,
+  usePanoOverlay,
+  usePanoModal,
+  PanoOverlayPortalProvider,
+} from "./overlay/pano-overlay";
+export type {
+  PanoOverlayProps,
+  PanoOverlayRenderContext,
+} from "./overlay/pano-overlay";
 export * from "./data";
 export { ProjectScenes } from "./project-scenes";
 export type { ProjectScenesProps, ProjectHotspotEvent, ProjectCustomActionEvent, ProjectHotspotClickEvent, ProjectHotspotRenderContext, ProjectHotspotErrorEvent, ProjectPopupRequestEvent } from "./project-scenes";

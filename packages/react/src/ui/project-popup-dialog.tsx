@@ -35,7 +35,7 @@ function PopupMedia({ block, label, onError }: {
     : <audio {...props} ref={(node) => { ref.current = node; }} aria-label={label} />;
 }
 
-/** Render in PanoViewer.renderOverlay; the host owns selection and may replace this UI. */
+/** Render inside PanoOverlay; the host owns selection and may replace this UI. */
 export function ProjectPopupDialog({ popup, onOpenChange, closeLabel, onMediaError }: ProjectPopupDialogProps) {
   return <PanoDialog open={popup !== null} onOpenChange={onOpenChange} title={popup?.title || popup?.id || ""} closeLabel={closeLabel}>
     {popup ? <div className="pano-project-popup" key={popup.id}>

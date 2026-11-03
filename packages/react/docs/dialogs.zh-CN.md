@@ -22,9 +22,9 @@
 
 | 需求 | 推荐方式 | 应用负责 |
 | --- | --- | --- |
-| 直接使用弹窗，仅调整主题 | `PanoDialog` + CSS 变量 | 打开状态和内容 |
-| 自定义标题栏、关闭按钮、底部操作或布局 | 组合 `PanoDialog*` 组件 | 结构、样式和内容 |
-| 已有 Dialog 或设计系统 | `renderOverlay` + `usePanoOverlay` + `usePanoModal` | 弹窗实现、无障碍行为和样式 |
+| 直接使用弹窗，仅调整主题 | `PanoOverlay` + `PanoDialog` + CSS 变量 | 打开状态和内容 |
+| 自定义标题栏、关闭按钮、底部操作或布局 | `PanoOverlay` + 组合 `PanoDialog*` 组件 | 结构、样式和内容 |
+| 已有 Dialog 或设计系统 | `PanoOverlay` + `usePanoOverlay` + `usePanoModal` | 弹窗实现、无障碍行为和样式 |
 
 默认弹窗与组成组件负责焦点、遮罩关闭、Escape 和 viewer 输入锁。第三方弹窗保留自己的无障碍行为；`usePanoModal` 只协调 viewer 输入。以上方式均不要求修改热点定义或项目 JSON。
 
@@ -36,8 +36,10 @@
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
+  usePanoOverlay,
   usePanoViewer,
   type LoadedPanoProject,
   type ProjectHotspotDefinition,
@@ -46,6 +48,19 @@ import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 import "./tour.css";
+
+function FullscreenButton({ onToggle }: { onToggle: () => void }) {
+  const { isFullscreen } = usePanoOverlay();
+  return (
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={onToggle}
+    >
+      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+    </button>
+  );
+}
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const viewer = usePanoViewer();
@@ -56,26 +71,6 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
       ref={viewer.ref}
       className="my-tour"
       style={{ height: 560 }}
-      renderOverlay={({ isFullscreen }) => (
-        <>
-          <button
-            type="button"
-            style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
-            onClick={() => void viewer.toggleFullscreen()}
-          >
-            {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          </button>
-          <PanoDialog
-            open={selected !== null}
-            onOpenChange={(open) => { if (!open) setSelected(null); }}
-            title={selected?.label ?? "Details"}
-            description="Discover more about this place."
-            closeLabel="Close details"
-          >
-            {selected ? <p key={selected.id}>Content for {selected.label ?? selected.id}</p> : null}
-          </PanoDialog>
-        </>
-      )}
     >
       <ProjectScenes
         project={project}
@@ -86,6 +81,18 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
         }}
         onActiveSceneIdChange={() => setSelected(null)}
       />
+      <PanoOverlay>
+        <FullscreenButton onToggle={() => void viewer.toggleFullscreen()} />
+        <PanoDialog
+          open={selected !== null}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          title={selected?.label ?? "Details"}
+          description="Discover more about this place."
+          closeLabel="Close details"
+        >
+          {selected ? <p key={selected.id}>Content for {selected.label ?? selected.id}</p> : null}
+        </PanoDialog>
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -93,7 +100,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 传入已加载的项目，并在项目中准备一个 ID 为 `details` 的热点；`loadPanoProject` 用法见[静态项目与 JSON 数据](../README.zh-CN.md#静态项目与-json-数据)。按自己的内容映射调整选中条件。只有应用接管点击时才调用 `preventDefault()`；其他热点继续使用默认的场景跳转或媒体播放。示例显式选择在切换场景时关闭弹窗，库本身不强制这种业务策略。
 
-`PanoViewer.children` 是 Three.js 场景树。普通 DOM 弹窗放在 `renderOverlay` 中，不要与 `Sphere`、`ProjectScenes` 并列放进场景树。全屏变化时保持返回的组件树稳定；以全屏状态作为 key 会重置内容。
+`PanoViewer` 的场景子节点留在 Three.js 树中。普通 DOM 弹窗放在 `PanoOverlay` 里，不要作为会进入场景树的裸兄弟节点与 `Sphere`、`ProjectScenes` 并列。全屏变化时保持 overlay 树稳定；以全屏状态作为 key 会重置内容。
 
 多个热点的接入请继续看[下方完整映射示例](#choose-content-by-hotspot)：一个弹窗复用五份内容，并提供对应的项目 JSON。
 
@@ -120,6 +127,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   type LoadedPanoProject,
@@ -199,15 +207,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
   const contentKey = selected ? JSON.stringify([selected.sceneId, selected.hotspotId]) : "closed";
 
   return (
-    <PanoViewer style={{ height: 560 }} renderOverlay={() => (
-      <PanoDialog
-        open={popup !== undefined}
-        onOpenChange={(open) => { if (!open) setSelected(null); }}
-        title={popup?.title ?? "Hotspot content"}
-      >
-        {popup ? <div key={contentKey}>{popup.body}</div> : null}
-      </PanoDialog>
-    )}>
+    <PanoViewer style={{ height: 560 }}>
       <ProjectScenes
         project={project}
         onHotspotClick={(event) => {
@@ -218,6 +218,15 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
         }}
         onActiveSceneIdChange={() => setSelected(null)}
       />
+      <PanoOverlay>
+        <PanoDialog
+          open={popup !== undefined}
+          onOpenChange={(open) => { if (!open) setSelected(null); }}
+          title={popup?.title ?? "Hotspot content"}
+        >
+          {popup ? <div key={contentKey}>{popup.body}</div> : null}
+        </PanoDialog>
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -340,7 +349,7 @@ const style: CSSProperties & { "--pano-dialog-width": string } = {
   borderRadius: 8,
 };
 
-// Render this component inside PanoViewer.renderOverlay.
+// Render this component inside PanoOverlay.
 export function StyledDialog(props: PanoDialogProps) {
   return <PanoDialog {...props} className="my-dialog" style={style} />;
 }
@@ -361,7 +370,7 @@ export function StyledDialog(props: PanoDialogProps) {
 <a id="compose-a-different-layout"></a>
 ## 组合自己的布局
 
-需要底部操作、不同的关闭控件或完全控制内容结构时，使用组成组件。下面示例提供自己的视觉样式，不需要 `ui/styles.css`。从 `renderOverlay` 返回 `CustomLayoutDialog`，传入打开状态和内容即可。
+需要底部操作、不同的关闭控件或完全控制内容结构时，使用组成组件。下面示例提供自己的视觉样式，不需要 `ui/styles.css`。在 `PanoOverlay` 中渲染 `CustomLayoutDialog`，传入打开状态和内容即可。
 
 ```tsx
 import type { ReactNode } from "react";
@@ -426,7 +435,7 @@ Root 已经获取 viewer 模态锁，不要再为它调用 `usePanoModal`。Back
 <a id="use-an-existing-dialog"></a>
 ## 接入已有 Dialog
 
-viewer 不强制应用使用可选 UI 组件。第三方接入需要连接三件事：本地 Portal 容器、测量布局与 viewer 输入协调。下面以 Radix 为例，组件应从 `renderOverlay` 渲染。应用直接导入 `@radix-ui/react-dialog` 时，需要将它安装为自己的直接依赖。
+viewer 不强制应用使用可选 UI 组件。第三方接入需要连接三件事：本地 Portal 容器、测量布局与 viewer 输入协调。下面以 Radix 为例，组件应在 `PanoOverlay` 中渲染。应用直接导入 `@radix-ui/react-dialog` 时，需要将它安装为自己的直接依赖。
 
 ```tsx
 import { useRef, useState, type ReactNode } from "react";
@@ -490,9 +499,9 @@ export function ExistingDialog({ open, onOpenChange, children }: {
 }
 ```
 
-等待容器非 null 后再创建 Portal；viewer 挂载期间也不能让第三方 Portal 回退到 `document.body`。已有 MUI、Ant Design、shadcn 或其他封装，需要能配置等价的挂载目标；按实际暴露的 Portal API 适配。仅将组件放进 `renderOverlay`，不会自动修复它内部写死的 body Portal。
+等待容器非 null 后再创建 Portal；viewer 挂载期间也不能让第三方 Portal 回退到 `document.body`。已有 MUI、Ant Design、shadcn 或其他封装，需要能配置等价的挂载目标；按实际暴露的 Portal API 适配。仅将组件放进 `PanoOverlay`，不会自动修复它内部写死的 body Portal。
 
-`usePanoModal(open)` 暂停 viewer 输入与自动旋转，让背景 viewer 界面 inert 并关闭其右键菜单。它不会为第三方弹窗提供焦点约束、无障碍名称、关闭控件或页面滚动管理。锁按 viewer 隔离、引用计数；关闭弹窗不会释放其他弹窗或转场持有的锁。hook 应在子组件中无条件调用，不要直接写在 `renderOverlay` 回调中。
+`usePanoModal(open)` 暂停 viewer 输入与自动旋转，让背景 viewer 界面 inert 并关闭其右键菜单。它不会为第三方弹窗提供焦点约束、无障碍名称、关闭控件或页面滚动管理。锁按 viewer 隔离、引用计数；关闭弹窗不会释放其他弹窗或转场持有的锁。hook 应在 `PanoOverlay` 下的子组件中无条件调用，不要写在 `PanoViewer` 的父组件里。
 
 <a id="nested-portals"></a>
 ## 二级 Portal
@@ -574,7 +583,8 @@ export function DialogHelp() {
 
 | API | 约定 |
 | --- | --- |
-| `PanoViewer.renderOverlay(context)` | 返回 Canvas 之外的 DOM React 内容；不是调用 hook 的位置 |
+| `PanoOverlay` | 推荐的屏幕平面包裹；作为 `PanoViewer` 的直接子节点（或其下 Fragment 内） |
+| `PanoViewer.renderOverlay(context)` | 可选的回调式 DOM 内容，位于 Canvas 之外；不是调用 hook 的位置 |
 | `usePanoOverlay()` | 为 DOM 后代提供相同 context；在 Overlay provider 外调用会抛错 |
 | `usePanoModal(open)` | 获取/释放当前 viewer 的模态输入锁，无返回值 |
 | `PanoOverlayPortalProvider` | 必填 `container: HTMLDivElement \| null`、`children`；只覆盖后代的 Portal 目标 |
@@ -599,8 +609,8 @@ export function DialogHelp() {
 | 不导入默认样式仍然有定位 | 结构定位、尺寸和指针行为按设计使用内联样式。省略 `ui/styles.css` 后提供自己的外观；完全控制 DOM 时接入自己的 Dialog。 |
 | 长内容把关闭按钮挤走 | 组成布局中，header/footer 设置 `flex-shrink: 0`，body 设置 `min-height: 0; overflow: auto`，并保持 Content 的测量尺寸约束。 |
 | 切换全屏后视频/表单重置 | 移除依赖全屏状态的 key、容器切换、不同弹窗实现间的条件切换，以及在 render 回调内定义的组件函数。 |
-| 自定义弹窗后面的全景仍会移动 | 在 `renderOverlay` 下的自定义组件中调用 `usePanoModal(open)`；默认/组成组件的 Root 已经处理。 |
+| 自定义弹窗后面的全景仍会移动 | 在 `PanoOverlay` 下的自定义组件中调用 `usePanoModal(open)`；默认/组成组件的 Root 已经处理。 |
 | 二级 Popover 被隐藏或不可点击 | 使用 `usePanoOverlay()` 返回的 Content 内部容器，并在实际面板上开启 pointer events。 |
-| hook 提示缺少 provider | 从 `renderOverlay` 返回自定义 DOM 组件；不要在 `PanoViewer` 的父组件或回调本身调用 Overlay hook。 |
+| hook 提示缺少 provider | 把自定义 DOM 组件放在 `PanoOverlay` 内；不要在 `PanoViewer` 的父组件调用 Overlay hook。 |
 
 接入时应确认普通模式与真实元素全屏、viewer 部分滚出屏幕、键盘开关与焦点恢复、长内容、二级 Portal、媒体清理及目标 Safari/移动设备的表现。最大化浏览器窗口不能替代 Fullscreen API 验证。

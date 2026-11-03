@@ -230,17 +230,18 @@ Store this content structure in `project.json`; store media as separate files. P
 
 ```tsx
 import { useState } from "react";
-import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { PanoOverlay, PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
-  return <PanoViewer renderOverlay={() => (
-    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
-  )}>
+  return <PanoViewer>
     <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
       onActiveSceneIdChange={() => setPopup(null)} />
+    <PanoOverlay>
+      <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+    </PanoOverlay>
   </PanoViewer>;
 }
 ```
@@ -299,32 +300,35 @@ The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, 
 
 #### Mounting `PanoMapOverlay`
 
-Mount it from `PanoViewer.renderOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
+Mount it inside `PanoOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
 
 `PanoMap` also accepts controlled selection and collapse: `selectedSpotId` / `onSelectedSpotIdChange` (internal selection defaults to `null`); `collapsed` / `onCollapsedChange` (uncontrolled starts expanded); `renderChrome` to draw host controls above the surface. `showZoomControls` / `showCollapseControl` work on `PanoMap` the same way as on the overlay. `className` / `style` attach to the surface root.
 
 ```tsx
 import { useState } from "react";
 import {
-  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+  PanoOverlay, PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
   const map = project.map;
-  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
-    <PanoMapOverlay
-      map={map}
-      activeSceneId={activeSceneId}
-      onSelectScene={setActiveSceneId}
-    />
-  ) : undefined}>
+  return <PanoViewer style={{ height: 600 }}>
     <ProjectScenes
       project={project}
       activeSceneId={activeSceneId}
       onActiveSceneIdChange={setActiveSceneId}
     />
+    {map ? (
+      <PanoOverlay>
+        <PanoMapOverlay
+          map={map}
+          activeSceneId={activeSceneId}
+          onSelectScene={setActiveSceneId}
+        />
+      </PanoOverlay>
+    ) : null}
   </PanoViewer>;
 }
 ```
@@ -679,14 +683,15 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 ### Events and chrome
 
 - [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
+- [`PanoOverlay`](#dom-overlays-and-dialogs) — screen-plane DOM wrapper for fullscreen-safe UI
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
-- [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `renderOverlay`
+- [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `PanoOverlay`
 - [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
 
 ### Floor plan
 
 - [`PanoMap`](#floor-plan-maps) — floor image, scene spots, and the yaw-linked sector
-- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `renderOverlay`
+- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `PanoOverlay`
 
 ### Hotspots
 
@@ -711,7 +716,25 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 ## DOM overlays and dialogs
 
-Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. Call `usePanoOverlay()` inside the `renderOverlay` subtree to get `portalContainer`, `size` (viewer width/height), `visibleRect`, and `isFullscreen`. `usePanoModal(open)` holds that viewer's modal lock while `open === true` (pauses input and auto-rotate, marks the backdrop inert, closes the context menu); it does not trap focus. `PanoOverlayPortalProvider` takes a required `container` and `children` and only remaps `portalContainer` for descendants; `size` / `visibleRect` still describe the whole viewer. Field meanings, reference counting, and third-party Dialog wiring live in the separate **[Dialog and styling guide](./docs/dialogs.md)**. The optional `/ui` entry provides `PanoDialog` and composable parts. The guide ships in the npm package; run `pnpm dev` and open `/overlays` for local examples.
+Prefer `PanoOverlay` for ordinary DOM UI outside the Three.js tree. It mounts on the viewer plane inside the fullscreen root, so chrome stays visible when the viewer goes fullscreen. Place it as a direct child of `PanoViewer` (or inside a Fragment under it) beside scene content. `renderOverlay` remains supported for callback-style mounts.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <Sphere src="/pano.jpg" />
+  <PanoOverlay>
+    <PanoSceneMenu items={items} activeId={id} onSelect={setId} />
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={() => void viewer.toggleFullscreen()}
+    >
+      Fullscreen
+    </button>
+  </PanoOverlay>
+</PanoViewer>
+```
+
+The overlay layer is `position: absolute; inset: 0; pointer-events: none`. Position children yourself and set `pointerEvents: "auto"` on interactive nodes. When both are used, `renderOverlay` renders first and each `PanoOverlay` follows in document order. Call `usePanoOverlay()` inside `PanoOverlay` (or `renderOverlay`) to get `portalContainer`, `size` (viewer width/height), `visibleRect`, and `isFullscreen`. `usePanoModal(open)` holds that viewer's modal lock while `open === true` (pauses input and auto-rotate, marks the backdrop inert, closes the context menu); it does not trap focus. `PanoOverlayPortalProvider` takes a required `container` and `children` and only remaps `portalContainer` for descendants; `size` / `visibleRect` still describe the whole viewer. Field meanings, reference counting, and third-party Dialog wiring live in the separate **[Dialog and styling guide](./docs/dialogs.md)**. The optional `/ui` entry provides `PanoDialog` and composable parts. The guide ships in the npm package; run `pnpm dev` and open `/overlays` for local examples.
 
 ### Default dialog
 
@@ -814,7 +837,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 - `cursors` — `true` / omit uses grab / grabbing / pointer / move; `false` leaves the canvas cursor unchanged; an object overrides those four states.
 - `contextMenu` — `true` / omit mounts Reset view + Fullscreen; `false` skips the default menu; an object can change appearance or `items` / `prepend` / `append`. See [PanoContextMenu](#panocontextmenu).
 - `mediaActivation` — enabled by default when a mounted child intends to play; `false` disables automatic activation.
-- `renderOverlay` — DOM UI outside the Three.js tree and inside fullscreen; the callback receives `portalContainer`, `size`, `visibleRect`, and `isFullscreen`.
+- `renderOverlay` — optional callback-style DOM UI outside the Three.js tree and inside fullscreen; the callback receives `portalContainer`, `size`, `visibleRect`, and `isFullscreen`. Prefer `<PanoOverlay>` as a child.
 - `onViewChange` — `{ yaw, pitch, fov }` in degrees.
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — panorama pointer events with `position` (yaw / pitch), `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
 - Other standard `div` props (`className`, `style`, `id`, …) are accepted; conflicting `onChange` and `contextMenu` are omitted from the type.
@@ -1474,8 +1497,8 @@ Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source compon
 ## PanoSceneMenu
 
 `PanoSceneMenu` is a scrollable thumbnail strip for switching scenes. Mount it
-from `PanoViewer.renderOverlay` so it stays inside the viewer (including
-fullscreen). Import `@ericchen1990/pano-view/styles.css` for the default layout.
+inside `PanoOverlay` so it stays inside the viewer (including fullscreen).
+Import `@ericchen1990/pano-view/styles.css` for the default layout.
 
 The menu is host-driven: you pass `items`, `activeId`, and `onSelect`. It does
 not read `Scenes` state or scene `previewUrl`. Cube `previewUrl` values are
@@ -1489,6 +1512,7 @@ Keep one controlled scene id and share it with `Scenes`:
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoSceneMenu,
   PanoViewer,
   Scenes,
@@ -1513,21 +1537,19 @@ export function Tour() {
   const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
-    <PanoViewer
-      style={{ height: 560 }}
-      renderOverlay={() => (
-        <PanoSceneMenu
-          activeId={activeSceneId}
-          items={menuItems}
-          onSelect={setActiveSceneId}
-        />
-      )}
-    >
+    <PanoViewer style={{ height: 560 }}>
       <Scenes
         scenes={scenes}
         activeSceneId={activeSceneId}
         onActiveSceneIdChange={setActiveSceneId}
       />
+      <PanoOverlay>
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      </PanoOverlay>
     </PanoViewer>
   );
 }

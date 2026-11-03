@@ -2,6 +2,7 @@ import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { useEffect, useState } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   PanoDataError,
@@ -23,6 +24,7 @@ import { cn } from "../../cn";
 
 const PROJECT_SNIPPET = `import { useEffect, useState } from "react";
 import {
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   loadPanoProject,
@@ -54,17 +56,7 @@ export function Tour() {
   if (!project) return <p role="status">Loading tour…</p>;
 
   return (
-    <PanoViewer
-      style={{ height: 560 }}
-      renderOverlay={() => (
-        <ProjectPopupDialog
-          popup={popup}
-          onOpenChange={(open) => {
-            if (!open) setPopup(null);
-          }}
-        />
-      )}
-    >
+    <PanoViewer style={{ height: 560 }}>
       <ProjectScenes
         project={project}
         activeSceneId={activeSceneId}
@@ -75,6 +67,14 @@ export function Tour() {
         onPopupRequest={({ popup }) => setPopup(popup)}
         transition="dissolve"
       />
+      <PanoOverlay>
+        <ProjectPopupDialog
+          popup={popup}
+          onOpenChange={(open) => {
+            if (!open) setPopup(null);
+          }}
+        />
+      </PanoOverlay>
     </PanoViewer>
   );
 }`;
@@ -149,7 +149,7 @@ export function ProjectPage() {
                 </button>
               ))}
             </div>
-            <PanoViewer style={{ height: 560 }} renderOverlay={() => <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />} >
+            <PanoViewer style={{ height: 560 }}>
               <ProjectScenes
                 project={project}
                 activeSceneId={activeSceneId}
@@ -169,6 +169,9 @@ export function ProjectPage() {
                   )
                 }
               />
+              <PanoOverlay>
+                <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+              </PanoOverlay>
             </PanoViewer>
           </>
         ) : null}
