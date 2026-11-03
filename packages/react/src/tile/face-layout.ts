@@ -1,6 +1,7 @@
 import {
   Box3,
   Euler,
+  MathUtils,
   Quaternion,
   Vector3,
 } from "three";
@@ -126,6 +127,19 @@ export function tileKey(address: TileAddress): string {
   return `${address.level}/${address.face}/${address.row}/${address.col}`;
 }
 
+/** Pixels from the screen center to the view edge along the vertical axis. */
+function centerFocalLength(
+  viewportHeight: number,
+  pixelRatio: number,
+  verticalFov: number,
+): number {
+  const fov = Math.min(179, Math.max(1, verticalFov));
+  return (
+    (viewportHeight * pixelRatio * 0.5) /
+    Math.tan(MathUtils.degToRad(fov) * 0.5)
+  );
+}
+
 export function getPreferredLevel(
   levels: number[],
   viewportHeight: number,
@@ -133,8 +147,10 @@ export function getPreferredLevel(
   verticalFov: number,
   currentLevel: number,
 ): number {
+  // A cube face is 90°, so twice the focal length keeps the screen center near
+  // one texel per pixel. That center is the first place a wide view minifies.
   const requiredFaceSize =
-    viewportHeight * pixelRatio * (90 / Math.max(verticalFov, 1));
+    centerFocalLength(viewportHeight, pixelRatio, verticalFov) * 2;
   let preferredLevel = levels.length;
   for (let index = 0; index < levels.length; index += 1) {
     if (levels[index]! >= requiredFaceSize) {

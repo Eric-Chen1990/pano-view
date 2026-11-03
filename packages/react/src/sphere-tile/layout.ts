@@ -185,13 +185,28 @@ export function sphereTileGeometry(
   return geometry;
 }
 
+/** Pixels from the screen center to the view edge along the vertical axis. */
+function centerFocalLength(
+  viewportHeight: number,
+  pixelRatio: number,
+  verticalFov: number,
+): number {
+  const fov = Math.min(179, Math.max(1, verticalFov));
+  return (
+    (viewportHeight * pixelRatio * 0.5) /
+    Math.tan(MathUtils.degToRad(fov) * 0.5)
+  );
+}
+
 export function preferredSphereLevel(
   levels: SphereTileLevel[],
   height: number,
   dpr: number,
   verticalFov: number,
 ): number {
-  const needed = (height * dpr * 180) / Math.max(1, verticalFov);
+  // Equirectangular height spans π radians. Size the level for the screen
+  // center, which a wide perspective view minifies more than the edges.
+  const needed = centerFocalLength(height, dpr, verticalFov) * Math.PI;
   const index = levels.findIndex((level) => level.height >= needed);
   return index < 0 ? levels.length - 1 : index;
 }

@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ClampToEdgeWrapping,
-  LinearFilter,
-  SRGBColorSpace,
-  Texture,
-  TextureLoader,
-} from "three";
+import { Texture, TextureLoader } from "three";
 import type { TextureEntrySnapshot } from "./types";
-import type { TileTextureManager } from "./texture-manager";
+import {
+  configureMipmappedTexture,
+  type TileTextureManager,
+} from "./texture-manager";
 
 export function usePreviewTexture(
   url: string | null,
@@ -34,14 +31,7 @@ export function usePreviewTexture(
           loadedTexture.dispose();
           return;
         }
-        loadedTexture.colorSpace = SRGBColorSpace;
-        loadedTexture.wrapS = ClampToEdgeWrapping;
-        loadedTexture.wrapT = ClampToEdgeWrapping;
-        loadedTexture.magFilter = LinearFilter;
-        loadedTexture.minFilter = LinearFilter;
-        loadedTexture.generateMipmaps = false;
-        loadedTexture.anisotropy = Math.min(4, anisotropy);
-        loadedTexture.needsUpdate = true;
+        configureMipmappedTexture(loadedTexture, anisotropy);
         setTexture(loadedTexture);
       },
       undefined,
