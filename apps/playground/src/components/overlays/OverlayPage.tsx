@@ -1,24 +1,51 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import * as Dialog from "@radix-ui/react-dialog";
 import {
-  AutoRotate, PanoOverlay, PanoViewer, ProjectScenes, PanoOverlayPortalProvider, loadPanoProject, usePanoModal, usePanoOverlay, usePanoViewer,
+  AutoRotate, PanoOverlay, PanoViewer, ProjectScenes, loadPanoProject, usePanoOverlay, usePanoViewer,
   type LoadedPanoProject, type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
-import {
-  PanoDialog, PanoDialogRoot, PanoDialogBackdrop, PanoDialogContent, PanoDialogTitle,
-  PanoDialogDescription, PanoDialogClose,
-} from "@ericchen1990/pano-view/ui";
+import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { CodeSnippet } from "../CodeSnippet";
+import { ComposedHotspotDialog } from "./composed-dialog-example";
+import composedDialogCode from "./composed-dialog-example.tsx?raw";
 import { POPUPS_BY_SCENE, type PopupSelection } from "./multi-hotspot-example";
 import multiHotspotCode from "./multi-hotspot-example.tsx?raw";
+import { ThirdPartyDialog } from "./third-party-dialog-example";
+import thirdPartyDialogCode from "./third-party-dialog-example.tsx?raw";
 import { cn } from "../../cn";
 import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName, viewerChromeButtonClassName } from "../../ui";
 
 type DialogMode = "default" | "composed" | "custom";
+
+function dialogSnippet(mode: DialogMode): { label: string; blurb: string; code: string } {
+  switch (mode) {
+    case "default":
+      return {
+        label: "Multiple hotspots → one dialog",
+        blurb: "Look up content by scene ID and hotspot ID, then update the shared dialog’s title and body. The full example below is also used by this demo.",
+        code: multiHotspotCode,
+      };
+    case "composed":
+      return {
+        label: "Compose parts",
+        blurb: "The header, orange border, and backdrop are assembled from dialog parts. Positioning and the modal lock stay inside those parts. Default dialog shows the shared hotspot-to-content example.",
+        code: composedDialogCode,
+      };
+    case "custom":
+      return {
+        label: "Third-party dialog",
+        blurb: "Radix Dialog is portaled into the viewer, positioned from visibleRect, and holds the viewer modal lock while open. Default dialog shows the shared hotspot-to-content example.",
+        code: thirdPartyDialogCode,
+      };
+    default: {
+      const exhaustive: never = mode;
+      throw new Error(`Unhandled dialog mode: ${String(exhaustive)}`);
+    }
+  }
+}
 
 function NestedTooltip() {
   const { portalContainer } = usePanoOverlay();
@@ -37,37 +64,6 @@ function NestedTooltip() {
   </>;
 }
 
-function CustomDialog({ open, onOpenChange, title, children }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode }) {
-  const { portalContainer, visibleRect } = usePanoOverlay();
-  const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
-  const restoreFocus = useRef<HTMLElement | null>(null);
-  usePanoModal(open);
-  return <Dialog.Root open={open} onOpenChange={onOpenChange}>
-    {portalContainer ? <Dialog.Portal container={portalContainer}>
-      <Dialog.Overlay className="absolute inset-0 bg-black/70" style={{ pointerEvents: "auto" }} />
-      <Dialog.Content
-        aria-describedby={undefined}
-        className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border-2 border-cyan-300 bg-slate-950 text-slate-100"
-        style={{ left: visibleRect.left + visibleRect.width / 2, top: visibleRect.top + visibleRect.height / 2, width: Math.min(720, Math.max(0, visibleRect.width - 32)), maxHeight: Math.max(0, visibleRect.height - 32), pointerEvents: "auto" }}
-        onOpenAutoFocus={() => { restoreFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          const target = restoreFocus.current?.isConnected ? restoreFocus.current : portalContainer.closest("[data-pano-viewer]")?.querySelector("canvas");
-          target?.focus({ preventScroll: true });
-        }}>
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-cyan-300 p-4">
-          <Dialog.Title className="m-0 text-lg">{title}</Dialog.Title>
-          <Dialog.Close className={segmentedButtonClassName}>Close</Dialog.Close>
-        </header>
-        <PanoOverlayPortalProvider container={nestedContainer}>
-          <div className="min-h-0 overflow-auto p-4">{children}</div>
-        </PanoOverlayPortalProvider>
-        <div ref={setNestedContainer} data-custom-dialog-portals="" className="pointer-events-none absolute inset-0 z-10" />
-      </Dialog.Content>
-    </Dialog.Portal> : null}
-  </Dialog.Root>;
-}
-
 function OverlayDialogs({ mode, selected, onClose }: { mode: DialogMode; selected: PopupSelection | null; onClose: () => void }) {
   const popup = selected ? POPUPS_BY_SCENE[selected.sceneId]?.[selected.hotspotId] : undefined;
   const open = popup !== undefined;
@@ -77,20 +73,8 @@ function OverlayDialogs({ mode, selected, onClose }: { mode: DialogMode; selecte
     {popup.kind === "article" ? <NestedTooltip /> : null}
   </div> : null;
   const onOpenChange = (next: boolean) => { if (!next) onClose(); };
-  if (mode === "custom") return <CustomDialog open={open} onOpenChange={onOpenChange} title={title}>
-    {content}
-  </CustomDialog>;
-  if (mode === "composed") return <PanoDialogRoot open={open} onOpenChange={onOpenChange}>
-    <PanoDialogBackdrop style={{ background: "rgb(8 25 29 / 85%)" }} />
-    <PanoDialogContent style={{ borderRadius: 0, border: "2px solid #df6b42", overflow: "hidden" }}>
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-orange-400 p-4">
-        <div><PanoDialogTitle className="m-0 text-xl">{title}</PanoDialogTitle>
-          <PanoDialogDescription className="m-0 text-sm text-slate-300">A custom header built from dialog parts.</PanoDialogDescription></div>
-        <PanoDialogClose className={segmentedButtonClassName}>Close</PanoDialogClose>
-      </header>
-      <div className="min-h-0 overflow-auto p-4">{content}</div>
-    </PanoDialogContent>
-  </PanoDialogRoot>;
+  if (mode === "custom") return <ThirdPartyDialog open={open} onOpenChange={onOpenChange} title={title}>{content}</ThirdPartyDialog>;
+  if (mode === "composed") return <ComposedHotspotDialog open={open} onOpenChange={onOpenChange} title={title}>{content}</ComposedHotspotDialog>;
   return <PanoDialog open={open} onOpenChange={onOpenChange} title={title} description="Explore this hotspot without leaving the panorama.">{content}</PanoDialog>;
 }
 
@@ -199,8 +183,7 @@ export function OverlayPage() {
           <tbody>{Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([id, popup]) => popup ? <tr key={id} className="border-t border-[#244047]"><td className="p-2 font-mono">{id}</td><td className="p-2">{popup.kind}</td><td className="p-2">{popup.title}</td></tr> : null)}</tbody>
         </table>
       </section>
-      <CodeSnippet label="Multiple hotspots → one dialog" blurb="Look up content by scene ID and hotspot ID, then update the shared dialog’s title and body. The full example below is also used by this demo."
-        code={multiHotspotCode} />
+      <CodeSnippet key={mode} {...dialogSnippet(mode)} />
     </section>
     <SiteFooter label="@ericchen1990/pano-view · overlays" />
   </main>;

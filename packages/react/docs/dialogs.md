@@ -122,7 +122,7 @@ The registry below contains two different articles, a video, a gallery and an if
 | `entrance` | `guide` | iframe | Courtyard guide |
 | `hall` | `story` | article | Hall story |
 
-The complete source defines every content component, the registry, selection state and click handler. It is also the source displayed in the `/overlays` playground. Save it as `multi-hotspot-example.tsx`, pass a loaded project as `project`, and replace the `/fixtures/...` URLs with your own assets outside this repository.
+The complete source defines every content component, the registry, selection state and click handler. On `/overlays`, Default dialog shows this file; Compose parts and Third-party dialog switch the sample to their own dialog shells. Save it as `multi-hotspot-example.tsx`, pass a loaded project as `project`, and replace the `/fixtures/...` URLs with your own assets outside this repository.
 
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";

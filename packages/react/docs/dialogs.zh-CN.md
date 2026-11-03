@@ -122,7 +122,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 | `entrance` | `guide` | iframe | Courtyard guide |
 | `hall` | `story` | article | Hall story |
 
-下面是完整源码，包含所有内容组件、映射、选中状态和点击处理，也是 `/overlays` 页面展示的代码。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
+下面是完整源码，包含所有内容组件、映射、选中状态和点击处理。`/overlays` 页的 Default dialog 展示这份源码；Compose parts 与 Third-party dialog 会换成各自的弹窗示例。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
 
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
