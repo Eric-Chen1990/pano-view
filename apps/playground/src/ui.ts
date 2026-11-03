@@ -27,8 +27,12 @@ export const pageHeadingStatusClassName =
 export const pageControlsClassName =
   "flex flex-wrap items-end gap-4 border-b border-[#244047] px-6 py-4";
 
-export const segmentedButtonClassName =
-  "inline-flex min-h-9 items-center justify-center border border-[#3e6c73] bg-transparent px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
+const segmentedButtonLayoutClassName =
+  "inline-flex min-h-9 items-center justify-center border border-[#3e6c73] px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
+
+export const segmentedButtonClassName = `${segmentedButtonLayoutClassName} bg-transparent`;
+
+export const viewerChromeButtonClassName = `${segmentedButtonLayoutClassName} bg-[#081619]/75`;
 
 export const segmentedButtonActiveClassName =
   "border-[#df6b42] bg-[#df6b42] text-white";

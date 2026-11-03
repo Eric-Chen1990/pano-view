@@ -16,7 +16,7 @@ import { CodeSnippet } from "../CodeSnippet";
 import { POPUPS_BY_SCENE, type PopupSelection } from "./multi-hotspot-example";
 import multiHotspotCode from "./multi-hotspot-example.tsx?raw";
 import { cn } from "../../cn";
-import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName } from "../../ui";
+import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName, viewerChromeButtonClassName } from "../../ui";
 
 type DialogMode = "default" | "composed" | "custom";
 
@@ -116,9 +116,9 @@ function OverlayChrome({
   const { isFullscreen } = usePanoOverlay();
   return <>
     <div className="absolute right-4 bottom-4 left-4 flex flex-wrap justify-center gap-2" style={{ pointerEvents: "auto" }}>
-      {Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([hotspotId, popup]) => popup ? <button type="button" className={segmentedButtonClassName} key={hotspotId} onClick={() => onSelect({ sceneId: activeSceneId, hotspotId })}>Open {popup.title}</button> : null)}
-      <button type="button" className={segmentedButtonClassName} onClick={toggleFullscreen}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
-      <button type="button" className={segmentedButtonClassName} disabled={!projectReady} onClick={onNextScene}>Next scene</button>
+      {Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([hotspotId, popup]) => popup ? <button type="button" className={viewerChromeButtonClassName} key={hotspotId} onClick={() => onSelect({ sceneId: activeSceneId, hotspotId })}>Open {popup.title}</button> : null)}
+      <button type="button" className={viewerChromeButtonClassName} onClick={toggleFullscreen}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
+      <button type="button" className={viewerChromeButtonClassName} disabled={!projectReady} onClick={onNextScene}>Next scene</button>
     </div>
     <OverlayDialogs mode={mode} selected={selected} onClose={onClose} />
   </>;
