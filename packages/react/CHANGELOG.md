@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 3.10.0
+
+### Minor Changes
+
+- 1cb8c99: Add `PanoOverlay` so screen-plane UI can sit beside scene children and stay visible in fullscreen.
+- 57eae1b: Extend WebVR with Cardboard tray lens centering, MobileVR gyro options (`absolute`, `north`, `friction`, `touchSupport`), WebXR quality controls (`oversampling`, `foveation`, `frameRate`), and `resetSettings`.
+- d6614ec: Add Cardboard DPDB auto screen-size lookup for MobileVR, fade session Exit/Setup chrome after idle, and expose reactive `getVRState` / `subscribeVR` so hosts own the Enter VR button (built-in Enter control removed).
+
+### Patch Changes
+
+- 7ba6105: Filter cube and equirectangular tiles with mipmaps, and choose a level that keeps the left and right edges of a wide view near one texel per pixel. Mipmaps still anti-alias the minified center.
+
 ## 3.9.0
 
 ### Minor Changes
