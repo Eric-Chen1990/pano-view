@@ -18,10 +18,18 @@ export type WebVRProfile = {
   ipdMm: number;
   /** Distance from the display to the headset lens, in millimetres. */
   screenToLensMm?: number;
+  /**
+   * Distance from the headset tray bottom to the lens center, in millimetres.
+   * `0` or omitted keeps the optical axis on the vertical screen center.
+   */
+  trayDistanceMm?: number;
   /** Radial lens distortion coefficients. Zero disables distortion. */
   k1: number;
   k2: number;
 };
+
+/** Target WebXR session refresh rate. Omitting keeps the store default (`"high"`). */
+export type WebVRFrameRate = "low" | "mid" | "high" | number;
 
 export type WebVRChromeAppearance = {
   background?: CSSProperties["background"];
@@ -63,6 +71,38 @@ export type WebVRProps = {
   databaseUrl?: string | null;
   /** Headset preset or a custom lens profile. */
   profile?: WebVRProfileId | WebVRProfile;
+  /**
+   * Follow compass-oriented headings in MobileVR. Defaults to false.
+   * Has no effect in WebXR sessions.
+   */
+  absolute?: boolean;
+  /** Panorama yaw that represents North when `absolute` is enabled. Defaults to 0. */
+  north?: number;
+  /**
+   * Gyro smoothing from 0 (none) to 0.99 (strong). Defaults to 0.
+   * Keep at 0 for normal viewing.
+   */
+  friction?: number;
+  /**
+   * Allow horizontal touch dragging to correct MobileVR heading. Defaults to
+   * false because headset trays can trigger false touches.
+   */
+  touchSupport?: boolean;
+  /**
+   * Distortion / WebXR framebuffer scale factor. Defaults to 1. Clamped to
+   * 0.5–2. Must be set before entering WebXR (cannot change mid-session).
+   */
+  oversampling?: number;
+  /**
+   * WebXR fixed foveation in the range 0–1. Omit to keep the device default.
+   * `0` is full resolution; `1` is maximum edge downsampling.
+   */
+  foveation?: number;
+  /**
+   * Target WebXR refresh rate. Omit to keep the store default (`"high"`).
+   * A numeric Hz picks the closest rate from `session.supportedFrameRates`.
+   */
+  frameRate?: WebVRFrameRate;
   /** Show a center reticle in VR. Defaults to true. */
   cursor?: boolean;
   /**
@@ -99,6 +139,8 @@ export type WebVRHandle = {
   getState: () => WebVRState;
   subscribe: (onStoreChange: () => void) => () => void;
   requestPermission: () => Promise<boolean>;
+  /** Clear stored MobileVR settings and restore prop / built-in defaults. */
+  resetSettings: () => void;
 };
 
 export type WebVRSettings = {

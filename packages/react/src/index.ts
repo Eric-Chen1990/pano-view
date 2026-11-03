@@ -36,6 +36,7 @@ export { DEFAULT_WEBVR_CURSOR_DWELL_MS } from "./webvr/reticle";
 export type {
   WebVRChrome,
   WebVRChromeAppearance,
+  WebVRFrameRate,
   WebVRHandle,
   WebVRMode,
   WebVRProfile,

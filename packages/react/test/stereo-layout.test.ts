@@ -36,6 +36,32 @@ test("non-finite pixel ratios fall back to 1", () => {
   assert.equal(layout.renderTargetHeight, 300);
 });
 
+test("oversampling scales only the distortion render target", () => {
+  const base = computeStereoLayout(390, 844, 3);
+  const boosted = computeStereoLayout(390, 844, 3, 1.5);
+  assert.equal(boosted.fullWidth, base.fullWidth);
+  assert.equal(boosted.fullHeight, base.fullHeight);
+  assert.equal(boosted.left.width, base.left.width);
+  assert.equal(boosted.right.offsetX, base.right.offsetX);
+  assert.equal(
+    boosted.renderTargetWidth,
+    Math.floor(base.left.width * 3 * 1.5),
+  );
+  assert.equal(
+    boosted.renderTargetHeight,
+    Math.floor(base.fullHeight * 3 * 1.5),
+  );
+});
+
+test("oversampling defaults to 1 and clamps extreme values", () => {
+  const defaulted = computeStereoLayout(400, 300, 2);
+  const clampedHigh = computeStereoLayout(400, 300, 2, 8);
+  const clampedLow = computeStereoLayout(400, 300, 2, 0.1);
+  assert.equal(defaulted.renderTargetWidth, 400);
+  assert.equal(clampedHigh.renderTargetWidth, Math.floor(200 * 2 * 2));
+  assert.equal(clampedLow.renderTargetWidth, Math.floor(200 * 2 * 0.5));
+});
+
 test("60 mm IPD at the virtual distance toes each eye inward", () => {
   const half = panoramaStereoHalfAngle(60, WEBVR_PANORAMA_VIRTUAL_DISTANCE_M);
   assert.ok(half > 0.01 && half < 0.03);

@@ -1739,7 +1739,7 @@ export function WebVRExample() {
 }
 ```
 
-句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()` 与 `requestPermission()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2 }` 镜头配置。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
+句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
 WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
 
@@ -1751,7 +1751,14 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
 - `screensize` — `"auto"`（出厂 / 省略时的存储默认）或英寸数；数字会被夹到 **3–20** 并保留一位小数。
 - `databaseUrl` — `"auto"` 屏幕尺寸时使用的 Cardboard DPDB URL。默认 `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`。传 `""` 或 `null` 可关闭在线查询。
-- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`。
+- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
+- `absolute` — 默认 `false`。MobileVR 使用罗盘绝对朝向（对 WebXR 无效）。
+- `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
+- `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。
+- `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
+- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebXR 则在会话开始前设置 framebuffer 缩放（会话中途不可改）。
+- `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
+- `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
 - `cursorDwellMs` — 默认 `1500`；`0` 不自动点击。
 - `wakelock` / `mousePointerLock` — 默认均为 `true`。

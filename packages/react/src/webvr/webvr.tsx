@@ -27,7 +27,9 @@ import {
   type WebVRController,
 } from "./host";
 import {
+  clearWebVRSettings,
   loadWebVRSettings,
+  resolveInitialWebVRSettings,
   resolveWebVRProfile,
   saveWebVRSettings,
 } from "./profiles";
@@ -38,6 +40,7 @@ import {
 } from "./presentation";
 import { DEFAULT_WEBVR_CURSOR_DWELL_MS, MOBILE_VR_RETICLE_SCALE, WebVRReticle } from "./reticle";
 import { WebVRStereoRenderer } from "./stereo";
+import { clampWebVROversampling } from "./stereo-layout";
 import type {
   WebVRHandle,
   WebVRMode,
@@ -54,6 +57,10 @@ import {
   releaseWebVRWakeLock,
   useWebVRWakeLock,
 } from "./wakelock";
+import {
+  clampWebVRFoveation,
+  resolveWebVRFrameRateOption,
+} from "./xr-quality";
 
 function initializeSettings(
   screensize: WebVRProps["screensize"],
@@ -79,6 +86,13 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     screensize,
     databaseUrl,
     profile,
+    absolute = false,
+    north = 0,
+    friction = 0,
+    touchSupport = false,
+    oversampling = 1,
+    foveation,
+    frameRate,
     cursor = true,
     cursorDwellMs = DEFAULT_WEBVR_CURSOR_DWELL_MS,
     wakelock = true,
@@ -108,6 +122,16 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   const dpdbRequestIdRef = useRef(0);
   const databaseUrlRef = useRef(databaseUrl);
   databaseUrlRef.current = databaseUrl;
+  const oversamplingRef = useRef(clampWebVROversampling(oversampling));
+  oversamplingRef.current = clampWebVROversampling(oversampling);
+  const foveationRef = useRef(clampWebVRFoveation(foveation));
+  foveationRef.current = clampWebVRFoveation(foveation);
+  const frameRateRef = useRef(frameRate);
+  frameRateRef.current = frameRate;
+  const screensizePropRef = useRef(screensize);
+  screensizePropRef.current = screensize;
+  const profilePropRef = useRef(profile);
+  profilePropRef.current = profile;
   const [mode, setMode] = useState<WebVRMode | null>(null);
   const [settings, setSettings] = useState(() =>
     initializeSettings(screensize, profile),
@@ -145,6 +169,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     settings.screensize === "auto"
       ? (detectedScreensize ?? "auto")
       : settings.screensize;
+  const resolvedOversampling = clampWebVROversampling(oversampling);
 
   const reportDenied = useCallback(
     (error?: unknown) => {
@@ -224,6 +249,24 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return (await gyroRef.current?.requestPermission()) ?? false;
   }, []);
 
+  const applyWebXRQuality = useCallback(() => {
+    const scale = oversamplingRef.current;
+    if (typeof gl.xr.setFramebufferScaleFactor === "function") {
+      gl.xr.setFramebufferScaleFactor(scale);
+    }
+    const nextFoveation = foveationRef.current;
+    if (
+      nextFoveation !== undefined &&
+      typeof gl.xr.setFoveation === "function"
+    ) {
+      gl.xr.setFoveation(nextFoveation);
+    }
+    const frameRateOption = resolveWebVRFrameRateOption(frameRateRef.current);
+    if (frameRateOption !== undefined) {
+      xrStore.setFrameRate(frameRateOption);
+    }
+  }, [gl.xr, xrStore]);
+
   const enterVR = useCallback(async (): Promise<boolean> => {
     if (modeRef.current) {
       return true;
@@ -231,12 +274,17 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     const capabilities = capabilitiesRef.current;
     if (capabilities.webxr) {
       try {
+        // Framebuffer scale must be set before the session starts presenting.
+        if (typeof gl.xr.setFramebufferScaleFactor === "function") {
+          gl.xr.setFramebufferScaleFactor(oversamplingRef.current);
+        }
         await xrStore.enterVR();
         const session = xrStore.getState().session;
         if (!session) {
           throw new Error("The WebXR session did not start.");
         }
         webXRSessionRef.current = session;
+        applyWebXRQuality();
         session.addEventListener(
           "end",
           () => {
@@ -294,11 +342,13 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return false;
   }, [
     activate,
+    applyWebXRQuality,
     deactivate,
     desktopSupport,
     eventBus,
     fakeSupport,
     gl.domElement,
+    gl.xr,
     mobileVr,
     mousePointerLock,
     reportDenied,
@@ -356,6 +406,26 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     [clearDetectedScreensize, host, resolveAutoScreensize],
   );
 
+  const resetSettings = useCallback(() => {
+    clearWebVRSettings();
+    const next = resolveInitialWebVRSettings(
+      screensizePropRef.current,
+      profilePropRef.current,
+    );
+    setSettings(next);
+    if (next.screensize === "auto") {
+      if (modeRef.current === "mobilevr") {
+        setDetectedScreensize(null);
+        updateWebVRHost(host, { detectedScreensize: null });
+        resolveAutoScreensize();
+      } else {
+        clearDetectedScreensize();
+      }
+    } else {
+      clearDetectedScreensize();
+    }
+  }, [clearDetectedScreensize, host, resolveAutoScreensize]);
+
   const controller = useMemo<WebVRController>(
     () => ({
       closeSetup: () => updateWebVRHost(host, { setupOpen: false }),
@@ -363,10 +433,19 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       exitVR,
       openSetup: () => updateWebVRHost(host, { setupOpen: true }),
       requestPermission,
+      resetSettings,
       toggleVR,
       updateSettings,
     }),
-    [enterVR, exitVR, host, requestPermission, toggleVR, updateSettings],
+    [
+      enterVR,
+      exitVR,
+      host,
+      requestPermission,
+      resetSettings,
+      toggleVR,
+      updateSettings,
+    ],
   );
 
   useImperativeHandle(
@@ -379,10 +458,11 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       isAvailable: () => availableRef.current,
       isEnabled: () => modeRef.current !== null,
       requestPermission,
+      resetSettings,
       subscribe: (onStoreChange) => subscribeWebVRHost(host, onStoreChange),
       toggleVR,
     }),
-    [enterVR, exitVR, host, requestPermission, toggleVR],
+    [enterVR, exitVR, host, requestPermission, resetSettings, toggleVR],
   );
 
   useEffect(() => {
@@ -492,6 +572,28 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     });
   }, [exitVR, gl.domElement, mode]);
 
+  useEffect(() => {
+    if (mode !== "webxr") {
+      return;
+    }
+    const session =
+      webXRSessionRef.current ?? xrStore.getState().session ?? null;
+    if (!session) {
+      return;
+    }
+    const nextFoveation = foveationRef.current;
+    if (
+      nextFoveation !== undefined &&
+      typeof gl.xr.setFoveation === "function"
+    ) {
+      gl.xr.setFoveation(nextFoveation);
+    }
+    const frameRateOption = resolveWebVRFrameRateOption(frameRateRef.current);
+    if (frameRateOption !== undefined) {
+      xrStore.setFrameRate(frameRateOption);
+    }
+  }, [foveation, frameRate, gl.xr, mode, xrStore]);
+
   useWebVRPointerLock(
     mousePointerLock && mode === "fake",
     gl.domElement,
@@ -504,17 +606,21 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     <>
       <Gyro
         ref={gyroRef}
+        absolute={absolute}
         desktopSupport={desktopSupport}
         enabled={mode === "mobilevr"}
+        friction={friction}
+        north={north}
         onDenied={() => {
           reportDenied();
           deactivate("mobilevr");
         }}
         softstart={0}
-        touchMode="off"
+        touchMode={touchSupport ? "horizontaloffset" : "off"}
       />
       <WebVRStereoRenderer
         mode={mode}
+        oversampling={resolvedOversampling}
         profile={resolvedProfile}
         screensize={effectiveScreensize}
       />

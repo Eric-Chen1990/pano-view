@@ -16,6 +16,7 @@ export type WebVRController = {
   openSetup: () => void;
   closeSetup: () => void;
   updateSettings: (settings: WebVRSettings) => void;
+  resetSettings: () => void;
 };
 
 export type WebVRHostSnapshot = {

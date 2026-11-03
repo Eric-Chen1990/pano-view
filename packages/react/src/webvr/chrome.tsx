@@ -162,12 +162,20 @@ function SetupPanel({
           </button>
         </div>
       </fieldset>
-      <ChromeButton
-        appearance={appearance}
-        onClick={() => controller?.closeSetup()}
-      >
-        Close
-      </ChromeButton>
+      <div className="pano-webvr-setup-row">
+        <ChromeButton
+          appearance={appearance}
+          onClick={() => controller?.resetSettings()}
+        >
+          Reset
+        </ChromeButton>
+        <ChromeButton
+          appearance={appearance}
+          onClick={() => controller?.closeSetup()}
+        >
+          Close
+        </ChromeButton>
+      </div>
     </div>
   );
 }

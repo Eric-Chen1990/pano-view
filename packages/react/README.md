@@ -1944,19 +1944,24 @@ export function WebVRExample() {
 ```
 
 The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
-`isEnabled()`, `getMode()`, `getState()`, `subscribe()`, and
-`requestPermission()`. Modes are `"webxr"`, `"mobilevr"`, and `"fake"`.
+`isEnabled()`, `getMode()`, `getState()`, `subscribe()`, `requestPermission()`,
+and `resetSettings()`. Modes are `"webxr"`, `"mobilevr"`, and `"fake"`.
 `profile` accepts `"none"`, `"cardboard-v1"`, `"cardboard-v2"`, `"gear-vr"`,
-`"daydream"`, or a custom `{ fov, ipdMm, k1, k2 }` lens profile. When
-`screensize` is `"auto"`, MobileVR loads the Cardboard Device Parameter
-Database (`databaseUrl`, default Google's public DPDB) to estimate diagonal
-inches; pass `""` or `null` to skip the request. Unknown devices fire
-`onUnknownDevice` and keep the lens-profile FOV. MobileVR setup values are
-versioned and stored in the current origin's `localStorage`. In VR, a center
-reticle shows a crosshair; looking at an interactive hotspot draws a clockwise
-ring that fills over `cursorDwellMs` (default 1500), then the hotspot click
-handler runs. Set `cursorDwellMs={0}` to keep the reticle without auto-click.
-Simulated desktop VR (`fake` mode) requests pointer lock by default
+`"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }`
+lens profile. When the physical screen size is known, MobileVR places each eye's
+optical axis with the inter-lens distance and optional tray-to-lens height
+(`trayDistanceMm`; Cardboard V1 uses `35`). `0` or omitted keeps the vertical
+center. When `screensize` is `"auto"`, MobileVR loads the Cardboard Device
+Parameter Database (`databaseUrl`, default Google's public DPDB) to estimate
+diagonal inches; pass `""` or `null` to skip the request. Unknown devices fire
+`onUnknownDevice` and keep the lens-profile FOV (no tray offset until a size is
+known). MobileVR setup values are versioned and stored in the current origin's
+`localStorage`; `resetSettings()` clears that storage and restores prop or
+built-in defaults (also available from the Setup panel Reset control). In VR, a
+center reticle shows a crosshair; looking at an interactive hotspot draws a
+clockwise ring that fills over `cursorDwellMs` (default 1500), then the hotspot
+click handler runs. Set `cursorDwellMs={0}` to keep the reticle without
+auto-click. Simulated desktop VR (`fake` mode) requests pointer lock by default
 (`mousePointerLock`) so the cursor hides and mouse movement looks around; click
 the view again if the browser releases the lock. Fallback sessions keep the
 screen awake (`wakelock`) with the Screen Wake Lock API, or a looping hidden
@@ -1977,7 +1982,14 @@ interactive through the default WebXR controller rays.
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
 - `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
 - `databaseUrl` — Cardboard DPDB URL for `"auto"` screensize. Default `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`. Pass `""` or `null` to disable the online lookup.
-- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`.
+- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
+- `absolute` — default `false`. Compass-oriented MobileVR heading (no effect in WebXR).
+- `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
+- `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
+- `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
+- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session).
+- `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
+- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
 - `cursor` — default `true`; `false` hides the center reticle.
 - `cursorDwellMs` — default `1500`; `0` disables auto-click.
 - `wakelock` / `mousePointerLock` — both default to `true`.
