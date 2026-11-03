@@ -2,7 +2,7 @@ import type { BackgroundAudioController } from "./background-audio-host";
 import type { KeyboardControlsProps } from "./keyboard-controls";
 import type { HotspotPosition } from "./hotspot/types";
 import type { PanoVideoController } from "./video/types";
-import type { WebVRMode } from "./webvr/types";
+import type { WebVRMode, WebVRState } from "./webvr/types";
 
 export type PanoViewerState = {
   /** Horizontal look angle in degrees. Positive values look right. */
@@ -94,6 +94,8 @@ export type PanoViewerHandle = {
   isVRAvailable: () => boolean;
   isVREnabled: () => boolean;
   getVRMode: () => WebVRMode | null;
+  getVRState: () => WebVRState;
+  subscribeVR: (onStoreChange: () => void) => () => void;
   requestVRPermission: () => Promise<boolean>;
 
   // -- Video (no-op / null without <PanoVideo />) --

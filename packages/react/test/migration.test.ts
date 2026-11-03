@@ -172,8 +172,8 @@ test("view culling rejects the back hemisphere while including both sides of the
   assert.ok(visible.some((tile) => tile.col === 15));
   assert.ok(visible.every((tile) => tile.col !== 7 && tile.col !== 8));
   assert.ok(
-    preferredSphereLevel(config.levels, 600, 2, 60) >
-      preferredSphereLevel(config.levels, 600, 1, 120),
+    preferredSphereLevel(config.levels, 180, 1, 90, 400) >
+      preferredSphereLevel(config.levels, 180, 1, 90),
   );
 });
 

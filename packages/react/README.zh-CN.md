@@ -226,17 +226,18 @@ export function Tour() {
 
 ```tsx
 import { useState } from "react";
-import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { PanoOverlay, PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
-  return <PanoViewer renderOverlay={() => (
-    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
-  )}>
+  return <PanoViewer>
     <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
       onActiveSceneIdChange={() => setPopup(null)} />
+    <PanoOverlay>
+      <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+    </PanoOverlay>
   </PanoViewer>;
 }
 ```
@@ -295,32 +296,35 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 #### 挂载 `PanoMapOverlay`
 
-在 `PanoViewer.renderOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`；查看器外又不传 `view` 时，图面停在 yaw `0`、pitch `0`、fov `75`。`PanoMap` 只负责图面，由宿主自己安排外框。
+在 `PanoOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`；查看器外又不传 `view` 时，图面停在 yaw `0`、pitch `0`、fov `75`。`PanoMap` 只负责图面，由宿主自己安排外框。
 
 `PanoMap` 还可受控选中与收起：`selectedSpotId` / `onSelectedSpotIdChange`（省略时内部选中，默认 `null`）；`collapsed` / `onCollapsedChange`（非受控初始为展开）；`renderChrome` 在图面之上渲染宿主控件。`showZoomControls` / `showCollapseControl` 与 overlay 相同，也可直接传给 `PanoMap`。`className` / `style` 挂在表面根节点上。
 
 ```tsx
 import { useState } from "react";
 import {
-  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+  PanoOverlay, PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
   const map = project.map;
-  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
-    <PanoMapOverlay
-      map={map}
-      activeSceneId={activeSceneId}
-      onSelectScene={setActiveSceneId}
-    />
-  ) : undefined}>
+  return <PanoViewer style={{ height: 600 }}>
     <ProjectScenes
       project={project}
       activeSceneId={activeSceneId}
       onActiveSceneIdChange={setActiveSceneId}
     />
+    {map ? (
+      <PanoOverlay>
+        <PanoMapOverlay
+          map={map}
+          activeSceneId={activeSceneId}
+          onSelectScene={setActiveSceneId}
+        />
+      </PanoOverlay>
+    ) : null}
   </PanoViewer>;
 }
 ```
@@ -652,14 +656,15 @@ export function Tour() {
 ### 事件与界面元素
 
 - [`PanoEvents`](#panoevents) — 查看器级生命周期与交互回调
+- [`PanoOverlay`](#dom-overlay-与弹窗) — 查看器平面上的 DOM 包裹，全屏时仍可见
 - [`PanoContextMenu`](#panocontextmenu) — 右键重置 / 全屏菜单
-- [`PanoSceneMenu`](#panoscenemenu) — 供 `renderOverlay` 使用的可滚动缩略图场景菜单
+- [`PanoSceneMenu`](#panoscenemenu) — 供 `PanoOverlay` 使用的可滚动缩略图场景菜单
 - [`PanoVideoControls`](#panovideo) — `PanoVideo` 的播放界面（默认挂载）
 
 ### 平面图
 
 - [`PanoMap`](#平面图地图) — 平面图、场景点位，以及随水平角转动的扇形
-- [`PanoMapOverlay`](#平面图地图) — 供 `renderOverlay` 使用的停靠面板或对话框按钮
+- [`PanoMapOverlay`](#平面图地图) — 供 `PanoOverlay` 使用的停靠面板或对话框按钮
 
 ### 热点
 
@@ -684,7 +689,25 @@ export function Tour() {
 
 ## DOM Overlay 与弹窗
 
-普通 DOM 界面使用 `PanoViewer.renderOverlay`，位于 Three.js 渲染树之外。`usePanoOverlay()` 必须在 `renderOverlay` 子树内调用，返回 `portalContainer`、`size`（viewer 宽高）、`visibleRect`（可见矩形）与 `isFullscreen`。`usePanoModal(open)` 在 `open === true` 时占用该 viewer 的模态锁（暂停输入与自动旋转、背景 inert、关闭右键菜单）；不负责焦点陷阱。`PanoOverlayPortalProvider` 接收必填的 `container` 与 `children`，只替换后代读到的 `portalContainer`；`size` / `visibleRect` 仍是整个 viewer。字段含义、引用计数与第三方 Dialog 接线见独立的 **[弹窗使用与自定义样式指南](./docs/dialogs.zh-CN.md)**。可选 `/ui` 入口提供 `PanoDialog` 与组成组件。指南随 npm 包分发；在本仓库运行 `pnpm dev`，打开 `/overlays` 可体验示例。
+普通 DOM 界面优先使用 `PanoOverlay`，位于 Three.js 渲染树之外，挂在全屏根节点内的查看器平面上，因此全屏时仍可见。把它作为 `PanoViewer` 的直接子节点（或包在其下的 Fragment 里），与场景内容并列。`renderOverlay` 仍可用，适合回调式挂载：
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <Sphere src="/pano.jpg" />
+  <PanoOverlay>
+    <PanoSceneMenu items={items} activeId={id} onSelect={setId} />
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={() => void viewer.toggleFullscreen()}
+    >
+      Fullscreen
+    </button>
+  </PanoOverlay>
+</PanoViewer>
+```
+
+该层已是 `position: absolute; inset: 0; pointer-events: none`。子节点自行定位，可点击节点设置 `pointerEvents: "auto"`。同时使用时，`renderOverlay` 先渲染，其后按出现顺序渲染各个 `PanoOverlay`。`usePanoOverlay()` 必须在 `PanoOverlay`（或 `renderOverlay`）子树内调用，返回 `portalContainer`、`size`（viewer 宽高）、`visibleRect`（可见矩形）与 `isFullscreen`。`usePanoModal(open)` 在 `open === true` 时占用该 viewer 的模态锁（暂停输入与自动旋转、背景 inert、关闭右键菜单）；不负责焦点陷阱。`PanoOverlayPortalProvider` 接收必填的 `container` 与 `children`，只替换后代读到的 `portalContainer`；`size` / `visibleRect` 仍是整个 viewer。字段含义、引用计数与第三方 Dialog 接线见独立的 **[弹窗使用与自定义样式指南](./docs/dialogs.zh-CN.md)**。可选 `/ui` 入口提供 `PanoDialog` 与组成组件。指南随 npm 包分发；在本仓库运行 `pnpm dev`，打开 `/overlays` 可体验示例。
 
 ### 默认弹窗
 
@@ -769,7 +792,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 **场景**（需 `<Scenes />`）— `setScene(id)`、`nextScene`、`previousScene`、`getActiveSceneId`、`getSceneIds`、`isSceneTransitioning`。`Scenes` 支持 `defaultActiveSceneId`（非受控）或 `activeSceneId`（受控）。受控模式下命令式调用会触发 `onActiveSceneIdChange`。
 
-**WebVR**（需 `<WebVR />`）— `enterVR`、`exitVR`、`toggleVR`、`isVRAvailable`、`isVREnabled`、`getVRMode`、`requestVRPermission`。
+**WebVR**（需 `<WebVR />`）— `enterVR`、`exitVR`、`toggleVR`、`isVRAvailable`、`isVREnabled`、`getVRMode`、`getVRState`、`subscribeVR`、`requestVRPermission`。用 `subscribeVR` 配合 `useSyncExternalStore` 做响应式进入 / 退出按钮；内置 chrome 不再渲染「进入 VR」。
 
 **视频**（需 `<PanoVideo />`）— `getVideo` 返回 `PanoVideoController`，`subscribeVideo` 订阅视频控制器与播放状态变更，另有快捷方法 `playVideo`、`pauseVideo`、`toggleVideo`、`seekVideo`、`setVideoVolume`、`setVideoMuted`、`toggleVideoMuted`。
 
@@ -785,7 +808,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `cursors` — `true` / 省略使用 grab / grabbing / pointer / move；`false` 不改画布光标；对象可覆盖四个状态。
 - `contextMenu` — `true` / 省略挂载「重置视图 + 全屏」；`false` 不挂默认菜单；对象可改外观或 `items` / `prepend` / `append`。详见 [PanoContextMenu](#panocontextmenu)。
 - `mediaActivation` — 有播放意图的子组件时默认开启；`false` 关闭自动激活。
-- `renderOverlay` — 在画布外、全屏内渲染 DOM UI；回调收到 `portalContainer`、`size`、`visibleRect`、`isFullscreen`。
+- `renderOverlay` — 可选的回调式 DOM UI，在画布外、全屏内渲染；回调收到 `portalContainer`、`size`、`visibleRect`、`isFullscreen`。优先用子组件 `<PanoOverlay>`。
 - `onViewChange` — 参数为 `{ yaw, pitch, fov }`（度）。
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — 参数为全景指针事件：`position`（yaw / pitch）、`nativeEvent`、`button`、`buttons`、`clientX`、`clientY`，以及可选的 `pointerId`。
 - 其余标准 `div` 属性（如 `className`、`style`、`id`）可原样传入；类型已去掉冲突的 `onChange` 与 `contextMenu`。
@@ -883,26 +906,30 @@ function SceneExample() {
 
 ### WebVR
 
-`enterVR` 与 `requestVRPermission` 须在用户手势中调用。
+`enterVR` 与 `requestVRPermission` 须在用户手势中调用。通过 `getVRState` /
+`subscribeVR` 由宿主 UI 驱动进入；会话 chrome 只显示退出 VR 与 MobileVR 设置
+（空闲数秒后淡出）。
 
 ```tsx
+import { useSyncExternalStore } from "react";
 import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
   const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
 
   return (
     <>
       <button
-        onClick={async () => {
-          await viewer.requestVRPermission();
-          await viewer.enterVR();
-        }}
+        disabled={!vr.available}
+        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
       >
-        进入 VR
+        {vr.enabled ? "退出 VR" : "进入 VR"}
       </button>
-      <button onClick={() => void viewer.exitVR()}>退出 VR</button>
-      <button onClick={() => console.log(viewer.getVRMode())}>当前模式？</button>
       <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
@@ -1348,7 +1375,7 @@ const scenes: Scene[] = [
 
 ## PanoSceneMenu
 
-`PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoViewer.renderOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。
+`PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。
 
 菜单由宿主驱动：传入 `items`、`activeId`、`onSelect`。它不读取 `Scenes` 状态，也不使用场景的 `previewUrl`。立方体场景的 `previewUrl` 通常是 1×6 预览条，不适合直接当菜单缩略图；请改用独立缩略图（转换器输出可优先用 `previews/200.webp` 这类小图）。
 
@@ -1359,6 +1386,7 @@ const scenes: Scene[] = [
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoSceneMenu,
   PanoViewer,
   Scenes,
@@ -1383,21 +1411,19 @@ export function Tour() {
   const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
-    <PanoViewer
-      style={{ height: 560 }}
-      renderOverlay={() => (
-        <PanoSceneMenu
-          activeId={activeSceneId}
-          items={menuItems}
-          onSelect={setActiveSceneId}
-        />
-      )}
-    >
+    <PanoViewer style={{ height: 560 }}>
       <Scenes
         scenes={scenes}
         activeSceneId={activeSceneId}
         onActiveSceneIdChange={setActiveSceneId}
       />
+      <PanoOverlay>
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -1706,7 +1732,7 @@ export function GyroExample() {
 
 ## WebVR
 
-`WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。内置界面包括进入 VR、退出 VR 与 MobileVR 设置控件。
+`WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。进入 VR 由宿主通过查看器句柄触发；内置 chrome 仅在会话中显示退出 VR 与 MobileVR 设置（空闲后淡出）。
 
 ```tsx
 import { useRef } from "react";
@@ -1735,25 +1761,33 @@ export function WebVRExample() {
 }
 ```
 
-句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()` 与 `requestPermission()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2 }` 镜头配置。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
+句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
 WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
 
 ### 属性
 
-- `chrome` — 默认 `true` 挂载进入 / 退出 / 设置界面。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `setupTitle`。
+- `chrome` — 默认 `true` 挂载会话内退出 / 设置界面（不含进入 VR 按钮）。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `setupTitle`。会话按钮约 3 秒无操作后淡出，与查看器的指针 / 滚轮 / 键盘交互后再次显示。
 - `mobileVr` — 默认 `true`。
 - `desktopSupport` — 默认 `false`（与 `Gyro` 的同名 prop 独立）。
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
 - `screensize` — `"auto"`（出厂 / 省略时的存储默认）或英寸数；数字会被夹到 **3–20** 并保留一位小数。
-- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`。
+- `databaseUrl` — `"auto"` 屏幕尺寸时使用的 Cardboard DPDB URL。默认 `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`。传 `""` 或 `null` 可关闭在线查询。
+- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
+- `absolute` — 默认 `false`。MobileVR 使用罗盘绝对朝向（对 WebXR 无效）。
+- `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
+- `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。
+- `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
+- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebXR 则在会话开始前设置 framebuffer 缩放（会话中途不可改）。
+- `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
+- `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
 - `cursorDwellMs` — 默认 `1500`；`0` 不自动点击。
 - `wakelock` / `mousePointerLock` — 默认均为 `true`。
 - `onAvailable` / `onUnavailable` — VR 能力变化。
 - `onEnterVR` / `onExitVR` — 参数为模式 `"webxr" | "mobilevr" | "fake"`。
 - `onDenied` — 权限或会话被拒绝，参数为可选 `error`。
-- `onUnknownDevice` — 无法识别设备屏幕 / 镜头参数时。
+- `onUnknownDevice` — `"auto"` 屏幕尺寸无法从 DPDB 解析时（URL 关闭、无匹配或请求失败）。
 
 ## 鼠标、触控与键盘控件
 

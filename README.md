@@ -71,7 +71,7 @@ See [Static projects and JSON data](./packages/react/README.md#static-projects-a
 
 ## Fullscreen overlays and dialogs
 
-Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
+Prefer `PanoOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
 
 Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. The separate [dialog and styling guide](./packages/react/docs/dialogs.md) includes complete examples, theme variables, component APIs, nested portals, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
 

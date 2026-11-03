@@ -4,10 +4,10 @@ import {
   PanoViewer,
   Scenes,
   WebVR,
+  usePanoViewer,
   type Scene,
-  type WebVRHandle,
 } from "@ericchen1990/pano-view";
-import { useRef, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   eyebrowClassName,
   pageHeadingStatusClassName,
@@ -21,14 +21,14 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const WEBVR_SNIPPET = `import { useRef, useState } from "react";
+const WEBVR_SNIPPET = `import { useState, useSyncExternalStore } from "react";
 import {
   GraphicHotspot,
   PanoEvents,
   PanoViewer,
   Scenes,
   WebVR,
-  type WebVRHandle,
+  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 const scenes = [
@@ -51,22 +51,30 @@ const scenes = [
 ];
 
 export function WebVRTour() {
-  const webVRRef = useRef<WebVRHandle>(null);
+  const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
   const [activeSceneId, setActiveSceneId] = useState("tile-1");
 
   return (
     <>
-      <button type="button" onClick={() => void webVRRef.current?.toggleVR()}>
-        Toggle VR
+      <button
+        disabled={!vr.available}
+        type="button"
+        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
+      >
+        {vr.enabled ? "Exit VR" : "Enter VR"}
       </button>
-      <PanoViewer contextMenu={false} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} contextMenu={false} style={{ height: 560 }}>
         <PanoEvents
           onVRAvailable={() => {}}
           onVREnter={(mode) => console.log("Entered", mode)}
           onVRExit={() => {}}
         />
         <WebVR
-          ref={webVRRef}
           chrome={{
             accent: "#75cbd3",
             background: "rgba(7, 19, 22, 0.82)",
@@ -216,7 +224,12 @@ const SCENE_LINKS = {
 } as const;
 
 export function WebVRPage() {
-  const webVRRef = useRef<WebVRHandle>(null);
+  const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
   const [status, setStatus] = useState("Detecting VR capabilities…");
   const [activeSceneId, setActiveSceneId] = useState(INITIAL_SCENE_ID);
   const [lastClick, setLastClick] = useState("Look at a hotspot in VR to switch scenes");
@@ -234,15 +247,17 @@ export function WebVRPage() {
             WebXR is preferred on headsets. Phones fall back to stereoscopic
             gyro viewing, while desktop browsers can preview simulated VR. In
             VR, look at a hotspot until the reticle ring fills to switch scenes.
+            Enter VR from the host button; session Exit / Setup fade after idle.
           </p>
         </div>
         <div className="flex items-center gap-3 border-b border-line px-6 py-4">
           <button
             className={segmentedButtonClassName}
-            onClick={() => void webVRRef.current?.toggleVR()}
+            disabled={!vr.available}
+            onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
             type="button"
           >
-            Toggle VR
+            {vr.enabled ? "Exit VR" : "Enter VR"}
           </button>
           <span className="font-mono text-xs text-muted-2">{status}</span>
           <span className="font-mono text-xs text-muted-2">
@@ -251,7 +266,11 @@ export function WebVRPage() {
           <span className="font-mono text-xs text-muted-2">{lastClick}</span>
         </div>
         <div className="h-[min(68vh,680px)] min-h-105">
-          <PanoViewer contextMenu={false} style={{ height: "100%" }}>
+          <PanoViewer
+            ref={viewer.ref}
+            contextMenu={false}
+            style={{ height: "100%" }}
+          >
             <PanoEvents
               onVRAvailable={() => setStatus("VR is available")}
               onVRDenied={(error) =>
@@ -269,7 +288,6 @@ export function WebVRPage() {
               }
             />
             <WebVR
-              ref={webVRRef}
               chrome={{
                 accent: "#75cbd3",
                 background: "rgba(7, 19, 22, 0.82)",
@@ -312,7 +330,7 @@ export function WebVRPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="WebVR prefers WebXR on headsets, falls back to MobileVR or desktop simulation. Looking at a GraphicHotspot fills the reticle, then runs onClick to switch scenes."
+          blurb="Host Enter/Exit VR via usePanoViewer + subscribeVR. Built-in chrome only shows session Exit/Setup. Looking at a GraphicHotspot fills the reticle, then runs onClick to switch scenes."
           code={WEBVR_SNIPPET}
           label="WebVR + Scenes"
         />

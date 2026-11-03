@@ -192,4 +192,4 @@ const customActions = [{
 
 宿主托管会话里，平面图和点位图标都通过 `onPickAsset` 选择。请求的 `kind` 为 `"image"`，`sceneId` 为空字符串，`field` 为 `"map.image"` 或 `"map.icon"`。点位图标还会把 `hotspotId` 设为当前点位 id。返回持久路径，或返回 `undefined` 取消。本地会话通过目录选择读取文件，路径记在 `assets/map/<id>/` 下，不会交给宿主选择器。运行时的地址映射不会写回文档。
 
-项目包会复制平面图和点位图标，并改写为包内相对路径。仅导出 JSON 时保留文档中的原路径。播放已保存的 `map` 见[查看器平面图](../react/README.zh-CN.md#平面图地图)：在 `PanoViewer.renderOverlay` 中挂载 `PanoMapOverlay`，并在 `onSelectScene` 中切换场景。
+项目包会复制平面图和点位图标，并改写为包内相对路径。仅导出 JSON 时保留文档中的原路径。播放已保存的 `map` 见[查看器平面图](../react/README.zh-CN.md#平面图地图)：在 `PanoOverlay` 中挂载 `PanoMapOverlay`，并在 `onSelectScene` 中切换场景。

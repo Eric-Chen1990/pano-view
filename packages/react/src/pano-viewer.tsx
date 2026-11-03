@@ -94,9 +94,11 @@ import {
 } from "./pano-cursor";
 import { PanoEvents } from "./pano-events";
 import { createPanoModalHost } from "./overlay/modal-host";
+import { partitionPanoOverlay } from "./overlay/partition";
 import {
   PanoModalHostContext,
   PanoOverlayContext,
+  PanoOverlayOutletContext,
   usePanoOverlayHost,
   type PanoOverlayRenderContext,
 } from "./overlay/pano-overlay";
@@ -612,6 +614,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
 
     const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
     const { context: overlayContext, setPortalContainer } = usePanoOverlayHost(isViewerFullscreen);
+    const { sceneChildren, overlayElements } = useMemo(
+      () => partitionPanoOverlay(children),
+      [children],
+    );
     const iphoneFullscreenAllowsScroll = useSyncExternalStore(
       subscribeIphoneLandscapeFullscreen,
       () => getIphoneLandscapeFullscreenSnapshot().allowsDocumentScroll,
@@ -774,6 +780,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         isVRAvailable: () => webVRHost.snapshot.available,
         isVREnabled: () => webVRHost.snapshot.mode !== null,
         getVRMode: () => webVRHost.snapshot.mode,
+        getVRState: () => webVRHost.state,
+        subscribeVR: (onStoreChange) =>
+          subscribeWebVRHost(webVRHost, onStoreChange),
         requestVRPermission: () =>
           webVRHost.controller?.requestPermission() ??
           Promise.resolve(false),
@@ -926,7 +935,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}
                   <ControlClaimsContext.Provider value={controlClaims}>
-                    {children}
+                    {sceneChildren}
                     <DefaultControlChannels
                       fovSpeed={controlOptions.fovSpeed}
                       keyboardChannel={keyboardChannel}
@@ -970,13 +979,16 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
-              <div
-                data-pano-overlay=""
-                ref={setPortalContainer}
-                style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
-              >
-                {renderOverlay?.(overlayContext)}
-              </div>
+              <PanoOverlayOutletContext.Provider value={true}>
+                <div
+                  data-pano-overlay=""
+                  ref={setPortalContainer}
+                  style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
+                >
+                  {renderOverlay?.(overlayContext)}
+                  {overlayElements}
+                </div>
+              </PanoOverlayOutletContext.Provider>
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>

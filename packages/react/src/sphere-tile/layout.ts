@@ -185,13 +185,30 @@ export function sphereTileGeometry(
   return geometry;
 }
 
+function tanHalfFov(verticalFov: number): number {
+  const fov = Math.min(179, Math.max(1, verticalFov));
+  return Math.tan(MathUtils.degToRad(fov) * 0.5);
+}
+
 export function preferredSphereLevel(
   levels: SphereTileLevel[],
   height: number,
   dpr: number,
   verticalFov: number,
+  width = height,
 ): number {
-  const needed = (height * dpr * 180) / Math.max(1, verticalFov);
+  const pixelHeight = Math.max(1, height) * dpr;
+  const pixelWidth = Math.max(1, width) * dpr;
+  const tanHalfV = tanHalfFov(verticalFov);
+  const tanHalfH = (pixelWidth / pixelHeight) * tanHalfV;
+  // Equirectangular height spans π radians. Longitude and latitude are stored
+  // uniformly, but a perspective view packs less angle into each edge pixel,
+  // by cos² of the half-angle. 1/cos² = 1 + tan². Match the sharper axis
+  // (usually the left and right edges on a wide screen) and let mipmaps
+  // filter the minified center.
+  const edgeScale = 1 + Math.max(tanHalfV, tanHalfH) ** 2;
+  const needed =
+    ((pixelHeight * 0.5) / tanHalfV) * Math.PI * edgeScale;
   const index = levels.findIndex((level) => level.height >= needed);
   return index < 0 ? levels.length - 1 : index;
 }

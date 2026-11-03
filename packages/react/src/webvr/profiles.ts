@@ -19,6 +19,7 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
     fov: 80,
     ipdMm: 60,
     screenToLensMm: 42,
+    trayDistanceMm: 0,
     k1: 0,
     k2: 0,
   },
@@ -28,6 +29,7 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
     fov: 80,
     ipdMm: 60,
     screenToLensMm: 42,
+    trayDistanceMm: 35,
     k1: 0.441,
     k2: 0.156,
   },
@@ -37,6 +39,7 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
     fov: 90,
     ipdMm: 64,
     screenToLensMm: 39,
+    trayDistanceMm: 0,
     k1: 0.336,
     k2: 0.553,
   },
@@ -46,6 +49,7 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
     fov: 96,
     ipdMm: 63.5,
     screenToLensMm: 50,
+    trayDistanceMm: 0,
     k1: 0.215,
     k2: 0.215,
   },
@@ -55,6 +59,7 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
     fov: 90,
     ipdMm: 61.5,
     screenToLensMm: 44,
+    trayDistanceMm: 0,
     k1: 0.385,
     k2: 0.593,
   },
@@ -133,6 +138,28 @@ export function saveWebVRSettings(settings: WebVRSettings): void {
   } catch {
     // Storage can be unavailable in private or embedded browsing contexts.
   }
+}
+
+export function clearWebVRSettings(): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable in private or embedded browsing contexts.
+  }
+}
+
+export function resolveInitialWebVRSettings(
+  screensize: WebVRSettings["screensize"] | undefined,
+  profile: WebVRProfileId | WebVRProfile | undefined,
+): WebVRSettings {
+  return {
+    screensize: screensize ?? DEFAULT_WEBVR_SETTINGS.screensize,
+    profileId:
+      typeof profile === "string" ? profile : DEFAULT_WEBVR_SETTINGS.profileId,
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {

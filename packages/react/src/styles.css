@@ -222,6 +222,14 @@
 .pano-webvr-toolbar-actions {
   display: flex;
   gap: 0.5rem;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 300ms ease;
+}
+
+.pano-webvr-toolbar-actions-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .pano-webvr-portrait-prompt {

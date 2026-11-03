@@ -1,6 +1,14 @@
 export { PanoViewer } from "./pano-viewer";
-export { usePanoOverlay, usePanoModal, PanoOverlayPortalProvider } from "./overlay/pano-overlay";
-export type { PanoOverlayRenderContext } from "./overlay/pano-overlay";
+export {
+  PanoOverlay,
+  usePanoOverlay,
+  usePanoModal,
+  PanoOverlayPortalProvider,
+} from "./overlay/pano-overlay";
+export type {
+  PanoOverlayProps,
+  PanoOverlayRenderContext,
+} from "./overlay/pano-overlay";
 export * from "./data";
 export { ProjectScenes } from "./project-scenes";
 export type { ProjectScenesProps, ProjectHotspotEvent, ProjectCustomActionEvent, ProjectHotspotClickEvent, ProjectHotspotRenderContext, ProjectHotspotErrorEvent, ProjectPopupRequestEvent } from "./project-scenes";
@@ -36,13 +44,16 @@ export { DEFAULT_WEBVR_CURSOR_DWELL_MS } from "./webvr/reticle";
 export type {
   WebVRChrome,
   WebVRChromeAppearance,
+  WebVRFrameRate,
   WebVRHandle,
   WebVRMode,
   WebVRProfile,
   WebVRProfileId,
   WebVRProps,
   WebVRSettings,
+  WebVRState,
 } from "./webvr/types";
+export { EMPTY_WEBVR_STATE } from "./webvr/host";
 export { PanoContextMenu } from "./pano-context-menu";
 export {
   composePanoContextMenuItems,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
-  AutoRotate, PanoViewer, ProjectScenes, PanoOverlayPortalProvider, loadPanoProject, usePanoModal, usePanoOverlay, usePanoViewer,
+  AutoRotate, PanoOverlay, PanoViewer, ProjectScenes, PanoOverlayPortalProvider, loadPanoProject, usePanoModal, usePanoOverlay, usePanoViewer,
   type LoadedPanoProject, type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
 import {
@@ -16,7 +16,7 @@ import { CodeSnippet } from "../CodeSnippet";
 import { POPUPS_BY_SCENE, type PopupSelection } from "./multi-hotspot-example";
 import multiHotspotCode from "./multi-hotspot-example.tsx?raw";
 import { cn } from "../../cn";
-import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName } from "../../ui";
+import { pageSectionClassName, pageHeadingWrapClassName, pageHeadingTitleClassName, pageHeadingStatusClassName, pageControlsClassName, segmentedButtonClassName, segmentedButtonActiveClassName, shellClassName, viewerChromeButtonClassName } from "../../ui";
 
 type DialogMode = "default" | "composed" | "custom";
 
@@ -94,6 +94,36 @@ function OverlayDialogs({ mode, selected, onClose }: { mode: DialogMode; selecte
   return <PanoDialog open={open} onOpenChange={onOpenChange} title={title} description="Explore this hotspot without leaving the panorama.">{content}</PanoDialog>;
 }
 
+function OverlayChrome({
+  activeSceneId,
+  mode,
+  onClose,
+  onNextScene,
+  onSelect,
+  projectReady,
+  selected,
+  toggleFullscreen,
+}: {
+  activeSceneId: string;
+  mode: DialogMode;
+  onClose: () => void;
+  onNextScene: () => void;
+  onSelect: (selection: PopupSelection) => void;
+  projectReady: boolean;
+  selected: PopupSelection | null;
+  toggleFullscreen: () => void;
+}) {
+  const { isFullscreen } = usePanoOverlay();
+  return <>
+    <div className="absolute right-4 bottom-4 left-4 flex flex-wrap justify-center gap-2" style={{ pointerEvents: "auto" }}>
+      {Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([hotspotId, popup]) => popup ? <button type="button" className={viewerChromeButtonClassName} key={hotspotId} onClick={() => onSelect({ sceneId: activeSceneId, hotspotId })}>Open {popup.title}</button> : null)}
+      <button type="button" className={viewerChromeButtonClassName} onClick={toggleFullscreen}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
+      <button type="button" className={viewerChromeButtonClassName} disabled={!projectReady} onClick={onNextScene}>Next scene</button>
+    </div>
+    <OverlayDialogs mode={mode} selected={selected} onClose={onClose} />
+  </>;
+}
+
 export function OverlayPage() {
   const viewer = usePanoViewer();
   const [mode, setMode] = useState<DialogMode>("default");
@@ -138,15 +168,7 @@ export function OverlayPage() {
         </button>)}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRotate} onChange={(event) => setAutoRotate(event.target.checked)} />Auto rotate</label>
       </div>
-      <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}
-        renderOverlay={({ isFullscreen }) => <>
-          <div className="absolute right-4 bottom-4 left-4 flex flex-wrap justify-center gap-2" style={{ pointerEvents: "auto" }}>
-            {Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([hotspotId, popup]) => popup ? <button type="button" className={segmentedButtonClassName} key={hotspotId} onClick={() => setSelected({ sceneId: activeSceneId, hotspotId })}>Open {popup.title}</button> : null)}
-            <button type="button" className={segmentedButtonClassName} onClick={() => void viewer.toggleFullscreen()}>{isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</button>
-            <button type="button" className={segmentedButtonClassName} disabled={!project} onClick={() => { setSelected(null); viewer.nextScene(); }}>Next scene</button>
-          </div>
-          <OverlayDialogs mode={mode} selected={selected} onClose={() => setSelected(null)} />
-        </>}>
+      <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}>
         <AutoRotate enabled={autoRotate} speed={8} />
         {project ? <ProjectScenes project={project} activeSceneId={activeSceneId} transition="dissolve" onActiveSceneIdChange={(id) => { setActiveSceneId(id); setSelected(null); }}
           onHotspotClick={(event) => {
@@ -155,6 +177,18 @@ export function OverlayPage() {
             event.preventDefault();
             setSelected({ sceneId: event.sceneId, hotspotId: event.hotspot.id });
           }} /> : null}
+        <PanoOverlay>
+          <OverlayChrome
+            activeSceneId={activeSceneId}
+            mode={mode}
+            onClose={() => setSelected(null)}
+            onNextScene={() => { setSelected(null); viewer.nextScene(); }}
+            onSelect={setSelected}
+            projectReady={Boolean(project)}
+            selected={selected}
+            toggleFullscreen={() => void viewer.toggleFullscreen()}
+          />
+        </PanoOverlay>
       </PanoViewer>
       {error ? <p role="alert" className="p-4">{error}</p> : null}
       <section aria-labelledby="hotspot-mapping-title" className="overflow-x-auto border-t border-[#244047] p-5">

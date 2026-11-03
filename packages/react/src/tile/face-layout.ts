@@ -1,6 +1,7 @@
 import {
   Box3,
   Euler,
+  MathUtils,
   Quaternion,
   Vector3,
 } from "three";
@@ -126,15 +127,32 @@ export function tileKey(address: TileAddress): string {
   return `${address.level}/${address.face}/${address.row}/${address.col}`;
 }
 
+function tanHalfFov(verticalFov: number): number {
+  const fov = Math.min(179, Math.max(1, verticalFov));
+  return Math.tan(MathUtils.degToRad(fov) * 0.5);
+}
+
 export function getPreferredLevel(
   levels: number[],
   viewportHeight: number,
   pixelRatio: number,
   verticalFov: number,
   currentLevel: number,
+  viewportWidth = viewportHeight,
 ): number {
-  const requiredFaceSize =
-    viewportHeight * pixelRatio * (90 / Math.max(verticalFov, 1));
+  const height = Math.max(1, viewportHeight) * pixelRatio;
+  const width = Math.max(1, viewportWidth) * pixelRatio;
+  const tanHalfV = tanHalfFov(verticalFov);
+  // A cube face stays 1:1 across its plane, so the screen center needs
+  // height / tan(halfFov) texels. Once a neighboring face enters the view
+  // (half-angle past 45°), perspective magnifies it toward the screen edge
+  // by tan² of that angle. Size for the worse of the center and those edges;
+  // mipmaps keep the minified center from aliasing.
+  const requiredFaceSize = Math.max(
+    height / tanHalfV,
+    height * tanHalfV,
+    (width * width * tanHalfV) / height,
+  );
   let preferredLevel = levels.length;
   for (let index = 0; index < levels.length; index += 1) {
     if (levels[index]! >= requiredFaceSize) {

@@ -8,7 +8,10 @@ import {
   useSceneDetailReporter,
   viewTilesAreDrawable,
 } from "../scene-detail";
-import { TileTextureManager } from "../tile/texture-manager";
+import {
+  mipmappedTextureBytes,
+  TileTextureManager,
+} from "../tile/texture-manager";
 import { useSharedTileTextureManager } from "../tile/texture-manager-context";
 import { useManagedTexture, usePreviewTexture } from "../tile/texture-hooks";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
@@ -290,7 +293,13 @@ function SphereTileSource({
           ? -1
           : loadMode === "base"
             ? 0
-            : preferredSphereLevel(config.levels, size.height, dpr, camera.fov);
+            : preferredSphereLevel(
+                config.levels,
+                size.height,
+                dpr,
+                camera.fov,
+                size.width,
+              );
       const next: Layer[] = [];
       let residentBytes = 0;
       for (let index = 0; index <= level; index++) {
@@ -298,7 +307,8 @@ function SphereTileSource({
           scratch.frustum.intersectsBox(bounds),
         ).map(({ address }) => address);
         const bytes = addresses.reduce(
-          (total, address) => total + address.width * address.height * 4,
+          (total, address) =>
+            total + mipmappedTextureBytes(address.width, address.height),
           0,
         );
         if (residentBytes + bytes > budget) {

@@ -70,7 +70,7 @@ const project = await loadPanoProject("/tour/project.json");
 
 ## 全屏 Overlay 与弹窗
 
-通过 `PanoViewer.renderOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
+优先通过 `PanoOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
 
 本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。独立的[弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md)提供完整示例、主题变量、组件 API、二级 Portal、焦点和媒体清理说明。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
 

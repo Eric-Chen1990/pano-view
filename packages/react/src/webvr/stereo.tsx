@@ -16,10 +16,18 @@ import {
 } from "three";
 import { WebVRRuntimeContext } from "./host";
 import {
+  computeStereoLensCenters,
+  type StereoLensCenter,
+} from "./lens-center";
+import {
   panoramaStereoHalfAngle,
   panoramaStereoToeInYaw,
 } from "./stereo-disparity";
-import { computeStereoLayout, type StereoLayout } from "./stereo-layout";
+import {
+  clampWebVROversampling,
+  computeStereoLayout,
+  type StereoLayout,
+} from "./stereo-layout";
 import { isFallbackStereoMode } from "./stereo-view";
 import type { WebVRMode, WebVRProfile } from "./types";
 
@@ -36,12 +44,13 @@ void main() {
 const fragmentShader = `
 uniform sampler2D sourceTexture;
 uniform vec2 distortion;
+uniform vec2 lensCenter;
 varying vec2 vUv;
 void main() {
-  vec2 centered = vUv * 2.0 - 1.0;
+  vec2 centered = vUv * 2.0 - 1.0 - lensCenter;
   float radius2 = dot(centered, centered);
   float scale = 1.0 + distortion.x * radius2 + distortion.y * radius2 * radius2;
-  vec2 sourceUv = centered * scale * 0.5 + 0.5;
+  vec2 sourceUv = (centered * scale + lensCenter) * 0.5 + 0.5;
   if (sourceUv.x < 0.0 || sourceUv.x > 1.0 || sourceUv.y < 0.0 || sourceUv.y > 1.0) {
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
   } else {
@@ -71,6 +80,7 @@ function createDistortionResources(): DistortionResources {
     fragmentShader,
     uniforms: {
       distortion: { value: new Vector2() },
+      lensCenter: { value: new Vector2() },
       sourceTexture: { value: target.texture },
     },
     vertexShader,
@@ -88,19 +98,44 @@ function createDistortionResources(): DistortionResources {
   };
 }
 
+function applyEyeViewOffset(
+  eyeCamera: PerspectiveCamera,
+  eye: StereoEyeViewportLike,
+  center: StereoLensCenter,
+): void {
+  // setViewOffset shifts the projection frustum so the optical axis lands on
+  // the lens center instead of the half-screen center.
+  const fullWidth = eye.width;
+  const fullHeight = eye.height;
+  const offsetX = ((center.x + 1) / 2 - 0.5) * fullWidth;
+  const offsetY = (0.5 - (center.y + 1) / 2) * fullHeight;
+  eyeCamera.setViewOffset(
+    fullWidth,
+    fullHeight,
+    offsetX,
+    offsetY,
+    fullWidth,
+    fullHeight,
+  );
+}
+
+type StereoEyeViewportLike = StereoLayout["left"];
+
 function syncStereoCameras(
   stereo: StereoCamera,
   camera: PerspectiveCamera,
   profile: WebVRProfile,
   screensize: number | "auto",
+  oversampling: number,
   size: Vector2,
   gl: WebGLRenderer,
-): StereoLayout {
+): { layout: StereoLayout; centers: ReturnType<typeof computeStereoLensCenters> } {
   gl.getSize(size);
   const layout = computeStereoLayout(
     size.x,
     size.y,
     gl.getPixelRatio(),
+    oversampling,
   );
   const screenToLensMm = profile.screenToLensMm ?? 42;
   const displayAspect = layout.fullWidth / layout.fullHeight;
@@ -129,17 +164,23 @@ function syncStereoCameras(
   TOE_IN.makeRotationY(panoramaStereoToeInYaw("right", halfAngle));
   stereo.cameraR.matrix.multiply(TOE_IN);
   stereo.cameraR.matrixWorldNeedsUpdate = true;
+
+  const centers = computeStereoLensCenters(profile, screensize, displayAspect);
+  applyEyeViewOffset(stereo.cameraL, layout.left, centers.left);
+  applyEyeViewOffset(stereo.cameraR, layout.right, centers.right);
   stereo.cameraL.updateMatrixWorld(true);
   stereo.cameraR.updateMatrixWorld(true);
-  return layout;
+  return { layout, centers };
 }
 
 export function WebVRStereoRenderer({
   mode,
+  oversampling = 1,
   profile,
   screensize,
 }: {
   mode: WebVRMode | null;
+  oversampling?: number;
   profile: WebVRProfile;
   screensize: number | "auto";
 }) {
@@ -160,8 +201,10 @@ export function WebVRStereoRenderer({
   const stereoActiveRef = useRef(false);
   const profileRef = useRef(profile);
   const screensizeRef = useRef(screensize);
+  const oversamplingRef = useRef(clampWebVROversampling(oversampling));
   profileRef.current = profile;
   screensizeRef.current = screensize;
+  oversamplingRef.current = clampWebVROversampling(oversampling);
 
   useEffect(
     () => () => {
@@ -188,11 +231,12 @@ export function WebVRStereoRenderer({
       if (originalFovRef.current === null) {
         originalFovRef.current = cameraToRender.fov;
       }
-      const layout = syncStereoCameras(
+      const { layout, centers } = syncStereoCameras(
         stereoRef.current,
         cameraToRender,
         currentProfile,
         currentScreensize,
+        oversamplingRef.current,
         sizeRef.current,
         gl,
       );
@@ -210,6 +254,7 @@ export function WebVRStereoRenderer({
       const renderEye = (
         eyeCamera: StereoCamera["cameraL"],
         eye: StereoLayout["left"],
+        center: StereoLensCenter,
       ) => {
         if (hasDistortion) {
           if (
@@ -234,6 +279,7 @@ export function WebVRStereoRenderer({
             currentProfile.k1,
             currentProfile.k2,
           );
+          resources.material.uniforms.lensCenter?.value.set(center.x, center.y);
           originalRender(resources.scene, resources.camera);
           return;
         }
@@ -243,8 +289,8 @@ export function WebVRStereoRenderer({
         originalRender(sceneToRender, eyeCamera);
       };
 
-      renderEye(stereoRef.current.cameraL, layout.left);
-      renderEye(stereoRef.current.cameraR, layout.right);
+      renderEye(stereoRef.current.cameraL, layout.left, centers.left);
+      renderEye(stereoRef.current.cameraR, layout.right, centers.right);
 
       gl.setRenderTarget(previousTarget);
       gl.setViewport(viewportRef.current);
@@ -278,6 +324,7 @@ export function WebVRStereoRenderer({
         camera,
         profileRef.current,
         screensizeRef.current,
+        oversamplingRef.current,
         sizeRef.current,
         gl,
       );

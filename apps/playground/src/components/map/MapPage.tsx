@@ -1,5 +1,6 @@
 import {
   PanoMapOverlay,
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   loadPanoProject,
@@ -56,6 +57,7 @@ function buildMapSnippet(presentation: PresentationMode): string {
   return `import { useEffect, useState } from "react";
 import {
   PanoMapOverlay,
+  PanoOverlay,
   PanoViewer,
   ProjectScenes,
   loadPanoProject,
@@ -101,9 +103,14 @@ useEffect(() => {
 }, []);
 
 {project ? (
-  <PanoViewer
-    style={{ height: 560 }}
-    renderOverlay={() => (
+  <PanoViewer style={{ height: 560 }}>
+    <ProjectScenes
+      project={project}
+      activeSceneId={activeSceneId}
+      onActiveSceneIdChange={setActiveSceneId}
+      transition="dissolve"
+    />
+    <PanoOverlay>
       <PanoMapOverlay
         map={map}
         activeSceneId={activeSceneId}
@@ -117,14 +124,7 @@ useEffect(() => {
         dialogHeight={480}
         onSelectScene={setActiveSceneId}
       />
-    )}
-  >
-    <ProjectScenes
-      project={project}
-      activeSceneId={activeSceneId}
-      onActiveSceneIdChange={setActiveSceneId}
-      transition="dissolve"
-    />
+    </PanoOverlay>
   </PanoViewer>
 ) : null}`;
 }
@@ -212,9 +212,15 @@ export function MapPage() {
                 </button>
               ))}
             </div>
-            <PanoViewer
-              style={{ height: 560 }}
-              renderOverlay={() => (
+            <PanoViewer style={{ height: 560 }}>
+              <ProjectScenes
+                project={project}
+                activeSceneId={activeSceneId}
+                onActiveSceneIdChange={setActiveSceneId}
+                transition="dissolve"
+                onSceneReady={(id) => setStatus(`Ready: ${id}`)}
+              />
+              <PanoOverlay>
                 <PanoMapOverlay
                   key={presentation}
                   map={map}
@@ -232,20 +238,12 @@ export function MapPage() {
                     setStatus(`Map selected: ${sceneId}`);
                   }}
                 />
-              )}
-            >
-              <ProjectScenes
-                project={project}
-                activeSceneId={activeSceneId}
-                onActiveSceneIdChange={setActiveSceneId}
-                transition="dissolve"
-                onSceneReady={(id) => setStatus(`Ready: ${id}`)}
-              />
+              </PanoOverlay>
             </PanoViewer>
           </>
         ) : null}
         <CodeSnippet
-          blurb="Mount PanoMapOverlay from renderOverlay and share activeSceneId with ProjectScenes. presentation switches between a docked panel and a dialog launcher."
+          blurb="Mount PanoMapOverlay inside PanoOverlay and share activeSceneId with ProjectScenes. presentation switches between a docked panel and a dialog launcher."
           code={snippet}
           label="PanoMapOverlay"
         />

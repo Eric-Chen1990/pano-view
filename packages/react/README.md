@@ -230,17 +230,18 @@ Store this content structure in `project.json`; store media as separate files. P
 
 ```tsx
 import { useState } from "react";
-import { PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
+import { PanoOverlay, PanoViewer, ProjectScenes, type LoadedPanoProject, type ProjectPopupDefinition } from "@ericchen1990/pano-view";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
-  return <PanoViewer renderOverlay={() => (
-    <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
-  )}>
+  return <PanoViewer>
     <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)}
       onActiveSceneIdChange={() => setPopup(null)} />
+    <PanoOverlay>
+      <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+    </PanoOverlay>
   </PanoViewer>;
 }
 ```
@@ -299,32 +300,35 @@ The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, 
 
 #### Mounting `PanoMapOverlay`
 
-Mount it from `PanoViewer.renderOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
+Mount it inside `PanoOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
 
 `PanoMap` also accepts controlled selection and collapse: `selectedSpotId` / `onSelectedSpotIdChange` (internal selection defaults to `null`); `collapsed` / `onCollapsedChange` (uncontrolled starts expanded); `renderChrome` to draw host controls above the surface. `showZoomControls` / `showCollapseControl` work on `PanoMap` the same way as on the overlay. `className` / `style` attach to the surface root.
 
 ```tsx
 import { useState } from "react";
 import {
-  PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
+  PanoOverlay, PanoViewer, ProjectScenes, PanoMapOverlay, type LoadedPanoProject,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function Tour({ project }: { project: LoadedPanoProject }) {
   const [activeSceneId, setActiveSceneId] = useState(project.initialSceneId);
   const map = project.map;
-  return <PanoViewer style={{ height: 600 }} renderOverlay={map ? () => (
-    <PanoMapOverlay
-      map={map}
-      activeSceneId={activeSceneId}
-      onSelectScene={setActiveSceneId}
-    />
-  ) : undefined}>
+  return <PanoViewer style={{ height: 600 }}>
     <ProjectScenes
       project={project}
       activeSceneId={activeSceneId}
       onActiveSceneIdChange={setActiveSceneId}
     />
+    {map ? (
+      <PanoOverlay>
+        <PanoMapOverlay
+          map={map}
+          activeSceneId={activeSceneId}
+          onSelectScene={setActiveSceneId}
+        />
+      </PanoOverlay>
+    ) : null}
   </PanoViewer>;
 }
 ```
@@ -679,14 +683,15 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 ### Events and chrome
 
 - [`PanoEvents`](#panoevents) — viewer-level lifecycle and interaction callbacks
+- [`PanoOverlay`](#dom-overlays-and-dialogs) — screen-plane DOM wrapper for fullscreen-safe UI
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
-- [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `renderOverlay`
+- [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `PanoOverlay`
 - [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
 
 ### Floor plan
 
 - [`PanoMap`](#floor-plan-maps) — floor image, scene spots, and the yaw-linked sector
-- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `renderOverlay`
+- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `PanoOverlay`
 
 ### Hotspots
 
@@ -711,7 +716,25 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 
 ## DOM overlays and dialogs
 
-Use `PanoViewer.renderOverlay` for ordinary DOM UI outside the Three.js tree. Call `usePanoOverlay()` inside the `renderOverlay` subtree to get `portalContainer`, `size` (viewer width/height), `visibleRect`, and `isFullscreen`. `usePanoModal(open)` holds that viewer's modal lock while `open === true` (pauses input and auto-rotate, marks the backdrop inert, closes the context menu); it does not trap focus. `PanoOverlayPortalProvider` takes a required `container` and `children` and only remaps `portalContainer` for descendants; `size` / `visibleRect` still describe the whole viewer. Field meanings, reference counting, and third-party Dialog wiring live in the separate **[Dialog and styling guide](./docs/dialogs.md)**. The optional `/ui` entry provides `PanoDialog` and composable parts. The guide ships in the npm package; run `pnpm dev` and open `/overlays` for local examples.
+Prefer `PanoOverlay` for ordinary DOM UI outside the Three.js tree. It mounts on the viewer plane inside the fullscreen root, so chrome stays visible when the viewer goes fullscreen. Place it as a direct child of `PanoViewer` (or inside a Fragment under it) beside scene content. `renderOverlay` remains supported for callback-style mounts.
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <Sphere src="/pano.jpg" />
+  <PanoOverlay>
+    <PanoSceneMenu items={items} activeId={id} onSelect={setId} />
+    <button
+      type="button"
+      style={{ position: "absolute", right: 16, bottom: 16, pointerEvents: "auto" }}
+      onClick={() => void viewer.toggleFullscreen()}
+    >
+      Fullscreen
+    </button>
+  </PanoOverlay>
+</PanoViewer>
+```
+
+The overlay layer is `position: absolute; inset: 0; pointer-events: none`. Position children yourself and set `pointerEvents: "auto"` on interactive nodes. When both are used, `renderOverlay` renders first and each `PanoOverlay` follows in document order. Call `usePanoOverlay()` inside `PanoOverlay` (or `renderOverlay`) to get `portalContainer`, `size` (viewer width/height), `visibleRect`, and `isFullscreen`. `usePanoModal(open)` holds that viewer's modal lock while `open === true` (pauses input and auto-rotate, marks the backdrop inert, closes the context menu); it does not trap focus. `PanoOverlayPortalProvider` takes a required `container` and `children` and only remaps `portalContainer` for descendants; `size` / `visibleRect` still describe the whole viewer. Field meanings, reference counting, and third-party Dialog wiring live in the separate **[Dialog and styling guide](./docs/dialogs.md)**. The optional `/ui` entry provides `PanoDialog` and composable parts. The guide ships in the npm package; run `pnpm dev` and open `/overlays` for local examples.
 
 ### Default dialog
 
@@ -798,7 +821,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 **Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` accepts `defaultActiveSceneId` (uncontrolled) or `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
 
-**WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `requestVRPermission`.
+**WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `getVRState`, `subscribeVR`, `requestVRPermission`. Use `subscribeVR` with `useSyncExternalStore` for reactive Enter / Exit buttons; the built-in chrome no longer renders an Enter VR control.
 
 **Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to video controller and playback-state changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
 
@@ -814,7 +837,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 - `cursors` — `true` / omit uses grab / grabbing / pointer / move; `false` leaves the canvas cursor unchanged; an object overrides those four states.
 - `contextMenu` — `true` / omit mounts Reset view + Fullscreen; `false` skips the default menu; an object can change appearance or `items` / `prepend` / `append`. See [PanoContextMenu](#panocontextmenu).
 - `mediaActivation` — enabled by default when a mounted child intends to play; `false` disables automatic activation.
-- `renderOverlay` — DOM UI outside the Three.js tree and inside fullscreen; the callback receives `portalContainer`, `size`, `visibleRect`, and `isFullscreen`.
+- `renderOverlay` — optional callback-style DOM UI outside the Three.js tree and inside fullscreen; the callback receives `portalContainer`, `size`, `visibleRect`, and `isFullscreen`. Prefer `<PanoOverlay>` as a child.
 - `onViewChange` — `{ yaw, pitch, fov }` in degrees.
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — panorama pointer events with `position` (yaw / pitch), `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
 - Other standard `div` props (`className`, `style`, `id`, …) are accepted; conflicting `onChange` and `contextMenu` are omitted from the type.
@@ -913,25 +936,29 @@ function SceneExample() {
 ### WebVR
 
 `enterVR` and `requestVRPermission` must be called from a user gesture.
+Drive entry from host UI with `getVRState` / `subscribeVR`; session chrome only
+shows Exit VR and MobileVR Setup (which fade after a few idle seconds).
 
 ```tsx
+import { useSyncExternalStore } from "react";
 import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
   const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
 
   return (
     <>
       <button
-        onClick={async () => {
-          await viewer.requestVRPermission();
-          await viewer.enterVR();
-        }}
+        disabled={!vr.available}
+        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
       >
-        Enter VR
+        {vr.enabled ? "Exit VR" : "Enter VR"}
       </button>
-      <button onClick={() => void viewer.exitVR()}>Exit VR</button>
-      <button onClick={() => console.log(viewer.getVRMode())}>Mode?</button>
       <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
@@ -1470,8 +1497,8 @@ Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source compon
 ## PanoSceneMenu
 
 `PanoSceneMenu` is a scrollable thumbnail strip for switching scenes. Mount it
-from `PanoViewer.renderOverlay` so it stays inside the viewer (including
-fullscreen). Import `@ericchen1990/pano-view/styles.css` for the default layout.
+inside `PanoOverlay` so it stays inside the viewer (including fullscreen).
+Import `@ericchen1990/pano-view/styles.css` for the default layout.
 
 The menu is host-driven: you pass `items`, `activeId`, and `onSelect`. It does
 not read `Scenes` state or scene `previewUrl`. Cube `previewUrl` values are
@@ -1485,6 +1512,7 @@ Keep one controlled scene id and share it with `Scenes`:
 ```tsx
 import { useState } from "react";
 import {
+  PanoOverlay,
   PanoSceneMenu,
   PanoViewer,
   Scenes,
@@ -1509,21 +1537,19 @@ export function Tour() {
   const [activeSceneId, setActiveSceneId] = useState("lobby");
 
   return (
-    <PanoViewer
-      style={{ height: 560 }}
-      renderOverlay={() => (
-        <PanoSceneMenu
-          activeId={activeSceneId}
-          items={menuItems}
-          onSelect={setActiveSceneId}
-        />
-      )}
-    >
+    <PanoViewer style={{ height: 560 }}>
       <Scenes
         scenes={scenes}
         activeSceneId={activeSceneId}
         onActiveSceneIdChange={setActiveSceneId}
       />
+      <PanoOverlay>
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          items={menuItems}
+          onSelect={setActiveSceneId}
+        />
+      </PanoOverlay>
     </PanoViewer>
   );
 }
@@ -1908,8 +1934,9 @@ These are props on `Gyro` itself. `PanoEvents` `onGyro*` callbacks subscribe to 
 `WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
 `immersive-vr` WebXR session on supported headsets. On phones without WebXR it
 uses a stereoscopic split-screen view with device orientation, and on desktop
-it can provide a mouse-driven simulated VR preview. The built-in chrome includes
-Enter VR, Exit VR, and MobileVR setup controls.
+it can provide a mouse-driven simulated VR preview. Host apps provide Enter VR
+through the viewer handle; the built-in chrome only shows Exit VR and MobileVR
+setup controls while a session is active (they fade after idle interaction).
 
 ```tsx
 import { useRef } from "react";
@@ -1939,19 +1966,28 @@ export function WebVRExample() {
 ```
 
 The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
-`isEnabled()`, `getMode()`, and `requestPermission()`. Modes are `"webxr"`,
-`"mobilevr"`, and `"fake"`. `profile` accepts `"none"`, `"cardboard-v1"`,
-`"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom
-`{ fov, ipdMm, k1, k2 }` lens profile. MobileVR setup values are versioned and
-stored in the current origin's `localStorage`. In VR, a center reticle shows a
-crosshair; looking at an interactive hotspot draws a clockwise ring that fills
-over `cursorDwellMs` (default 1500), then the hotspot click handler runs. Set
-`cursorDwellMs={0}` to keep the reticle without auto-click. Simulated desktop
-VR (`fake` mode) requests pointer lock by default (`mousePointerLock`) so the
-cursor hides and mouse movement looks around; click the view again if the
-browser releases the lock. Fallback sessions keep the screen awake
-(`wakelock`) with the Screen Wake Lock API, or a looping hidden video on
-browsers that lack it.
+`isEnabled()`, `getMode()`, `getState()`, `subscribe()`, `requestPermission()`,
+and `resetSettings()`. Modes are `"webxr"`, `"mobilevr"`, and `"fake"`.
+`profile` accepts `"none"`, `"cardboard-v1"`, `"cardboard-v2"`, `"gear-vr"`,
+`"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }`
+lens profile. When the physical screen size is known, MobileVR places each eye's
+optical axis with the inter-lens distance and optional tray-to-lens height
+(`trayDistanceMm`; Cardboard V1 uses `35`). `0` or omitted keeps the vertical
+center. When `screensize` is `"auto"`, MobileVR loads the Cardboard Device
+Parameter Database (`databaseUrl`, default Google's public DPDB) to estimate
+diagonal inches; pass `""` or `null` to skip the request. Unknown devices fire
+`onUnknownDevice` and keep the lens-profile FOV (no tray offset until a size is
+known). MobileVR setup values are versioned and stored in the current origin's
+`localStorage`; `resetSettings()` clears that storage and restores prop or
+built-in defaults (also available from the Setup panel Reset control). In VR, a
+center reticle shows a crosshair; looking at an interactive hotspot draws a
+clockwise ring that fills over `cursorDwellMs` (default 1500), then the hotspot
+click handler runs. Set `cursorDwellMs={0}` to keep the reticle without
+auto-click. Simulated desktop VR (`fake` mode) requests pointer lock by default
+(`mousePointerLock`) so the cursor hides and mouse movement looks around; click
+the view again if the browser releases the lock. Fallback sessions keep the
+screen awake (`wakelock`) with the Screen Wake Lock API, or a looping hidden
+video on browsers that lack it.
 
 WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
 HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
@@ -1962,19 +1998,27 @@ interactive through the default WebXR controller rays.
 
 ### Props
 
-- `chrome` — default `true` mounts Enter / Exit / Setup UI. An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`.
+- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle and return on pointer / wheel / keyboard interaction with the viewer.
 - `mobileVr` — default `true`.
 - `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
 - `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
-- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`.
+- `databaseUrl` — Cardboard DPDB URL for `"auto"` screensize. Default `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`. Pass `""` or `null` to disable the online lookup.
+- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
+- `absolute` — default `false`. Compass-oriented MobileVR heading (no effect in WebXR).
+- `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
+- `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
+- `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
+- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session).
+- `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
+- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
 - `cursor` — default `true`; `false` hides the center reticle.
 - `cursorDwellMs` — default `1500`; `0` disables auto-click.
 - `wakelock` / `mousePointerLock` — both default to `true`.
 - `onAvailable` / `onUnavailable` — VR capability changes.
 - `onEnterVR` / `onExitVR` — mode `"webxr" | "mobilevr" | "fake"`.
 - `onDenied` — permission or session denial, optional `error`.
-- `onUnknownDevice` — when screen / lens parameters cannot be identified.
+- `onUnknownDevice` — when `"auto"` screensize cannot be resolved from the DPDB (disabled URL, no match, or fetch failure).
 
 ## Mouse, touch, and keyboard controls
 

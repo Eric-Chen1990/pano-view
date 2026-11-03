@@ -13,6 +13,7 @@ import {
 import {
   PanoViewer,
   PanoMapOverlay,
+  PanoOverlay,
   Scenes,
   ProjectScenes,
   type PanoViewerHandle,
@@ -372,39 +373,6 @@ export function EditorViewer({
                 ? false
                 : { keyboard: { enabled: false } }
             }
-            renderOverlay={() => (
-              <>
-                <ProjectPopupDialog
-                  popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
-                  onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
-                  onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
-                />
-                {runtime.loaded.map ? (
-                  <PanoMapOverlay
-                    map={runtime.loaded.map}
-                    activeSceneId={activeId}
-                    openLabel={t("Map")}
-                    closeLabel={t("Close")}
-                    title={t("Floor plan")}
-                    editorSurface={mapEditing && !preview}
-                    mode={mapEditing && !preview ? "edit" : "view"}
-                    selectedSpotId={selectedMapSpotId}
-                    placementSceneId={mapEditing && !preview ? placementSceneId : undefined}
-                    onSelectedSpotIdChange={(id) => {
-                      onSelectedMapSpotIdChange?.(id);
-                      if (id) {
-                        const spot = runtime.loaded.map?.spots.find((entry) => entry.id === id);
-                        if (spot) onActive(spot.sceneId);
-                      }
-                    }}
-                    onEditChange={(change) => {
-                      if (change.spots) onMapSpotsChange?.(change.spots, change.selectedSpotId);
-                    }}
-                    onSelectScene={(sceneId) => onActive(sceneId)}
-                  />
-                ) : null}
-              </>
-            )}
             onPanoramaClick={({ position }) => {
               if (!preview) onPlace(position);
             }}
@@ -464,6 +432,37 @@ export function EditorViewer({
                 )}
               />
             )}
+            <PanoOverlay>
+              <ProjectPopupDialog
+                popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
+                onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
+                onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
+              />
+              {runtime.loaded.map ? (
+                <PanoMapOverlay
+                  map={runtime.loaded.map}
+                  activeSceneId={activeId}
+                  openLabel={t("Map")}
+                  closeLabel={t("Close")}
+                  title={t("Floor plan")}
+                  editorSurface={mapEditing && !preview}
+                  mode={mapEditing && !preview ? "edit" : "view"}
+                  selectedSpotId={selectedMapSpotId}
+                  placementSceneId={mapEditing && !preview ? placementSceneId : undefined}
+                  onSelectedSpotIdChange={(id) => {
+                    onSelectedMapSpotIdChange?.(id);
+                    if (id) {
+                      const spot = runtime.loaded.map?.spots.find((entry) => entry.id === id);
+                      if (spot) onActive(spot.sceneId);
+                    }
+                  }}
+                  onEditChange={(change) => {
+                    if (change.spots) onMapSpotsChange?.(change.spots, change.selectedSpotId);
+                  }}
+                  onSelectScene={(sceneId) => onActive(sceneId)}
+                />
+              ) : null}
+            </PanoOverlay>
           </PanoViewer>
         </ViewerBoundary>
       )}

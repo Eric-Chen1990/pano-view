@@ -1,6 +1,7 @@
 import {
   ClampToEdgeWrapping,
   LinearFilter,
+  LinearMipmapLinearFilter,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -39,6 +40,27 @@ const EMPTY_TEXTURE_SNAPSHOT: TextureEntrySnapshot = {
   texture: null,
   error: null,
 };
+
+/** Full mip chain is 1 + 1/4 + 1/16 + … = 4/3 of the base RGBA image. */
+const MIPMAP_MEMORY_FACTOR = 4 / 3;
+
+export function mipmappedTextureBytes(width: number, height: number): number {
+  return Math.ceil(width * height * 4 * MIPMAP_MEMORY_FACTOR);
+}
+
+export function configureMipmappedTexture(
+  texture: Texture,
+  anisotropy: number,
+): void {
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = Math.max(1, anisotropy);
+  texture.needsUpdate = true;
+}
 
 export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
   private readonly loader = new TextureLoader();
@@ -218,7 +240,10 @@ export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
         entry.texture = texture;
         entry.status = "loaded";
         entry.error = null;
-        entry.bytes = entry.address.width * entry.address.height * 4;
+        entry.bytes = mipmappedTextureBytes(
+          entry.address.width,
+          entry.address.height,
+        );
         entry.lastUsed = performance.now();
         this.totalBytes += entry.bytes;
         this.loaded += 1;
@@ -243,14 +268,7 @@ export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
   }
 
   private configureTexture(texture: Texture) {
-    texture.colorSpace = SRGBColorSpace;
-    texture.wrapS = ClampToEdgeWrapping;
-    texture.wrapT = ClampToEdgeWrapping;
-    texture.magFilter = LinearFilter;
-    texture.minFilter = LinearFilter;
-    texture.generateMipmaps = false;
-    texture.anisotropy = Math.min(4, this.options.anisotropy);
-    texture.needsUpdate = true;
+    configureMipmappedTexture(texture, this.options.anisotropy);
   }
 
   private evict() {
