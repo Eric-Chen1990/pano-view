@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import type { PanoViewerHandle } from "./types";
+import { EMPTY_WEBVR_STATE } from "./webvr/host";
 
 export type UsePanoViewerResult = PanoViewerHandle & {
   ref: RefObject<PanoViewerHandle | null>;
@@ -47,6 +48,41 @@ function createPanoViewerHandle(
     isVRAvailable: () => ref.current?.isVRAvailable() ?? false,
     isVREnabled: () => ref.current?.isVREnabled() ?? false,
     getVRMode: () => ref.current?.getVRMode() ?? null,
+    getVRState: () => ref.current?.getVRState() ?? EMPTY_WEBVR_STATE,
+    subscribeVR: (onStoreChange) => {
+      // The imperative handle may attach one frame after useSyncExternalStore
+      // first subscribes. Retry briefly so host buttons stay reactive.
+      let disposed = false;
+      let unsubscribe: (() => void) | undefined;
+      const timers: number[] = [];
+
+      const attach = () => {
+        if (disposed || unsubscribe) {
+          return;
+        }
+        const handle = ref.current;
+        if (!handle) {
+          return;
+        }
+        unsubscribe = handle.subscribeVR(onStoreChange);
+        onStoreChange();
+      };
+
+      attach();
+      if (typeof window !== "undefined") {
+        for (const delay of [0, 16, 50, 100, 250]) {
+          timers.push(window.setTimeout(attach, delay));
+        }
+      }
+
+      return () => {
+        disposed = true;
+        for (const id of timers) {
+          window.clearTimeout(id);
+        }
+        unsubscribe?.();
+      };
+    },
     requestVRPermission: () =>
       ref.current?.requestVRPermission() ?? Promise.resolve(false),
     getVideo: () => ref.current?.getVideo() ?? null,

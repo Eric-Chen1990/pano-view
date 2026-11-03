@@ -34,8 +34,18 @@ export type WebVRChromeAppearance = {
 
 export type WebVRChrome = boolean | WebVRChromeAppearance;
 
+export type WebVRState = {
+  available: boolean;
+  enabled: boolean;
+  mode: WebVRMode | null;
+};
+
 export type WebVRProps = {
-  /** Mount the built-in Enter / Exit / Setup chrome. Defaults to true. */
+  /**
+   * Mount the built-in session chrome (Exit VR / MobileVR Setup). Defaults to
+   * true. Enter VR is not rendered; host apps drive entry through the handle
+   * or `usePanoViewer`.
+   */
   chrome?: WebVRChrome;
   /** Enable the phone stereoscopic fallback. Defaults to true. */
   mobileVr?: boolean;
@@ -45,6 +55,12 @@ export type WebVRProps = {
   fakeSupport?: boolean;
   /** Physical diagonal screen size in inches, or automatic detection. */
   screensize?: number | "auto";
+  /**
+   * Cardboard Device Parameter Database URL used when `screensize` is
+   * `"auto"`. Defaults to Google's public DPDB. Pass `""` or `null` to skip
+   * the online lookup for unknown devices.
+   */
+  databaseUrl?: string | null;
   /** Headset preset or a custom lens profile. */
   profile?: WebVRProfileId | WebVRProfile;
   /** Show a center reticle in VR. Defaults to true. */
@@ -80,6 +96,8 @@ export type WebVRHandle = {
   isAvailable: () => boolean;
   isEnabled: () => boolean;
   getMode: () => WebVRMode | null;
+  getState: () => WebVRState;
+  subscribe: (onStoreChange: () => void) => () => void;
   requestPermission: () => Promise<boolean>;
 };
 

@@ -16,7 +16,13 @@ import { PanoramaViewContext } from "../panorama-view-runtime";
 import { detectWebVRCapabilities } from "./detect";
 import type { WebVRCapabilities } from "./detect";
 import {
+  resolveScreensizeFromDpdb,
+  normalizeDatabaseUrl,
+} from "./dpdb";
+import {
   WebVRRuntimeContext,
+  getWebVRState,
+  subscribeWebVRHost,
   updateWebVRHost,
   type WebVRController,
 } from "./host";
@@ -71,6 +77,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     desktopSupport = false,
     fakeSupport = true,
     screensize,
+    databaseUrl,
     profile,
     cursor = true,
     cursorDwellMs = DEFAULT_WEBVR_CURSOR_DWELL_MS,
@@ -98,9 +105,15 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   const availableRef = useRef(false);
   const modeRef = useRef<WebVRMode | null>(null);
   const webXRSessionRef = useRef<XRSession | null>(null);
+  const dpdbRequestIdRef = useRef(0);
+  const databaseUrlRef = useRef(databaseUrl);
+  databaseUrlRef.current = databaseUrl;
   const [mode, setMode] = useState<WebVRMode | null>(null);
   const [settings, setSettings] = useState(() =>
     initializeSettings(screensize, profile),
+  );
+  const [detectedScreensize, setDetectedScreensize] = useState<number | null>(
+    null,
   );
   const callbacksRef = useRef({
     onAvailable,
@@ -128,6 +141,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     () => resolveWebVRProfile(profile, settings.profileId),
     [profile, settings.profileId],
   );
+  const effectiveScreensize =
+    settings.screensize === "auto"
+      ? (detectedScreensize ?? "auto")
+      : settings.screensize;
 
   const reportDenied = useCallback(
     (error?: unknown) => {
@@ -141,6 +158,32 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     eventBus.emit("vrunknowndevice", undefined);
     callbacksRef.current.onUnknownDevice?.();
   }, [eventBus]);
+
+  const clearDetectedScreensize = useCallback(() => {
+    dpdbRequestIdRef.current += 1;
+    setDetectedScreensize(null);
+    updateWebVRHost(host, { detectedScreensize: null });
+  }, [host]);
+
+  const resolveAutoScreensize = useCallback(() => {
+    const requestId = ++dpdbRequestIdRef.current;
+    const url = normalizeDatabaseUrl(databaseUrlRef.current);
+    if (!url) {
+      reportUnknownDevice();
+      return;
+    }
+    void resolveScreensizeFromDpdb(url).then((inches) => {
+      if (requestId !== dpdbRequestIdRef.current) {
+        return;
+      }
+      if (inches === null) {
+        reportUnknownDevice();
+        return;
+      }
+      setDetectedScreensize(inches);
+      updateWebVRHost(host, { detectedScreensize: inches });
+    });
+  }, [host, reportUnknownDevice]);
 
   const activate = useCallback(
     (nextMode: WebVRMode) => {
@@ -166,6 +209,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       }
       modeRef.current = null;
       setMode(null);
+      clearDetectedScreensize();
       if (previousMode === "fake") {
         controlsRef.current?.setGyroActive(false);
       }
@@ -173,7 +217,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       eventBus.emit("vrexit", { mode: previousMode });
       callbacksRef.current.onExitVR?.(previousMode);
     },
-    [controlsRef, eventBus, gl.domElement],
+    [clearDetectedScreensize, controlsRef, eventBus, gl.domElement],
   );
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -226,10 +270,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
         reportDenied();
         return false;
       }
-      if (settings.screensize === "auto") {
-        reportUnknownDevice();
-      }
       activate("mobilevr");
+      if (settings.screensize === "auto") {
+        resolveAutoScreensize();
+      }
       return true;
     }
 
@@ -258,8 +302,8 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     mobileVr,
     mousePointerLock,
     reportDenied,
-    reportUnknownDevice,
     requestPermission,
+    resolveAutoScreensize,
     settings.screensize,
     wakelock,
     xrStore,
@@ -288,17 +332,29 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return enterVR();
   }, [enterVR, exitVR]);
 
-  const updateSettings = useCallback((next: WebVRSettings) => {
-    const normalized: WebVRSettings = {
-      profileId: next.profileId,
-      screensize:
-        next.screensize === "auto"
-          ? "auto"
-          : Math.round(Math.max(3, Math.min(20, next.screensize)) * 10) / 10,
-    };
-    setSettings(normalized);
-    saveWebVRSettings(normalized);
-  }, []);
+  const updateSettings = useCallback(
+    (next: WebVRSettings) => {
+      const normalized: WebVRSettings = {
+        profileId: next.profileId,
+        screensize:
+          next.screensize === "auto"
+            ? "auto"
+            : Math.round(Math.max(3, Math.min(20, next.screensize)) * 10) / 10,
+      };
+      setSettings(normalized);
+      saveWebVRSettings(normalized);
+      if (normalized.screensize === "auto") {
+        if (modeRef.current === "mobilevr") {
+          setDetectedScreensize(null);
+          updateWebVRHost(host, { detectedScreensize: null });
+          resolveAutoScreensize();
+        }
+      } else {
+        clearDetectedScreensize();
+      }
+    },
+    [clearDetectedScreensize, host, resolveAutoScreensize],
+  );
 
   const controller = useMemo<WebVRController>(
     () => ({
@@ -319,12 +375,14 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       enterVR,
       exitVR,
       getMode: () => modeRef.current,
+      getState: () => getWebVRState(host),
       isAvailable: () => availableRef.current,
       isEnabled: () => modeRef.current !== null,
       requestPermission,
+      subscribe: (onStoreChange) => subscribeWebVRHost(host, onStoreChange),
       toggleVR,
     }),
-    [enterVR, exitVR, requestPermission, toggleVR],
+    [enterVR, exitVR, host, requestPermission, toggleVR],
   );
 
   useEffect(() => {
@@ -360,14 +418,25 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return () => {
       if (host.controller === controller) {
         host.controller = null;
-        updateWebVRHost(host, { mode: null, setupOpen: false });
+        dpdbRequestIdRef.current += 1;
+        setDetectedScreensize(null);
+        updateWebVRHost(host, {
+          detectedScreensize: null,
+          mode: null,
+          setupOpen: false,
+        });
       }
     };
   }, [controller, host]);
 
   useEffect(() => {
-    updateWebVRHost(host, { chrome, mode, settings });
-  }, [chrome, host, mode, settings]);
+    updateWebVRHost(host, {
+      chrome,
+      detectedScreensize,
+      mode,
+      settings,
+    });
+  }, [chrome, detectedScreensize, host, mode, settings]);
 
   useEffect(() => {
     if (mode !== "fake") {
@@ -447,7 +516,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       <WebVRStereoRenderer
         mode={mode}
         profile={resolvedProfile}
-        screensize={settings.screensize}
+        screensize={effectiveScreensize}
       />
       <WebVRReticle
         dwellMs={cursorDwellMs}

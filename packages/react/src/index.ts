@@ -42,7 +42,9 @@ export type {
   WebVRProfileId,
   WebVRProps,
   WebVRSettings,
+  WebVRState,
 } from "./webvr/types";
+export { EMPTY_WEBVR_STATE } from "./webvr/host";
 export { PanoContextMenu } from "./pano-context-menu";
 export {
   composePanoContextMenuItems,

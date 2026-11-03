@@ -769,7 +769,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 **场景**（需 `<Scenes />`）— `setScene(id)`、`nextScene`、`previousScene`、`getActiveSceneId`、`getSceneIds`、`isSceneTransitioning`。`Scenes` 支持 `defaultActiveSceneId`（非受控）或 `activeSceneId`（受控）。受控模式下命令式调用会触发 `onActiveSceneIdChange`。
 
-**WebVR**（需 `<WebVR />`）— `enterVR`、`exitVR`、`toggleVR`、`isVRAvailable`、`isVREnabled`、`getVRMode`、`requestVRPermission`。
+**WebVR**（需 `<WebVR />`）— `enterVR`、`exitVR`、`toggleVR`、`isVRAvailable`、`isVREnabled`、`getVRMode`、`getVRState`、`subscribeVR`、`requestVRPermission`。用 `subscribeVR` 配合 `useSyncExternalStore` 做响应式进入 / 退出按钮；内置 chrome 不再渲染「进入 VR」。
 
 **视频**（需 `<PanoVideo />`）— `getVideo` 返回 `PanoVideoController`，`subscribeVideo` 订阅视频控制器与播放状态变更，另有快捷方法 `playVideo`、`pauseVideo`、`toggleVideo`、`seekVideo`、`setVideoVolume`、`setVideoMuted`、`toggleVideoMuted`。
 
@@ -883,26 +883,30 @@ function SceneExample() {
 
 ### WebVR
 
-`enterVR` 与 `requestVRPermission` 须在用户手势中调用。
+`enterVR` 与 `requestVRPermission` 须在用户手势中调用。通过 `getVRState` /
+`subscribeVR` 由宿主 UI 驱动进入；会话 chrome 只显示退出 VR 与 MobileVR 设置
+（空闲数秒后淡出）。
 
 ```tsx
+import { useSyncExternalStore } from "react";
 import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
   const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
 
   return (
     <>
       <button
-        onClick={async () => {
-          await viewer.requestVRPermission();
-          await viewer.enterVR();
-        }}
+        disabled={!vr.available}
+        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
       >
-        进入 VR
+        {vr.enabled ? "退出 VR" : "进入 VR"}
       </button>
-      <button onClick={() => void viewer.exitVR()}>退出 VR</button>
-      <button onClick={() => console.log(viewer.getVRMode())}>当前模式？</button>
       <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
@@ -1706,7 +1710,7 @@ export function GyroExample() {
 
 ## WebVR
 
-`WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。内置界面包括进入 VR、退出 VR 与 MobileVR 设置控件。
+`WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。进入 VR 由宿主通过查看器句柄触发；内置 chrome 仅在会话中显示退出 VR 与 MobileVR 设置（空闲后淡出）。
 
 ```tsx
 import { useRef } from "react";
@@ -1735,17 +1739,18 @@ export function WebVRExample() {
 }
 ```
 
-句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()` 与 `requestPermission()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2 }` 镜头配置。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
+句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()` 与 `requestPermission()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2 }` 镜头配置。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
 WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
 
 ### 属性
 
-- `chrome` — 默认 `true` 挂载进入 / 退出 / 设置界面。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `setupTitle`。
+- `chrome` — 默认 `true` 挂载会话内退出 / 设置界面（不含进入 VR 按钮）。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `setupTitle`。会话按钮约 3 秒无操作后淡出，与查看器的指针 / 滚轮 / 键盘交互后再次显示。
 - `mobileVr` — 默认 `true`。
 - `desktopSupport` — 默认 `false`（与 `Gyro` 的同名 prop 独立）。
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
 - `screensize` — `"auto"`（出厂 / 省略时的存储默认）或英寸数；数字会被夹到 **3–20** 并保留一位小数。
+- `databaseUrl` — `"auto"` 屏幕尺寸时使用的 Cardboard DPDB URL。默认 `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`。传 `""` 或 `null` 可关闭在线查询。
 - `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
 - `cursorDwellMs` — 默认 `1500`；`0` 不自动点击。
@@ -1753,7 +1758,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `onAvailable` / `onUnavailable` — VR 能力变化。
 - `onEnterVR` / `onExitVR` — 参数为模式 `"webxr" | "mobilevr" | "fake"`。
 - `onDenied` — 权限或会话被拒绝，参数为可选 `error`。
-- `onUnknownDevice` — 无法识别设备屏幕 / 镜头参数时。
+- `onUnknownDevice` — `"auto"` 屏幕尺寸无法从 DPDB 解析时（URL 关闭、无匹配或请求失败）。
 
 ## 鼠标、触控与键盘控件
 

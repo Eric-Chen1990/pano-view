@@ -774,6 +774,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         isVRAvailable: () => webVRHost.snapshot.available,
         isVREnabled: () => webVRHost.snapshot.mode !== null,
         getVRMode: () => webVRHost.snapshot.mode,
+        getVRState: () => webVRHost.state,
+        subscribeVR: (onStoreChange) =>
+          subscribeWebVRHost(webVRHost, onStoreChange),
         requestVRPermission: () =>
           webVRHost.controller?.requestPermission() ??
           Promise.resolve(false),

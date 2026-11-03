@@ -798,7 +798,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 **Scenes** (requires `<Scenes />`) — `setScene(id)`, `nextScene`, `previousScene`, `getActiveSceneId`, `getSceneIds`, `isSceneTransitioning`. `Scenes` accepts `defaultActiveSceneId` (uncontrolled) or `activeSceneId` (controlled). In controlled mode imperative calls invoke `onActiveSceneIdChange`.
 
-**WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `requestVRPermission`.
+**WebVR** (requires `<WebVR />`) — `enterVR`, `exitVR`, `toggleVR`, `isVRAvailable`, `isVREnabled`, `getVRMode`, `getVRState`, `subscribeVR`, `requestVRPermission`. Use `subscribeVR` with `useSyncExternalStore` for reactive Enter / Exit buttons; the built-in chrome no longer renders an Enter VR control.
 
 **Video** (requires `<PanoVideo />`) — `getVideo` returns the `PanoVideoController`, `subscribeVideo` subscribes to video controller and playback-state changes, plus convenience aliases `playVideo`, `pauseVideo`, `toggleVideo`, `seekVideo`, `setVideoVolume`, `setVideoMuted`, `toggleVideoMuted`.
 
@@ -913,25 +913,29 @@ function SceneExample() {
 ### WebVR
 
 `enterVR` and `requestVRPermission` must be called from a user gesture.
+Drive entry from host UI with `getVRState` / `subscribeVR`; session chrome only
+shows Exit VR and MobileVR Setup (which fade after a few idle seconds).
 
 ```tsx
+import { useSyncExternalStore } from "react";
 import { PanoViewer, Sphere, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 
 function VRExample() {
   const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(
+    viewer.subscribeVR,
+    viewer.getVRState,
+    viewer.getVRState,
+  );
 
   return (
     <>
       <button
-        onClick={async () => {
-          await viewer.requestVRPermission();
-          await viewer.enterVR();
-        }}
+        disabled={!vr.available}
+        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
       >
-        Enter VR
+        {vr.enabled ? "Exit VR" : "Enter VR"}
       </button>
-      <button onClick={() => void viewer.exitVR()}>Exit VR</button>
-      <button onClick={() => console.log(viewer.getVRMode())}>Mode?</button>
       <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
         <WebVR />
         <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
@@ -1908,8 +1912,9 @@ These are props on `Gyro` itself. `PanoEvents` `onGyro*` callbacks subscribe to 
 `WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
 `immersive-vr` WebXR session on supported headsets. On phones without WebXR it
 uses a stereoscopic split-screen view with device orientation, and on desktop
-it can provide a mouse-driven simulated VR preview. The built-in chrome includes
-Enter VR, Exit VR, and MobileVR setup controls.
+it can provide a mouse-driven simulated VR preview. Host apps provide Enter VR
+through the viewer handle; the built-in chrome only shows Exit VR and MobileVR
+setup controls while a session is active (they fade after idle interaction).
 
 ```tsx
 import { useRef } from "react";
@@ -1939,19 +1944,23 @@ export function WebVRExample() {
 ```
 
 The handle exposes `enterVR()`, `exitVR()`, `toggleVR()`, `isAvailable()`,
-`isEnabled()`, `getMode()`, and `requestPermission()`. Modes are `"webxr"`,
-`"mobilevr"`, and `"fake"`. `profile` accepts `"none"`, `"cardboard-v1"`,
-`"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom
-`{ fov, ipdMm, k1, k2 }` lens profile. MobileVR setup values are versioned and
-stored in the current origin's `localStorage`. In VR, a center reticle shows a
-crosshair; looking at an interactive hotspot draws a clockwise ring that fills
-over `cursorDwellMs` (default 1500), then the hotspot click handler runs. Set
-`cursorDwellMs={0}` to keep the reticle without auto-click. Simulated desktop
-VR (`fake` mode) requests pointer lock by default (`mousePointerLock`) so the
-cursor hides and mouse movement looks around; click the view again if the
-browser releases the lock. Fallback sessions keep the screen awake
-(`wakelock`) with the Screen Wake Lock API, or a looping hidden video on
-browsers that lack it.
+`isEnabled()`, `getMode()`, `getState()`, `subscribe()`, and
+`requestPermission()`. Modes are `"webxr"`, `"mobilevr"`, and `"fake"`.
+`profile` accepts `"none"`, `"cardboard-v1"`, `"cardboard-v2"`, `"gear-vr"`,
+`"daydream"`, or a custom `{ fov, ipdMm, k1, k2 }` lens profile. When
+`screensize` is `"auto"`, MobileVR loads the Cardboard Device Parameter
+Database (`databaseUrl`, default Google's public DPDB) to estimate diagonal
+inches; pass `""` or `null` to skip the request. Unknown devices fire
+`onUnknownDevice` and keep the lens-profile FOV. MobileVR setup values are
+versioned and stored in the current origin's `localStorage`. In VR, a center
+reticle shows a crosshair; looking at an interactive hotspot draws a clockwise
+ring that fills over `cursorDwellMs` (default 1500), then the hotspot click
+handler runs. Set `cursorDwellMs={0}` to keep the reticle without auto-click.
+Simulated desktop VR (`fake` mode) requests pointer lock by default
+(`mousePointerLock`) so the cursor hides and mouse movement looks around; click
+the view again if the browser releases the lock. Fallback sessions keep the
+screen awake (`wakelock`) with the Screen Wake Lock API, or a looping hidden
+video on browsers that lack it.
 
 WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
 HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
@@ -1962,11 +1971,12 @@ interactive through the default WebXR controller rays.
 
 ### Props
 
-- `chrome` — default `true` mounts Enter / Exit / Setup UI. An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`.
+- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle and return on pointer / wheel / keyboard interaction with the viewer.
 - `mobileVr` — default `true`.
 - `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
 - `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
+- `databaseUrl` — Cardboard DPDB URL for `"auto"` screensize. Default `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`. Pass `""` or `null` to disable the online lookup.
 - `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, label?, id? }`.
 - `cursor` — default `true`; `false` hides the center reticle.
 - `cursorDwellMs` — default `1500`; `0` disables auto-click.
@@ -1974,7 +1984,7 @@ interactive through the default WebXR controller rays.
 - `onAvailable` / `onUnavailable` — VR capability changes.
 - `onEnterVR` / `onExitVR` — mode `"webxr" | "mobilevr" | "fake"`.
 - `onDenied` — permission or session denial, optional `error`.
-- `onUnknownDevice` — when screen / lens parameters cannot be identified.
+- `onUnknownDevice` — when `"auto"` screensize cannot be resolved from the DPDB (disabled URL, no match, or fetch failure).
 
 ## Mouse, touch, and keyboard controls
 

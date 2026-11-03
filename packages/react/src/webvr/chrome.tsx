@@ -1,4 +1,10 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
   subscribeWebVRHost,
@@ -8,6 +14,8 @@ import { DEFAULT_WEBVR_CHROME_APPEARANCE } from "./appearance";
 import { usePortraitOrientation } from "./orientation";
 import { cycleWebVRProfileId, WEBVR_PROFILES } from "./profiles";
 import type { WebVRChromeAppearance, WebVRSettings } from "./types";
+
+const SESSION_CHROME_IDLE_MS = 3_000;
 
 function resolveAppearance(
   value: WebVRHost["snapshot"]["chrome"],
@@ -45,12 +53,26 @@ function ChromeButton({
   );
 }
 
+function formatScreensizeLabel(
+  settings: WebVRSettings,
+  detectedScreensize: number | null,
+): string {
+  if (settings.screensize === "auto") {
+    return detectedScreensize === null
+      ? "Auto"
+      : `Auto · ${detectedScreensize.toFixed(1)}`;
+  }
+  return settings.screensize.toFixed(1);
+}
+
 function SetupPanel({
   appearance,
+  detectedScreensize,
   host,
   settings,
 }: {
   appearance: ReturnType<typeof resolveAppearance>;
+  detectedScreensize: number | null;
   host: WebVRHost;
   settings: WebVRSettings;
 }) {
@@ -98,9 +120,7 @@ function SetupPanel({
             ‹
           </button>
           <strong className="pano-webvr-setup-value">
-            {settings.screensize === "auto"
-              ? "Auto"
-              : settings.screensize.toFixed(1)}
+            {formatScreensizeLabel(settings, detectedScreensize)}
           </strong>
           <button
             aria-label="Increase screen size"
@@ -156,13 +176,23 @@ function SessionActions({
   appearance,
   host,
   mode,
+  visible,
 }: {
   appearance: ReturnType<typeof resolveAppearance>;
   host: WebVRHost;
   mode: NonNullable<WebVRHost["snapshot"]["mode"]>;
+  visible: boolean;
 }) {
   return (
-    <div className="pano-webvr-toolbar-actions">
+    <div
+      aria-hidden={!visible}
+      className={
+        visible
+          ? "pano-webvr-toolbar-actions"
+          : "pano-webvr-toolbar-actions pano-webvr-toolbar-actions-hidden"
+      }
+      inert={!visible ? true : undefined}
+    >
       {mode !== "webxr" ? (
         <ChromeButton
           appearance={appearance}
@@ -213,6 +243,63 @@ function PortraitPrompt() {
   );
 }
 
+function useSessionChromeVisibility(
+  active: boolean,
+  keepVisible: boolean,
+  viewer: Element | null,
+): boolean {
+  const [visible, setVisible] = useState(true);
+  const idleTimerRef = useRef(0);
+
+  const bump = useCallback(() => {
+    setVisible(true);
+    window.clearTimeout(idleTimerRef.current);
+    if (!active || keepVisible) {
+      return;
+    }
+    idleTimerRef.current = window.setTimeout(() => {
+      setVisible(false);
+    }, SESSION_CHROME_IDLE_MS);
+  }, [active, keepVisible]);
+
+  useEffect(() => {
+    if (!active) {
+      window.clearTimeout(idleTimerRef.current);
+      setVisible(true);
+      return;
+    }
+    bump();
+  }, [active, bump, keepVisible]);
+
+  useEffect(() => {
+    if (!active || !viewer) {
+      return;
+    }
+
+    const reveal = () => {
+      bump();
+    };
+
+    viewer.addEventListener("pointerdown", reveal);
+    viewer.addEventListener("wheel", reveal, { passive: true });
+    viewer.addEventListener("keydown", reveal);
+    return () => {
+      viewer.removeEventListener("pointerdown", reveal);
+      viewer.removeEventListener("wheel", reveal);
+      viewer.removeEventListener("keydown", reveal);
+    };
+  }, [active, bump, viewer]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(idleTimerRef.current);
+    },
+    [],
+  );
+
+  return keepVisible || visible;
+}
+
 export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
   useSyncExternalStore(
     (listener) => subscribeWebVRHost(host, listener),
@@ -220,11 +307,33 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
     () => host.revision,
   );
   const portrait = usePortraitOrientation();
-  const { available, chrome, mode, settings, setupOpen } = host.snapshot;
+  const {
+    chrome,
+    detectedScreensize,
+    mode,
+    settings,
+    setupOpen,
+  } = host.snapshot;
   const [mounted, setMounted] = useState(false);
+  const [viewer, setViewer] = useState<Element | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const node =
+      toolbarRef.current?.closest("[data-pano-viewer]") ?? null;
+    setViewer(node);
+  }, [mode]);
+
+  const sessionActive = mode !== null;
+  const chromeVisible = useSessionChromeVisibility(
+    sessionActive,
+    setupOpen,
+    viewer,
+  );
 
   if (chrome === false || !host.controller) {
     return null;
@@ -236,28 +345,33 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
     return <PortraitPrompt />;
   }
 
+  if (!mode) {
+    return null;
+  }
+
   return (
     <>
-      <div className="pano-webvr-toolbar">
-        {mode ? (
-          <SessionActions appearance={appearance} host={host} mode={mode} />
-        ) : (
-          <ChromeButton
-            appearance={appearance}
-            onClick={() => void host.controller?.enterVR()}
-          >
-            {available ? "Enter VR" : "VR unavailable"}
-          </ChromeButton>
-        )}
+      <div className="pano-webvr-toolbar" ref={toolbarRef}>
+        <SessionActions
+          appearance={appearance}
+          host={host}
+          mode={mode}
+          visible={chromeVisible}
+        />
       </div>
-      {mode === "fake" ? (
+      {mode === "fake" && chromeVisible ? (
         <p className="pano-webvr-hint" style={{ color: appearance.color }}>
           Simulated VR Mode · Click the view to lock the mouse, then move to
           look around. Use a headset or phone for real VR.
         </p>
       ) : null}
       {setupOpen ? (
-        <SetupPanel appearance={appearance} host={host} settings={settings} />
+        <SetupPanel
+          appearance={appearance}
+          detectedScreensize={detectedScreensize}
+          host={host}
+          settings={settings}
+        />
       ) : null}
     </>
   );
