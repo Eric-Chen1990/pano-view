@@ -1,5 +1,17 @@
 # @ericchen1990/pano-editor
 
+## 2.0.0
+
+### Minor Changes
+
+- 28e58f7: Share one eight-way overlay anchor for the scene menu and floor-plan map. Map presentation is `panel` or `dialog`, and a panel slides off-screen instead of shrinking to a button.
+
+### Patch Changes
+
+- Updated dependencies [28e58f7]
+- Updated dependencies
+  - @ericchen1990/pano-view@4.0.0
+
 ## 1.2.0
 
 ### Minor Changes

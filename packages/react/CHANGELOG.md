@@ -1,5 +1,15 @@
 # @ericchen1990/pano-view
 
+## 4.0.0
+
+### Major Changes
+
+- 28e58f7: Share one eight-way overlay anchor for the scene menu and floor-plan map. Map presentation is `panel` or `dialog`, and a panel slides off-screen instead of shrinking to a button.
+
+### Minor Changes
+
+- 346e214: Add a `toggle` prop on `PanoSceneMenu` and `PanoMapOverlay` so hosts can replace the edge-tab icon and restyle that button.
+
 ## 3.10.0
 
 ### Minor Changes
