@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 2.0.1
+
+### Patch Changes
+
+- Republish 2.0.0 after npm staged that version without making it publicly available.
+
 ## 2.0.0
 
 ### Minor Changes
