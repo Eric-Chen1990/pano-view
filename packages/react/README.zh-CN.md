@@ -255,12 +255,14 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
   "maxScale": 4,
   "iconSize": 28,
   "presentation": {
-    "mode": "docked",
-    "corner": "bottom-left",
+    "mode": "panel",
+    "anchor": {
+      "align": "bottom-left",
+      "axis": "horizontal",
+      "inset": 16
+    },
     "width": 240,
-    "height": 180,
-    "offsetX": 16,
-    "offsetY": 16
+    "height": 180
   },
   "controls": { "collapse": true, "zoom": true },
   "sector": {
@@ -286,19 +288,19 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `image` 是相对项目目录的路径或绝对 URL。`spots` 必填。点位 `id` 唯一，每个 `sceneId` 必须指向项目中的场景。`x`、`y` 是归一化图像坐标，范围 [0, 1]，原点在左上角。`heading` 是查看器 yaw 为 0 时、从图像向上方向起算的顺时针角度；扇形实际旋转为 `heading + yaw`。多个点位可以指向同一场景，扇形画在第一个 `sceneId` 与当前场景相同的点位上。`icon` 可选；省略时使用内置标记。
 
-`interaction` 为 `"fixed"`（默认）或 `"zoom"`。固定模式把图像适配进面板，忽略滚轮、拖拽平移和缩放按钮。缩放模式允许滚轮缩放，并在比例大于适配尺寸后拖拽平移。地图上的滚轮不会带动页面滚动。`maxScale` 是相对适配尺寸的最大倍数，至少为 1，默认 8。`dragMotion` 控制放大后的平移惯性与边界回弹（默认均开启）。设为 `false` 可同时关闭，或传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。点位与朝向编辑仍是直接拖动。`controls.zoom` 仅在 `"zoom"` 时显示缩放按钮。`controls.collapse` 在停靠面板上显示展开和收起。`iconSize` 是标记边长，单位为 CSS 像素，默认 28。图像缩放时，图标和扇形保持屏幕尺寸。
+`interaction` 为 `"fixed"`（默认）或 `"zoom"`。固定模式把图像适配进面板，忽略滚轮、拖拽平移和缩放按钮。缩放模式允许滚轮缩放，并在比例大于适配尺寸后拖拽平移。地图上的滚轮不会带动页面滚动。`maxScale` 是相对适配尺寸的最大倍数，至少为 1，默认 8。`dragMotion` 控制放大后的平移惯性与边界回弹（默认均开启）。设为 `false` 可同时关闭，或传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。点位与朝向编辑仍是直接拖动。`controls.zoom` 仅在 `"zoom"` 时显示缩放按钮。`controls.collapse` 显示边缘拉手，把面板滑出屏幕。`iconSize` 是标记边长，单位为 CSS 像素，默认 28。图像缩放时，图标和扇形保持屏幕尺寸。
 
 `sector` 可选。`angle` 是开口角度，大于 0 且小于 360。`radius` 单位为 CSS 像素，不随图像缩放。`followFov` 用查看器视场角和地图面板宽高比换算水平视场，代替 `angle`。没有 `gradient` 时，填充为纯色 `color`（默认 `#ffffff`），不透明度为 `opacity`（默认 0.55）。`gradient.type` 为 `"radial"` 或 `"linear"`，至少两个色标。每个色标包含 [0, 1] 的 `offset`、`color`，以及可选 `opacity`。色标不透明度只描述渐隐形状。`sector.opacity` 在纯色和渐变两种模式下都缩放整块填充。`strokeColor`、`strokeWidth`、`strokeOpacity` 在宽度大于 0 时绘制描边，描边宽度保持 CSS 像素。
 
-`presentation.mode` 为 `"docked"`（默认）或 `"dialog"`。两者都接受 `corner`（`top-left`、`top-right`、`bottom-left`、`bottom-right`，默认 `bottom-left`）、`offsetX` 与 `offsetY`（默认 16），以及 `width` 和 `height`。停靠面板默认 220×160。对话框模式停靠一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。
+`presentation.mode` 为 `"panel"`（默认）或 `"dialog"`。两者都接受 `anchor`，以及 `width` 和 `height`。`anchor` 是场景菜单与地图共用的锚定：`align` 为 `top`、`bottom`、`left`、`right` 或四个角之一（默认 `bottom-left`）；`axis` 为 `"horizontal"` 或 `"vertical"`，只在四角生效（默认 `"horizontal"`）；`inset` 可以是数字、CSS 长度字符串，或 `{ top, right, bottom, left }`（默认 `16`）。计算时会加上安全区。面板默认 220×160。对话框模式放置一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。四边在给定主轴尺寸时沿该边居中。四角贴住相邻两边。收起时面板保持尺寸，沿外侧滑出：四边朝该边，四角在水平轴向时朝上或下，垂直轴向时朝左或右。拉手留在该边内侧。
 
-文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`dragMotion`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride`（形状与 `map.presentation` 相同）→ 单独 props。点位几何与扇形样式仍写在文档里。`selectedSpotId` / `onSelectedSpotIdChange` 会向下传给内部 `PanoMap`。停靠模式的收起状态由 overlay 内部管理；对话框模式与 `editorSurface` 会强制关掉收起控件，不能从外面控制 `collapsed`。
+文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`dragMotion`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride`（形状与 `map.presentation` 相同）→ 单独 props。点位几何与扇形样式仍写在文档里。`selectedSpotId` / `onSelectedSpotIdChange` 会向下传给内部 `PanoMap`。面板的收起状态由 overlay 内部管理；对话框模式与 `editorSurface` 会强制关掉边缘拉手。直接使用 `PanoMap` 时，`collapsed` 仍只是在宿主框内藏起图面。
 
 #### 挂载 `PanoMapOverlay`
 
 在 `PanoOverlay` 中挂载，并把交给 `ProjectScenes` 的同一个 `activeSceneId` 传进去。内置 `pano-map-*` 类名来自 `@ericchen1990/pano-view/styles.css`。overlay 从查看器读取 yaw 和视场角，不会自己切换场景：在 `onSelectScene` 里设置当前场景。相机状态来自查看器之外时传入 `view`；查看器外又不传 `view` 时，图面停在 yaw `0`、pitch `0`、fov `75`。`PanoMap` 只负责图面，由宿主自己安排外框。
 
-`PanoMap` 还可受控选中与收起：`selectedSpotId` / `onSelectedSpotIdChange`（省略时内部选中，默认 `null`）；`collapsed` / `onCollapsedChange`（非受控初始为展开）；`renderChrome` 在图面之上渲染宿主控件。`showZoomControls` / `showCollapseControl` 与 overlay 相同，也可直接传给 `PanoMap`。`className` / `style` 挂在表面根节点上。
+`PanoMap` 还可受控选中与收起：`selectedSpotId` / `onSelectedSpotIdChange`（省略时内部选中，默认 `null`）；`collapsed` / `onCollapsedChange`（非受控初始为展开，并在宿主框内藏起图面）；`renderChrome` 在图面之上渲染宿主控件。在 `PanoMapOverlay` 上，`showCollapseControl` 显示共用的边缘拉手。`className` / `style` 挂在表面根节点上。
 
 ```tsx
 import { useState } from "react";
@@ -329,30 +331,27 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-#### 尺寸、角落与边距
+#### 尺寸、对齐与边距
 
-- `presentation` — `"docked"` | `"dialog"`（默认取自文档，否则为 `"docked"`）。
-- `corner` — `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"`（默认 `"bottom-left"`）。
-- `width` / `height` — 停靠面板尺寸，或对话框打开按钮尺寸，单位为 CSS 像素。停靠默认 220×160；打开按钮默认 48×48。
-- `offsetX` / `offsetY` — 相对所选角落的边距，单位为 CSS 像素（默认 16）。
+- `presentation` — `"panel"` | `"dialog"`（默认取自文档，否则为 `"panel"`）。
+- `anchor` — 共用的 `PanoOverlayAnchor`。`align` 是八个位置之一（默认 `"bottom-left"`）。`axis` 用于四角。`inset` 默认 `16`。
+- `width` / `height` — 面板尺寸，或对话框打开按钮尺寸，单位为 CSS 像素。面板默认 220×160；打开按钮默认 48×48。
 
 ```tsx
 <PanoMapOverlay
   map={map}
   activeSceneId={activeSceneId}
   onSelectScene={setActiveSceneId}
-  presentation="docked"
-  corner="bottom-right"
+  presentation="panel"
+  anchor={{ align: "bottom-right", axis: "vertical", inset: 20 }}
   width={280}
   height={200}
-  offsetX={20}
-  offsetY={20}
 />
 ```
 
 #### 对话框模式
 
-对话框模式停靠一个打开按钮，并在查看器内部打开地图。打开按钮尺寸使用 `width` / `height`（以及 `corner` 与边距）。对话框本体使用另一组尺寸：
+对话框模式放置一个打开按钮，并在查看器内部打开地图。打开按钮尺寸使用 `width` / `height`，位置使用同一个 `anchor`。对话框本体使用另一组尺寸：
 
 - `dialogWidth` / `dialogHeight` — 期望的对话框宽高，单位为 CSS 像素（默认 720×520）。两者都会按查看器可用区域夹紧，四周各留 16 像素边距。
 - `openLabel` / `closeLabel` / `title` — 打开按钮无障碍名称、关闭按钮文案与对话框标题（默认分别为 `"Map"`、`"Close"`、`"Map"`）。
@@ -365,7 +364,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
   activeSceneId={activeSceneId}
   onSelectScene={setActiveSceneId}
   presentation="dialog"
-  corner="bottom-left"
+  anchor={{ align: "bottom-left", inset: 16 }}
   width={52}
   height={52}
   dialogWidth={640}
@@ -1431,19 +1430,19 @@ export function Tour() {
 
 每项需要 `id` 与 `thumbnailUrl`。可选 `title` 显示在缩略图底部标签和控制提示上；省略时用 `id`。当前项带叠在缩略图上的选择边框和 `data-active="true"`。场景名默认叠在缩略图底部的暗色半透明条上，可用 `appearance.labelAlign` 改为居中或右对齐。
 
-### 位置、边距与尺寸
+### 对齐、边距与尺寸
 
-- `placement` — `"top"` | `"bottom"` | `"left"` | `"right"`（默认 `"bottom"`）。上下为横向列表，左右为纵向列表。
-- `align` — `"start"` | `"center"` | `"end"`（默认 `"center"`）。菜单主轴尺寸小于可用空间时，沿停靠边对齐；列表内容短于视口时同样对齐。
-- `inset` — 与 viewer 边缘的间隙（默认 `12`）。数字按像素；字符串可带单位（如 `"1rem"`）；对象可分别设置 `top` / `right` / `bottom` / `left`。
-- `width` / `height` — 菜单宽高。数字按像素；字符串会原样写入 CSS，因此可用 `%`、`rem`、`calc()`、`min()`、`max()`、`clamp()` 等。
+`anchor` 是场景菜单和平面图共用的 `PanoOverlayAnchor`。
+
+- `anchor.align` — `"top"` | `"bottom"` | `"left"` | `"right"` | `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"`（默认 `"bottom"`）。上下是横条，左右是竖条。四角再看 `anchor.axis`。
+- `anchor.axis` — `"horizontal"` | `"vertical"`。四边忽略它。四角默认 `"horizontal"`：水平条带朝上或下收起，垂直条带朝左或右收起。
+- `anchor.inset` — 与 viewer 边缘的间隙（默认 `12`）。数字按像素；字符串可带单位（如 `"1rem"`）；对象可分别设置 `top` / `right` / `bottom` / `left`。计算时会加上安全区。
+- `width` / `height` — 菜单宽高。数字按像素；字符串会原样写入 CSS，因此可用 `%`、`rem`、`calc()`、`min()`、`max()`、`clamp()` 等。四边给了主轴尺寸就沿该边居中，没给就在两侧 inset 之间撑满。四角贴住相邻两边，没给尺寸时收缩到内容。较短的列表靠向角落，在边上则居中。
 - `dragMotion` — 滚动惯性与边界回弹。省略则两者都开（自定义指针滚动，桌面也可拖）。设为 `false` 使用原生 overflow 滚动。可传 `{ inertia?: boolean; bounce?: boolean }` 分别开关。短按仍会选中；拖过数像素后会抑制 click。
 
 ```tsx
 <PanoSceneMenu
-  placement="bottom"
-  align="center"
-  inset={16}
+  anchor={{ align: "bottom", inset: 16 }}
   width="min(720px, 100%)"
   items={menuItems}
   activeId={activeSceneId}
@@ -1451,9 +1450,11 @@ export function Tour() {
 />
 
 <PanoSceneMenu
-  placement="right"
-  align="start"
-  inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
+  anchor={{
+    align: "top-left",
+    axis: "vertical",
+    inset: { top: 24, right: 12, bottom: 24, left: 12 },
+  }}
   height="70%"
   width={160}
   items={menuItems}
@@ -1468,7 +1469,7 @@ export function Tour() {
 
 ### 展开收起与箭头
 
-默认始终展开。设 `collapsible` 后会出现开关，位于缩略图条朝向画面内侧的正中（底部菜单在条上方，顶部在条下方，左右在朝向画面一侧）。收起时列表沿停靠边滑出屏幕，只把展开按钮留在安全区边缘：
+默认始终展开。设 `collapsible` 后会出现开关，位于收起边的内侧正中。收起时列表按自身尺寸加上该边 inset 滑出屏幕，展开按钮留在查看器边缘：
 
 ```tsx
 <PanoSceneMenu
@@ -1497,7 +1498,7 @@ export function Tour() {
   showArrows
   loop
   collapsible
-  placement="bottom"
+  anchor={{ align: "bottom" }}
   width="min(720px, 100%)"
   items={menuItems}
   activeId={activeSceneId}

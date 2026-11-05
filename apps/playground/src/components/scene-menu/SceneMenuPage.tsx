@@ -1,12 +1,14 @@
 import {
+  isOverlayCorner,
   PanoOverlay,
   PanoSceneMenu,
+  PANO_OVERLAY_ALIGNS,
   Scenes,
   PanoViewer,
-  type PanoSceneMenuAlign,
+  type PanoOverlayAlign,
+  type PanoOverlayAxis,
   type PanoSceneMenuItem,
   type PanoSceneMenuLabelAlign,
-  type PanoSceneMenuPlacement,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
@@ -34,28 +36,15 @@ const SCENE_MENU_TITLES: Record<(typeof TRANSITION_SCENES)[number]["id"], string
   "tile-4": "Cube 4",
 };
 
-const PLACEMENTS: readonly PanoSceneMenuPlacement[] = [
-  "top",
-  "bottom",
-  "left",
-  "right",
-];
-
-const ALIGNS: readonly PanoSceneMenuAlign[] = ["start", "center", "end"];
-
 const LABEL_ALIGNS: readonly PanoSceneMenuLabelAlign[] = [
   "start",
   "center",
   "end",
 ];
 
-function isHorizontalPlacement(placement: PanoSceneMenuPlacement): boolean {
-  return placement === "top" || placement === "bottom";
-}
-
 function buildSceneMenuSnippet(options: {
-  placement: PanoSceneMenuPlacement;
-  align: PanoSceneMenuAlign;
+  align: PanoOverlayAlign;
+  axis: PanoOverlayAxis;
   collapsible: boolean;
   showArrows: boolean;
   loop: boolean;
@@ -63,19 +52,29 @@ function buildSceneMenuSnippet(options: {
   labelAlign: PanoSceneMenuLabelAlign;
 }): string {
   const {
-    placement,
     align,
+    axis,
     collapsible,
     showArrows,
     loop,
     dragMotionEnabled,
     labelAlign,
   } = options;
-  const horizontal = isHorizontalPlacement(placement);
+  const horizontal =
+    align === "top" ||
+    align === "bottom" ||
+    (isOverlayCorner(align) && axis === "horizontal");
   const sizeProps = horizontal
     ? `      width="80%"`
     : `      height="70%"
       width={160}`;
+  const anchorLines = [
+    `        align: "${align}",`,
+    isOverlayCorner(align) ? `        axis: "${axis}",` : null,
+    `        inset: 12,`,
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
   const optionalProps = [
     collapsible ? "      collapsible" : null,
     showArrows ? "      showArrows" : null,
@@ -109,16 +108,16 @@ const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   <PanoOverlay>
     <PanoSceneMenu
       activeId={activeSceneId}
-      align="${align}"
+      anchor={{
+${anchorLines}
+      }}
       appearance={{
         labelAlign: "${labelAlign}",
         selectionColor: "#7dd3fc",
         selectionWidth: 3,
       }}
-${optionalProps ? `${optionalProps}\n` : ""}      inset={12}
-      items={sceneMenuItems}
+${optionalProps ? `${optionalProps}\n` : ""}      items={sceneMenuItems}
       onSelect={setActiveSceneId}
-      placement="${placement}"
 ${sizeProps}
     />
   </PanoOverlay>
@@ -127,9 +126,8 @@ ${sizeProps}
 
 export function SceneMenuPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
-  const [placement, setPlacement] =
-    useState<PanoSceneMenuPlacement>("bottom");
-  const [align, setAlign] = useState<PanoSceneMenuAlign>("center");
+  const [align, setAlign] = useState<PanoOverlayAlign>("bottom");
+  const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
   const [collapsible, setCollapsible] = useState(true);
   const [showArrows, setShowArrows] = useState(true);
   const [loop, setLoop] = useState(true);
@@ -158,12 +156,15 @@ export function SceneMenuPage() {
     });
   }, []);
 
-  const horizontal = isHorizontalPlacement(placement);
+  const horizontal =
+    align === "top" ||
+    align === "bottom" ||
+    (isOverlayCorner(align) && axis === "horizontal");
   const snippet = useMemo(
     () =>
       buildSceneMenuSnippet({
-        placement,
         align,
+        axis,
         collapsible,
         showArrows,
         loop,
@@ -172,11 +173,11 @@ export function SceneMenuPage() {
       }),
     [
       align,
+      axis,
       collapsible,
       dragMotionEnabled,
       labelAlign,
       loop,
-      placement,
       showArrows,
     ],
   );
@@ -202,38 +203,13 @@ export function SceneMenuPage() {
         </div>
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>
-            Placement
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label="Scene menu placement"
-            >
-              {PLACEMENTS.map((value) => (
-                <button
-                  className={cn(
-                    segmentedButtonClassName,
-                    placement === value && segmentedButtonActiveClassName,
-                  )}
-                  key={value}
-                  onClick={() => {
-                    setPlacement(value);
-                    setStatus(`Docked ${value}.`);
-                  }}
-                  type="button"
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={controlLabelClassName}>
             Align
             <div
               className="flex flex-wrap gap-1.5"
               role="group"
               aria-label="Scene menu align"
             >
-              {ALIGNS.map((value) => (
+              {PANO_OVERLAY_ALIGNS.map((value) => (
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -242,7 +218,7 @@ export function SceneMenuPage() {
                   key={value}
                   onClick={() => {
                     setAlign(value);
-                    setStatus(`Aligned ${value} along the dock edge.`);
+                    setStatus(`Aligned ${value}.`);
                   }}
                   type="button"
                 >
@@ -251,6 +227,33 @@ export function SceneMenuPage() {
               ))}
             </div>
           </div>
+          {isOverlayCorner(align) ? (
+            <div className={controlLabelClassName}>
+              Axis
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Scene menu axis"
+              >
+                {(["horizontal", "vertical"] as const).map((value) => (
+                  <button
+                    className={cn(
+                      segmentedButtonClassName,
+                      axis === value && segmentedButtonActiveClassName,
+                    )}
+                    key={value}
+                    onClick={() => {
+                      setAxis(value);
+                      setStatus(`Axis ${value}.`);
+                    }}
+                    type="button"
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className={controlLabelClassName}>
             Label
             <div
@@ -370,7 +373,11 @@ export function SceneMenuPage() {
             <PanoOverlay>
               <PanoSceneMenu
                 activeId={activeSceneId}
-                align={align}
+                anchor={{
+                  align,
+                  ...(isOverlayCorner(align) ? { axis } : {}),
+                  inset: 12,
+                }}
                 appearance={{
                   labelAlign,
                   selectionColor: "#7dd3fc",
@@ -379,14 +386,12 @@ export function SceneMenuPage() {
                 collapsible={collapsible}
                 dragMotion={dragMotionEnabled ? undefined : false}
                 height={horizontal ? undefined : "70%"}
-                inset={12}
                 items={sceneMenuItems}
                 loop={loop}
                 onSelect={(id) => {
                   setActiveSceneId(id);
                   setStatus(`Selected ${id}.`);
                 }}
-                placement={placement}
                 showArrows={showArrows}
                 width={horizontal ? "80%" : 160}
               />
@@ -394,7 +399,7 @@ export function SceneMenuPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Placement, align, chrome, and appearance update live."
+          blurb="PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Align, axis, chrome, and appearance update live."
           code={snippet}
           label="PanoSceneMenu"
         />

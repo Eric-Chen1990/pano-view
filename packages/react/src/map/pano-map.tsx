@@ -235,7 +235,7 @@ function DefaultSpotIcon({ active, size }: { active: boolean; size: number }) {
 }
 
 /**
- * Floor-plan map surface. Fills its parent; hosts decide docked vs dialog chrome.
+ * Floor-plan map surface. Fills its parent; hosts decide panel vs dialog chrome.
  * Icons and sectors keep CSS-pixel size while the background image zooms.
  */
 export function PanoMap({

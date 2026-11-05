@@ -1,29 +1,83 @@
-import type {
-  PanoMapCorner,
-  PanoMapDefinition,
-  PanoMapSpotDefinition,
-  PanoProjectDefinition,
+import {
+  isOverlayCorner,
+  PANO_OVERLAY_ALIGNS,
+  type PanoOverlayAlign,
+  type PanoOverlayAxis,
+  type PanoOverlayInset,
+  type PanoMapDefinition,
+  type PanoMapSpotDefinition,
+  type PanoProjectDefinition,
 } from "@ericchen1990/pano-view";
 import type { Translate } from "./i18n";
 
-const CORNERS: PanoMapCorner[] = [
-  "top-left",
-  "top-right",
-  "bottom-left",
-  "bottom-right",
-];
+const DEFAULT_INSET = 16;
+
+type InsetSide = "top" | "right" | "bottom" | "left";
+
+function insetSides(align: PanoOverlayAlign): readonly InsetSide[] {
+  switch (align) {
+    case "top":
+      return ["top"];
+    case "bottom":
+      return ["bottom"];
+    case "left":
+      return ["left"];
+    case "right":
+      return ["right"];
+    case "top-left":
+      return ["top", "left"];
+    case "top-right":
+      return ["top", "right"];
+    case "bottom-left":
+      return ["bottom", "left"];
+    case "bottom-right":
+      return ["bottom", "right"];
+    default: {
+      const exhaustive: never = align;
+      return exhaustive;
+    }
+  }
+}
+
+function insetNumber(inset: PanoOverlayInset | undefined, side: InsetSide): number {
+  if (typeof inset === "number") return inset;
+  if (inset && typeof inset === "object") {
+    const value = inset[side];
+    if (typeof value === "number") return value;
+  }
+  return DEFAULT_INSET;
+}
+
+function withInset(
+  inset: PanoOverlayInset | undefined,
+  side: InsetSide,
+  value: number,
+): PanoOverlayInset {
+  const base =
+    typeof inset === "number"
+      ? { top: inset, right: inset, bottom: inset, left: inset }
+      : inset && typeof inset === "object"
+        ? { ...inset }
+        : {};
+  return { ...base, [side]: value };
+}
+
+const INSET_LABEL: Record<InsetSide, string> = {
+  top: "Top inset (px)",
+  right: "Right inset (px)",
+  bottom: "Bottom inset (px)",
+  left: "Left inset (px)",
+};
 
 export function emptyMap(): PanoMapDefinition {
   return {
     image: "",
     interaction: "zoom",
     presentation: {
-      mode: "docked",
-      corner: "bottom-left",
+      mode: "panel",
+      anchor: { align: "bottom-left", inset: DEFAULT_INSET },
       width: 240,
       height: 180,
-      offsetX: 16,
-      offsetY: 16,
     },
     controls: { collapse: true, zoom: true },
     iconSize: 28,
@@ -168,13 +222,13 @@ export function MapInspector({
 }) {
   const selected = map.spots.find((spot) => spot.id === selectedSpotId);
   const presentation = map.presentation ?? {
-    mode: "docked" as const,
-    corner: "bottom-left" as const,
+    mode: "panel" as const,
+    anchor: { align: "bottom-left" as const, inset: DEFAULT_INSET },
     width: 240,
     height: 180,
-    offsetX: 16,
-    offsetY: 16,
   };
+  const align = presentation.anchor?.align ?? "bottom-left";
+  const axis = presentation.anchor?.axis ?? "horizontal";
   const sector = map.sector;
   const patch = (next: PanoMapDefinition) => {
     onBegin();
@@ -211,36 +265,65 @@ export function MapInspector({
               ...map,
               presentation: {
                 ...presentation,
-                mode: event.target.value as "docked" | "dialog",
+                mode: event.target.value as "panel" | "dialog",
               },
             })
           }
         >
-          <option value="docked">{t("Docked panel")}</option>
+          <option value="panel">{t("Panel")}</option>
           <option value="dialog">{t("Dialog button")}</option>
         </select>
       </label>
       <label>
-        <span>{t("Corner")}</span>
+        <span>{t("Screen align")}</span>
         <select
-          value={presentation.corner ?? "bottom-left"}
+          value={align}
           onChange={(event) =>
             patch({
               ...map,
               presentation: {
                 ...presentation,
-                corner: event.target.value as PanoMapCorner,
+                anchor: {
+                  ...presentation.anchor,
+                  align: event.target.value as PanoOverlayAlign,
+                },
               },
             })
           }
         >
-          {CORNERS.map((corner) => (
-            <option key={corner} value={corner}>
-              {t(corner)}
+          {PANO_OVERLAY_ALIGNS.map((value) => (
+            <option key={value} value={value}>
+              {t(value)}
             </option>
           ))}
         </select>
       </label>
+      {insetSides(align).map((side) => (
+        <label key={side}>
+          <span>{t(INSET_LABEL[side])}</span>
+          <input
+            type="number"
+            min={0}
+            value={insetNumber(presentation.anchor?.inset, side)}
+            onChange={(event) =>
+              patch({
+                ...map,
+                presentation: {
+                  ...presentation,
+                  anchor: {
+                    ...presentation.anchor,
+                    inset: withInset(
+                      presentation.anchor?.inset,
+                      side,
+                      Number(event.target.value),
+                    ),
+                  },
+                },
+              })
+            }
+          />
+        </label>
+      ))}
       <label>
         <span>{t("Width (px)")}</span>
         <input
@@ -379,6 +462,31 @@ export function MapInspector({
         />
         <span>{t("Show expand / collapse")}</span>
       </label>
+      {presentation.mode === "panel" &&
+      isOverlayCorner(align) &&
+      map.controls?.collapse === true ? (
+        <label>
+          <span>{t("Axis")}</span>
+          <select
+            value={axis}
+            onChange={(event) =>
+              patch({
+                ...map,
+                presentation: {
+                  ...presentation,
+                  anchor: {
+                    ...presentation.anchor,
+                    axis: event.target.value as PanoOverlayAxis,
+                  },
+                },
+              })
+            }
+          >
+            <option value="horizontal">{t("Horizontal")}</option>
+            <option value="vertical">{t("Vertical")}</option>
+          </select>
+        </label>
+      ) : null}
       <label>
         <span>{t("Icon size (px)")}</span>
         <input

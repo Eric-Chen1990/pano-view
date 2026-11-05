@@ -37,9 +37,8 @@ export type {
   PanoMapGradientStop,
   PanoMapControlsDefinition,
   PanoMapPresentation,
-  PanoMapDockedPresentation,
+  PanoMapPanelPresentation,
   PanoMapDialogPresentation,
-  PanoMapCorner,
   PanoDragMotion,
 } from "./data/map";
 

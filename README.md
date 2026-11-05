@@ -269,7 +269,7 @@ project.
 - [@ericchen1990/pano-converter](./packages/converter/README.md) — Node.js and CLI tiling and reconstruction
 - [360 video guide](./docs/react-360-video.md) — inline playback, captions, and mobile activation
 - [Dialog and styling guide](./packages/react/docs/dialogs.md) — multiple hotspot content mappings, themes, custom layouts and third-party dialogs
-- [Floor plan maps](./packages/react/README.md#floor-plan-maps) — project `map`, scene spots, yaw-linked sectors, and docked or dialog presentation
+- [Floor plan maps](./packages/react/README.md#floor-plan-maps) — project `map`, scene spots, yaw-linked sectors, and panel or dialog presentation
 - [krpano migration guide](./docs/krpano-migration.md) — XML attributes to component props
 
 The Vite Playground in this workspace imports viewer source directly, so local

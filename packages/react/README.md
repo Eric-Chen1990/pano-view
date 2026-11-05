@@ -259,12 +259,14 @@ An optional project-level `map` places scene spots on one floor image. Projects 
   "maxScale": 4,
   "iconSize": 28,
   "presentation": {
-    "mode": "docked",
-    "corner": "bottom-left",
+    "mode": "panel",
+    "anchor": {
+      "align": "bottom-left",
+      "axis": "horizontal",
+      "inset": 16
+    },
     "width": 240,
-    "height": 180,
-    "offsetX": 16,
-    "offsetY": 16
+    "height": 180
   },
   "controls": { "collapse": true, "zoom": true },
   "sector": {
@@ -290,19 +292,19 @@ An optional project-level `map` places scene spots on one floor image. Projects 
 
 `image` is a project-relative path or an absolute URL. `spots` is required. Spot IDs are unique, and each `sceneId` must name a scene in the project. `x` and `y` are normalized image coordinates in [0, 1], with the origin at the top-left. `heading` is clockwise degrees from image-up when viewer yaw is 0; the drawn sector uses `heading + yaw`. Several spots may share a scene. The sector is drawn on the first spot whose `sceneId` matches the active scene. `icon` is optional; a spot without one uses the built-in marker.
 
-`interaction` is `"fixed"` (the default) or `"zoom"`. Fixed mode fits the image in the panel and ignores the wheel, drag-pan, and zoom buttons. Zoom mode allows wheel zoom, and drag-pan once the scale is above the fitted size. Wheel events on the map do not scroll the page. `maxScale` is the maximum multiple of that fitted size, at least 1, default 8. `dragMotion` controls pan inertia and edge bounce while zoomed (both on by default). Set `false` to disable both, or `{ inertia?: boolean; bounce?: boolean }` to toggle either flag. Spot and heading edits stay direct. `controls.zoom` shows the zoom buttons only when interaction is `"zoom"`. `controls.collapse` shows expand and collapse on a docked panel. `iconSize` is the marker edge in CSS pixels, default 28. Icons and the sector keep that screen size while the floor image zooms.
+`interaction` is `"fixed"` (the default) or `"zoom"`. Fixed mode fits the image in the panel and ignores the wheel, drag-pan, and zoom buttons. Zoom mode allows wheel zoom, and drag-pan once the scale is above the fitted size. Wheel events on the map do not scroll the page. `maxScale` is the maximum multiple of that fitted size, at least 1, default 8. `dragMotion` controls pan inertia and edge bounce while zoomed (both on by default). Set `false` to disable both, or `{ inertia?: boolean; bounce?: boolean }` to toggle either flag. Spot and heading edits stay direct. `controls.zoom` shows the zoom buttons only when interaction is `"zoom"`. `controls.collapse` shows an edge tab that slides a panel off-screen. `iconSize` is the marker edge in CSS pixels, default 28. Icons and the sector keep that screen size while the floor image zooms.
 
 `sector` is optional. `angle` is the opening in degrees, greater than 0 and less than 360. `radius` is CSS pixels and does not scale with the image. `followFov` replaces `angle` with the horizontal field of view derived from the viewer FOV and the map panel's aspect ratio. Without `gradient`, the fill is solid `color` (default `#ffffff`) at `opacity` (default 0.55). `gradient.type` is `"radial"` or `"linear"`, with at least two stops. Each stop has `offset` in [0, 1], `color`, and an optional `opacity`. Stop opacities describe only the fade shape. `sector.opacity` scales the whole fill in both solid and gradient mode. `strokeColor`, `strokeWidth`, and `strokeOpacity` draw an outline when the width is greater than 0. The outline width stays in CSS pixels.
 
-`presentation.mode` is `"docked"` (the default) or `"dialog"`. Both accept `corner` (`top-left`, `top-right`, `bottom-left`, or `bottom-right`; default `bottom-left`), `offsetX` and `offsetY` (default 16), plus `width` and `height`. A docked panel defaults to 220×160. Dialog mode docks a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it.
+`presentation.mode` is `"panel"` (the default) or `"dialog"`. Both accept `anchor`, plus `width` and `height`. `anchor` is the shared overlay anchor: `align` is `top`, `bottom`, `left`, `right`, or one of the four corners (default `bottom-left`); `axis` is `"horizontal"` or `"vertical"` and applies only to corners (default `"horizontal"`); `inset` is a number, a CSS length string, or `{ top, right, bottom, left }` (default `16`). Safe-area insets are added on top. A panel defaults to 220×160. Dialog mode places a launcher (48×48 when width and height are omitted) and opens the same map in a viewer-local dialog. Choosing a spot closes that dialog. The chrome is positioned on the full viewer overlay, so scrolling a parent page does not move or resize it. Edges center a sized box on that edge. Corners pin to both adjacent edges. Collapsing keeps the panel size and slides it off the outer edge: edges slide toward that edge, and corners slide vertically when `axis` is horizontal or horizontally when `axis` is vertical. The tab stays on the inner side of that edge.
 
-The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `dragMotion`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` (same shape as `map.presentation`) → individual props. Spot geometry and sector styling stay in the document. `selectedSpotId` / `onSelectedSpotIdChange` are forwarded to the inner `PanoMap`. Docked collapse state is owned by the overlay; dialog mode and `editorSurface` force collapse controls off, so `collapsed` cannot be driven from outside.
+The document stores saved defaults (`image`, `spots`, `sector`, `presentation`, `interaction`, `maxScale`, `dragMotion`, `controls`, `iconSize`). Mount-time props on `PanoMapOverlay` override presentation and zoom for that render without cloning the map. Priority is built-in defaults → map document → `presentationOverride` (same shape as `map.presentation`) → individual props. Spot geometry and sector styling stay in the document. `selectedSpotId` / `onSelectedSpotIdChange` are forwarded to the inner `PanoMap`. Panel collapse state is owned by the overlay; dialog mode and `editorSurface` force the edge tab off. `PanoMap`'s own `collapsed` prop still hides the surface inside a host-owned frame.
 
 #### Mounting `PanoMapOverlay`
 
 Mount it inside `PanoOverlay` and pass the same `activeSceneId` you pass to `ProjectScenes`. Import `@ericchen1990/pano-view/styles.css` for the built-in `pano-map-*` classes. The overlay reads yaw and FOV from the viewer. It does not change scenes by itself: set the active scene from `onSelectScene`. Pass `view` when the camera state comes from outside the viewer; outside the viewer with no `view`, the surface stays at yaw `0`, pitch `0`, fov `75`. `PanoMap` is the surface alone, for a host-owned frame.
 
-`PanoMap` also accepts controlled selection and collapse: `selectedSpotId` / `onSelectedSpotIdChange` (internal selection defaults to `null`); `collapsed` / `onCollapsedChange` (uncontrolled starts expanded); `renderChrome` to draw host controls above the surface. `showZoomControls` / `showCollapseControl` work on `PanoMap` the same way as on the overlay. `className` / `style` attach to the surface root.
+`PanoMap` also accepts controlled selection and collapse: `selectedSpotId` / `onSelectedSpotIdChange` (internal selection defaults to `null`); `collapsed` / `onCollapsedChange` (uncontrolled starts expanded and hides the surface inside the host frame); `renderChrome` to draw host controls above the surface. On `PanoMapOverlay`, `showCollapseControl` shows the shared edge tab instead. `className` / `style` attach to the surface root.
 
 ```tsx
 import { useState } from "react";
@@ -333,30 +335,27 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-#### Size, corner, and inset
+#### Size, align, and inset
 
-- `presentation` — `"docked"` | `"dialog"` (defaults from the document, otherwise `"docked"`).
-- `corner` — `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"` (default `"bottom-left"`).
-- `width` / `height` — docked panel size, or the dialog launcher size, in CSS pixels. Docked defaults to 220×160; the dialog launcher defaults to 48×48.
-- `offsetX` / `offsetY` — inset from the chosen corner in CSS pixels (default 16).
+- `presentation` — `"panel"` | `"dialog"` (defaults from the document, otherwise `"panel"`).
+- `anchor` — shared `PanoOverlayAnchor`. `align` is one of eight positions (default `"bottom-left"`). `axis` is used for corners. `inset` defaults to `16`.
+- `width` / `height` — panel size, or the dialog launcher size, in CSS pixels. Panel defaults to 220×160; the dialog launcher defaults to 48×48.
 
 ```tsx
 <PanoMapOverlay
   map={map}
   activeSceneId={activeSceneId}
   onSelectScene={setActiveSceneId}
-  presentation="docked"
-  corner="bottom-right"
+  presentation="panel"
+  anchor={{ align: "bottom-right", axis: "vertical", inset: 20 }}
   width={280}
   height={200}
-  offsetX={20}
-  offsetY={20}
 />
 ```
 
 #### Dialog mode
 
-Dialog mode docks a launcher button and opens the map in a viewer-local modal. Launcher size uses `width` / `height` (and `corner` / offsets). The dialog body uses a separate pair:
+Dialog mode places a launcher button and opens the map in a viewer-local modal. Launcher size uses `width` / `height`, and the launcher uses the same `anchor`. The dialog body uses a separate pair:
 
 - `dialogWidth` / `dialogHeight` — preferred dialog size in CSS pixels (default 720×520). Both are clamped to the viewer with a 16 px margin on each side.
 - `openLabel` / `closeLabel` / `title` — launcher accessible name, close button label, and dialog heading (defaults `"Map"`, `"Close"`, `"Map"`).
@@ -369,7 +368,7 @@ Choosing a spot closes the dialog.
   activeSceneId={activeSceneId}
   onSelectScene={setActiveSceneId}
   presentation="dialog"
-  corner="bottom-left"
+  anchor={{ align: "bottom-left", inset: 16 }}
   width={52}
   height={52}
   dialogWidth={640}
@@ -691,7 +690,7 @@ Presets and hotspot rendering are in [Scenes](#scenes).
 ### Floor plan
 
 - [`PanoMap`](#floor-plan-maps) — floor image, scene spots, and the yaw-linked sector
-- [`PanoMapOverlay`](#floor-plan-maps) — docked panel or dialog launcher for `PanoOverlay`
+- [`PanoMapOverlay`](#floor-plan-maps) — panel or dialog launcher for `PanoOverlay`
 
 ### Hotspots
 
@@ -1561,18 +1560,21 @@ active item gets a selection ring above the thumbnail and `data-active="true"`.
 Scene names sit on a dark translucent bar at the bottom of each thumbnail;
 use `appearance.labelAlign` for `"center"` or `"end"` alignment.
 
-### Placement, inset, and size
+### Align, inset, and size
 
-- `placement` — `"top"` | `"bottom"` | `"left"` | `"right"` (default `"bottom"`).
-  Top/bottom render a horizontal strip; left/right render a vertical strip.
-- `align` — `"start"` | `"center"` | `"end"` (default `"center"`). When the menu
-  is smaller than the available dock space, aligns it along that edge. Short
-  lists are also aligned inside the strip the same way.
-- `inset` — gap from the viewer edges (default `12`). A number is pixels; a
+`anchor` is the shared `PanoOverlayAnchor` used by the scene menu and the floor-plan map.
+
+- `anchor.align` — `"top"` | `"bottom"` | `"left"` | `"right"` | `"top-left"` | `"top-right"` | `"bottom-left"` | `"bottom-right"` (default `"bottom"`).
+  Top and bottom are horizontal strips. Left and right are vertical strips.
+  A corner uses `anchor.axis`.
+- `anchor.axis` — `"horizontal"` | `"vertical"`. Edges ignore it. Corners default to `"horizontal"`: a horizontal strip slides up or down, and a vertical strip slides left or right.
+- `anchor.inset` — gap from the viewer edges (default `12`). A number is pixels; a
   string keeps units such as `"1rem"`; an object sets `top` / `right` /
-  `bottom` / `left` independently.
+  `bottom` / `left` independently. Safe-area insets are added.
 - `width` / `height` — menu size. A number is pixels; a string is used as CSS as-is,
   including `%`, `rem`, `calc()`, `min()`, `max()`, and `clamp()`.
+  On an edge, a set main-axis size is centered and a missing one stretches between the cross-axis insets. A corner pins to both edges and shrinks to content when a size is omitted.
+  Short lists pack toward the corner, or stay centered on an edge.
 - `dragMotion` — scroll inertia and edge bounce. Omit for both on (custom pointer
   scrolling, including desktop drag). Set `false` for native overflow scroll.
   Pass `{ inertia?: boolean; bounce?: boolean }` to toggle either flag. A short
@@ -1580,9 +1582,7 @@ use `appearance.labelAlign` for `"center"` or `"end"` alignment.
 
 ```tsx
 <PanoSceneMenu
-  placement="bottom"
-  align="center"
-  inset={16}
+  anchor={{ align: "bottom", inset: 16 }}
   width="min(720px, 100%)"
   items={menuItems}
   activeId={activeSceneId}
@@ -1590,9 +1590,11 @@ use `appearance.labelAlign` for `"center"` or `"end"` alignment.
 />
 
 <PanoSceneMenu
-  placement="right"
-  align="start"
-  inset={{ top: 24, right: 12, bottom: 24, left: 12 }}
+  anchor={{
+    align: "top-left",
+    axis: "vertical",
+    inset: { top: 24, right: 12, bottom: 24, left: 12 },
+  }}
   height="70%"
   width={160}
   items={menuItems}
@@ -1601,8 +1603,8 @@ use `appearance.labelAlign` for `"center"` or `"end"` alignment.
 />
 ```
 
-If you omit `width` on a top/bottom menu, the strip stretches between the left
-and right insets. If you omit `height` on a left/right menu, it stretches between
+If you omit `width` on a top or bottom menu, the strip stretches between the left
+and right insets. If you omit `height` on a left or right menu, it stretches between
 the top and bottom insets. The menu also applies a max size that subtracts
 `inset` and safe-area insets, so `100%` still stays inside the viewer.
 
@@ -1611,9 +1613,8 @@ Use `style` when you need one-off positioning overrides on top of these props.
 ### Collapsible menu and arrows
 
 By default the menu stays open. Set `collapsible` to show a toggle centered on
-the inner edge of the strip (above a bottom menu, below a top menu, toward the
-viewer for left/right). Collapsing slides the list off-screen along the dock
-edge and leaves only the expand button on the safe-area edge:
+the inner side of the collapse edge. Collapsing slides the list off-screen by
+its size plus that edge's inset, and leaves the expand button on the viewer edge:
 
 ```tsx
 <PanoSceneMenu
@@ -1649,7 +1650,7 @@ via `label`. When collapsible, `defaultExpanded` defaults to `true`.
   showArrows
   loop
   collapsible
-  placement="bottom"
+  anchor={{ align: "bottom" }}
   width="min(720px, 100%)"
   items={menuItems}
   activeId={activeSceneId}
