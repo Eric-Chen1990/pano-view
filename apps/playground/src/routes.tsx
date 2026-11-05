@@ -1,4 +1,5 @@
 import { lazy, type ComponentType } from "react";
+import type { PlaygroundPath } from "./page-meta";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { FilterPage } from "./components/filters/FilterPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
@@ -27,7 +28,7 @@ export const PLAYGROUND_NAV_GROUPS = [
 export type PlaygroundNavGroupId = (typeof PLAYGROUND_NAV_GROUPS)[number]["id"];
 
 export type PlaygroundRoute = {
-  path: string;
+  path: PlaygroundPath;
   navLabel: string;
   group?: PlaygroundNavGroupId;
   Component: ComponentType;
