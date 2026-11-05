@@ -186,9 +186,9 @@ Edit mode on the Map tab shows a large authoring panel instead of the saved visi
 
 The inspector stores presentation, interaction, and the shared sector on `project.map`:
 
-- **Presentation** is a docked panel or a dialog button, with corner, width, and height.
+- **Presentation** is a panel or a dialog button. `anchor.align` is one of eight positions, with inset and, for corners, a collapse axis. Width and height set the size.
 - **Map interaction** is fixed (fit only; gestures and zoom buttons stay off) or zoom and pan. Zoom mode can set the maximum scale and show zoom buttons.
-- Docked panels can show expand and collapse. Icon size is in CSS pixels.
+- Panels can show expand and collapse. The panel slides off-screen and leaves an edge tab. Icon size is in CSS pixels.
 - The sector can be hidden. When shown, set its angle, radius, whether it follows the viewer FOV, a solid color or a radial/linear gradient, overall opacity, and border color, width, and opacity. Sector opacity scales the whole fill; gradient stops only describe the fade shape. The color control keeps gradient stops on that color.
 
 An empty floor-image path can remain while authoring. Save and both exports require a nonempty image, and every spot must reference an existing scene. Coordinates are normalized: X and Y run from 0 at the top-left to 1 at the bottom-right. Heading is clockwise degrees from image-up at yaw 0.

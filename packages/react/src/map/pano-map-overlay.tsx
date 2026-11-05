@@ -7,11 +7,17 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import type {
-  PanoMapCorner,
-  PanoMapDefinition,
-  PanoMapSpotDefinition,
-} from "../data/map";
+import type { PanoMapDefinition, PanoMapSpotDefinition } from "../data/map";
+import {
+  overlayBoxStyle,
+  overlayChevron,
+  resolveOverlayAnchor,
+  type PanoOverlayAnchor,
+} from "../overlay/align";
+import {
+  resolveOverlayToggleIcon,
+  type PanoOverlayToggle,
+} from "../overlay/toggle";
 import { usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
 import type { PanoViewerState } from "../types";
 import { PanoMap, type PanoMapEditChange, type PanoMapProps } from "./pano-map";
@@ -29,17 +35,16 @@ export type PanoMapOverlayProps = {
   /** Force presentation while authoring, ignoring document presentation temporarily. */
   presentationOverride?: PanoMapDefinition["presentation"];
   /** Override presentation mode for this mount. */
-  presentation?: "docked" | "dialog";
-  /** Override docked corner (or dialog launcher corner). */
-  corner?: PanoMapCorner;
-  /** Override docked panel or dialog-launcher width in CSS pixels. */
+  presentation?: "panel" | "dialog";
+  /**
+   * Override the document anchor for this mount.
+   * Fields replace the document anchor field by field.
+   */
+  anchor?: PanoOverlayAnchor;
+  /** Override panel or dialog-launcher width in CSS pixels. */
   width?: number;
-  /** Override docked panel or dialog-launcher height in CSS pixels. */
+  /** Override panel or dialog-launcher height in CSS pixels. */
   height?: number;
-  /** Horizontal inset from the chosen corner in CSS pixels. */
-  offsetX?: number;
-  /** Vertical inset from the chosen corner in CSS pixels. */
-  offsetY?: number;
   /** Preferred dialog body width in CSS pixels; clamped to the viewer. */
   dialogWidth?: number;
   /** Preferred dialog body height in CSS pixels; clamped to the viewer. */
@@ -65,6 +70,11 @@ export type PanoMapOverlayProps = {
   title?: string;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Panel edge-tab icon and chrome. Omit to keep the default chevron.
+   * Dialog mode has no edge tab.
+   */
+  toggle?: PanoOverlayToggle;
   /** When true, fill a large authoring surface instead of visitor presentation. */
   editorSurface?: boolean;
 };
@@ -72,27 +82,26 @@ export type PanoMapOverlayProps = {
 const DEFAULT_DIALOG_WIDTH = 720;
 const DEFAULT_DIALOG_HEIGHT = 520;
 
-/**
- * Anchor the map chrome to the full viewer overlay, not the screen-visible
- * intersection. Parent page scroll must not move, shrink, or re-dock the map.
- */
-function dockedBox(
-  corner: PanoMapCorner,
-  offsetX: number,
-  offsetY: number,
-  width: number,
-  height: number,
-): CSSProperties {
-  const horizontal =
-    corner === "top-right" || corner === "bottom-right"
-      ? { left: "auto" as const, right: offsetX }
-      : { left: offsetX, right: "auto" as const };
-  const vertical =
-    corner === "bottom-left" || corner === "bottom-right"
-      ? { top: "auto" as const, bottom: offsetY }
-      : { top: offsetY, bottom: "auto" as const };
-  return { ...horizontal, ...vertical, width, height };
+const MAP_ANCHOR_DEFAULTS = { align: "bottom-left" as const, inset: 16 };
+
+function mergeAnchor(
+  base: PanoOverlayAnchor | undefined,
+  override: PanoOverlayAnchor | undefined,
+): PanoOverlayAnchor | undefined {
+  if (base === undefined && override === undefined) return undefined;
+  return {
+    ...base,
+    ...override,
+    inset: override?.inset !== undefined ? override.inset : base?.inset,
+  };
 }
+
+const CHEVRON_PATHS = {
+  up: "M3 11l5-6 5 6",
+  down: "M3 5l5 6 5-6",
+  left: "M11 3 5 8l6 5",
+  right: "M5 3l6 5-6 5",
+} as const;
 
 /** Viewer-local map dialog. Avoids document modal locks from Radix Dialog. */
 function PanoMapDialogShell({
@@ -214,7 +223,7 @@ function PanoMapDialogShell({
 
 /**
  * Visitor-facing map chrome for `PanoOverlay`.
- * Docked panels stay in a corner; dialog mode opens the same map in a modal.
+ * Panel mode anchors the map on the viewer; dialog mode opens it from a launcher.
  */
 export function PanoMapOverlay({
   map,
@@ -228,11 +237,9 @@ export function PanoMapOverlay({
   placementSceneId,
   presentationOverride,
   presentation: presentationModeProp,
-  corner: cornerProp,
+  anchor: anchorProp,
   width: widthProp,
   height: heightProp,
-  offsetX: offsetXProp,
-  offsetY: offsetYProp,
   dialogWidth = DEFAULT_DIALOG_WIDTH,
   dialogHeight = DEFAULT_DIALOG_HEIGHT,
   interaction,
@@ -246,23 +253,22 @@ export function PanoMapOverlay({
   title = "Map",
   className,
   style,
+  toggle,
   editorSurface = false,
 }: PanoMapOverlayProps) {
   const { size } = usePanoOverlay();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const basePresentation = presentationOverride ?? map.presentation ?? {
-    mode: "docked" as const,
-    corner: "bottom-left" as const,
+    mode: "panel" as const,
     width: 220,
     height: 160,
-    offsetX: 16,
-    offsetY: 16,
   };
   const presentationMode = presentationModeProp ?? basePresentation.mode;
-  const corner = cornerProp ?? basePresentation.corner ?? "bottom-left";
-  const offsetX = offsetXProp ?? basePresentation.offsetX ?? 16;
-  const offsetY = offsetYProp ?? basePresentation.offsetY ?? 16;
+  const resolvedAnchor = resolveOverlayAnchor(
+    mergeAnchor(basePresentation.anchor, anchorProp),
+    MAP_ANCHOR_DEFAULTS,
+  );
   const width =
     widthProp ??
     basePresentation.width ??
@@ -345,7 +351,7 @@ export function PanoMapOverlay({
   }
 
   if (presentationMode === "dialog") {
-    const launcherBox = dockedBox(corner, offsetX, offsetY, width, height);
+    const launcherBox = overlayBoxStyle(resolvedAnchor.align, resolvedAnchor.inset, width, height);
     return (
       <div className={["pano-map-overlay", className].filter(Boolean).join(" ")} data-pano-map-overlay="">
         <button
@@ -378,27 +384,64 @@ export function PanoMapOverlay({
     );
   }
 
-  const panelWidth = collapsed ? Math.max(44, Math.min(width, 56)) : width;
-  const panelHeight = collapsed ? Math.max(44, Math.min(height, 56)) : height;
-  const box = dockedBox(corner, offsetX, offsetY, panelWidth, panelHeight);
+  const collapseEnabled = showCollapseControl ?? map.controls?.collapse === true;
+  const box = overlayBoxStyle(resolvedAnchor.align, resolvedAnchor.inset, width, height);
+  const arrow = overlayChevron(resolvedAnchor.collapseEdge, collapsed);
 
   return (
     <div
-      className={["pano-map-overlay", className].filter(Boolean).join(" ")}
+      className={["pano-overlay-anchor", "pano-map-overlay", className].filter(Boolean).join(" ")}
       style={{
         position: "absolute",
-        pointerEvents: "auto",
+        pointerEvents: collapseEnabled && collapsed ? "none" : "auto",
+        ["--pano-overlay-dock-inset" as string]: resolvedAnchor.dockInset,
+        ["--pano-overlay-anchor-radius" as string]: "8px",
         ...box,
         ...style,
       }}
       data-pano-map-overlay=""
-      data-presentation="docked"
+      data-presentation="panel"
+      data-collapse-edge={resolvedAnchor.collapseEdge}
+      data-collapsed={collapseEnabled && collapsed ? "true" : "false"}
     >
-      <PanoMap
-        {...mapProps}
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
-      />
+      <div
+        className="pano-map-overlay-surface"
+        aria-hidden={collapseEnabled && collapsed ? true : undefined}
+        {...(collapseEnabled && collapsed ? ({ inert: true } as { inert: boolean }) : null)}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <PanoMap {...mapProps} showCollapseControl={false} />
+      </div>
+      {collapseEnabled ? (
+        <button
+          type="button"
+          className={["pano-map-control", "pano-overlay-anchor-toggle", toggle?.className]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={collapsed ? "Expand map" : "Collapse map"}
+          aria-pressed={!collapsed}
+          style={toggle?.style}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          {toggle?.icon === undefined ? (
+            <svg
+              aria-hidden
+              fill="none"
+              height="16"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.75"
+              viewBox="0 0 16 16"
+              width="16"
+            >
+              <path d={CHEVRON_PATHS[arrow]} />
+            </svg>
+          ) : (
+            resolveOverlayToggleIcon(toggle.icon, collapsed)
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

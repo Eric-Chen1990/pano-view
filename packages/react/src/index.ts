@@ -81,14 +81,29 @@ export {
   PanoSceneMenu,
 } from "./pano-scene-menu";
 export type {
-  PanoSceneMenuAlign,
   PanoSceneMenuAppearance,
-  PanoSceneMenuInset,
   PanoSceneMenuItem,
   PanoSceneMenuLabelAlign,
-  PanoSceneMenuPlacement,
   PanoSceneMenuProps,
 } from "./pano-scene-menu";
+export {
+  isOverlayCorner,
+  PANO_OVERLAY_ALIGNS,
+  parseOverlayAnchor,
+  resolveOverlayAnchor,
+} from "./overlay/align";
+export type {
+  PanoOverlayAlign,
+  PanoOverlayAnchor,
+  PanoOverlayAxis,
+  PanoOverlayChevron,
+  PanoOverlayCollapseEdge,
+  PanoOverlayContentAlign,
+  PanoOverlayInset,
+  ResolvedOverlayAnchor,
+} from "./overlay/align";
+export { resolveOverlayToggleIcon } from "./overlay/toggle";
+export type { PanoOverlayToggle, PanoOverlayToggleState } from "./overlay/toggle";
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
 export { usePanoViewer } from "./use-pano-viewer";

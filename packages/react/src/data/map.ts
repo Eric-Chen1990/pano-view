@@ -1,5 +1,6 @@
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { PanoDragMotion } from "../drag-motion";
+import { parseOverlayAnchor, type PanoOverlayAnchor } from "../overlay/align";
 import { PanoDataError } from "./errors";
 import {
   mapResource,
@@ -8,8 +9,6 @@ import {
 } from "./viewer";
 
 export type { PanoDragMotion };
-
-export type PanoMapCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export type PanoMapGradientStop = {
   offset: number;
@@ -66,32 +65,28 @@ export type PanoMapSpotDefinition = {
 };
 
 export type PanoMapControlsDefinition = {
-  /** Show expand/collapse on a docked panel. */
+  /** Show the edge tab that slides a panel off-screen. */
   collapse?: boolean;
   /** Show zoom-in and zoom-out buttons. */
   zoom?: boolean;
 };
 
-export type PanoMapDockedPresentation = {
-  mode: "docked";
-  corner?: PanoMapCorner;
+export type PanoMapPanelPresentation = {
+  mode: "panel";
+  anchor?: PanoOverlayAnchor;
   width?: number;
   height?: number;
-  offsetX?: number;
-  offsetY?: number;
 };
 
 export type PanoMapDialogPresentation = {
   mode: "dialog";
-  corner?: PanoMapCorner;
-  offsetX?: number;
-  offsetY?: number;
+  anchor?: PanoOverlayAnchor;
   width?: number;
   height?: number;
 };
 
 export type PanoMapPresentation =
-  | PanoMapDockedPresentation
+  | PanoMapPanelPresentation
   | PanoMapDialogPresentation;
 
 export type PanoMapDefinition = {
@@ -119,13 +114,6 @@ export type PanoMapDefinition = {
   spots: PanoMapSpotDefinition[];
   sector?: PanoMapSectorDefinition;
 };
-
-const CORNERS = new Set<PanoMapCorner>([
-  "top-left",
-  "top-right",
-  "bottom-left",
-  "bottom-right",
-]);
 
 function optionalNumber(
   record: Record<string, unknown>,
@@ -235,30 +223,32 @@ function parsePresentation(
 ): PanoMapPresentation {
   if (!isRecord(value)) throw new Error(`${field}: expected an object`);
   const mode = value.mode;
-  if (mode !== "docked" && mode !== "dialog")
-    throw new Error(`${field}.mode: expected "docked" or "dialog"`);
-  const cornerValue = value.corner;
-  const corner =
-    cornerValue === undefined
+  if (mode === "docked") {
+    throw new Error(`${field}.mode: "docked" was removed; expected "panel" or "dialog"`);
+  }
+  if (mode !== "panel" && mode !== "dialog") {
+    throw new Error(`${field}.mode: expected "panel" or "dialog"`);
+  }
+  if ("corner" in value) {
+    throw new Error(`${field}.corner: use anchor.align`);
+  }
+  if ("offsetX" in value) {
+    throw new Error(`${field}.offsetX: use anchor.inset`);
+  }
+  if ("offsetY" in value) {
+    throw new Error(`${field}.offsetY: use anchor.inset`);
+  }
+  const anchor =
+    value.anchor === undefined
       ? undefined
-      : typeof cornerValue === "string" && CORNERS.has(cornerValue as PanoMapCorner)
-        ? (cornerValue as PanoMapCorner)
-        : (() => {
-            throw new Error(
-              `${field}.corner: expected top-left, top-right, bottom-left, or bottom-right`,
-            );
-          })();
+      : parseOverlayAnchor(value.anchor, `${field}.anchor`);
   const width = optionalNumber(value, "width", { exclusiveMin: 0 });
   const height = optionalNumber(value, "height", { exclusiveMin: 0 });
-  const offsetX = optionalNumber(value, "offsetX", { min: 0 });
-  const offsetY = optionalNumber(value, "offsetY", { min: 0 });
   return {
     mode,
-    ...(corner === undefined ? {} : { corner }),
+    ...(anchor === undefined ? {} : { anchor }),
     ...(width === undefined ? {} : { width }),
     ...(height === undefined ? {} : { height }),
-    ...(offsetX === undefined ? {} : { offsetX }),
-    ...(offsetY === undefined ? {} : { offsetY }),
   };
 }
 

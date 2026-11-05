@@ -60,4 +60,5 @@
   panorama source. Spot `x`/`y` are normalized image coordinates. `heading`
   is clockwise degrees from image-up at yaw 0; the sector draws at
   `heading + yaw` and keeps CSS-pixel size while the image zooms. Presentation
-  is a docked panel or a dialog launcher on the full viewer overlay.
+  is a panel or a dialog launcher on the full viewer overlay. The panel uses the
+  same eight-way `anchor` as the scene menu.

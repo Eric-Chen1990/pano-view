@@ -51,7 +51,12 @@ test("parsePanoMap validates spots against scenes", () => {
     {
       image: "floor.png",
       interaction: "zoom",
-      presentation: { mode: "docked", corner: "bottom-left", width: 240, height: 160 },
+      presentation: {
+        mode: "panel",
+        anchor: { align: "bottom-left", axis: "vertical", inset: 16 },
+        width: 240,
+        height: 160,
+      },
       controls: { collapse: true, zoom: true },
       iconSize: 28,
       maxScale: 4,
@@ -79,6 +84,33 @@ test("parsePanoMap validates spots against scenes", () => {
   );
   assert.equal(map?.spots[0]?.sceneId, "entrance");
   assert.equal(map?.controls?.zoom, true);
+  assert.equal(map?.presentation?.mode, "panel");
+  assert.equal(map?.presentation?.anchor?.align, "bottom-left");
+  assert.equal(map?.presentation?.anchor?.axis, "vertical");
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          presentation: { mode: "docked" },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /docked/,
+  );
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          presentation: { mode: "panel", offsetX: 8 },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /offsetX/,
+  );
   assert.equal(map?.maxScale, 4);
   assert.deepEqual(map?.dragMotion, { inertia: true, bounce: false });
   assert.equal(map?.sector?.strokeColor, "#0f172a");
