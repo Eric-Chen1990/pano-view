@@ -38,13 +38,6 @@ export function EditorPage() {
   const [error, setError] = useState<string>();
   const snippet = useMemo(() => buildEditorSnippet(locale), [locale]);
   useEffect(() => {
-    const previous = document.title;
-    document.title = "Tour editor · Pano View";
-    return () => {
-      document.title = previous;
-    };
-  }, []);
-  useEffect(() => {
     const controller = new AbortController();
     fetch(sampleProjectUrl, { signal: controller.signal })
       .then(async (response) => {

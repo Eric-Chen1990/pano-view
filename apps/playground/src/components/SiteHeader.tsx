@@ -225,10 +225,19 @@ export function SiteHeader() {
     <header className="relative z-20 flex items-center justify-between gap-3 border-b border-[#244047] pb-[17px]">
       <a
         aria-label="Pano View home"
-        className="shrink-0 text-base font-extrabold tracking-[-0.06em] text-[#f5fbfc] no-underline"
+        className="inline-flex min-h-11 shrink-0 items-center gap-2 text-base font-extrabold tracking-[-0.06em] text-[#f5fbfc] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         href={HOME_ROUTE.path}
       >
-        PANO<span className="mx-[0.08em] text-[#df6b42]">/</span>VIEW
+        <img
+          alt=""
+          className="size-9 shrink-0 rounded-full"
+          height={36}
+          src="/logo.png"
+          width={36}
+        />
+        <span>
+          PANO<span className="mx-[0.08em] text-[#df6b42]">/</span>VIEW
+        </span>
       </a>
       <nav
         aria-label="Playground pages"
