@@ -30,6 +30,10 @@ import {
   resolveOverlayAnchor,
   type PanoOverlayAnchor,
 } from "./overlay/align";
+import {
+  resolveOverlayToggleIcon,
+  type PanoOverlayToggle,
+} from "./overlay/toggle";
 
 export type { PanoDragMotion };
 
@@ -102,6 +106,8 @@ export type PanoSceneMenuProps = {
   nextLabel?: string;
   expandLabel?: string;
   collapseLabel?: string;
+  /** Edge-tab icon and chrome. Omit to keep the default chevron. */
+  toggle?: PanoOverlayToggle;
 };
 
 const SCENE_MENU_DRAG_THRESHOLD_PX = 6;
@@ -182,12 +188,14 @@ function ControlButton({
   disabled,
   label,
   onClick,
+  style,
   children,
 }: {
   className?: string;
   disabled?: boolean;
   label: string;
   onClick: () => void;
+  style?: CSSProperties;
   children: ReactNode;
 }) {
   return (
@@ -199,6 +207,7 @@ function ControlButton({
       onPointerDown={(event) => {
         event.stopPropagation();
       }}
+      style={style}
       title={label}
       type="button"
     >
@@ -229,6 +238,7 @@ export function PanoSceneMenu({
   nextLabel = "Next scene",
   expandLabel = "Show scenes",
   collapseLabel = "Hide scenes",
+  toggle,
 }: PanoSceneMenuProps) {
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
@@ -803,11 +813,21 @@ export function PanoSceneMenu({
       </div>
       {collapsible ? (
         <ControlButton
-          className="pano-scene-menu-toggle pano-overlay-anchor-toggle"
+          className={cn(
+            "pano-scene-menu-toggle pano-overlay-anchor-toggle",
+            toggle?.className,
+          )}
           label={expanded ? collapseLabel : expandLabel}
           onClick={() => setExpanded(!expanded)}
+          style={toggle?.style}
         >
-          <Chevron arrow={overlayChevron(resolvedAnchor.collapseEdge, !expanded)} />
+          {toggle?.icon === undefined ? (
+            <Chevron
+              arrow={overlayChevron(resolvedAnchor.collapseEdge, !expanded)}
+            />
+          ) : (
+            resolveOverlayToggleIcon(toggle.icon, !expanded)
+          )}
         </ControlButton>
       ) : null}
     </div>

@@ -400,6 +400,36 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 />
 ```
 
+面板边缘拉手可用 `toggle` 换图标或改样式。对话框模式没有这条拉手。省略 `toggle` 时仍是默认箭头。`icon` 传元素（`<Icon />`），不要传组件类型。图标要随收起状态变化时传函数，参数为 `{ collapsed }`。`className` 追加到按钮上。`style` 覆盖背景、边框、颜色和尺寸；位置和 `transform` 由贴边布局负责，不要在 `style` 里改。默认箭头使用 `currentColor`，只改 `style.color` 就会变色。
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  showCollapseControl
+  toggle={{ style: { color: "#7dd3fc" } }}
+/>
+```
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  showCollapseControl
+  toggle={{
+    className: "map-tab",
+    style: {
+      background: "#0c4a6e",
+      color: "#7dd3fc",
+      border: "1px solid #7dd3fc",
+    },
+    icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+  }}
+/>
+```
+
 #### 编辑模式
 
 `mode="edit"` 用于编辑：设置 `placementSceneId` 后点击地图会新增点位，其 `heading` 取当前 yaw 的相反数，因此在该 yaw 下扇形指向图像上方；拖动点位改变位置，拖动扇形设置 `heading`。`onEditChange` 返回 `{ spots?, selectedSpotId? }`。访客播放保持默认的 `mode="view"`。`editorSurface` 会放大编辑面板；传入 `width` / `height` 可指定尺寸，否则按查看器比例计算。
@@ -1544,6 +1574,36 @@ export function Tour() {
 - `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
 
 根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
+
+`collapsible` 时，边缘拉手可用 `toggle` 换图标或改样式。省略 `toggle` 时仍是默认箭头。`icon` 传元素（`<Icon />`），不要传组件类型。图标要随收起状态变化时传函数，参数为 `{ collapsed }`（菜单展开时 `collapsed` 为 `false`）。`className` 追加到按钮上。`style` 覆盖背景、边框、颜色和尺寸；位置和 `transform` 由贴边布局负责，不要在 `style` 里改。默认箭头使用 `currentColor`，只改 `style.color` 就会变色。
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  toggle={{ style: { color: "#7dd3fc" } }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  toggle={{
+    className: "scene-tab",
+    style: {
+      background: "#0c4a6e",
+      color: "#7dd3fc",
+      border: "1px solid #7dd3fc",
+    },
+    icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+  }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
 
 ## PanoFilter
 

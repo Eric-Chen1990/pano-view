@@ -14,6 +14,10 @@ import {
   resolveOverlayAnchor,
   type PanoOverlayAnchor,
 } from "../overlay/align";
+import {
+  resolveOverlayToggleIcon,
+  type PanoOverlayToggle,
+} from "../overlay/toggle";
 import { usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
 import type { PanoViewerState } from "../types";
 import { PanoMap, type PanoMapEditChange, type PanoMapProps } from "./pano-map";
@@ -66,6 +70,11 @@ export type PanoMapOverlayProps = {
   title?: string;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Panel edge-tab icon and chrome. Omit to keep the default chevron.
+   * Dialog mode has no edge tab.
+   */
+  toggle?: PanoOverlayToggle;
   /** When true, fill a large authoring surface instead of visitor presentation. */
   editorSurface?: boolean;
 };
@@ -244,6 +253,7 @@ export function PanoMapOverlay({
   title = "Map",
   className,
   style,
+  toggle,
   editorSurface = false,
 }: PanoMapOverlayProps) {
   const { size } = usePanoOverlay();
@@ -405,24 +415,31 @@ export function PanoMapOverlay({
       {collapseEnabled ? (
         <button
           type="button"
-          className="pano-map-control pano-overlay-anchor-toggle"
+          className={["pano-map-control", "pano-overlay-anchor-toggle", toggle?.className]
+            .filter(Boolean)
+            .join(" ")}
           aria-label={collapsed ? "Expand map" : "Collapse map"}
           aria-pressed={!collapsed}
+          style={toggle?.style}
           onClick={() => setCollapsed((value) => !value)}
         >
-          <svg
-            aria-hidden
-            fill="none"
-            height="16"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.75"
-            viewBox="0 0 16 16"
-            width="16"
-          >
-            <path d={CHEVRON_PATHS[arrow]} />
-          </svg>
+          {toggle?.icon === undefined ? (
+            <svg
+              aria-hidden
+              fill="none"
+              height="16"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.75"
+              viewBox="0 0 16 16"
+              width="16"
+            >
+              <path d={CHEVRON_PATHS[arrow]} />
+            </svg>
+          ) : (
+            resolveOverlayToggleIcon(toggle.icon, collapsed)
+          )}
         </button>
       ) : null}
     </div>

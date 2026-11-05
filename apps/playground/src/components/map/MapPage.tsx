@@ -61,6 +61,7 @@ function buildMapSnippet(
   presentation: PresentationMode,
   align: PanoOverlayAlign,
   axis: PanoOverlayAxis,
+  customToggle: boolean,
 ): string {
   const width = presentation === "dialog" ? 52 : 260;
   const height = presentation === "dialog" ? 52 : 180;
@@ -131,7 +132,15 @@ useEffect(() => {
         dialogWidth={640}
         dialogHeight={480}
         onSelectScene={setActiveSceneId}
-      />
+${customToggle ? `        toggle={{
+          style: {
+            background: "#0c4a6e",
+            color: "#7dd3fc",
+            border: "1px solid #7dd3fc",
+          },
+          icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+        }}
+` : ""}      />
     </PanoOverlay>
   </PanoViewer>
 ) : null}`;
@@ -145,9 +154,10 @@ export function MapPage() {
   const [presentation, setPresentation] = useState<PresentationMode>("panel");
   const [align, setAlign] = useState<PanoOverlayAlign>("bottom-left");
   const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
+  const [customToggle, setCustomToggle] = useState(false);
   const snippet = useMemo(
-    () => buildMapSnippet(presentation, align, axis),
-    [align, axis, presentation],
+    () => buildMapSnippet(presentation, align, axis, customToggle),
+    [align, axis, customToggle, presentation],
   );
 
   useEffect(() => {
@@ -253,6 +263,22 @@ export function MapPage() {
                 </div>
               ) : null}
               <div className={controlLabelClassName}>
+                Edge tab
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map edge tab">
+                  <button
+                    type="button"
+                    className={cn(
+                      segmentedButtonClassName,
+                      customToggle && segmentedButtonActiveClassName,
+                    )}
+                    aria-pressed={customToggle}
+                    onClick={() => setCustomToggle((value) => !value)}
+                  >
+                    Custom toggle
+                  </button>
+                </div>
+              </div>
+              <div className={controlLabelClassName}>
                 Scene
                 <div className="flex flex-wrap gap-1.5" role="group" aria-label="Scenes">
                   {project.scenes.map((entry) => (
@@ -299,6 +325,18 @@ export function MapPage() {
                     setActiveSceneId(sceneId);
                     setStatus(`Map selected: ${sceneId}`);
                   }}
+                  toggle={
+                    customToggle
+                      ? {
+                          style: {
+                            background: "#0c4a6e",
+                            color: "#7dd3fc",
+                            border: "1px solid #7dd3fc",
+                          },
+                          icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+                        }
+                      : undefined
+                  }
                 />
               </PanoOverlay>
             </PanoViewer>

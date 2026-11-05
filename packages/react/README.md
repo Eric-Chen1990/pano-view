@@ -404,6 +404,36 @@ These props override the map document for the current mount:
 />
 ```
 
+`toggle` replaces the panel edge-tab icon or restyles that button. Dialog mode has no edge tab. Omit `toggle` to keep the default chevron. Pass an element (`<Icon />`) for `icon`, not a component type. When the glyph depends on the collapsed state, pass a function of `{ collapsed }`. `className` is appended to the button. `style` overrides background, border, color, and size. Position and `transform` belong to the edge layout; do not set them in `style`. The default chevron uses `currentColor`, so `style.color` recolors it without replacing the icon.
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  showCollapseControl
+  toggle={{ style: { color: "#7dd3fc" } }}
+/>
+```
+
+```tsx
+<PanoMapOverlay
+  map={map}
+  activeSceneId={activeSceneId}
+  onSelectScene={setActiveSceneId}
+  showCollapseControl
+  toggle={{
+    className: "map-tab",
+    style: {
+      background: "#0c4a6e",
+      color: "#7dd3fc",
+      border: "1px solid #7dd3fc",
+    },
+    icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+  }}
+/>
+```
+
 #### Edit mode
 
 `mode="edit"` is the authoring surface: with `placementSceneId` set, a click adds a spot whose heading is the negation of the current yaw, so the sector points image-up at that yaw; dragging a spot moves it, and dragging the sector sets `heading`. `onEditChange` reports `{ spots?, selectedSpotId? }`. Visitor playback stays on the default `mode="view"`. `editorSurface` enlarges the panel for authoring; pass `width` / `height` to size that surface, otherwise it scales with the viewer.
@@ -1703,6 +1733,43 @@ use `className` / `style` against these stable classes:
 The root also exposes `data-placement`, `data-align`, `data-orientation`
 (`horizontal` | `vertical`), `data-expanded`, and `data-collapsible`. The active
 item has `data-active="true"`.
+
+When `collapsible` is set, `toggle` replaces the edge-tab icon or restyles that
+button. Omit `toggle` to keep the default chevron. Pass an element (`<Icon />`)
+for `icon`, not a component type. When the glyph depends on the collapsed
+state, pass a function of `{ collapsed }` (`collapsed` is `false` while the
+menu is expanded). `className` is appended to the button. `style` overrides
+background, border, color, and size. Position and `transform` belong to the
+edge layout; do not set them in `style`. The default chevron uses
+`currentColor`, so `style.color` recolors it without replacing the icon.
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  toggle={{ style: { color: "#7dd3fc" } }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
+
+```tsx
+<PanoSceneMenu
+  collapsible
+  toggle={{
+    className: "scene-tab",
+    style: {
+      background: "#0c4a6e",
+      color: "#7dd3fc",
+      border: "1px solid #7dd3fc",
+    },
+    icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+  }}
+  items={menuItems}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+/>
+```
 
 ## PanoFilter
 

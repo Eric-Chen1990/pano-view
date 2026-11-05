@@ -50,6 +50,7 @@ function buildSceneMenuSnippet(options: {
   loop: boolean;
   dragMotionEnabled: boolean;
   labelAlign: PanoSceneMenuLabelAlign;
+  customToggle: boolean;
 }): string {
   const {
     align,
@@ -59,6 +60,7 @@ function buildSceneMenuSnippet(options: {
     loop,
     dragMotionEnabled,
     labelAlign,
+    customToggle,
   } = options;
   const horizontal =
     align === "top" ||
@@ -116,7 +118,15 @@ ${anchorLines}
         selectionColor: "#7dd3fc",
         selectionWidth: 3,
       }}
-${optionalProps ? `${optionalProps}\n` : ""}      items={sceneMenuItems}
+${optionalProps ? `${optionalProps}\n` : ""}${customToggle ? `      toggle={{
+        style: {
+          background: "#0c4a6e",
+          color: "#7dd3fc",
+          border: "1px solid #7dd3fc",
+        },
+        icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+      }}
+` : ""}      items={sceneMenuItems}
       onSelect={setActiveSceneId}
 ${sizeProps}
     />
@@ -134,6 +144,7 @@ export function SceneMenuPage() {
   const [dragMotionEnabled, setDragMotionEnabled] = useState(true);
   const [labelAlign, setLabelAlign] =
     useState<PanoSceneMenuLabelAlign>("center");
+  const [customToggle, setCustomToggle] = useState(false);
   const [status, setStatus] = useState(
     "Dock the thumbnail strip and tune chrome.",
   );
@@ -170,11 +181,13 @@ export function SceneMenuPage() {
         loop,
         dragMotionEnabled,
         labelAlign,
+        customToggle,
       }),
     [
       align,
       axis,
       collapsible,
+      customToggle,
       dragMotionEnabled,
       labelAlign,
       loop,
@@ -354,6 +367,23 @@ export function SceneMenuPage() {
               >
                 Drag motion
               </button>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  customToggle && segmentedButtonActiveClassName,
+                )}
+                onClick={() => {
+                  setCustomToggle((value) => !value);
+                  setStatus(
+                    customToggle
+                      ? "Default collapse tab."
+                      : "Custom collapse tab icon and color.",
+                  );
+                }}
+                type="button"
+              >
+                Custom toggle
+              </button>
             </div>
           </div>
         </div>
@@ -393,6 +423,18 @@ export function SceneMenuPage() {
                   setStatus(`Selected ${id}.`);
                 }}
                 showArrows={showArrows}
+                toggle={
+                  customToggle
+                    ? {
+                        style: {
+                          background: "#0c4a6e",
+                          color: "#7dd3fc",
+                          border: "1px solid #7dd3fc",
+                        },
+                        icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+                      }
+                    : undefined
+                }
                 width={horizontal ? "80%" : 160}
               />
             </PanoOverlay>

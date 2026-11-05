@@ -102,6 +102,8 @@ export type {
   PanoOverlayInset,
   ResolvedOverlayAnchor,
 } from "./overlay/align";
+export { resolveOverlayToggleIcon } from "./overlay/toggle";
+export type { PanoOverlayToggle, PanoOverlayToggleState } from "./overlay/toggle";
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
 export { usePanoViewer } from "./use-pano-viewer";
