@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { checkRelease, readNpmPackage } from "./release-check.mjs";
+import { checkRelease, readNpmPackage, verifyPublishedVersions } from "./release-check.mjs";
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "pano-release-check-"));
@@ -67,4 +67,54 @@ test("HTTP errors never become an unpublished release plan", async (t) => {
     await assert.rejects(readNpmPackage("@ericchen1990/pano-view"), new RegExp(`HTTP ${status}`));
     t.mock.restoreAll();
   }
+});
+
+test("post-publish verification waits for accepted versions to become visible", async (t) => {
+  const root = await fixture(t);
+  let reads = 0;
+  let waits = 0;
+  await verifyPublishedVersions(root, {
+    readPackage: (name) => metadata(++reads > 3)(name),
+    wait: async () => { waits++; },
+    attempts: 3,
+  });
+  assert.equal(reads, 6);
+  assert.equal(waits, 1);
+});
+
+test("post-publish visibility waits even if latest moves before scanning finishes", async (t) => {
+  const root = await fixture(t);
+  let reads = 0;
+  let waits = 0;
+  await verifyPublishedVersions(root, {
+    readPackage: async (name) => ({
+      ...await metadata(++reads > 3)(name),
+      "dist-tags": { latest: "1.1.0" },
+    }),
+    wait: async () => { waits++; },
+    attempts: 2,
+  });
+  assert.equal(waits, 1);
+});
+
+test("post-publish verification stops after its read-only polling budget", async (t) => {
+  const root = await fixture(t);
+  let waits = 0;
+  await assert.rejects(verifyPublishedVersions(root, {
+    readPackage: metadata(),
+    wait: async () => { waits++; },
+    attempts: 2,
+  }), /still unavailable.*pano-view@1\.1\.0.*Do not republish automatically/);
+  assert.equal(waits, 1);
+});
+
+test("already visible releases return immediately; registry errors fail without waiting", async (t) => {
+  const root = await fixture(t);
+  let waits = 0;
+  const wait = async () => { waits++; };
+  await verifyPublishedVersions(root, { readPackage: metadata(true), wait });
+  await assert.rejects(verifyPublishedVersions(root, {
+    readPackage: async () => { throw new Error("HTTP 403"); }, wait,
+  }), /HTTP 403/);
+  assert.equal(waits, 0);
 });

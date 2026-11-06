@@ -351,8 +351,10 @@ If a run partially publishes or reports an uncertain result, inspect the exact
 versions on npm before retrying. Re-run the failed `main` push workflow after
 fixing authorization or temporary failures; already published versions are
 skipped. Do not bump versions merely to retry. Post-publication verification
-checks registry availability; delayed npm availability can fail this check even
-when an upload succeeded. It does not automatically retry an upload.
+polls registry availability every 20 seconds for up to 20 minutes of waiting
+to accommodate npm scanning. A timeout names the unavailable versions; inspect
+npm before retrying. Registry errors fail immediately. No upload is retried
+automatically.
 
 ## Maintainer and support
 

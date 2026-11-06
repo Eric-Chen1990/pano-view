@@ -288,7 +288,7 @@ PR 和 **Actions → Release → Run workflow** 都只做验证，不会发布�
 
 等下一版准备好时再创建 publisher：按照当前 [npm 官方规则](https://docs.npmjs.com/trusted-publishers/)，新授权若未在 **2 天内**完成首次成功发布会过期，需要删除后重新创建。首次 OIDC 发布成功后，可将 npm 的 Publishing access 改为 **Require two-factor authentication and disallow tokens**，并在确认其他流程不再使用后撤销旧发布 Token。公开仓库的公开包会附带 provenance 来源证明。
 
-如果一轮发布只有部分包成功，或返回结果不确定，先核对 npm 上的精确版本，再处理授权或临时故障并重新运行失败的 `main` push 工作流；已发布版本会跳过。不要仅为了重试而升级版本。发布后的检查验证 registry 可见性，npm 延迟可能导致上传成功后检查仍失败，工作流不会自动重试上传。
+如果一轮发布只有部分包成功，或返回结果不确定，先核对 npm 上的精确版本，再处理授权或临时故障并重新运行失败的 `main` push 工作流；已发布版本会跳过。不要仅为了重试而升级版本。发布后的检查每 20 秒查询一次 registry，最多等待约 20 分钟，以容纳 npm 扫描延迟；超时会列出仍不可见的版本，需要先核对 npm 再处理。Registry 查询错误会立即停止，不会自动重试上传。
 
 ## 维护与支持
 
