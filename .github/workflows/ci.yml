@@ -1,24 +1,14 @@
 name: CI
 
 on:
+  # Pull requests always start this workflow. The main ruleset requires the
+  # check named "ci"; a paths filter that skips the workflow leaves that check
+  # pending. Unrelated pull requests stop after change detection.
   pull_request:
-    paths:
-      - "packages/react/**"
-      - "packages/editor/**"
-      - "shared/**"
-      - "apps/playground/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "tsconfig.base.json"
-      - ".changeset/config.json"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/release.yml"
-      - "scripts/release-check*.mjs"
-      - "!**/*.md"
   push:
     branches:
       - main
+    # Keep this list identical to PATTERNS in "Detect relevant changes".
     paths:
       - "packages/react/**"
       - "packages/editor/**"
@@ -36,6 +26,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -47,38 +38,169 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Detect relevant changes
+        id: relevant
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "Push already matched the workflow path filter."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files_path="$RUNNER_TEMP/changed-files.txt"
+          gh api --paginate "/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+            --jq '.[] | {filename, previous_filename}' > "$files_path"
+          python3 - "$files_path" "$GITHUB_OUTPUT" << 'PY'
+          import json
+          import re
+          import sys
+
+          # Keep in sync with on.push.paths.
+          PATTERNS = [
+              "packages/react/**",
+              "packages/editor/**",
+              "shared/**",
+              "apps/playground/**",
+              "package.json",
+              "pnpm-lock.yaml",
+              "pnpm-workspace.yaml",
+              "tsconfig.base.json",
+              ".changeset/config.json",
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              "scripts/release-check*.mjs",
+              "!**/*.md",
+          ]
+
+          def glob_to_regex(pattern):
+              if any(char in pattern for char in "?+[]"):
+                  raise SystemExit(f"Unsupported GitHub path pattern syntax: {pattern}")
+              parts = []
+              index = 0
+              while index < len(pattern):
+                  if pattern.startswith("**/", index):
+                      parts.append("(?:.*/)?")
+                      index += 3
+                      continue
+                  if pattern.startswith("**", index):
+                      parts.append(".*")
+                      index += 2
+                      continue
+                  if pattern[index] == "*":
+                      parts.append("[^/]*")
+                      index += 1
+                      continue
+                  if pattern[index] == "\\":
+                      if index + 1 >= len(pattern):
+                          raise SystemExit(f"Dangling escape in path pattern: {pattern}")
+                      parts.append(re.escape(pattern[index + 1]))
+                      index += 2
+                      continue
+                  parts.append(re.escape(pattern[index]))
+                  index += 1
+              return re.compile("".join(parts))
+
+          compiled = []
+          for pattern in PATTERNS:
+              negate = pattern.startswith("!")
+              body = pattern[1:] if negate else pattern
+              compiled.append((negate, glob_to_regex(body)))
+
+          def included(path):
+              matched = False
+              for negate, regex in compiled:
+                  if regex.fullmatch(path):
+                      matched = not negate
+              return matched
+
+          files_path, output_path = sys.argv[1], sys.argv[2]
+          records = []
+          with open(files_path, encoding="utf-8") as handle:
+              for line in handle:
+                  line = line.strip()
+                  if line:
+                      records.append(json.loads(line))
+
+          if len(records) >= 3000:
+              relevant = True
+              print("Changed-file list reached the GitHub 3000-file cap; running CI.")
+          else:
+              paths = []
+              for record in records:
+                  paths.append(record["filename"])
+                  previous = record.get("previous_filename")
+                  if previous:
+                      paths.append(previous)
+              relevant_paths = []
+              for path in paths:
+                  if included(path) and path not in relevant_paths:
+                      relevant_paths.append(path)
+              relevant = bool(relevant_paths)
+              if relevant:
+                  print("CI-relevant changes:")
+                  for path in relevant_paths[:50]:
+                      print(f"  {path}")
+                  remaining = len(relevant_paths) - 50
+                  if remaining > 0:
+                      print(f"  ... {remaining} more")
+              else:
+                  print("No CI-relevant changes.")
+
+          with open(output_path, "a", encoding="utf-8") as handle:
+              handle.write("run=true\n" if relevant else "run=false\n")
+          PY
+
+      - name: Skip CI for unrelated changes
+        if: steps.relevant.outputs.run != 'true'
+        run: echo "No CI-relevant changes. Reporting ci as successful."
+
       - name: Checkout
+        if: steps.relevant.outputs.run == 'true'
         uses: actions/checkout@v6
 
       - name: Setup pnpm
+        if: steps.relevant.outputs.run == 'true'
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
+        if: steps.relevant.outputs.run == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install dependencies
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Test release safeguards
+        if: steps.relevant.outputs.run == 'true'
         run: node --test scripts/release-check.test.mjs
 
       - name: Typecheck
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-editor typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck
 
       - name: Test viewer
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm --filter @ericchen1990/pano-view test
 
       - name: Test editor
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm --filter @ericchen1990/pano-editor test
 
       - name: Build
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm --filter @ericchen1990/pano-view build && pnpm --filter @ericchen1990/pano-editor build && pnpm --filter @ericchen1990/pano-view-playground build
 
       - name: Pack check
+        if: steps.relevant.outputs.run == 'true'
         run: pnpm --filter @ericchen1990/pano-view pack:check && pnpm --filter @ericchen1990/pano-editor pack:check
 
       - name: Check conflict markers and whitespace
+        if: steps.relevant.outputs.run == 'true'
         run: git diff --check
