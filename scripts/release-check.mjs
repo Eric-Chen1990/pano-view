@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { appendFile, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { setTimeout } from "node:timers/promises";
 
 const registry = "https://registry.npmjs.org";
 const repository = "git+https://github.com/Eric-Chen1990/pano-view.git";
@@ -27,7 +28,7 @@ export async function readNpmPackage(name) {
   return response.json();
 }
 
-export async function checkRelease(root, readPackage = readNpmPackage) {
+async function readReleasePackages(root) {
   const config = await readJson(resolve(root, ".changeset/config.json"));
   assert.equal(config.access, "public", "Changesets must publish public packages");
   const changesets = await readdir(resolve(root, ".changeset"));
@@ -62,13 +63,22 @@ export async function checkRelease(root, readPackage = readNpmPackage) {
   }
   assert.deepEqual(new Set(packages.map(({ name }) => name)), expectedPackages,
     "The release must include exactly the three configured public packages");
+  return { packages, changesets };
+}
 
+async function readPackageMetadata(name, readPackage) {
+  const metadata = await readPackage(name);
+  assert.equal(metadata.name, name, `Invalid npm metadata for ${name}`);
+  assert.ok(metadata.versions && typeof metadata.versions === "object" && !Array.isArray(metadata.versions),
+    `Invalid npm versions for ${name}`);
+  return metadata;
+}
+
+export async function checkRelease(root, readPackage = readNpmPackage) {
+  const { packages, changesets } = await readReleasePackages(root);
   const unpublished = [];
   for (const { name, version } of packages) {
-    const metadata = await readPackage(name);
-    assert.equal(metadata.name, name, `Invalid npm metadata for ${name}`);
-    assert.ok(metadata.versions && typeof metadata.versions === "object" && !Array.isArray(metadata.versions),
-      `Invalid npm versions for ${name}`);
+    const metadata = await readPackageMetadata(name, readPackage);
     if (Object.hasOwn(metadata.versions, version)) continue;
     const latest = metadata["dist-tags"]?.latest;
     assert.ok(stableVersion.test(latest), `Missing stable latest version for ${name}`);
@@ -85,12 +95,35 @@ export async function checkRelease(root, readPackage = readNpmPackage) {
   return unpublished;
 }
 
+export async function verifyPublishedVersions(root, {
+  readPackage = readNpmPackage,
+  wait = () => setTimeout(20_000),
+  attempts = 61,
+} = {}) {
+  assert.ok(Number.isInteger(attempts) && attempts > 0, "Verification attempts must be positive");
+  const { packages } = await readReleasePackages(root);
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const pending = [];
+    for (const { name, version } of packages) {
+      const metadata = await readPackageMetadata(name, readPackage);
+      // npm can advance latest before scanning makes the version available.
+      if (!Object.hasOwn(metadata.versions, version)) pending.push(`${name}@${version}`);
+    }
+    if (!pending.length) return;
+    assert.ok(attempt < attempts,
+      `Versions are still unavailable on npm: ${pending.join(", ")}. ` +
+      "Accepted uploads may still be processing; inspect npm before retrying. Do not republish automatically.");
+    console.log(`Waiting for npm availability (${attempt}/${attempts}): ${pending.join(", ")}`);
+    await wait();
+  }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const unpublished = await checkRelease(process.cwd());
   if (process.argv.includes("--verify")) {
-    assert.equal(unpublished.length, 0, "Some versions are not available on npm yet; inspect npm before retrying");
+    await verifyPublishedVersions(process.cwd());
     console.log("All workspace versions are available on npm.");
   } else {
+    const unpublished = await checkRelease(process.cwd());
     const summary = unpublished.length
       ? `Packages to publish:\n${unpublished.map(({ name, version }) => `- ${name}@${version}`).join("\n")}`
       : "All workspace versions are already published; publication will be skipped.";
