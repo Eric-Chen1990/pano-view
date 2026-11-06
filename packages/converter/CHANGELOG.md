@@ -1,5 +1,11 @@
 # @ericchen1990/pano-converter
 
+## 0.3.1
+
+### Patch Changes
+
+- Publish through GitHub Actions using npm Trusted Publishing (OIDC) with provenance. No runtime or public API changes.
+
 ## 0.3.0
 
 ### Minor Changes
