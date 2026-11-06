@@ -41,13 +41,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [20.19.0, 22, 24]
+        node: [24]
     env:
       PANO_REQUIRE_FFMPEG: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -74,15 +74,15 @@ jobs:
         run: node packages/converter/test/pack-smoke.mjs
 
   musl:
-    name: Linux musl / Node 22
+    name: Linux musl / Node 24
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @ericchen1990/pano-converter build
@@ -91,7 +91,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/converter-musl"
           pnpm --filter @ericchen1990/pano-converter pack --pack-destination "$RUNNER_TEMP/converter-musl"
-          docker run --rm -v "$RUNNER_TEMP/converter-musl:/artifacts:ro" -v "$PWD/packages/converter/test/consumer.mjs:/consumer.mjs:ro" node:22-alpine sh -ec '
+          docker run --rm -v "$RUNNER_TEMP/converter-musl:/artifacts:ro" -v "$PWD/packages/converter/test/consumer.mjs:/consumer.mjs:ro" node:24-alpine sh -ec '
             mkdir /consumer && cd /consumer
             npm init -y >/dev/null
             npm install /artifacts/*.tgz
