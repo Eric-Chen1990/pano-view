@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 2.0.2
+
+### Patch Changes
+
+- Publish through GitHub Actions using npm Trusted Publishing (OIDC) with provenance. No runtime or public API changes.
+
 ## 2.0.1
 
 ### Patch Changes

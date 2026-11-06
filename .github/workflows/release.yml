@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/react/package.json
+      - packages/editor/package.json
+      - packages/converter/package.json
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/release-check*.mjs
+  # Manual runs validate only. Re-run a failed main push to retry publication.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release-${{ github.event_name == 'push' && 'main' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  npm_config_registry: https://registry.npmjs.org
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      has-releases: ${{ steps.plan.outputs.has-releases }}
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Test release safeguards
+        run: node --test scripts/release-check.test.mjs
+      - name: Check release plan
+        id: plan
+        if: github.event_name != 'pull_request'
+        run: node scripts/release-check.mjs
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Require FFmpeg for converter tests
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          PANO_REQUIRE_FFMPEG: "1"
+      - run: pnpm build
+      - run: pnpm pack:check
+      - name: Test converter tarball in an isolated consumer
+        run: node packages/converter/test/pack-smoke.mjs
+      - name: Check tracked files are unchanged
+        run: git diff --exit-code && git diff --check
+      - name: Preserve verified builds
+        id: artifact
+        if: github.event_name == 'push' && steps.plan.outputs.has-releases == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-dist
+          path: |
+            packages/react/dist/
+            packages/editor/dist/
+            packages/converter/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: verify
+    if: >-
+      github.repository == 'Eric-Chen1990/pano-view' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.verify.outputs.has-releases == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Require an OIDC-capable npm CLI
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const version = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
+          const [major, minor, patch] = version.split('.').map(Number);
+          if (!(major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))))) {
+            throw new Error(`npm >= 11.5.1 is required for OIDC; found ${version}`);
+          }
+          console.log(`Publishing with npm ${version}`);
+          NODE
+      - name: Install publishing tools without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact-id }}
+          path: packages
+          merge-multiple: true
+      - name: Recheck registry before publishing
+        id: plan
+        run: node scripts/release-check.mjs
+      # pnpm release builds then calls Changesets. CI already tested these builds.
+      # pnpm 10.29.2 packs workspace ranges, then delegates authentication to npm.
+      - name: Publish verified builds through Changesets and OIDC
+        if: steps.plan.outputs.has-releases == 'true'
+        run: pnpm exec changeset publish --no-git-tag
+        env:
+          npm_config_ignore_scripts: "true"
+          npm_config_provenance: "true"
+      - name: Confirm versions are available on npm
+        run: node scripts/release-check.mjs --verify
