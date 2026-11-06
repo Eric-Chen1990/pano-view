@@ -297,10 +297,62 @@ git diff --check
 This repository publishes through Changesets. Do not use npm version or npm
 publish directly.
 
-1. Run pnpm changeset and describe the package change.
-2. Run pnpm version-packages to generate versions and changelog entries.
-3. Run pnpm release only after the relevant changeset, changelog, typecheck,
-   and build have been verified.
+1. Run `pnpm changeset` and describe the package change.
+2. Run `pnpm version-packages` to generate versions and changelog entries.
+3. Review and commit the generated package versions, lockfile, and changelogs,
+   then merge them into `main`. A package-manifest change on `main` triggers
+   `.github/workflows/release.yml`: typecheck, tests, build, tarball checks,
+   then Changesets publication of versions that are not already on npm.
+
+PR runs and **Actions → Release → Run workflow** validate only; they never
+publish. The workflow does not bump versions, open version PRs, push Git tags,
+or create GitHub Releases. It supports stable versions only and stops for
+pending changesets, missing changelog entries, unexpected public packages,
+registry failures, or a version that would move `latest` backwards. Publication
+uses the verified build artifact in a separate job, with lifecycle scripts
+disabled and no long-lived npm token. CI invokes `pnpm exec changeset publish --no-git-tag`,
+the publication half of `pnpm release`, because its builds were already tested.
+Local, explicitly authorized releases can still use `pnpm release` after the
+same checks.
+
+### One-time trusted publisher setup
+
+First merge this workflow, and create a GitHub environment named `npm` under
+**Settings → Environments**. Restrict its deployment branches to `main` only.
+A required reviewer is optional; enabling one pauses each release for approval.
+The workflow itself has read-only repository access and does not need permission
+to create PRs or push tags.
+
+For **each** existing npm package, open its **Settings → Trusted publishing**
+and add a **GitHub Actions** publisher:
+
+| Setting | Value |
+| --- | --- |
+| Organization or user | `Eric-Chen1990` |
+| Repository | `pano-view` |
+| Workflow filename | `release.yml` (filename only) |
+| Environment name | `npm` |
+| Allowed actions | Enable direct `npm publish`; dist-tag management is unnecessary |
+
+Package settings: [pano-view](https://www.npmjs.com/package/@ericchen1990/pano-view/access),
+[pano-editor](https://www.npmjs.com/package/@ericchen1990/pano-editor/access),
+[pano-converter](https://www.npmjs.com/package/@ericchen1990/pano-converter/access).
+Do not add `NPM_TOKEN` or `NODE_AUTH_TOKEN` secrets for this workflow.
+
+Create the publishers when the next release is ready: under the current
+[npm trusted publishing rules](https://docs.npmjs.com/trusted-publishers/), a new
+configuration expires if its first successful publication does not occur within
+2 days. Recreate it if it expires. After the first successful OIDC release,
+select **Require two-factor authentication and disallow tokens** in npm's
+Publishing access settings and revoke obsolete publishing tokens once no other
+process needs them. Public GitHub/npm publication includes provenance.
+
+If a run partially publishes or reports an uncertain result, inspect the exact
+versions on npm before retrying. Re-run the failed `main` push workflow after
+fixing authorization or temporary failures; already published versions are
+skipped. Do not bump versions merely to retry. Post-publication verification
+checks registry availability; delayed npm availability can fail this check even
+when an upload succeeded. It does not automatically retry an upload.
 
 ## Maintainer and support
 

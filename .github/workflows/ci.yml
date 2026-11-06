@@ -13,6 +13,8 @@ on:
       - "tsconfig.base.json"
       - ".changeset/config.json"
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
+      - "scripts/release-check*.mjs"
       - "!**/*.md"
   push:
     branches:
@@ -28,6 +30,8 @@ on:
       - "tsconfig.base.json"
       - ".changeset/config.json"
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
+      - "scripts/release-check*.mjs"
       - "!**/*.md"
 
 permissions:
@@ -57,6 +61,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Test release safeguards
+        run: node --test scripts/release-check.test.mjs
 
       - name: Typecheck
         run: pnpm --filter @ericchen1990/pano-view typecheck && pnpm --filter @ericchen1990/pano-editor typecheck && pnpm --filter @ericchen1990/pano-view-playground typecheck

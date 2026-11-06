@@ -260,11 +260,35 @@ git diff --check
 
 ## 发布
 
-本仓库通过 Changesets 发布。不要直接运行 npm version 或 npm publish。
+本仓库通过 Changesets 发布，不要直接运行 `npm version` 或 `npm publish`。
 
-1. 运行 pnpm changeset 并描述包变更。
-2. 运行 pnpm version-packages 生成版本和更新日志。
-3. 仅在确认 changeset、changelog、typecheck 和 build 后运行 pnpm release。
+1. 运行 `pnpm changeset` 描述包变更。
+2. 运行 `pnpm version-packages` 生成版本和更新日志。
+3. 审核并提交生成的包版本、锁文件和 changelog，再合并到 `main`。`main` 上的包清单变更会触发 `.github/workflows/release.yml`，依次运行类型检查、测试、构建和 tarball 检查，再通过 Changesets 发布 npm 上尚不存在的版本。
+
+PR 和 **Actions → Release → Run workflow** 都只做验证，不会发布。工作流不自动升级版本、不创建版本 PR、不推送 Git 标签，也不创建 GitHub Release。仅支持正式版本；遇到未消费的 changeset、缺失的更新日志、预期之外的公开包、registry 请求失败或会使 `latest` 倒退的版本会停止。
+
+构建验证与发布分为两个任务，发布使用已验证的构建产物，禁用生命周期脚本，不依赖长期 npm Token。CI 使用 `pnpm exec changeset publish --no-git-tag`，即 `pnpm release` 中的发布部分，避免重新构建已测试的产物。本地经明确授权的发布仍可在完成相同检查后使用 `pnpm release`。
+
+### 一次性可信发布设置
+
+先合并工作流，在 GitHub **Settings → Environments** 创建名为 `npm` 的环境，将允许部署的分支限定为 `main`。可选配置 required reviewer；开启后每次发布都会等待审批。工作流对仓库仅有读取权限，不需要创建 PR 或推送标签的权限。
+
+对以下**三个现有 npm 包分别**进入 **Settings → Trusted publishing**，新增 **GitHub Actions** publisher：
+
+| 设置项 | 填写值 |
+| --- | --- |
+| Organization or user | `Eric-Chen1990` |
+| Repository | `pano-view` |
+| Workflow filename | `release.yml`，仅文件名 |
+| Environment name | `npm` |
+| Allowed actions | 允许直接 `npm publish`；不需要管理 dist-tag 的权限 |
+
+包设置入口：[pano-view](https://www.npmjs.com/package/@ericchen1990/pano-view/access)、[pano-editor](https://www.npmjs.com/package/@ericchen1990/pano-editor/access)、[pano-converter](https://www.npmjs.com/package/@ericchen1990/pano-converter/access)。无需为此工作流添加 `NPM_TOKEN` 或 `NODE_AUTH_TOKEN` Secret。
+
+等下一版准备好时再创建 publisher：按照当前 [npm 官方规则](https://docs.npmjs.com/trusted-publishers/)，新授权若未在 **2 天内**完成首次成功发布会过期，需要删除后重新创建。首次 OIDC 发布成功后，可将 npm 的 Publishing access 改为 **Require two-factor authentication and disallow tokens**，并在确认其他流程不再使用后撤销旧发布 Token。公开仓库的公开包会附带 provenance 来源证明。
+
+如果一轮发布只有部分包成功，或返回结果不确定，先核对 npm 上的精确版本，再处理授权或临时故障并重新运行失败的 `main` push 工作流；已发布版本会跳过。不要仅为了重试而升级版本。发布后的检查验证 registry 可见性，npm 延迟可能导致上传成功后检查仍失败，工作流不会自动重试上传。
 
 ## 维护与支持
 
