@@ -2052,8 +2052,12 @@ center reticle shows a crosshair; looking at an interactive hotspot draws a
 clockwise ring that fills over `cursorDwellMs` (default 1500), then the hotspot
 click handler runs. Set `cursorDwellMs={0}` to keep the reticle without
 auto-click. Simulated desktop VR (`fake` mode) requests pointer lock by default
-(`mousePointerLock`) so the cursor hides and mouse movement looks around; click
-the view again if the browser releases the lock. Fallback sessions keep the
+(`mousePointerLock`) so the cursor hides and mouse movement looks around. Right-click
+to release the mouse without leaving VR; left-click the view to lock it again.
+While unlocked, the reticle is hidden and gaze actions stop; relocking starts
+a fresh dwell. Desktop crosshair and ring sizes are 60% of the headset size.
+Browser Escape behavior is preserved. If locking is denied or unsupported,
+VR stays available with a normal cursor; a later left-click can retry. Fallback sessions keep the
 screen awake (`wakelock`) with the Screen Wake Lock API, or a looping hidden
 video on browsers that lack it.
 

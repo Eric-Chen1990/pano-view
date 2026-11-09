@@ -38,7 +38,9 @@ export type PanoOverlayProps = {
 /**
  * Screen-plane DOM UI for PanoViewer. Place it as a direct child of PanoViewer
  * (or inside a Fragment under PanoViewer). It stays outside the panorama sphere
- * and remains visible in fullscreen. Interactive children need `pointerEvents: "auto"`.
+ * and remains visible in fullscreen, but is hidden during VR sessions. Dialogs
+ * portaled to the viewer host can still render spatially. Interactive children
+ * need `pointerEvents: "auto"`.
  */
 export function PanoOverlay({ children }: PanoOverlayProps) {
   const inOutlet = useContext(PanoOverlayOutletContext);

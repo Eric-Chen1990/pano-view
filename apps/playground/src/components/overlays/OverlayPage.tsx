@@ -154,7 +154,7 @@ export function OverlayPage() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRotate} onChange={(event) => setAutoRotate(event.target.checked)} />Auto rotate</label>
       </div>
       <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}>
-        <WebVR mousePointerLock={false} />
+        <WebVR />
         <AutoRotate enabled={autoRotate} speed={8} />
         {project ? <ProjectScenes project={project} activeSceneId={activeSceneId} transition="dissolve" onActiveSceneIdChange={(id) => { setActiveSceneId(id); setSelected(null); }}
           onHotspotClick={(event) => {

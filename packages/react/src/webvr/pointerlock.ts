@@ -1,94 +1,32 @@
-import { useEffect, useRef } from "react";
-import { subscribeFullscreenChange } from "../fullscreen";
+import { useEffect, useRef, useState } from "react";
 import { usePanoCursor } from "../pano-cursor";
+import { bindWebVRPointerLock } from "./pointerlock-runtime";
+
+export { exitWebVRPointerLock, requestWebVRPointerLock } from "./pointerlock-runtime";
 
 const POINTER_LOCK_CURSOR_ID = "webvr:pointerlock";
 
-type PointerLockTarget = HTMLElement & {
-  requestPointerLock: (options?: {
-    unadjustedMovement?: boolean;
-  }) => Promise<void> | void;
-};
-
-export async function requestWebVRPointerLock(
-  element: HTMLElement,
-): Promise<void> {
-  if (typeof document === "undefined") {
-    return;
-  }
-  if (document.pointerLockElement === element) {
-    return;
-  }
-  const target = element as PointerLockTarget;
-  if (typeof target.requestPointerLock !== "function") {
-    return;
-  }
-
-  try {
-    await target.requestPointerLock({ unadjustedMovement: true });
-  } catch {
-    try {
-      await target.requestPointerLock();
-    } catch {
-      // Pointer lock is best-effort; a later click can retry.
-    }
-  }
-}
-
-export function exitWebVRPointerLock(element?: Element | null): void {
-  if (typeof document === "undefined" || !document.pointerLockElement) {
-    return;
-  }
-  if (element && document.pointerLockElement !== element) {
-    return;
-  }
-  document.exitPointerLock();
-}
-
-/**
- * Locks the mouse to the canvas in simulated desktop VR so movement looks
- * around with no visible cursor. Retries after fullscreen and on click.
- */
+/** Tracks actual ownership; unlocking never automatically requests another lock. */
 export function useWebVRPointerLock(
   enabled: boolean,
   element: HTMLElement | null,
-): void {
+): boolean {
   const cursor = usePanoCursor();
   const cursorRef = useRef(cursor);
-  const enabledRef = useRef(enabled);
   cursorRef.current = cursor;
-  enabledRef.current = enabled;
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (!enabled || !element) {
+      setLocked(false);
       return;
     }
-
-    cursorRef.current?.claim(POINTER_LOCK_CURSOR_ID, "hidden");
-
-    const tryLock = () => {
-      if (!enabledRef.current || document.pointerLockElement === element) {
-        return;
-      }
-      void requestWebVRPointerLock(element);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) {
-        return;
-      }
-      tryLock();
-    };
-
-    tryLock();
-    element.addEventListener("pointerdown", onPointerDown);
-    const unsubscribeFullscreen = subscribeFullscreenChange(tryLock);
-
-    return () => {
-      cursorRef.current?.release(POINTER_LOCK_CURSOR_ID);
-      element.removeEventListener("pointerdown", onPointerDown);
-      unsubscribeFullscreen();
-      exitWebVRPointerLock(element);
-    };
+    return bindWebVRPointerLock(element, (ownsLock) => {
+      setLocked(ownsLock);
+      if (ownsLock) cursorRef.current?.claim(POINTER_LOCK_CURSOR_ID, "hidden");
+      else cursorRef.current?.release(POINTER_LOCK_CURSOR_ID);
+    });
   }, [element, enabled]);
+
+  return enabled && locked;
 }

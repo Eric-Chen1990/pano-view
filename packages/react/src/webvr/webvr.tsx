@@ -329,10 +329,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       if (wakelock) {
         void acquireWebVRWakeLock();
       }
-      await enterWebVRPresentation(getViewerElement(gl.domElement));
       if (mousePointerLock) {
         void requestWebVRPointerLock(gl.domElement);
       }
+      await enterWebVRPresentation(getViewerElement(gl.domElement));
       activate("fake");
       return true;
     }
@@ -594,7 +594,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     }
   }, [foveation, frameRate, gl.xr, mode, xrStore]);
 
-  useWebVRPointerLock(
+  const pointerLocked = useWebVRPointerLock(
     mousePointerLock && mode === "fake",
     gl.domElement,
   );
@@ -626,8 +626,8 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       />
       <WebVRReticle
         dwellMs={cursorDwellMs}
-        scale={mode === "mobilevr" ? MOBILE_VR_RETICLE_SCALE : 1}
-        visible={cursor && mode !== null}
+        scale={mode === "mobilevr" ? MOBILE_VR_RETICLE_SCALE : mode === "fake" ? 0.6 : 1}
+        visible={cursor && mode !== null && (mode !== "fake" || !mousePointerLock || pointerLocked)}
       />
     </>
   );

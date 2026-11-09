@@ -98,7 +98,8 @@ function createThreePointerEvent(
       stopped = true;
     },
     uv: intersection.uv,
-    intersections: [intersection],
+    // Pointer-out must describe an empty hover set, including unlock cancellation.
+    intersections: nativeEvent.type === "pointerout" ? [] : [intersection],
     stopped,
   } as ThreeEvent<PointerEvent>;
 }

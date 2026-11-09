@@ -347,6 +347,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const videoHost = useMemo(() => createPanoVideoHost(), []);
     const filterHost = useMemo(() => createPanoFilterHost(), []);
     const webVRHost = useMemo(() => createWebVRHost(), []);
+    const vrMode = useSyncExternalStore(
+      (listener) => subscribeWebVRHost(webVRHost, listener),
+      () => webVRHost.snapshot.mode,
+      () => null,
+    );
+    const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
     const bgmHost = useMemo(() => createBackgroundAudioHost(), []);
     const mediaActivationHost = useMemo(() => createPanoMediaActivationHost(), []);
@@ -974,16 +980,20 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           data-pano-chrome-overlay=""
           ref={setOverlayNode}
         >
+          <div hidden={vrActive} inert={vrActive}>
           <PanoVideoChromeBridge
             fullscreen={contextMenuActions}
             host={videoHost}
             overlayElement={overlayElement}
           />
+          </div>
           <WebVRChromeBridge host={webVRHost} />
           <IphoneLandscapeFullscreenChrome webVRHost={webVRHost} />
         </div>
-        {contextMenuOverlay}
-        {hotspotAccessibilityControls}
+        <div hidden={vrActive} inert={vrActive}>
+          {contextMenuOverlay}
+          {hotspotAccessibilityControls}
+        </div>
         </div>
         <SpatialHostContext.Provider value={spatialHost}>
         <PanoEventBusContext.Provider value={eventBus}>
@@ -995,8 +1005,11 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   ref={setPortalContainer}
                   style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
                 >
-                  {renderOverlay?.(overlayContext)}
-                  {overlayElements}
+                  {/* Keep the portal host measurable for spatial dialog capture. */}
+                  <div data-pano-screen-overlay="" inert={vrActive} style={{ display: vrActive ? "none" : "contents" }}>
+                    {renderOverlay?.(overlayContext)}
+                    {overlayElements}
+                  </div>
                 </div>
               </PanoOverlayOutletContext.Provider>
             </PanoOverlayContext.Provider>

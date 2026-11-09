@@ -369,8 +369,8 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
       </div>
       {mode === "fake" && chromeVisible ? (
         <p className="pano-webvr-hint" style={{ color: appearance.color }}>
-          Simulated VR Mode · Click the view to lock the mouse, then move to
-          look around. Use a headset or phone for real VR.
+          Simulated VR Mode · Move the mouse to look around. Right-click to
+          release the mouse; left-click the view to lock it again.
         </p>
       ) : null}
       {setupOpen ? (
