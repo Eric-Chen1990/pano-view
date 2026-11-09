@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 4.1.0
+
+### Minor Changes
+
+- bf859eb: Add VR-only customizable icon controls for media, models and scrolling, spatial control surfaces, and a VideoHotspot media controller ref. Keep dialog scroll controls available alongside model operations.
+
 ## 4.0.1
 
 ### Patch Changes
