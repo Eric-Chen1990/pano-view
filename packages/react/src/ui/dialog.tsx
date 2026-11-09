@@ -78,7 +78,7 @@ export const PanoDialogContent = forwardRef<HTMLDivElement, PanoDialogContentPro
           data-pano-dialog=""
           className={["pano-dialog-content", className].filter(Boolean).join(" ")}
           style={layout}
-          onInteractOutside={(event) => { if (surface?.presentation === "spatial") event.preventDefault(); props.onInteractOutside?.(event); }}
+          onInteractOutside={(event) => { surface?.onInteractOutside(event); props.onInteractOutside?.(event); }}
           onOpenAutoFocus={(event) => {
             const active = portalContainer.ownerDocument.activeElement;
             returnFocus.current = active instanceof HTMLElement ? active : null;

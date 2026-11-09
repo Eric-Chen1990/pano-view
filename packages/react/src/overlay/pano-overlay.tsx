@@ -188,11 +188,24 @@ export function usePanoDialogSurface({
     },
     [host]
   );
+  const onInteractOutside = useCallback((event: {
+    detail: { originalEvent: Event };
+    preventDefault: () => void;
+  }) => {
+    const target = event.detail.originalEvent.target;
+    // Host controls (including VR entry) must not dismiss a viewer-local dialog
+    // before their click handler can switch its presentation.
+    const viewer = overlay.portalContainer?.closest("[data-pano-viewer]") ?? overlay.portalContainer;
+    if (spatial || !(target instanceof Node && viewer?.contains(target))) {
+      event.preventDefault();
+    }
+  }, [spatial, overlay.portalContainer]);
   // Keep the DOM node and portal target stable; only move its presentation offscreen.
   return {
     ...overlay,
     presentation: spatial ? ("spatial" as const) : ("screen" as const),
     contentRef,
+    onInteractOutside,
     visibleRect: spatial
       ? { left: 0, top: 0, width: 672, height: 720 }
       : overlay.visibleRect,

@@ -17,7 +17,7 @@ export function ThirdPartyDialog({
   title: string;
   children: ReactNode;
 }) {
-  const { portalContainer, visibleRect, contentRef, presentation } = usePanoDialogSurface({ open, onOpenChange });
+  const { portalContainer, visibleRect, contentRef, presentation, onInteractOutside } = usePanoDialogSurface({ open, onOpenChange });
   const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
 
@@ -28,7 +28,7 @@ export function ThirdPartyDialog({
           {presentation === "screen" ? <Dialog.Overlay className="absolute inset-0 bg-black/70" style={{ pointerEvents: "auto" }} /> : null}
           <Dialog.Content
             ref={contentRef}
-            onInteractOutside={event => { if (presentation === "spatial") event.preventDefault(); }}
+            onInteractOutside={onInteractOutside}
             aria-describedby={undefined}
             className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border-2 border-cyan-300 bg-slate-950 text-slate-100"
             style={{
