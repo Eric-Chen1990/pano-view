@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   computeStereoLensCenters,
+  computeStereoCalibration,
   physicalScreenFromDiagonal,
 } from "../src/webvr/lens-center";
 import { WEBVR_PROFILES } from "../src/webvr/profiles";
@@ -57,4 +58,14 @@ test("IPD equal to half-eye width yields a zero horizontal offset", () => {
   );
   assert.ok(Math.abs(centers.left.x) < 1e-10);
   assert.ok(Math.abs(centers.right.x) < 1e-10);
+});
+
+test("neutral preview keeps 80 degree FOV and centered optics regardless of screen size", () => {
+  const neutral = WEBVR_PROFILES.none;
+  for (const size of ["auto", 3, 6.1, 20] as const) {
+    assert.deepEqual(computeStereoCalibration(neutral, size, 16 / 9), {
+      fov: 80, centers: { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } },
+    });
+  }
+  assert.notEqual(computeStereoCalibration(WEBVR_PROFILES["cardboard-v1"], 6.1, 16 / 9).fov, 80);
 });

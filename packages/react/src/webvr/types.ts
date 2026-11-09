@@ -140,7 +140,7 @@ export type WebVRHandle = {
   getState: () => WebVRState;
   subscribe: (onStoreChange: () => void) => () => void;
   requestPermission: () => Promise<boolean>;
-  /** Clear stored MobileVR settings and restore prop / built-in defaults. */
+  /** Reset the active fallback mode, or both modes outside VR; explicit props still apply. */
   resetSettings: () => void;
 };
 

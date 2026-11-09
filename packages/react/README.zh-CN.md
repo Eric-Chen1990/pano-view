@@ -1793,6 +1793,9 @@ export function GyroExample() {
 
 ## WebVR
 
+VR 设置按桌面模拟与手机分屏分别保存到 v2 存储，不继承旧版 v1。Reset 仅重置当前回退模式，未进入 VR 时重置两种模式。默认 `none` 使用每眼垂直 FOV 80°、虚拟眼距 60 mm 和居中光轴，不根据屏幕尺寸校准。只有手机自动尺寸查询 DPDB（5 秒超时），冲突结果需要手动校准；识别手机不会自动选择镜头。显式 props 优先，相关设置项只读。桌面解锁期间顶部按钮常显；锁定后空闲 3 秒淡出，悬停、键盘焦点或设置面板打开时保持显示。
+
+
 `WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。进入 VR 由宿主通过查看器句柄触发；内置 chrome 仅在会话中显示退出 VR 与 MobileVR 设置（空闲后淡出）。
 
 ```tsx
@@ -1834,7 +1837,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
 - `screensize` — `"auto"`（出厂 / 省略时的存储默认）或英寸数；数字会被夹到 **3–20** 并保留一位小数。
 - `databaseUrl` — `"auto"` 屏幕尺寸时使用的 Cardboard DPDB URL。默认 `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`。传 `""` 或 `null` 可关闭在线查询。
-- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
+- `profile` — 省略时用已存设置，出厂为 `"none"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
 - `absolute` — 默认 `false`。MobileVR 使用罗盘绝对朝向（对 WebXR 无效）。
 - `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
 - `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。

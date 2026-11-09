@@ -87,3 +87,14 @@ export function computeStereoLensCenters(
     right: { x: clampUnit(-x), y: clampUnit(y) },
   };
 }
+
+/** Neutral preview optics deliberately ignore physical screen measurements. */
+export function computeStereoCalibration(profile: WebVRProfile, screensize: number | "auto", displayAspect: number) {
+  const calibratedSize = profile.id === "none" ? "auto" : screensize;
+  const screen = calibratedSize === "auto" ? null : physicalScreenFromDiagonal(calibratedSize, displayAspect);
+  const fov = screen === null ? profile.fov : 2 * Math.atan(screen.heightMm / (2 * (profile.screenToLensMm ?? 42))) * 180 / Math.PI;
+  return {
+    fov: Math.max(30, Math.min(140, fov)),
+    centers: computeStereoLensCenters(profile, calibratedSize, displayAspect),
+  };
+}

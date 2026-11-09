@@ -19,6 +19,7 @@ import {
 import { WebVRRuntimeContext } from "./host";
 import {
   computeStereoLensCenters,
+  computeStereoCalibration,
   type StereoLensCenter,
 } from "./lens-center";
 import {
@@ -146,19 +147,9 @@ function syncStereoCameras(
     gl.getPixelRatio(),
     oversampling,
   );
-  const screenToLensMm = profile.screenToLensMm ?? 42;
   const displayAspect = layout.fullWidth / layout.fullHeight;
-  const screenHeightMm =
-    screensize === "auto"
-      ? null
-      : (screensize * 25.4) /
-        Math.sqrt(displayAspect * displayAspect + 1);
-  const calibratedFov =
-    screenHeightMm === null
-      ? profile.fov
-      : (2 * Math.atan(screenHeightMm / (2 * screenToLensMm)) * 180) /
-        Math.PI;
-  camera.fov = Math.max(30, Math.min(140, calibratedFov));
+  const { fov, centers } = computeStereoCalibration(profile, screensize, displayAspect);
+  camera.fov = fov;
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   stereo.aspect = layout.stereoAspect;
@@ -174,7 +165,6 @@ function syncStereoCameras(
   stereo.cameraR.matrix.multiply(TOE_IN);
   stereo.cameraR.matrixWorldNeedsUpdate = true;
 
-  const centers = computeStereoLensCenters(profile, screensize, displayAspect);
   applyEyeViewOffset(stereo.cameraL, layout.left, centers.left);
   applyEyeViewOffset(stereo.cameraR, layout.right, centers.right);
   stereo.cameraL.updateMatrixWorld(true);

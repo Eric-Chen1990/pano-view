@@ -1999,6 +1999,9 @@ These are props on `Gyro` itself. `PanoEvents` `onGyro*` callbacks subscribe to 
 
 ## WebVR
 
+VR settings use independent v2 storage for simulated desktop and MobileVR; legacy v1 values are ignored. Reset affects the active fallback mode, or both outside VR. The neutral `none` preset uses 80° vertical FOV, 60 mm virtual eye spacing and centered optics regardless of physical screen size. Only MobileVR auto screen size queries DPDB (5-second timeout); ambiguous matches require manual calibration. Phone detection never selects a lens preset. Explicit props take precedence and their controls are read-only in Setup.
+
+
 `WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
 `immersive-vr` WebXR session on supported headsets. On phones without WebXR it
 uses a stereoscopic split-screen view with device orientation, and on desktop
@@ -2070,13 +2073,13 @@ interactive through the default WebXR controller rays.
 
 ### Props
 
-- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle and return on pointer / wheel / keyboard interaction with the viewer.
+- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle while locked. Simulated VR keeps them visible while the mouse is unlocked; hovering, keyboard focus, and an open Setup panel also keep them visible.
 - `mobileVr` — default `true`.
 - `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
 - `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
 - `databaseUrl` — Cardboard DPDB URL for `"auto"` screensize. Default `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`. Pass `""` or `null` to disable the online lookup.
-- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
+- `profile` — omitted values use stored settings; factory default is `"none"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
 - `absolute` — default `false`. Compass-oriented MobileVR heading (no effect in WebXR).
 - `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
 - `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
