@@ -1,3 +1,6 @@
+import { hotspotScaleMode, tooltipScaleMode as resolveTooltipScaleMode } from "../../../../shared/hotspot-rendering";
+import { WebVRRuntimeContext } from "../webvr/host";
+import { SpatialHostContext } from "../spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -494,10 +497,13 @@ function updateTooltipAnchor(
   useAngularScale: boolean,
   camera: Camera,
   viewport: ViewportSize,
+  worldAnchored = false,
 ) {
   group.updateMatrixWorld(true);
   const bounds = resolveTooltipLocalBounds(group, anchor, useAngularScale);
   if (
+    // A VR tooltip stays on the hotspot's local edge as the head turns.
+    !worldAnchored &&
     bounds &&
     setTooltipAnchorFromScreenBounds(
       anchor,
@@ -561,7 +567,7 @@ export function HotspotAnchor({
   distance,
   internalOrientation,
   internalPlacement,
-  scaleMode = "fov",
+  scaleMode,
   referenceFov = DEFAULT_REFERENCE_FOV,
   rotation = 0,
   renderOrder = 0,
@@ -577,6 +583,8 @@ export function HotspotAnchor({
   tooltipPlacement = "top",
   tooltipOffset,
   tooltipAppearance,
+  tooltipMode = "billboard",
+  tooltipScaleMode,
   children,
   onClick,
   onHoverChange,
@@ -584,6 +592,8 @@ export function HotspotAnchor({
   onPositionChange,
   onDragEnd,
 }: HotspotAnchorProps) {
+  const spatialHost = useContext(SpatialHostContext);
+  const webVRRuntime = useContext(WebVRRuntimeContext);
   const controlsRef = useContext(PanoramaViewContext);
   const hotspotTargetRegistry = useContext(HotspotTargetRegistryContext);
   const eventBus = useContext(PanoEventBusContext);
@@ -618,6 +628,8 @@ export function HotspotAnchor({
       ? { orientation: internalOrientation, placement: internalPlacement }
       : HOTSPOT_MODE_RENDERING[mode];
   const { orientation, placement } = rendering;
+  const effectiveScaleMode = hotspotScaleMode(orientation, scaleMode);
+  const effectiveTooltipScaleMode = resolveTooltipScaleMode(tooltipMode, tooltipScaleMode, effectiveScaleMode);
   const resolvedScale = resolveScale(scale);
   const scaledWidth = width * resolvedScale;
   const scaledHeight = height * resolvedScale;
@@ -756,7 +768,7 @@ export function HotspotAnchor({
       orientation,
       surfaceQuaternion,
       rotation,
-      scaleMode,
+      effectiveScaleMode,
       referenceFov,
       useAngularScale,
       worldWidth,
@@ -772,6 +784,7 @@ export function HotspotAnchor({
         useAngularScale,
         camera,
         size,
+        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
   }, [
@@ -780,7 +793,7 @@ export function HotspotAnchor({
     referenceFov,
     resolvedDistance,
     rotation,
-    scaleMode,
+    effectiveScaleMode,
     size,
     selected,
     surfaceQuaternion,
@@ -802,7 +815,7 @@ export function HotspotAnchor({
       orientation,
       surfaceQuaternion,
       rotation,
-      scaleMode,
+      effectiveScaleMode,
       referenceFov,
       useAngularScale,
       worldWidth,
@@ -823,6 +836,7 @@ export function HotspotAnchor({
         useAngularScale,
         state.camera,
         state.size,
+        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
   }, -1);
@@ -920,6 +934,7 @@ export function HotspotAnchor({
       scale={[worldWidth, worldHeight, 1]}
       visible={visible}
       onClick={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
           if (tooltipTrigger === "click") {
@@ -936,6 +951,10 @@ export function HotspotAnchor({
         endDragRef.current(event.nativeEvent, true);
       } : undefined}
       onPointerDown={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) {
+          event.stopPropagation();
+          return;
+        }
         const native = event.nativeEvent;
         if (!draggable || dragStateRef.current) {
           stopPointerEvent(event);
@@ -986,6 +1005,7 @@ export function HotspotAnchor({
         if (!dragState || dragState.pointerId !== event.nativeEvent.pointerId) {
           return;
         }
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         if (!dragState.tracksOutsideMesh) {
           updateDragRef.current(event.nativeEvent);
@@ -1019,6 +1039,7 @@ export function HotspotAnchor({
         }
       } : undefined}
       onPointerUp={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         endDragRef.current(event.nativeEvent, true);
       } : undefined}
@@ -1048,6 +1069,9 @@ export function HotspotAnchor({
       {tooltipOpen && tooltipContent ? (
         <group ref={tooltipAnchorRef}>
           <HotspotTooltip
+            mode={tooltipMode}
+            scaleMode={effectiveTooltipScaleMode}
+            referenceFov={useAngularScale ? referenceFov : DEFAULT_REFERENCE_FOV}
             appearance={tooltipAppearance}
             content={tooltipContent}
             offset={resolveHotspotTooltipOffset(tooltipOffset)}

@@ -67,10 +67,11 @@ export const WEBVR_PROFILES: Record<WebVRProfileId, WebVRProfile> = {
 
 export const DEFAULT_WEBVR_SETTINGS: WebVRSettings = {
   screensize: "auto",
-  profileId: "cardboard-v1",
+  profileId: "none",
 };
 
-const STORAGE_KEY = "pano-view:webvr-settings:v1";
+type SettingsMode = "fake" | "mobilevr";
+const storageKey = (mode: SettingsMode) => `pano-view:webvr-settings:v2:${mode}`;
 
 export function isWebVRProfileId(value: unknown): value is WebVRProfileId {
   return (
@@ -103,12 +104,12 @@ export function resolveWebVRProfile(
   return WEBVR_PROFILES[profile ?? storedId];
 }
 
-export function loadWebVRSettings(): WebVRSettings {
+export function loadWebVRSettings(mode: SettingsMode = "fake"): WebVRSettings {
   if (typeof localStorage === "undefined") {
     return DEFAULT_WEBVR_SETTINGS;
   }
   try {
-    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as {
+    const value = JSON.parse(localStorage.getItem(storageKey(mode)) ?? "null") as {
       screensize?: unknown;
       profileId?: unknown;
     } | null;
@@ -129,23 +130,25 @@ export function loadWebVRSettings(): WebVRSettings {
   }
 }
 
-export function saveWebVRSettings(settings: WebVRSettings): void {
+export function saveWebVRSettings(settings: WebVRSettings, mode: SettingsMode = "fake"): void {
   if (typeof localStorage === "undefined") {
     return;
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(storageKey(mode), JSON.stringify(settings));
   } catch {
     // Storage can be unavailable in private or embedded browsing contexts.
   }
 }
 
-export function clearWebVRSettings(): void {
+export function clearWebVRSettings(mode?: SettingsMode): void {
   if (typeof localStorage === "undefined") {
     return;
   }
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    for (const target of mode ? [mode] : ["fake", "mobilevr"] as const) {
+      localStorage.removeItem(storageKey(target));
+    }
   } catch {
     // Storage can be unavailable in private or embedded browsing contexts.
   }
@@ -154,11 +157,12 @@ export function clearWebVRSettings(): void {
 export function resolveInitialWebVRSettings(
   screensize: WebVRSettings["screensize"] | undefined,
   profile: WebVRProfileId | WebVRProfile | undefined,
+  stored: WebVRSettings = DEFAULT_WEBVR_SETTINGS,
 ): WebVRSettings {
   return {
-    screensize: screensize ?? DEFAULT_WEBVR_SETTINGS.screensize,
+    screensize: screensize ?? stored.screensize,
     profileId:
-      typeof profile === "string" ? profile : DEFAULT_WEBVR_SETTINGS.profileId,
+      typeof profile === "string" ? profile : stored.profileId,
   };
 }
 

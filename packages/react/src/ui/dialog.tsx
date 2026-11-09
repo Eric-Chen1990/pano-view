@@ -1,20 +1,21 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from "react";
-import { PanoOverlayPortalProvider, usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
+import { useCallback, useContext, forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { PanoOverlayPortalProvider, PanoDialogSurfaceContext as SurfaceContext, usePanoDialogSurface, usePanoOverlay } from "../overlay/pano-overlay";
 
 export type PanoDialogRootProps = {
+  scrollTargetRef?: RefObject<HTMLElement | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
 };
 
-export function PanoDialogRoot({ open, onOpenChange, children }: PanoDialogRootProps) {
-  usePanoModal(open);
+export function PanoDialogRoot({ open, onOpenChange, children, scrollTargetRef }: PanoDialogRootProps) {
+  const surface = usePanoDialogSurface({ open, onOpenChange, scrollTargetRef });
   // Keep modality inside the viewer overlay. Radix modal mode would lock page
   // scroll and disable the host document; viewer input is already gated by usePanoModal.
   return (
     <DialogPrimitive.Root modal={false} open={open} onOpenChange={onOpenChange}>
-      {children}
+      <SurfaceContext.Provider value={surface}>{children}</SurfaceContext.Provider>
     </DialogPrimitive.Root>
   );
 }
@@ -24,7 +25,8 @@ export type PanoDialogBackdropProps = Omit<ComponentPropsWithoutRef<typeof Dialo
 export const PanoDialogBackdrop = forwardRef<HTMLDivElement, PanoDialogBackdropProps>(
   function PanoDialogBackdrop({ style, className, ...props }, ref) {
     const { portalContainer } = usePanoOverlay();
-    if (!portalContainer) return null;
+    const surface = useContext(SurfaceContext);
+    if (!portalContainer || surface?.presentation === "spatial") return null;
     return (
       <DialogPrimitive.Portal container={portalContainer}>
         <DialogPrimitive.Overlay
@@ -43,9 +45,12 @@ export type PanoDialogContentProps = Omit<ComponentPropsWithoutRef<typeof Dialog
 
 export const PanoDialogContent = forwardRef<HTMLDivElement, PanoDialogContentProps>(
   function PanoDialogContent({ children, style, className, onOpenAutoFocus, onCloseAutoFocus, ...props }, forwardedRef) {
-    const { portalContainer, visibleRect } = usePanoOverlay();
+    const overlay = usePanoOverlay();
+    const surface = useContext(SurfaceContext);
+    const { portalContainer, visibleRect } = surface ?? overlay;
     const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
     const returnFocus = useRef<HTMLElement | null>(null);
+    const contentRef = useCallback((node: HTMLDivElement | null) => { surface?.contentRef(node); if (typeof forwardedRef === "function") forwardedRef(node); else if (forwardedRef) forwardedRef.current = node; }, [surface?.contentRef, forwardedRef]);
     if (!portalContainer) return null;
     const layout: CSSProperties & Record<`--pano-dialog-${string}`, string> = {
       "--pano-dialog-available-width": `${Math.max(0, visibleRect.width - 32)}px`,
@@ -63,18 +68,21 @@ export const PanoDialogContent = forwardRef<HTMLDivElement, PanoDialogContentPro
       pointerEvents: "auto",
       zIndex: 1,
       ...style,
+      ...(surface?.presentation === "spatial" ? { left: -10000, top: 0, transform: "none", width: 640, maxHeight: 688 } : {}),
     };
     return (
       <DialogPrimitive.Portal container={portalContainer}>
         <DialogPrimitive.Content
           {...props}
-          ref={forwardedRef}
+          ref={contentRef}
           data-pano-dialog=""
           className={["pano-dialog-content", className].filter(Boolean).join(" ")}
           style={layout}
+          onInteractOutside={(event) => { surface?.onInteractOutside(event); props.onInteractOutside?.(event); }}
           onOpenAutoFocus={(event) => {
             const active = portalContainer.ownerDocument.activeElement;
             returnFocus.current = active instanceof HTMLElement ? active : null;
+            if (surface?.presentation === "spatial") event.preventDefault();
             onOpenAutoFocus?.(event);
           }}
           onCloseAutoFocus={(event) => {
@@ -118,10 +126,10 @@ export type PanoDialogProps = PanoDialogRootProps & {
 };
 
 /** A ready-to-use modal; compose the exported parts for a different layout. */
-export function PanoDialog({ open, onOpenChange, title, description, closeLabel = "Close", children, className, style }: PanoDialogProps) {
+export function PanoDialog({ open, onOpenChange, title, description, closeLabel = "Close", children, className, style, scrollTargetRef }: PanoDialogProps) {
   const descriptionId = useId();
   return (
-    <PanoDialogRoot open={open} onOpenChange={onOpenChange}>
+    <PanoDialogRoot open={open} onOpenChange={onOpenChange} scrollTargetRef={scrollTargetRef}>
       <PanoDialogBackdrop />
       <PanoDialogContent
         className={className}
@@ -141,7 +149,7 @@ export function PanoDialog({ open, onOpenChange, title, description, closeLabel 
             <path d="m4 4 8 8M12 4l-8 8" />
           </svg>
         </PanoDialogClose>
-        <div className="pano-dialog-body" style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
+        <div data-pano-scroll-viewport="" className="pano-dialog-body" style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
       </PanoDialogContent>
     </PanoDialogRoot>
   );

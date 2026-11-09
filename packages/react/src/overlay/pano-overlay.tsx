@@ -1,5 +1,10 @@
+import { SpatialHostContext, type PanoSpatialControlAdapter, type SpatialSurface } from "../spatial/host";
 import {
   createContext,
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+  type RefObject,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -33,7 +38,9 @@ export type PanoOverlayProps = {
 /**
  * Screen-plane DOM UI for PanoViewer. Place it as a direct child of PanoViewer
  * (or inside a Fragment under PanoViewer). It stays outside the panorama sphere
- * and remains visible in fullscreen. Interactive children need `pointerEvents: "auto"`.
+ * and remains visible in fullscreen, but is hidden during VR sessions. Dialogs
+ * portaled to the viewer host can still render spatially. Interactive children
+ * need `pointerEvents: "auto"`.
  */
 export function PanoOverlay({ children }: PanoOverlayProps) {
   const inOutlet = useContext(PanoOverlayOutletContext);
@@ -127,3 +134,100 @@ export function usePanoOverlayHost(isFullscreen: boolean) {
   const context = useMemo(() => ({ portalContainer, ...geometry, isFullscreen }), [portalContainer, geometry, isFullscreen]);
   return { context, setPortalContainer };
 }
+
+
+export type { PanoSpatialControlAdapter } from "../spatial/host";
+
+/** Shared portal/ref adapter for package and third-party dialogs. */
+export function usePanoDialogSurface({
+  open,
+  onOpenChange,
+  scrollTargetRef,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  scrollTargetRef?: RefObject<HTMLElement | null>;
+}) {
+  const host = useContext(SpatialHostContext);
+  const overlay = usePanoOverlay();
+  useSyncExternalStore(
+    host?.subscribe ?? (() => () => {}),
+    host?.getSnapshot ?? (() => 0),
+    () => 0
+  );
+  const spatial = Boolean(host?.mode);
+  usePanoModal(open && !spatial);
+  const callback = useRef(onOpenChange);
+  callback.current = onOpenChange;
+  const surface = useRef<SpatialSurface | null>(null);
+  const element = useRef<HTMLElement | null>(null);
+  const contentRef = useCallback(
+    (node: HTMLElement | null) => {
+      element.current = node;
+      if (host && surface.current) {
+        host.surfaces.delete(surface.current);
+        surface.current = null;
+        host.notify();
+      }
+      if (host && node && open) {
+        const entry = { element: node, close: () => callback.current(false), scrollTarget: () => scrollTargetRef?.current ?? null };
+        surface.current = entry;
+        host.surfaces.add(entry);
+        host.notify();
+      }
+    },
+    [host, open, scrollTargetRef]
+  );
+  useLayoutEffect(
+    () => () => {
+      if (host && surface.current) {
+        host.surfaces.delete(surface.current);
+        surface.current = null;
+        host.notify();
+      }
+    },
+    [host]
+  );
+  const onInteractOutside = useCallback((event: {
+    detail: { originalEvent: Event };
+    preventDefault: () => void;
+  }) => {
+    const target = event.detail.originalEvent.target;
+    // Host controls (including VR entry) must not dismiss a viewer-local dialog
+    // before their click handler can switch its presentation.
+    const viewer = overlay.portalContainer?.closest("[data-pano-viewer]") ?? overlay.portalContainer;
+    if (spatial || !(target instanceof Node && viewer?.contains(target))) {
+      event.preventDefault();
+    }
+  }, [spatial, overlay.portalContainer]);
+  // Keep the DOM node and portal target stable; only move its presentation offscreen.
+  return {
+    ...overlay,
+    presentation: spatial ? ("spatial" as const) : ("screen" as const),
+    contentRef,
+    onInteractOutside,
+    visibleRect: spatial
+      ? { left: 0, top: 0, width: 672, height: 720 }
+      : overlay.visibleRect,
+  };
+}
+
+export function usePanoSpatialControls(
+  ref: RefObject<HTMLElement | null>,
+  adapter: PanoSpatialControlAdapter
+) {
+  const host = useContext(SpatialHostContext);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!host || !node) return;
+    host.controls.set(node, adapter);
+    host.notify();
+    return () => {
+      host.controls.delete(node);
+      host.notify();
+    };
+  }, [host, ref, adapter]);
+}
+
+/** @internal Shared by ESM/CJS dialog parts; owned by the viewer runtime. */
+export const PanoDialogSurfaceContext = createContext<ReturnType<typeof usePanoDialogSurface> | null>(null);

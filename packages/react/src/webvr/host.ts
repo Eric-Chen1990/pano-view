@@ -1,3 +1,4 @@
+import { DEFAULT_WEBVR_SETTINGS } from "./profiles";
 import type { XRStore } from "@react-three/xr";
 import { createContext } from "react";
 import type { WebVRStereoView } from "./stereo-view";
@@ -20,6 +21,11 @@ export type WebVRController = {
 };
 
 export type WebVRHostSnapshot = {
+  pointerLocked: boolean;
+  screensizeStatus: "idle" | "loading" | "detected" | "unknown";
+  screensizeManaged: boolean;
+  profileManaged: boolean;
+  profileLabel: string;
   available: boolean;
   chrome: WebVRChrome;
   mode: WebVRMode | null;
@@ -72,7 +78,12 @@ export function createWebVRHost(): WebVRHost {
       chrome: true,
       mode: null,
       setupOpen: false,
-      settings: { screensize: "auto", profileId: "cardboard-v1" },
+      settings: { ...DEFAULT_WEBVR_SETTINGS },
+      pointerLocked: false,
+      screensizeStatus: "idle",
+      screensizeManaged: false,
+      profileManaged: false,
+      profileLabel: "No Distortion",
       detectedScreensize: null,
     },
     state: EMPTY_WEBVR_STATE,

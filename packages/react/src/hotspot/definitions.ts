@@ -11,6 +11,7 @@ import type {
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
+  HotspotTooltipScaleMode,
 } from "./types";
 
 /** Shared serializable fields for every saved hotspot definition. */
@@ -28,6 +29,10 @@ export type HotspotDefinitionBase = {
   tooltip?: string | HotspotTooltipContent;
   tooltipTrigger?: HotspotTooltipTrigger;
   tooltipPlacement?: HotspotTooltipPlacement;
+  /** Defaults to billboard, independently of the hotspot orientation. */
+  tooltipMode?: HotspotMode;
+  /** Defaults to inherit. Surface tooltips always scale with FOV. */
+  tooltipScaleMode?: HotspotTooltipScaleMode;
   tooltipOffset?: number;
   tooltipAppearance?: HotspotTooltipAppearance;
 };

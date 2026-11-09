@@ -1999,6 +1999,9 @@ These are props on `Gyro` itself. `PanoEvents` `onGyro*` callbacks subscribe to 
 
 ## WebVR
 
+VR settings use independent v2 storage for simulated desktop and MobileVR; legacy v1 values are ignored. Reset affects the active fallback mode, or both outside VR. The neutral `none` preset uses 80° vertical FOV, 60 mm virtual eye spacing and centered optics regardless of physical screen size. Only MobileVR auto screen size queries DPDB (5-second timeout); ambiguous matches require manual calibration. Phone detection never selects a lens preset. Explicit props take precedence and their controls are read-only in Setup.
+
+
 `WebVR` adds immersive viewing to the nearest `PanoViewer`. It prefers an
 `immersive-vr` WebXR session on supported headsets. On phones without WebXR it
 uses a stereoscopic split-screen view with device orientation, and on desktop
@@ -2052,8 +2055,12 @@ center reticle shows a crosshair; looking at an interactive hotspot draws a
 clockwise ring that fills over `cursorDwellMs` (default 1500), then the hotspot
 click handler runs. Set `cursorDwellMs={0}` to keep the reticle without
 auto-click. Simulated desktop VR (`fake` mode) requests pointer lock by default
-(`mousePointerLock`) so the cursor hides and mouse movement looks around; click
-the view again if the browser releases the lock. Fallback sessions keep the
+(`mousePointerLock`) so the cursor hides and mouse movement looks around. Right-click
+to release the mouse without leaving VR; left-click the view to lock it again.
+While unlocked, the reticle is hidden and gaze actions stop; relocking starts
+a fresh dwell. Desktop crosshair and ring sizes are 60% of the headset size.
+Browser Escape behavior is preserved. If locking is denied or unsupported,
+VR stays available with a normal cursor; a later left-click can retry. Fallback sessions keep the
 screen awake (`wakelock`) with the Screen Wake Lock API, or a looping hidden
 video on browsers that lack it.
 
@@ -2066,13 +2073,13 @@ interactive through the default WebXR controller rays.
 
 ### Props
 
-- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle and return on pointer / wheel / keyboard interaction with the viewer.
+- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle while locked. Simulated VR keeps them visible while the mouse is unlocked; hovering, keyboard focus, and an open Setup panel also keep them visible.
 - `mobileVr` — default `true`.
 - `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
 - `screensize` — `"auto"` (factory / omitted storage default) or inches; numbers are clamped to **3–20** with one decimal place.
 - `databaseUrl` — Cardboard DPDB URL for `"auto"` screensize. Default `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`. Pass `""` or `null` to disable the online lookup.
-- `profile` — omitted values use stored settings; factory default is `"cardboard-v1"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
+- `profile` — omitted values use stored settings; factory default is `"none"`. Also accepts `"none"`, `"cardboard-v2"`, `"gear-vr"`, `"daydream"`, or a custom `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`. `trayDistanceMm` is millimetres from the headset tray bottom to the lens center; `0` / omitted keeps the vertical optical axis at screen center.
 - `absolute` — default `false`. Compass-oriented MobileVR heading (no effect in WebXR).
 - `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
 - `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
@@ -2470,6 +2477,8 @@ on screen. Clicking the hotspot does not toggle it. Optional
 clicked. Hover and click triggers need `interactive` and `pointerEvents`
 other than `"none"`.
 
+`tooltipMode` defaults to `"billboard"` and supports `"surface"`. `tooltipScaleMode` defaults to `"inherit"`, following the hotspot’s effective zoom behavior. Floating tooltips also support `"fov"` and `"fixed"`; surface tooltips always scale with FOV. Styling is measured at the hotspot’s `referenceFov` (default `75`), while the gap remains in screen pixels. Polygon and polyline geometry always follows the sphere, without floating, distance or scale-mode controls; their tooltips remain independently configurable and default to floating with FOV scaling. Omitted settings in existing projects use these new defaults too.
+
 `tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
 These are screen directions: the bubble sits outside the hotspot's projected
 screen bounds on that edge, so rotated graphics such as arrows are not covered.
@@ -2645,7 +2654,7 @@ Point hotspots use `mode` to configure orientation and placement together:
   decrease it to move the hotspot nearer.
   The built-in panorama shell is at roughly `1000` units; distance is
   automatically capped so the hotspot's corners cannot cross it.
-- `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
+- Floating hotspots default to `scaleMode="fixed"`; choose `"fov"` to scale with zoom. Surface hotspots always use `"fov"`, even when `"fixed"` was saved.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
 - `rotation` rotates the hotspot around its own normal in degrees; positive
@@ -3178,3 +3187,7 @@ Legacy `action` remains a click fallback; `events.click` wins. Editing or cleari
 `ProjectScenes.onHotspotEvent(event)` receives `trigger`, `sceneId`, `hotspot`, `interaction` and `preventDefault()`. On clicks it runs before the existing `onHotspotClick`; either callback can cancel the action. `onCustomAction(event)` additionally receives `action` and may return a Promise. Dispatch by the stable `action.actionId`, validate business parameters and throw for unknown actions. Missing handlers, synchronous exceptions and rejected Promises reach `onHotspotError` with `trigger`. Requests, authentication, cancellation, duplicate prevention and response ordering are host responsibilities; events dispatch independently without automatic retries.
 
 Hover runs once per logical hotspot boundary, skips touch and keyboard focus, and respects visibility and pointer interaction settings. Scene changes, hiding and unmounting clear hover state without executing leave actions. Existing tooltip behavior is independent. Custom renderers must forward `context.onHoverChange(hovered, interaction)` as well as `context.onClick`; `context.renderDefault()` wires both automatically.
+
+## VR control groups
+
+Customizable VR-only icon groups support media, models and scrolling. See the [VR controls guide](./docs/dialogs.md#vr-icon-controls-and-scrolling) for APIs and examples.

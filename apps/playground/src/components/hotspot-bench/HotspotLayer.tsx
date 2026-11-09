@@ -93,6 +93,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
           tooltipTrigger: hotspot.tooltipTrigger,
           tooltipPlacement: hotspot.tooltipPlacement,
           tooltipOffset: hotspot.tooltipOffset,
+          tooltipMode: hotspot.tooltipMode,
+          tooltipScaleMode: hotspot.tooltipScaleMode,
           tooltipAppearance: hotspot.tooltipAppearance,
           onClick: () => {
             selectItem(hotspot.id);
@@ -252,6 +254,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
           strokeOpacity={polygon.strokeOpacity}
           strokeWidth={polygon.strokeWidth}
           tooltip={polygon.tooltip}
+          tooltipMode={polygon.tooltipMode}
+          tooltipScaleMode={polygon.tooltipScaleMode}
           tooltipAppearance={polygon.tooltipAppearance}
           tooltipOffset={polygon.tooltipOffset}
           tooltipPlacement={polygon.tooltipPlacement}
@@ -287,6 +291,8 @@ export const HotspotLayer = memo(function HotspotLayer() {
           strokeOpacity={polyline.strokeOpacity}
           strokeWidth={polyline.strokeWidth}
           tooltip={polyline.tooltip}
+          tooltipMode={polyline.tooltipMode}
+          tooltipScaleMode={polyline.tooltipScaleMode}
           tooltipAppearance={polyline.tooltipAppearance}
           tooltipOffset={polyline.tooltipOffset}
           tooltipPlacement={polyline.tooltipPlacement}

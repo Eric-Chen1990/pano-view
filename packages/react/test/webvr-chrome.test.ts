@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { bindSessionChromeVisibility } from "../src/webvr/session-chrome";
+
+test("locked activity fades, unlocked/hover/focus/setup retention stays visible, cleanup cancels", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const target = Object.assign(new EventTarget(), { ownerDocument: { pointerLockElement: {} } });
+  const viewer = target as unknown as Element;
+  let visible = false;
+  let dispose = bindSessionChromeVisibility(viewer, false, (next) => { visible = next; });
+  assert.equal(visible, true);
+  t.mock.timers.tick(2000);
+  target.dispatchEvent(new Event("pointermove"));
+  t.mock.timers.tick(1000);
+  assert.equal(visible, false);
+  target.dispatchEvent(new Event("keydown"));
+  assert.equal(visible, true);
+  dispose();
+  dispose = bindSessionChromeVisibility(viewer, true, (next) => { visible = next; });
+  t.mock.timers.tick(10000);
+  assert.equal(visible, true);
+  dispose();
+  dispose = bindSessionChromeVisibility(viewer, false, (next) => { visible = next; });
+  dispose();
+  t.mock.timers.tick(5000);
+  assert.equal(visible, true);
+  target.dispatchEvent(new Event("pointerdown"));
+  t.mock.timers.tick(5000);
+  assert.equal(visible, true);
+  t.mock.timers.reset();
+});

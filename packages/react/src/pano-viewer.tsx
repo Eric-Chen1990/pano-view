@@ -1,3 +1,5 @@
+import { SpatialHostContext, createSpatialHost } from "./spatial/host";
+import { SpatialPanels } from "./spatial/panel";
 import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
@@ -324,6 +326,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaViewRuntimeHandle>(null);
+    const spatialHost = useMemo(() => createSpatialHost(), []);
+    const spatialRevision = useSyncExternalStore(spatialHost.subscribe, spatialHost.getSnapshot, () => 0);
+    const spatialOpen = spatialHost.mode && spatialHost.surfaces.size > 0;
+    void spatialRevision;
     const modalHost = useMemo(() => createPanoModalHost(), []);
     const modalOpen = useSyncExternalStore(modalHost.subscribe, modalHost.getSnapshot, () => false);
     const setControlsRuntime = useCallback((runtime: PanoramaViewRuntimeHandle | null) => {
@@ -341,6 +347,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const videoHost = useMemo(() => createPanoVideoHost(), []);
     const filterHost = useMemo(() => createPanoFilterHost(), []);
     const webVRHost = useMemo(() => createWebVRHost(), []);
+    const vrMode = useSyncExternalStore(
+      (listener) => subscribeWebVRHost(webVRHost, listener),
+      () => webVRHost.snapshot.mode,
+      () => null,
+    );
+    const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
     const bgmHost = useMemo(() => createBackgroundAudioHost(), []);
     const mediaActivationHost = useMemo(() => createPanoMediaActivationHost(), []);
@@ -887,6 +899,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           <WebVRRuntimeContext.Provider
             value={{ host: webVRHost, xrStore, stereoView }}
           >
+          <SpatialHostContext.Provider value={spatialHost}>
           <PanoramaXROrigin />
           <HotspotAccessibilityContext.Provider value={registry}>
             <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
@@ -927,7 +940,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     />
                   )}
                   <AutoRotate
-                    enabled={legacyAutoRotate}
+                    enabled={legacyAutoRotate && !spatialOpen}
                     speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
                   <PanoramaEventSurface />
@@ -935,6 +948,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}
                   <ControlClaimsContext.Provider value={controlClaims}>
+                    <SpatialPanels />
                     {sceneChildren}
                     <DefaultControlChannels
                       fovSpeed={controlOptions.fovSpeed}
@@ -957,6 +971,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoEventBusContext.Provider>
             </HotspotTargetRegistryContext.Provider>
           </HotspotAccessibilityContext.Provider>
+          </SpatialHostContext.Provider>
           </WebVRRuntimeContext.Provider>
           </XR>
         </Canvas>
@@ -965,17 +980,22 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           data-pano-chrome-overlay=""
           ref={setOverlayNode}
         >
+          <div hidden={vrActive} inert={vrActive}>
           <PanoVideoChromeBridge
             fullscreen={contextMenuActions}
             host={videoHost}
             overlayElement={overlayElement}
           />
+          </div>
           <WebVRChromeBridge host={webVRHost} />
           <IphoneLandscapeFullscreenChrome webVRHost={webVRHost} />
         </div>
-        {contextMenuOverlay}
-        {hotspotAccessibilityControls}
+        <div hidden={vrActive} inert={vrActive}>
+          {contextMenuOverlay}
+          {hotspotAccessibilityControls}
         </div>
+        </div>
+        <SpatialHostContext.Provider value={spatialHost}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
@@ -985,13 +1005,17 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   ref={setPortalContainer}
                   style={{ position: "absolute", inset: 0, zIndex: 30, pointerEvents: "none" }}
                 >
-                  {renderOverlay?.(overlayContext)}
-                  {overlayElements}
+                  {/* Keep the portal host measurable for spatial dialog capture. */}
+                  <div data-pano-screen-overlay="" inert={vrActive} style={{ display: vrActive ? "none" : "contents" }}>
+                    {renderOverlay?.(overlayContext)}
+                    {overlayElements}
+                  </div>
                 </div>
               </PanoOverlayOutletContext.Provider>
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </SpatialHostContext.Provider>
       </div>
     );
   },

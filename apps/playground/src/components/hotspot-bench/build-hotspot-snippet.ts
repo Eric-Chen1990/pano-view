@@ -126,6 +126,8 @@ function pointBaseProps(hotspot: EditorHotspot): Record<string, unknown> {
     tooltipTrigger: hotspot.tooltipTrigger,
     tooltipPlacement: hotspot.tooltipPlacement,
     tooltipOffset: hotspot.tooltipOffset,
+    tooltipMode: hotspot.tooltipMode,
+    tooltipScaleMode: hotspot.tooltipScaleMode,
     tooltipAppearance: hotspot.tooltipAppearance,
   };
 }
@@ -225,6 +227,8 @@ function buildPolygonSnippet(polygon: EditorPolygon): string {
     tooltipTrigger: polygon.tooltipTrigger,
     tooltipPlacement: polygon.tooltipPlacement,
     tooltipOffset: polygon.tooltipOffset,
+    tooltipMode: polygon.tooltipMode,
+    tooltipScaleMode: polygon.tooltipScaleMode,
     tooltipAppearance: polygon.tooltipAppearance,
   });
 }
@@ -245,6 +249,8 @@ function buildPolylineSnippet(polyline: EditorPolyline): string {
     tooltipTrigger: polyline.tooltipTrigger,
     tooltipPlacement: polyline.tooltipPlacement,
     tooltipOffset: polyline.tooltipOffset,
+    tooltipMode: polyline.tooltipMode,
+    tooltipScaleMode: polyline.tooltipScaleMode,
     tooltipAppearance: polyline.tooltipAppearance,
   });
 }

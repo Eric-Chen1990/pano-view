@@ -1,6 +1,7 @@
 export { PanoViewer } from "./pano-viewer";
 export {
   PanoOverlay,
+  PanoDialogSurfaceContext,
   usePanoOverlay,
   usePanoModal,
   PanoOverlayPortalProvider,
@@ -288,6 +289,7 @@ export type {
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
+  HotspotTooltipScaleMode,
   PanoramaPointerEvent,
 } from "./hotspot/types";
 export type {
@@ -320,3 +322,11 @@ export {
   imagePointToContainer,
   sectorRotation,
 } from "./map/geometry";
+
+export { usePanoDialogSurface, usePanoSpatialControls } from "./overlay/pano-overlay";
+export type { PanoSpatialControlAdapter } from "./overlay/pano-overlay";
+
+export { PanoControlGroup, PanoControlButton, PanoMediaControls, PanoModelControls, PanoScrollControls, PanoSpatialControls } from "./controls/components";
+export type { PanoControlGroupProps, PanoSpatialControlsProps } from "./controls/components";
+export type { PanoControlAction, PanoMediaController } from "./controls/actions";
+export { usePanoMediaController } from "./controls/media";

@@ -370,7 +370,8 @@ function SelectedHotspotFields({
             onChange={(event) => onUpdateHotspot(selected.id, {
               scaleMode: event.currentTarget.value as EditorHotspot["scaleMode"],
             })}
-            value={selected.scaleMode}
+            disabled={selected.mode === "surface"}
+            value={selected.mode === "surface" ? "fov" : selected.scaleMode}
           >
             <option value="fov">Follow FOV</option>
             <option value="fixed">Keep screen size</option>
@@ -442,6 +443,8 @@ function SelectedHotspotFields({
       <TooltipFields
         onChange={(patch) => onUpdateHotspot(selected.id, patch)}
         tooltip={selected.tooltip ?? {}}
+        tooltipMode={selected.tooltipMode}
+        tooltipScaleMode={selected.tooltipScaleMode}
         tooltipAppearance={selected.tooltipAppearance}
         tooltipOffset={selected.tooltipOffset ?? 12}
         tooltipPlacement={selected.tooltipPlacement ?? "top"}

@@ -1793,6 +1793,9 @@ export function GyroExample() {
 
 ## WebVR
 
+VR 设置按桌面模拟与手机分屏分别保存到 v2 存储，不继承旧版 v1。Reset 仅重置当前回退模式，未进入 VR 时重置两种模式。默认 `none` 使用每眼垂直 FOV 80°、虚拟眼距 60 mm 和居中光轴，不根据屏幕尺寸校准。只有手机自动尺寸查询 DPDB（5 秒超时），冲突结果需要手动校准；识别手机不会自动选择镜头。显式 props 优先，相关设置项只读。桌面解锁期间顶部按钮常显；锁定后空闲 3 秒淡出，悬停、键盘焦点或设置面板打开时保持显示。
+
+
 `WebVR` 为最近的 `PanoViewer` 增加沉浸式观看。支持的头戴设备优先使用 `immersive-vr` WebXR 会话。无 WebXR 的手机使用设备方向的立体分屏；桌面可提供鼠标驱动的模拟 VR 预览。进入 VR 由宿主通过查看器句柄触发；内置 chrome 仅在会话中显示退出 VR 与 MobileVR 设置（空闲后淡出）。
 
 ```tsx
@@ -1822,7 +1825,7 @@ export function WebVRExample() {
 }
 ```
 
-句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；若浏览器释放锁定需再次点击视图。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
+句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；右键释放鼠标但保留 VR，左键点击画面重新锁定（该次点击只恢复锁定）。解锁时隐藏准星并停止注视动作，重新锁定后重新计时。桌面十字及进度环为头显尺寸的 60%。保留浏览器原有 Esc 行为；锁定被拒绝或不支持时保留普通鼠标，可再次左键重试。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
 WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
 
@@ -1834,7 +1837,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
 - `screensize` — `"auto"`（出厂 / 省略时的存储默认）或英寸数；数字会被夹到 **3–20** 并保留一位小数。
 - `databaseUrl` — `"auto"` 屏幕尺寸时使用的 Cardboard DPDB URL。默认 `https://storage.googleapis.com/cardboard-dpdb/dpdb.json`。传 `""` 或 `null` 可关闭在线查询。
-- `profile` — 省略时用已存设置，出厂为 `"cardboard-v1"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
+- `profile` — 省略时用已存设置，出厂为 `"none"`。也可传 `"none"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm?, label?, id? }`。`trayDistanceMm` 为头显托盘底边到镜片中心的毫米距离；`0` / 省略时垂直光轴保持屏幕中心。
 - `absolute` — 默认 `false`。MobileVR 使用罗盘绝对朝向（对 WebXR 无效）。
 - `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
 - `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。
@@ -2164,6 +2167,8 @@ import {
 
 `tooltipPlacement` 为 `"top"`（默认）、`"bottom"`、`"left"`、`"right"`。均为屏幕方向：气泡位于热点投影边界该侧之外，避免遮挡旋转后的图形（如箭头）。`tooltipOffset` 为屏幕空间间距（CSS 像素，默认 `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`）。
 
+`tooltipMode` 默认 `"billboard"`（悬浮），可设为 `"surface"`（贴合球面）。`tooltipScaleMode` 默认 `"inherit"`，跟随热点实际缩放规则；悬浮提示可独立设为 `"fov"` 或 `"fixed"`，贴合提示始终随 FOV 缩放。气泡字号和样式以热点 `referenceFov`（默认 `75`）为基准，间距继续使用屏幕像素。多边形、折线本体始终贴合球面，不支持悬浮、距离或缩放模式；其提示默认悬浮并随 FOV 缩放，也支持独立配置。新旧项目省略配置均采用这些默认值。
+
 可选 `tooltipAppearance` 覆盖气泡绘制。未设字段保留库默认主题（`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`）：背景、文字色、边框、圆角、阴影、内边距与字号。
 
 ```tsx
@@ -2300,7 +2305,7 @@ import { GraphicHotspot } from "@ericchen1990/pano-view";
 
 - `mode="surface"` 将平面附着于局部全景表面。
 - `mode="billboard"` 使平面始终朝向相机并浮于壳层前方。`distance` 是热点到相机的距离（世界单位，默认 `10`），减小该值可将热点移近相机。内置全景壳层约在 `1000` 单位；距离会自动限制在允许范围内，避免热点角点穿过壳层。
-- `scaleMode="fov"`（默认）在用户放大时热点变大。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
+- 悬浮热点默认 `scaleMode="fixed"`，保持固定屏幕大小；可用 `scaleMode="fov"` 随视角缩放。贴合热点始终使用 `fov`，显式的 `fixed` 不生效。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
 - `rotation` 绕自身法线旋转（度）；正值顺时针，负值逆时针。`scale` 为角向 width/height 的整体正倍率，默认 `1`。
 
 ```tsx
@@ -2709,3 +2714,7 @@ viewLimits: {
 `ProjectScenes.onHotspotEvent(event)` 提供 `trigger`、`sceneId`、`hotspot`、`interaction` 和 `preventDefault()`。点击时先调用它，再调用原有 `onHotspotClick`，任一回调均可取消动作。`onCustomAction(event)` 额外提供 `action`，支持返回 Promise。宿主按稳定的 `action.actionId` 分发，校验业务参数，对未知动作抛出错误。缺少执行器、同步异常和 Promise 拒绝进入附带 `trigger` 的 `onHotspotError`。请求、鉴权、取消、防重复和迟到响应由宿主负责；各事件独立分发，不自动重试。
 
 悬停按整个热点的边界触发一次，跳过触屏和键盘焦点，并遵循可见性、指针交互设置。切换场景、隐藏和卸载仅清理状态，不执行离开动作。原有 tooltip 行为独立保留。自定义渲染器需同时转发 `context.onHoverChange(hovered, interaction)` 和 `context.onClick`；调用 `context.renderDefault()` 会自动接线。
+
+## VR 操作按钮组
+
+视频、模型和滚动支持可定制图标按钮组，仅在 VR 显示。接口、凝视行为与完整示例见[VR 控件指南](./docs/dialogs.zh-CN.md#vr-图标控件与滚动)。

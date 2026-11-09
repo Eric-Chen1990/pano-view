@@ -74,3 +74,5 @@ Before release, verify on current iPhone/iPad Safari and Android Chrome:
 
 For variants, captions, custom controls, and the full prop reference, see
 [PanoVideo](../packages/react/README.md#panovideo).
+
+For VR, connect the existing controller to `PanoSpatialControls` + `PanoMediaControls`. The ordinary control bar stays available outside VR. See the [VR controls guide](../packages/react/docs/dialogs.md#vr-icon-controls-and-scrolling) and Playground `/video`.

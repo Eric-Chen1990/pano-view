@@ -17,6 +17,8 @@ export type DpdbDocument = {
 
 export type DpdbMatchInput = {
   userAgent: string;
+  model?: string;
+  platform?: "android" | "ios";
   /** CSS pixels from `screen.width`. */
   screenWidth: number;
   /** CSS pixels from `screen.height`. */
@@ -72,45 +74,41 @@ function resolutionsMatch(
   return (rw === pw && rh === ph) || (rw === ph && rh === pw);
 }
 
-function ruleMatches(
-  rule: Record<string, unknown>,
-  input: DpdbMatchInput,
-  physical: [number, number],
-): boolean {
-  if (typeof rule.ua === "string") {
-    return input.userAgent.includes(rule.ua);
-  }
-  if (
-    Array.isArray(rule.res) &&
-    rule.res.length === 2 &&
-    typeof rule.res[0] === "number" &&
-    typeof rule.res[1] === "number"
-  ) {
-    return resolutionsMatch(
-      [rule.res[0], rule.res[1]],
-      physical,
-    );
-  }
-  // Native-only MDMH rules are ignored on the web.
-  return false;
+function platformFromUa(ua: string): "android" | "ios" | undefined {
+  if (/Android/i.test(ua)) return "android";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  return undefined;
 }
 
-function deviceMatches(device: DpdbDevice, input: DpdbMatchInput): boolean {
-  const rules = device.rules;
-  if (!Array.isArray(rules) || rules.length === 0) {
-    return false;
+function deviceScore(device: DpdbDevice, input: DpdbMatchInput, physical: [number, number]): number {
+  const platform = input.platform ?? platformFromUa(input.userAgent);
+  if (!platform || (device.type && device.type !== platform)) return 0;
+  let best = 0;
+  for (const rule of device.rules ?? []) {
+    if (!rule || typeof rule !== "object") continue;
+    let score = 0;
+    if (typeof rule.ua === "string") {
+      const pattern = rule.ua.trim().toLowerCase();
+      if (!pattern) continue;
+      if (input.model) {
+        if (input.model.trim().toLowerCase() !== pattern) continue;
+        score = 10000 + pattern.length;
+      } else {
+        const ua = input.userAgent.toLowerCase();
+        const index = ua.indexOf(pattern);
+        if (index < 0 || /[a-z0-9]/.test(ua[index + pattern.length] ?? "")) continue;
+        score = 100 + pattern.length;
+      }
+    }
+    if (rule.res !== undefined) {
+      if (!Array.isArray(rule.res) || rule.res.length !== 2 ||
+        !rule.res.every((value) => typeof value === "number") ||
+        !resolutionsMatch(rule.res as [number, number], physical)) continue;
+      score = Math.max(score, 1);
+    }
+    best = Math.max(best, score);
   }
-  const physical = physicalResolution(
-    input.screenWidth,
-    input.screenHeight,
-    input.devicePixelRatio,
-  );
-  return rules.some(
-    (rule) =>
-      rule !== null &&
-      typeof rule === "object" &&
-      ruleMatches(rule, input, physical),
-  );
+  return best;
 }
 
 /**
@@ -180,8 +178,11 @@ export function matchDpdbDevice(
     input.screenHeight,
     input.devicePixelRatio,
   );
+  const candidates: Array<DpdbMatchResult & { score: number }> = [];
   for (const device of devices) {
-    if (!deviceMatches(device, input)) {
+    if (!device || typeof device !== "object" || !Array.isArray(device.rules)) continue;
+    const score = deviceScore(device, input, physical);
+    if (!score) {
       continue;
     }
     if (device.dpi === undefined) {
@@ -195,9 +196,12 @@ export function matchDpdbDevice(
     if (screensizeInches === null) {
       continue;
     }
-    return { device, screensizeInches };
+    candidates.push({ device, screensizeInches, score });
   }
-  return null;
+  const best = Math.max(0, ...candidates.map((candidate) => candidate.score));
+  const matches = candidates.filter((candidate) => candidate.score === best);
+  if (!matches.length || new Set(matches.map((candidate) => candidate.screensizeInches)).size !== 1) return null;
+  return { device: matches[0]!.device, screensizeInches: matches[0]!.screensizeInches };
 }
 
 export function readDpdbMatchInput(
@@ -222,6 +226,7 @@ export function readDpdbMatchInput(
       ? globalObject.devicePixelRatio
       : 1;
   return {
+    platform: navigatorObject.platform === "MacIntel" && navigatorObject.maxTouchPoints > 1 ? "ios" : platformFromUa(navigatorObject.userAgent),
     userAgent: navigatorObject.userAgent ?? "",
     screenWidth: width,
     screenHeight: height,
@@ -234,6 +239,7 @@ async function fetchDpdbDocument(url: string): Promise<DpdbDocument | null> {
     const response = await fetch(url, {
       credentials: "omit",
       mode: "cors",
+      signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) {
       return null;
@@ -262,7 +268,10 @@ export function loadDpdbDocument(url: string): Promise<DpdbDocument | null> {
   if (existing) {
     return existing;
   }
-  const pending = fetchDpdbDocument(url).then((document) => {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 5000); });
+  const pending = Promise.race([fetchDpdbDocument(url), timeout]).then((document) => {
+    clearTimeout(timer);
     if (!document) {
       cache.delete(url);
     }
@@ -289,7 +298,22 @@ export async function resolveScreensizeFromDpdb(
   if (!url || !input) {
     return null;
   }
-  const document = await loadDpdbDocument(url);
+  const documentPromise = loadDpdbDocument(url);
+  if (!input.model && (input.platform ?? platformFromUa(input.userAgent)) === "android" && typeof navigator !== "undefined") {
+    const uaData = (navigator as Navigator & { userAgentData?: { getHighEntropyValues: (hints: string[]) => Promise<{ model?: string }> } }).userAgentData;
+    if (uaData) {
+      let timer: ReturnType<typeof setTimeout>;
+      try {
+        const hints = await Promise.race([
+          uaData.getHighEntropyValues(["model"]),
+          new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 500); }),
+        ]);
+        if (hints?.model) input = { ...input, model: hints.model };
+      } catch { /* Model information is optional. */ }
+      finally { clearTimeout(timer!); }
+    }
+  }
+  const document = await documentPromise;
   if (!document) {
     return null;
   }

@@ -1,3 +1,5 @@
+import { stereoLensMappingGlsl, stereoLensMaskFragmentShader } from "./lens-mask";
+import { renderSpatialEye } from "../spatial/render-layer";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import {
@@ -17,6 +19,7 @@ import {
 import { WebVRRuntimeContext } from "./host";
 import {
   computeStereoLensCenters,
+  computeStereoCalibration,
   type StereoLensCenter,
 } from "./lens-center";
 import {
@@ -46,11 +49,9 @@ uniform sampler2D sourceTexture;
 uniform vec2 distortion;
 uniform vec2 lensCenter;
 varying vec2 vUv;
+${stereoLensMappingGlsl}
 void main() {
-  vec2 centered = vUv * 2.0 - 1.0 - lensCenter;
-  float radius2 = dot(centered, centered);
-  float scale = 1.0 + distortion.x * radius2 + distortion.y * radius2 * radius2;
-  vec2 sourceUv = (centered * scale + lensCenter) * 0.5 + 0.5;
+  vec2 sourceUv = stereoLensSourceUv(vUv, distortion, lensCenter);
   if (sourceUv.x < 0.0 || sourceUv.x > 1.0 || sourceUv.y < 0.0 || sourceUv.y > 1.0) {
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
   } else {
@@ -65,6 +66,8 @@ type DistortionResources = {
   material: ShaderMaterial;
   mesh: Mesh;
   scene: Scene;
+  maskScene: Scene;
+  maskMaterial: ShaderMaterial;
   target: WebGLRenderTarget;
 };
 
@@ -88,7 +91,14 @@ function createDistortionResources(): DistortionResources {
   const mesh = new Mesh(geometry, material);
   const scene = new Scene();
   scene.add(mesh);
+  const maskMaterial = new ShaderMaterial({
+    vertexShader, fragmentShader: stereoLensMaskFragmentShader,
+    uniforms: material.uniforms, depthTest: false, depthWrite: false,
+  });
+  const maskScene = new Scene();
+  maskScene.add(new Mesh(geometry, maskMaterial));
   return {
+    maskScene, maskMaterial,
     camera: new OrthographicCamera(-1, 1, 1, -1, 0, 1),
     geometry,
     material,
@@ -137,19 +147,9 @@ function syncStereoCameras(
     gl.getPixelRatio(),
     oversampling,
   );
-  const screenToLensMm = profile.screenToLensMm ?? 42;
   const displayAspect = layout.fullWidth / layout.fullHeight;
-  const screenHeightMm =
-    screensize === "auto"
-      ? null
-      : (screensize * 25.4) /
-        Math.sqrt(displayAspect * displayAspect + 1);
-  const calibratedFov =
-    screenHeightMm === null
-      ? profile.fov
-      : (2 * Math.atan(screenHeightMm / (2 * screenToLensMm)) * 180) /
-        Math.PI;
-  camera.fov = Math.max(30, Math.min(140, calibratedFov));
+  const { fov, centers } = computeStereoCalibration(profile, screensize, displayAspect);
+  camera.fov = fov;
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
   stereo.aspect = layout.stereoAspect;
@@ -165,7 +165,6 @@ function syncStereoCameras(
   stereo.cameraR.matrix.multiply(TOE_IN);
   stereo.cameraR.matrixWorldNeedsUpdate = true;
 
-  const centers = computeStereoLensCenters(profile, screensize, displayAspect);
   applyEyeViewOffset(stereo.cameraL, layout.left, centers.left);
   applyEyeViewOffset(stereo.cameraR, layout.right, centers.right);
   stereo.cameraL.updateMatrixWorld(true);
@@ -210,6 +209,7 @@ export function WebVRStereoRenderer({
     () => () => {
       resources.geometry.dispose();
       resources.material.dispose();
+      resources.maskMaterial.dispose();
       resources.target.dispose();
     },
     [resources],
@@ -256,6 +256,7 @@ export function WebVRStereoRenderer({
         eye: StereoLayout["left"],
         center: StereoLensCenter,
       ) => {
+        renderSpatialEye(gl, eyeCamera, () => {
         if (hasDistortion) {
           if (
             resources.target.width !== layout.renderTargetWidth ||
@@ -281,12 +282,15 @@ export function WebVRStereoRenderer({
           );
           resources.material.uniforms.lensCenter?.value.set(center.x, center.y);
           originalRender(resources.scene, resources.camera);
-          return;
+        } else {
+          gl.setRenderTarget(null);
+          gl.setViewport(eye.offsetX, 0, eye.width, eye.height);
+          gl.setScissor(eye.offsetX, 0, eye.width, eye.height);
+          originalRender(sceneToRender, eyeCamera);
         }
-        gl.setRenderTarget(null);
-        gl.setViewport(eye.offsetX, 0, eye.width, eye.height);
-        gl.setScissor(eye.offsetX, 0, eye.width, eye.height);
-        originalRender(sceneToRender, eyeCamera);
+        }, () => originalRender(sceneToRender, eyeCamera), () => {
+          if (hasDistortion) originalRender(resources.maskScene, resources.camera);
+        });
       };
 
       renderEye(stereoRef.current.cameraL, layout.left, centers.left);

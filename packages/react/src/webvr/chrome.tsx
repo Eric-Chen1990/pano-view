@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -12,10 +11,10 @@ import {
 } from "./host";
 import { DEFAULT_WEBVR_CHROME_APPEARANCE } from "./appearance";
 import { usePortraitOrientation } from "./orientation";
-import { cycleWebVRProfileId, WEBVR_PROFILES } from "./profiles";
+import { cycleWebVRProfileId } from "./profiles";
 import type { WebVRChromeAppearance, WebVRSettings } from "./types";
 
-const SESSION_CHROME_IDLE_MS = 3_000;
+import { bindSessionChromeVisibility } from "./session-chrome";
 
 function resolveAppearance(
   value: WebVRHost["snapshot"]["chrome"],
@@ -77,6 +76,7 @@ function SetupPanel({
   settings: WebVRSettings;
 }) {
   const controller = host.controller;
+  const { screensizeManaged, profileManaged, profileLabel, screensizeStatus, mode } = host.snapshot;
   const setScreensize = (value: number | "auto") => {
     controller?.updateSettings({ ...settings, screensize: value });
   };
@@ -94,18 +94,19 @@ function SetupPanel({
   };
   return (
     <div
-      aria-label="Mobile VR setup"
+      aria-label="VR setup"
       className="pano-webvr-setup"
       role="dialog"
       style={panelStyle}
     >
       <h2 className="pano-webvr-setup-title">
-        {appearance.setupTitle ?? "MobileVR Setup"}
+        {appearance.setupTitle ?? "VR Setup"}
       </h2>
       <label className="pano-webvr-setup-field">
         Screen size (inch)
         <div className="pano-webvr-setup-row">
           <button
+            disabled={screensizeManaged}
             aria-label="Decrease screen size"
             className="pano-webvr-setup-stepper"
             onClick={() =>
@@ -123,6 +124,7 @@ function SetupPanel({
             {formatScreensizeLabel(settings, detectedScreensize)}
           </strong>
           <button
+            disabled={screensizeManaged}
             aria-label="Increase screen size"
             className="pano-webvr-setup-stepper"
             onClick={() =>
@@ -138,10 +140,21 @@ function SetupPanel({
           </button>
         </div>
       </label>
+      <p role="status">
+        {settings.screensize !== "auto" ? "Manual screen size" : mode === "fake"
+          ? "Desktop preview · screen size is not automatically detected"
+          : screensizeStatus === "loading" ? "Detecting screen size…"
+          : screensizeStatus === "detected" ? "Estimated screen size · lens preset is selected separately"
+          : "Screen size unknown · set it manually if using a headset"}
+      </p>
+      <button className="pano-webvr-button" type="button" disabled={screensizeManaged || settings.screensize === "auto"} onClick={() => setScreensize("auto")}>
+        {mode === "fake" ? "Use uncalibrated size" : "Auto screen size"}
+      </button>
       <fieldset className="pano-webvr-setup-fieldset">
         <legend className="pano-webvr-setup-legend">VR headset preset</legend>
         <div className="pano-webvr-setup-row">
           <button
+            disabled={profileManaged}
             aria-label="Previous headset preset"
             className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(-1)}
@@ -150,9 +163,10 @@ function SetupPanel({
             ‹
           </button>
           <strong className="pano-webvr-setup-value-wide">
-            {WEBVR_PROFILES[settings.profileId].label}
+            {profileLabel}
           </strong>
           <button
+            disabled={profileManaged}
             aria-label="Next headset preset"
             className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(1)}
@@ -257,53 +271,10 @@ function useSessionChromeVisibility(
   viewer: Element | null,
 ): boolean {
   const [visible, setVisible] = useState(true);
-  const idleTimerRef = useRef(0);
-
-  const bump = useCallback(() => {
-    setVisible(true);
-    window.clearTimeout(idleTimerRef.current);
-    if (!active || keepVisible) {
-      return;
-    }
-    idleTimerRef.current = window.setTimeout(() => {
-      setVisible(false);
-    }, SESSION_CHROME_IDLE_MS);
-  }, [active, keepVisible]);
-
   useEffect(() => {
-    if (!active) {
-      window.clearTimeout(idleTimerRef.current);
-      setVisible(true);
-      return;
-    }
-    bump();
-  }, [active, bump, keepVisible]);
-
-  useEffect(() => {
-    if (!active || !viewer) {
-      return;
-    }
-
-    const reveal = () => {
-      bump();
-    };
-
-    viewer.addEventListener("pointerdown", reveal);
-    viewer.addEventListener("wheel", reveal, { passive: true });
-    viewer.addEventListener("keydown", reveal);
-    return () => {
-      viewer.removeEventListener("pointerdown", reveal);
-      viewer.removeEventListener("wheel", reveal);
-      viewer.removeEventListener("keydown", reveal);
-    };
-  }, [active, bump, viewer]);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(idleTimerRef.current);
-    },
-    [],
-  );
+    if (!active) { setVisible(true); return; }
+    return bindSessionChromeVisibility(viewer, keepVisible, setVisible);
+  }, [active, keepVisible, viewer]);
 
   return keepVisible || visible;
 }
@@ -321,9 +292,12 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
     mode,
     settings,
     setupOpen,
+    pointerLocked,
   } = host.snapshot;
   const [mounted, setMounted] = useState(false);
   const [viewer, setViewer] = useState<Element | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -336,10 +310,12 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
     setViewer(node);
   }, [mode]);
 
+  useEffect(() => { setHovered(false); setFocused(false); }, [mode]);
+
   const sessionActive = mode !== null;
   const chromeVisible = useSessionChromeVisibility(
     sessionActive,
-    setupOpen,
+    setupOpen || hovered || focused || (mode === "fake" && !pointerLocked),
     viewer,
   );
 
@@ -359,7 +335,11 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
 
   return (
     <>
-      <div className="pano-webvr-toolbar" ref={toolbarRef}>
+      <div className="pano-webvr-toolbar" ref={toolbarRef}
+        onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
+      >
         <SessionActions
           appearance={appearance}
           host={host}
@@ -369,8 +349,8 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
       </div>
       {mode === "fake" && chromeVisible ? (
         <p className="pano-webvr-hint" style={{ color: appearance.color }}>
-          Simulated VR Mode · Click the view to lock the mouse, then move to
-          look around. Use a headset or phone for real VR.
+          Simulated VR Mode · Move the mouse to look around. Right-click to
+          release the mouse; left-click the view to lock it again.
         </p>
       ) : null}
       {setupOpen ? (

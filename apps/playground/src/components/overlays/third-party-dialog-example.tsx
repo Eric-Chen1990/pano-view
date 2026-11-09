@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { PanoOverlayPortalProvider, usePanoModal, usePanoOverlay } from "@ericchen1990/pano-view";
+import { PanoOverlayPortalProvider, usePanoDialogSurface } from "@ericchen1990/pano-view";
 
 const closeButtonClassName =
   "inline-flex min-h-9 items-center justify-center border border-[#3e6c73] bg-transparent px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
@@ -17,26 +17,30 @@ export function ThirdPartyDialog({
   title: string;
   children: ReactNode;
 }) {
-  const { portalContainer, visibleRect } = usePanoOverlay();
+  const { portalContainer, visibleRect, contentRef, presentation, onInteractOutside } = usePanoDialogSurface({ open, onOpenChange });
   const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
-  usePanoModal(open);
+
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root modal={false} open={open} onOpenChange={onOpenChange}>
       {portalContainer ? (
         <Dialog.Portal container={portalContainer}>
-          <Dialog.Overlay className="absolute inset-0 bg-black/70" style={{ pointerEvents: "auto" }} />
+          {presentation === "screen" ? <Dialog.Overlay className="absolute inset-0 bg-black/70" style={{ pointerEvents: "auto" }} /> : null}
           <Dialog.Content
+            ref={contentRef}
+            onInteractOutside={onInteractOutside}
             aria-describedby={undefined}
             className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border-2 border-cyan-300 bg-slate-950 text-slate-100"
             style={{
-              left: visibleRect.left + visibleRect.width / 2,
-              top: visibleRect.top + visibleRect.height / 2,
+              left: presentation === "spatial" ? -10000 : visibleRect.left + visibleRect.width / 2,
+              top: presentation === "spatial" ? 0 : visibleRect.top + visibleRect.height / 2,
               width: Math.min(720, Math.max(0, visibleRect.width - 32)),
               maxHeight: Math.max(0, visibleRect.height - 32),
               pointerEvents: "auto",
+              ...(presentation === "spatial" ? { transform: "none" } : {}),
             }}
-            onOpenAutoFocus={() => {
+            onOpenAutoFocus={(event) => {
+              if (presentation === "spatial") event.preventDefault();
               restoreFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             }}
             onCloseAutoFocus={(event) => {

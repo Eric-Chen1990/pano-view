@@ -12,7 +12,7 @@ export function clampVolume(volume: number | undefined): number {
 }
 
 /** iOS Safari ignores `HTMLMediaElement.volume` and always reads back `1`. */
-export function probeVolumeAdjustable(video: HTMLVideoElement): boolean {
+export function probeVolumeAdjustable(video: HTMLMediaElement): boolean {
   const previous = video.volume;
   const probe = previous === 0.5 ? 0.51 : 0.5;
   try {

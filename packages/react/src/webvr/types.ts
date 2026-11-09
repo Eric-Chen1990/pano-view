@@ -118,7 +118,8 @@ export type WebVRProps = {
   wakelock?: boolean;
   /**
    * Lock the mouse in simulated desktop VR so movement looks around with
-   * no visible cursor. Click the view to re-lock after Escape. Defaults to true.
+   * no visible cursor. Right-click to release; left-click the view to re-lock.
+   * While unlocked, the reticle and gaze actions are paused. Defaults to true.
    */
   mousePointerLock?: boolean;
   onAvailable?: () => void;
@@ -139,7 +140,7 @@ export type WebVRHandle = {
   getState: () => WebVRState;
   subscribe: (onStoreChange: () => void) => () => void;
   requestPermission: () => Promise<boolean>;
-  /** Clear stored MobileVR settings and restore prop / built-in defaults. */
+  /** Reset the active fallback mode, or both modes outside VR; explicit props still apply. */
   resetSettings: () => void;
 };
 

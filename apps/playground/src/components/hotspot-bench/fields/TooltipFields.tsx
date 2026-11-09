@@ -56,18 +56,24 @@ export function TooltipFields({
   tooltipPlacement,
   tooltipOffset,
   tooltipAppearance,
+  tooltipMode = "billboard",
+  tooltipScaleMode = "inherit",
   onChange,
 }: {
   tooltip: HotspotTooltipContent;
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipMode?: "billboard" | "surface";
+  tooltipScaleMode?: "inherit" | "fov" | "fixed";
   tooltipAppearance?: HotspotTooltipAppearance;
   onChange: (patch: {
     tooltip?: HotspotTooltipContent;
     tooltipTrigger?: HotspotTooltipTrigger;
     tooltipPlacement?: HotspotTooltipPlacement;
     tooltipOffset?: number;
+    tooltipMode?: "billboard" | "surface";
+    tooltipScaleMode?: "inherit" | "fov" | "fixed";
     tooltipAppearance?: HotspotTooltipAppearance;
   }) => void;
 }) {
@@ -91,6 +97,18 @@ export function TooltipFields({
 
   return (
     <>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Tooltip mode</span>
+        <select className={fieldInputClassName} value={tooltipMode} onChange={event => onChange({ tooltipMode: event.currentTarget.value as "billboard" | "surface" })}>
+          <option value="billboard">Float facing viewer</option><option value="surface">Attach to panorama</option>
+        </select>
+      </label>
+      <label className={fieldWideClassName}>
+        <span className={fieldLabelClassName}>Tooltip size on zoom</span>
+        <select className={fieldInputClassName} disabled={tooltipMode === "surface"} value={tooltipMode === "surface" ? "fov" : tooltipScaleMode} onChange={event => onChange({ tooltipScaleMode: event.currentTarget.value as "inherit" | "fov" | "fixed" })}>
+          <option value="inherit">Follow hotspot</option><option value="fov">Follow FOV</option><option value="fixed">Keep screen size</option>
+        </select>
+      </label>
       <label className={fieldWideClassName}>
         <span className={fieldLabelClassName}>Tooltip text</span>
         <input

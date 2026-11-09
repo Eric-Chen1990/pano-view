@@ -1,3 +1,4 @@
+import { SpatialHostContext } from "./spatial/host";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
 import { createPointerDrag } from "./pointer-drag";
@@ -52,6 +53,7 @@ export function MouseControls({
   fovSpeed,
 }: MouseControlsProps) {
   useClaimControlChannel("mouse");
+  const spatialHost = useContext(SpatialHostContext);
   const controlsRef = useContext(PanoramaViewContext);
   const { gl, camera } = useThree();
   const validateDragRef = useRef<((delta: number) => void) | undefined>(undefined);
@@ -205,6 +207,7 @@ export function MouseControls({
     };
 
     const onWheel = (event: WheelEvent) => {
+      if (spatialHost?.mode && spatialHost.surfaces.size) return;
       if (!optionsRef.current.wheel) {
         return;
       }
