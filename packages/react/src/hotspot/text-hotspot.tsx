@@ -1,3 +1,4 @@
+import { hotspotScaleMode } from "../../../../shared/hotspot-rendering";
 import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -578,7 +579,7 @@ export function TextHotspot({
     height,
     style,
     anchorProps.scale,
-    anchorProps.scaleMode,
+    hotspotScaleMode(anchorProps.mode, anchorProps.scaleMode),
     anchorProps.referenceFov,
     onLoad,
     onError,

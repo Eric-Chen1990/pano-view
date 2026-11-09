@@ -231,7 +231,45 @@ test("mode-dependent camera fields are disabled until their controlling mode app
   const html = render(hotspot);
   const inputs = [...html.matchAll(/<input[^>]+>/g)].map((match) => match[0]);
   assert.ok(inputs.some((input) => input.includes('value="10"') && input.includes("disabled")));
-  assert.ok(inputs.some((input) => input.includes('value="75"') && input.includes("disabled")));
+  assert.ok(inputs.some((input) => input.includes('value="75"') && !input.includes("disabled")));
   const active = render({ ...hotspot, mode: "billboard", scaleMode: "fixed" });
   assert.doesNotMatch(active, /<input[^>]*disabled[^>]*value="(?:10|75)"/);
+});
+
+
+test("surface controls show effective scaling without rewriting explicit saved preferences", () => {
+  const hotspot = { ...createHotspot("graphic", position), mode: "surface" as const, scaleMode: "fixed" as const, tooltipMode: "surface" as const, tooltipScaleMode: "fixed" as const };
+  const before = JSON.stringify(hotspot);
+  const html = renderToStaticMarkup(createElement(HotspotInspector, { hotspot, scenes: [], t: translator("en"), onChange: () => assert.fail("render must not commit"), onBegin: noop, onEnd: noop, onPick: noop, getViewPosition: () => position }));
+  assert.equal((html.match(/<select[^>]*disabled[^>]*>[\s\S]*?<option value="fov" selected=""/g) ?? []).length, 2);
+  assert.equal(JSON.stringify(hotspot), before);
+  assert.equal(hotspotFieldDefault(createHotspot("graphic", position), "scaleMode"), "fixed");
+  for (const kind of ["polygon", "polyline"] as const) {
+    const pathHtml = renderToStaticMarkup(createElement(HotspotInspector, { hotspot: createHotspot(kind, position), scenes: [], t: translator("en"), onChange: noop, onBegin: noop, onEnd: noop, onPick: noop, getViewPosition: () => position }));
+    assert.ok(!pathHtml.includes("Placement mode"));
+    assert.ok(!pathHtml.includes("Camera distance"));
+    assert.ok(pathHtml.includes("Tooltip mode"));
+  }
+});
+
+test("tooltip overrides survive export, history and snippet generation for points and paths", async () => {
+  const { buildHotspotBenchSnippet } = await import("../../../apps/playground/src/components/hotspot-bench/build-hotspot-snippet");
+  const { cloneDemoHotspots, cloneDemoPolygons, cloneDemoPolylines } = await import("../../../apps/playground/src/utils");
+  const hotspots = cloneDemoHotspots().map(h => ({ ...h, tooltipMode: "surface" as const, tooltipScaleMode: "fixed" as const }));
+  const polygons = cloneDemoPolygons().map(h => ({ ...h, tooltipMode: "surface" as const, tooltipScaleMode: "fixed" as const }));
+  const polylines = cloneDemoPolylines().map(h => ({ ...h, tooltipMode: "surface" as const, tooltipScaleMode: "fixed" as const }));
+  for (const item of [...hotspots, ...polygons, ...polylines]) {
+    const { code } = buildHotspotBenchSnippet({ selectedId: item.id, hotspots, polygons, polylines });
+    assert.ok(code.includes('tooltipMode="surface"'));
+    assert.ok(code.includes('tooltipScaleMode="fixed"'));
+  }
+  const original = createHotspot("polygon", position);
+  const doc = readDocument({schemaVersion: 1, scenes: [{id: "s", source: {viewerUrl: "viewer.json"}, hotspots: [{...original, vertices: [position, {yaw:20,pitch:0}, {yaw:20,pitch:20}]}]}]});
+  const history = new DocumentHistory(doc);
+  const changed = setHotspotField(setHotspotField(doc.scenes[0]!.hotspots![0]!, "tooltipMode", "surface"), "tooltipScaleMode", "fixed");
+  const next = {...doc, scenes: [{...doc.scenes[0]!, hotspots: [changed]}]};
+  history.commit(next);
+  assert.equal(history.undo().scenes[0]!.hotspots![0]!.tooltipMode, undefined);
+  assert.equal(history.redo().scenes[0]!.hotspots![0]!.tooltipScaleMode, "fixed");
+  assert.deepEqual(readDocument(JSON.parse(exportDocument(next))).scenes[0]!.hotspots![0], changed);
 });

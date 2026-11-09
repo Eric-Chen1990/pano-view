@@ -1,3 +1,4 @@
+import { hotspotScaleMode } from "../../../shared/hotspot-rendering";
 import {
   DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
   type ProjectHotspotDefinition,
@@ -13,7 +14,9 @@ const common: Record<string, unknown> = {
   distance: 10,
   referenceFov: 75,
   mode: "billboard",
-  scaleMode: "fov",
+  scaleMode: "fixed",
+  tooltipMode: "billboard",
+  tooltipScaleMode: "inherit",
   tooltipTrigger: "always",
   tooltipPlacement: "top",
   tooltipOffset: DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
@@ -99,6 +102,7 @@ export function hotspotFieldDefault(
   hotspot: ProjectHotspotDefinition,
   name: string
 ): unknown {
+  if (name === "scaleMode" && "position" in hotspot) return hotspotScaleMode(hotspot.mode, hotspot.scaleMode);
   if (name === "renderOrder") return "vertices" in hotspot ? 10 : 0;
   return content[hotspot.type][name] ?? common[name];
 }

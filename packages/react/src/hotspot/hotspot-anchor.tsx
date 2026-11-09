@@ -1,3 +1,4 @@
+import { hotspotScaleMode, tooltipScaleMode as resolveTooltipScaleMode } from "../../../../shared/hotspot-rendering";
 import { WebVRRuntimeContext } from "../webvr/host";
 import { SpatialHostContext } from "../spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -566,7 +567,7 @@ export function HotspotAnchor({
   distance,
   internalOrientation,
   internalPlacement,
-  scaleMode = "fov",
+  scaleMode,
   referenceFov = DEFAULT_REFERENCE_FOV,
   rotation = 0,
   renderOrder = 0,
@@ -582,6 +583,8 @@ export function HotspotAnchor({
   tooltipPlacement = "top",
   tooltipOffset,
   tooltipAppearance,
+  tooltipMode = "billboard",
+  tooltipScaleMode,
   children,
   onClick,
   onHoverChange,
@@ -625,6 +628,8 @@ export function HotspotAnchor({
       ? { orientation: internalOrientation, placement: internalPlacement }
       : HOTSPOT_MODE_RENDERING[mode];
   const { orientation, placement } = rendering;
+  const effectiveScaleMode = hotspotScaleMode(orientation, scaleMode);
+  const effectiveTooltipScaleMode = resolveTooltipScaleMode(tooltipMode, tooltipScaleMode, effectiveScaleMode);
   const resolvedScale = resolveScale(scale);
   const scaledWidth = width * resolvedScale;
   const scaledHeight = height * resolvedScale;
@@ -763,7 +768,7 @@ export function HotspotAnchor({
       orientation,
       surfaceQuaternion,
       rotation,
-      scaleMode,
+      effectiveScaleMode,
       referenceFov,
       useAngularScale,
       worldWidth,
@@ -788,7 +793,7 @@ export function HotspotAnchor({
     referenceFov,
     resolvedDistance,
     rotation,
-    scaleMode,
+    effectiveScaleMode,
     size,
     selected,
     surfaceQuaternion,
@@ -810,7 +815,7 @@ export function HotspotAnchor({
       orientation,
       surfaceQuaternion,
       rotation,
-      scaleMode,
+      effectiveScaleMode,
       referenceFov,
       useAngularScale,
       worldWidth,
@@ -1064,6 +1069,9 @@ export function HotspotAnchor({
       {tooltipOpen && tooltipContent ? (
         <group ref={tooltipAnchorRef}>
           <HotspotTooltip
+            mode={tooltipMode}
+            scaleMode={effectiveTooltipScaleMode}
+            referenceFov={useAngularScale ? referenceFov : DEFAULT_REFERENCE_FOV}
             appearance={tooltipAppearance}
             content={tooltipContent}
             offset={resolveHotspotTooltipOffset(tooltipOffset)}

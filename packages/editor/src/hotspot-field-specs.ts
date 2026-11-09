@@ -63,7 +63,7 @@ const descriptions: Record<string, { label: string; help: string }> = {
   },
   referenceFov: {
     label: "Reference field of view (°)",
-    help: "Reference vertical field of view for fixed screen size. Must be greater than zero; used only in fixed size mode.",
+    help: "Reference vertical field of view for fixed hotspot size and tooltip styling. Defaults to 75 degrees.",
   },
   frameCount: {
     label: "Sprite frame count",
@@ -216,6 +216,8 @@ const descriptions: Record<string, { label: string; help: string }> = {
     label: "Embedded page interaction",
     help: "Send pointer events to the hotspot for panorama actions, or to the embedded page so visitors can use its controls.",
   },
+  tooltipMode: { label: "Tooltip mode", help: "Surface tooltips always scale with zoom." },
+  tooltipScaleMode: { label: "Tooltip size when zooming", help: "Follow the hotspot, scale with zoom, or keep a fixed screen size." },
   tooltipTrigger: {
     label: "Show visitor tooltip",
     help: "Choose always visible, hover or focus, or click. Hover and click require hotspot interaction and pointer events.",
@@ -281,6 +283,7 @@ const optionLabels: Record<string, string> = {
   none: "Pass through to panorama",
   surface: "On panorama surface",
   billboard: "Floating, facing camera",
+  inherit: "Follow hotspot",
   fov: "Scale with zoom",
   fixed: "Fixed screen size",
   horizontal: "Across the image",

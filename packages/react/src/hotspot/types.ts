@@ -19,6 +19,7 @@ export type HotspotMode = "surface" | "billboard";
 
 /** Whether a hotspot grows with panorama zoom or preserves its screen size. */
 export type HotspotScaleMode = "fov" | "fixed";
+export type HotspotTooltipScaleMode = "inherit" | HotspotScaleMode;
 
 export type HotspotInputSource = "pointer" | "keyboard";
 
@@ -97,6 +98,10 @@ export type HotspotCommonProps = {
   tooltipTrigger?: HotspotTooltipTrigger;
   /** Screen direction for the tooltip. Defaults to `"top"`. */
   tooltipPlacement?: HotspotTooltipPlacement;
+  /** Defaults to billboard, independently of the hotspot orientation. */
+  tooltipMode?: HotspotMode;
+  /** Defaults to inherit. Surface tooltips always scale with FOV. */
+  tooltipScaleMode?: HotspotTooltipScaleMode;
   /**
    * Screen-space gap in CSS pixels between the hotspot edge and the tooltip.
    * Defaults to 12.
@@ -117,9 +122,9 @@ export type HotspotCommonProps = {
    * when needed so the full hotspot remains inside the panorama shell.
    */
   distance?: number;
-  /** FOV grows/shrinks with zoom; fixed preserves the reference screen size. */
+  /** Billboard defaults to fixed. Surface always uses fov, ignoring fixed. */
   scaleMode?: HotspotScaleMode;
-  /** Reference FOV in degrees used when scaleMode is "fixed". Defaults to 75. */
+  /** Reference FOV for fixed hotspot size and tooltip styling. Defaults to 75. */
   referenceFov?: number;
   /** Clockwise rotation around the hotspot normal in degrees. */
   rotation?: number;

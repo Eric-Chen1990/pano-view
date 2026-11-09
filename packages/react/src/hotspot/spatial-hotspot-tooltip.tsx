@@ -1,3 +1,4 @@
+import { tooltipWorldMatrix } from "./tooltip-transform";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -5,9 +6,14 @@ import {
   LinearFilter,
   SRGBColorSpace,
   Sprite,
+  Mesh,
+  Matrix4,
+  Quaternion,
   Vector3,
 } from "three";
 import type {
+  HotspotMode,
+  HotspotScaleMode,
   HotspotTooltipAppearance,
   HotspotTooltipContent,
   HotspotTooltipPlacement,
@@ -21,17 +27,24 @@ function number(value: string | number, fallback: number) {
 /** A real scene sprite: both eyes, depth ordering and the final lens mask apply. */
 export function SpatialHotspotTooltip({
   content,
+  mode,
+  scaleMode,
+  referenceFov,
   appearance,
   placement,
   offset,
 }: {
+  mode: HotspotMode;
+  scaleMode: HotspotScaleMode;
+  referenceFov: number;
   content: HotspotTooltipContent;
   appearance: Required<HotspotTooltipAppearance>;
   placement: HotspotTooltipPlacement;
   offset: number;
 }) {
   const sprite = useRef<Sprite>(null);
-  const { camera, gl } = useThree();
+  const mesh = useRef<Mesh>(null);
+  const { camera, gl, size } = useThree();
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
     setImage(null);
@@ -137,37 +150,79 @@ export function SpatialHotspotTooltip({
   }, [appearance, content.text, image]);
   useEffect(() => () => raster.texture.dispose(), [raster]);
   const scratch = useMemo(
-    () => ({ point: new Vector3(), eye: new Vector3(), scale: new Vector3() }),
-    []
+    () => ({
+      world: new Matrix4(),
+      local: new Matrix4(),
+      point: new Vector3(),
+      offset: new Vector3(),
+      rotation: new Quaternion(),
+      scale: new Vector3(),
+    }),
+    [],
   );
   useFrame(() => {
-    const node = sprite.current;
+    const node = mode === "surface" ? mesh.current : sprite.current;
     if (!node?.parent) return;
-    node.getWorldPosition(scratch.point);
-    (gl.xr.isPresenting ? gl.xr.getCamera() : camera).getWorldPosition(
-      scratch.eye
+    const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
+    tooltipWorldMatrix(
+      scratch.world,
+      node.parent,
+      view,
+      size.height,
+      mode,
+      scaleMode,
+      referenceFov,
     );
-    node.parent.getWorldScale(scratch.scale);
-    // Preserve readable angular size without inheriting hotspot width/height scaling.
-    const unit = scratch.point.distanceTo(scratch.eye) * 0.0015;
-    node.scale.set(
-      (raster.width * unit) / Math.max(1e-8, Math.abs(scratch.scale.x)),
-      (raster.height * unit) / Math.max(1e-8, Math.abs(scratch.scale.y)),
-      1
-    );
-    node.center.set(
+    const unit = scratch.scale.setFromMatrixScale(scratch.world).x;
+    const depth = -scratch.point
+      .setFromMatrixPosition(scratch.world)
+      .applyMatrix4(camera.matrixWorldInverse).z;
+    const pixel =
+      (2 * Math.max(0, depth)) /
+      (Math.max(1, size.height) * camera.projectionMatrix.elements[5]!);
+    const x =
       placement === "left"
-        ? 1 + offset / raster.width
+        ? (-raster.width * unit) / 2 - offset * pixel
         : placement === "right"
-        ? -offset / raster.width
-        : 0.5,
+          ? (raster.width * unit) / 2 + offset * pixel
+          : 0;
+    const y =
       placement === "top"
-        ? -offset / raster.height
+        ? (raster.height * unit) / 2 + offset * pixel
         : placement === "bottom"
-        ? 1 + offset / raster.height
-        : 0.5
+          ? (-raster.height * unit) / 2 - offset * pixel
+          : 0;
+    scratch.world.decompose(scratch.point, scratch.rotation, scratch.scale);
+    scratch.point.add(
+      scratch.offset.set(x, y, 0).applyQuaternion(scratch.rotation),
     );
+    scratch.world.compose(
+      scratch.point,
+      scratch.rotation,
+      scratch.scale.set(raster.width * unit, raster.height * unit, 1),
+    );
+    scratch.local
+      .copy(node.parent.matrixWorld)
+      .invert()
+      .multiply(scratch.world);
+    node.matrixAutoUpdate = false;
+    node.matrix.copy(scratch.local);
+    node.matrixWorldNeedsUpdate = true;
   });
+
+  if (mode === "surface")
+    return (
+      <mesh ref={mesh} renderOrder={1000} raycast={() => {}}>
+        <planeGeometry />
+        <meshBasicMaterial
+          map={raster.texture}
+          transparent
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+    );
   return (
     <sprite ref={sprite} renderOrder={1000} raycast={() => {}}>
       <spriteMaterial

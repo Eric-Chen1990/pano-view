@@ -289,6 +289,7 @@ export type {
   HotspotTooltipContent,
   HotspotTooltipPlacement,
   HotspotTooltipTrigger,
+  HotspotTooltipScaleMode,
   PanoramaPointerEvent,
 } from "./hotspot/types";
 export type {

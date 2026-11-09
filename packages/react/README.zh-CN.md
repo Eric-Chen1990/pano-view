@@ -2164,6 +2164,8 @@ import {
 
 `tooltipPlacement` 为 `"top"`（默认）、`"bottom"`、`"left"`、`"right"`。均为屏幕方向：气泡位于热点投影边界该侧之外，避免遮挡旋转后的图形（如箭头）。`tooltipOffset` 为屏幕空间间距（CSS 像素，默认 `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`）。
 
+`tooltipMode` 默认 `"billboard"`（悬浮），可设为 `"surface"`（贴合球面）。`tooltipScaleMode` 默认 `"inherit"`，跟随热点实际缩放规则；悬浮提示可独立设为 `"fov"` 或 `"fixed"`，贴合提示始终随 FOV 缩放。气泡字号和样式以热点 `referenceFov`（默认 `75`）为基准，间距继续使用屏幕像素。多边形、折线本体始终贴合球面，不支持悬浮、距离或缩放模式；其提示默认悬浮并随 FOV 缩放，也支持独立配置。新旧项目省略配置均采用这些默认值。
+
 可选 `tooltipAppearance` 覆盖气泡绘制。未设字段保留库默认主题（`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`）：背景、文字色、边框、圆角、阴影、内边距与字号。
 
 ```tsx
@@ -2300,7 +2302,7 @@ import { GraphicHotspot } from "@ericchen1990/pano-view";
 
 - `mode="surface"` 将平面附着于局部全景表面。
 - `mode="billboard"` 使平面始终朝向相机并浮于壳层前方。`distance` 是热点到相机的距离（世界单位，默认 `10`），减小该值可将热点移近相机。内置全景壳层约在 `1000` 单位；距离会自动限制在允许范围内，避免热点角点穿过壳层。
-- `scaleMode="fov"`（默认）在用户放大时热点变大。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
+- 悬浮热点默认 `scaleMode="fixed"`，保持固定屏幕大小；可用 `scaleMode="fov"` 随视角缩放。贴合热点始终使用 `fov`，显式的 `fixed` 不生效。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
 - `rotation` 绕自身法线旋转（度）；正值顺时针，负值逆时针。`scale` 为角向 width/height 的整体正倍率，默认 `1`。
 
 ```tsx

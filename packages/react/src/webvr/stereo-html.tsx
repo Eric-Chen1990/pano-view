@@ -8,17 +8,23 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
-import { Group, Vector3 } from "three";
+import { Group, Matrix4, Vector3 } from "three";
 import { subscribeWebVRHost, WebVRRuntimeContext } from "./host";
 import { usePortraitOrientation } from "./orientation";
 import {
   isFallbackStereoMode,
-  projectStereoHtmlPosition,
   type WebVRStereoEye,
   type WebVRStereoView,
 } from "./stereo-view";
 
+import { tooltipWorldMatrix, tooltipScreenMatrix } from "../hotspot/tooltip-transform";
+import type { HotspotMode, HotspotScaleMode } from "../hotspot/types";
+
 type PanoHtmlProps = {
+  mode?: HotspotMode;
+  scaleMode?: HotspotScaleMode;
+  referenceFov?: number;
+  offset?: readonly [number, number];
   children: ReactNode;
   pointerEvents?: CSSProperties["pointerEvents"];
   style?: CSSProperties;
@@ -40,6 +46,10 @@ function useFallbackStereoView() {
 /** A projected label owns a DOM root separate from Fiber's scene root. */
 function ProjectedHtml({
   children,
+  mode = "billboard",
+  scaleMode = "fixed",
+  referenceFov = 75,
+  offset = [0, 0],
   pointerEvents = "auto",
   style,
   zIndexRange = [16777271, 0],
@@ -50,6 +60,8 @@ function ProjectedHtml({
   const group = useRef<Group>(null);
   const overlay = useRef<{ element: HTMLDivElement; root: Root } | null>(null);
   const scratch = useRef(new Vector3());
+  const matrix = useRef(new Matrix4());
+  const screen = useRef(new Matrix4());
   const target = events.connected || gl.domElement.parentElement;
 
   const updatePosition = () => {
@@ -67,16 +79,11 @@ function ProjectedHtml({
     const distance = position.distanceTo(viewCamera.position);
     position.applyMatrix4(viewCamera.matrixWorldInverse);
     element.style.display = position.z < 0 ? "block" : "none";
-    let x: number;
-    let y: number;
-    if (stereoView && eye) {
-      [x, y] = projectStereoHtmlPosition(anchor, viewCamera, size, eye);
-    } else {
-      position.setFromMatrixPosition(anchor.matrixWorld).project(viewCamera);
-      x = ((position.x + 1) * size.width) / 2;
-      y = ((1 - position.y) * size.height) / 2;
-    }
-    element.style.transform = `translate3d(${x}px,${y}px,0)`;
+    const world = tooltipWorldMatrix(matrix.current, anchor, viewCamera, size.height, mode, scaleMode, referenceFov);
+    const eyeWidth = stereoView ? size.width / 2 : size.width;
+    const eyeOffset = stereoView && eye === "right" ? eyeWidth : 0;
+    tooltipScreenMatrix(screen.current, world, viewCamera, eyeWidth, size.height, eyeOffset + offset[0], offset[1]);
+    element.style.transform = `matrix3d(${screen.current.elements.join(",")})`;
     element.style.zIndex = String(
       Math.round(
         zIndexRange[0] +

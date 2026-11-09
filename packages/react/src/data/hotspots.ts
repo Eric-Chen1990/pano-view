@@ -74,6 +74,8 @@ const common = [
   "tooltip",
   "tooltipTrigger",
   "tooltipPlacement",
+  "tooltipMode",
+  "tooltipScaleMode",
   "tooltipOffset",
   "tooltipAppearance",
 ];
@@ -215,6 +217,8 @@ const enums: Record<string, readonly string[]> = {
   pointerEvents: ["auto", "none"],
   tooltipTrigger: ["always", "hover", "click"],
   tooltipPlacement: ["top", "bottom", "left", "right"],
+  tooltipMode: ["surface", "billboard"],
+  tooltipScaleMode: ["inherit", "fov", "fixed"],
   mode: ["surface", "billboard"],
   scaleMode: ["fov", "fixed"],
   frameDirection: ["horizontal", "vertical"],

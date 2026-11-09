@@ -2474,6 +2474,8 @@ on screen. Clicking the hotspot does not toggle it. Optional
 clicked. Hover and click triggers need `interactive` and `pointerEvents`
 other than `"none"`.
 
+`tooltipMode` defaults to `"billboard"` and supports `"surface"`. `tooltipScaleMode` defaults to `"inherit"`, following the hotspot’s effective zoom behavior. Floating tooltips also support `"fov"` and `"fixed"`; surface tooltips always scale with FOV. Styling is measured at the hotspot’s `referenceFov` (default `75`), while the gap remains in screen pixels. Polygon and polyline geometry always follows the sphere, without floating, distance or scale-mode controls; their tooltips remain independently configurable and default to floating with FOV scaling. Omitted settings in existing projects use these new defaults too.
+
 `tooltipPlacement` is `"top"` (default), `"bottom"`, `"left"`, or `"right"`.
 These are screen directions: the bubble sits outside the hotspot's projected
 screen bounds on that edge, so rotated graphics such as arrows are not covered.
@@ -2649,7 +2651,7 @@ Point hotspots use `mode` to configure orientation and placement together:
   decrease it to move the hotspot nearer.
   The built-in panorama shell is at roughly `1000` units; distance is
   automatically capped so the hotspot's corners cannot cross it.
-- `scaleMode="fov"` (default) lets a hotspot grow when the user zooms in.
+- Floating hotspots default to `scaleMode="fixed"`; choose `"fov"` to scale with zoom. Surface hotspots always use `"fov"`, even when `"fixed"` was saved.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
 - `rotation` rotates the hotspot around its own normal in degrees; positive

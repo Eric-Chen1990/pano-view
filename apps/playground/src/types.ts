@@ -47,6 +47,8 @@ type EditorPointHotspotBase = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipMode?: HotspotMode;
+  tooltipScaleMode?: "inherit" | "fov" | "fixed";
   tooltipAppearance?: HotspotTooltipAppearance;
 };
 
@@ -129,6 +131,8 @@ export type EditorPolygon = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipMode?: HotspotMode;
+  tooltipScaleMode?: "inherit" | "fov" | "fixed";
   tooltipAppearance?: HotspotTooltipAppearance;
 };
 
@@ -147,5 +151,7 @@ export type EditorPolyline = {
   tooltipTrigger: HotspotTooltipTrigger;
   tooltipPlacement: HotspotTooltipPlacement;
   tooltipOffset: number;
+  tooltipMode?: HotspotMode;
+  tooltipScaleMode?: "inherit" | "fov" | "fixed";
   tooltipAppearance?: HotspotTooltipAppearance;
 };

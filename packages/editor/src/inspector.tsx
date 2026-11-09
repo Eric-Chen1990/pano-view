@@ -83,12 +83,15 @@ export function HotspotInspector({
         spec={hotspotFieldSpec({
           ...spec,
           disabled: spec.name === "distance" ? "position" in hotspot && hotspot.mode === "surface"
-            : spec.name === "referenceFov" ? "position" in hotspot && (hotspot.scaleMode ?? "fov") !== "fixed" : spec.disabled,
+            : spec.name === "scaleMode" ? "position" in hotspot && hotspot.mode === "surface"
+            : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
         })}
         value={
           spec.name === "tooltip.text" && typeof hotspot.tooltip === "string"
             ? hotspot.tooltip
+            : spec.name === "scaleMode" && "position" in hotspot && hotspot.mode === "surface" ? "fov"
+            : spec.name === "tooltipScaleMode" && hotspot.tooltipMode === "surface" ? "fov"
             : getField(hotspot, spec.name)
         }
         onChange={(value) => update(spec.name, value)}
@@ -164,6 +167,8 @@ export function HotspotInspector({
                 top: "Above", bottom: "Below", left: "Left", right: "Right",
               },
             },
+            { name: "tooltipMode", options: ["billboard", "surface"] },
+            { name: "tooltipScaleMode", options: ["inherit", "fov", "fixed"] },
             { name: "tooltipOffset", label: "Tooltip offset (px)", type: "number" },
           ])}
           <p className="pne-field-help">
