@@ -1,3 +1,5 @@
+import { WebVRRuntimeContext } from "../webvr/host";
+import { SpatialHostContext } from "../spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -494,10 +496,13 @@ function updateTooltipAnchor(
   useAngularScale: boolean,
   camera: Camera,
   viewport: ViewportSize,
+  worldAnchored = false,
 ) {
   group.updateMatrixWorld(true);
   const bounds = resolveTooltipLocalBounds(group, anchor, useAngularScale);
   if (
+    // A VR tooltip stays on the hotspot's local edge as the head turns.
+    !worldAnchored &&
     bounds &&
     setTooltipAnchorFromScreenBounds(
       anchor,
@@ -584,6 +589,8 @@ export function HotspotAnchor({
   onPositionChange,
   onDragEnd,
 }: HotspotAnchorProps) {
+  const spatialHost = useContext(SpatialHostContext);
+  const webVRRuntime = useContext(WebVRRuntimeContext);
   const controlsRef = useContext(PanoramaViewContext);
   const hotspotTargetRegistry = useContext(HotspotTargetRegistryContext);
   const eventBus = useContext(PanoEventBusContext);
@@ -772,6 +779,7 @@ export function HotspotAnchor({
         useAngularScale,
         camera,
         size,
+        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
   }, [
@@ -823,6 +831,7 @@ export function HotspotAnchor({
         useAngularScale,
         state.camera,
         state.size,
+        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
   }, -1);
@@ -920,6 +929,7 @@ export function HotspotAnchor({
       scale={[worldWidth, worldHeight, 1]}
       visible={visible}
       onClick={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         if (!suppressNextClickRef.current) {
           if (tooltipTrigger === "click") {
@@ -936,6 +946,10 @@ export function HotspotAnchor({
         endDragRef.current(event.nativeEvent, true);
       } : undefined}
       onPointerDown={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) {
+          event.stopPropagation();
+          return;
+        }
         const native = event.nativeEvent;
         if (!draggable || dragStateRef.current) {
           stopPointerEvent(event);
@@ -986,6 +1000,7 @@ export function HotspotAnchor({
         if (!dragState || dragState.pointerId !== event.nativeEvent.pointerId) {
           return;
         }
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         if (!dragState.tracksOutsideMesh) {
           updateDragRef.current(event.nativeEvent);
@@ -1019,6 +1034,7 @@ export function HotspotAnchor({
         }
       } : undefined}
       onPointerUp={acceptsPointer ? (event) => {
+        if (spatialHost?.mode && spatialHost.surfaces.size) { event.stopPropagation(); return; }
         stopPointerEvent(event);
         endDragRef.current(event.nativeEvent, true);
       } : undefined}

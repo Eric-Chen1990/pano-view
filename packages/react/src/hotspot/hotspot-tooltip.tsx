@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { WebVRRuntimeContext, subscribeWebVRHost } from "../webvr/host";
+import { SpatialHotspotTooltip } from "./spatial-hotspot-tooltip";
+import { useContext, useSyncExternalStore, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import type {
@@ -104,6 +106,9 @@ export function HotspotTooltip({
   offset?: number;
   appearance?: HotspotTooltipAppearance;
 }) {
+  const vr = useContext(WebVRRuntimeContext);
+  const inVR = useSyncExternalStore(fn => vr ? subscribeWebVRHost(vr.host, fn) : () => {}, () => Boolean(vr?.host.snapshot.mode), () => false);
+
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => {
     setImageFailed(false);
@@ -136,6 +141,7 @@ export function HotspotTooltip({
     return null;
   }
 
+  if (inVR) return <SpatialHotspotTooltip content={content} appearance={resolvedAppearance} placement={placement} offset={resolveHotspotTooltipOffset(offset)} />;
   return (
     <PanoHtml pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
       <div className="pano-hotspot-tooltip" role="tooltip" style={bubbleStyle}>

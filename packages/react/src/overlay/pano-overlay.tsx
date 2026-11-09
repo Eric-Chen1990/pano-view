@@ -1,5 +1,10 @@
+import { SpatialHostContext, type PanoSpatialControlAdapter, type SpatialSurface } from "../spatial/host";
 import {
   createContext,
+  useCallback,
+  useRef,
+  useSyncExternalStore,
+  type RefObject,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -127,3 +132,85 @@ export function usePanoOverlayHost(isFullscreen: boolean) {
   const context = useMemo(() => ({ portalContainer, ...geometry, isFullscreen }), [portalContainer, geometry, isFullscreen]);
   return { context, setPortalContainer };
 }
+
+
+export type { PanoSpatialControlAdapter } from "../spatial/host";
+
+/** Shared portal/ref adapter for package and third-party dialogs. */
+export function usePanoDialogSurface({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const host = useContext(SpatialHostContext);
+  const overlay = usePanoOverlay();
+  useSyncExternalStore(
+    host?.subscribe ?? (() => () => {}),
+    host?.getSnapshot ?? (() => 0),
+    () => 0
+  );
+  const spatial = Boolean(host?.mode);
+  usePanoModal(open && !spatial);
+  const callback = useRef(onOpenChange);
+  callback.current = onOpenChange;
+  const surface = useRef<SpatialSurface | null>(null);
+  const element = useRef<HTMLElement | null>(null);
+  const contentRef = useCallback(
+    (node: HTMLElement | null) => {
+      element.current = node;
+      if (host && surface.current) {
+        host.surfaces.delete(surface.current);
+        surface.current = null;
+        host.notify();
+      }
+      if (host && node && open) {
+        const entry = { element: node, close: () => callback.current(false) };
+        surface.current = entry;
+        host.surfaces.add(entry);
+        host.notify();
+      }
+    },
+    [host, open]
+  );
+  useLayoutEffect(
+    () => () => {
+      if (host && surface.current) {
+        host.surfaces.delete(surface.current);
+        surface.current = null;
+        host.notify();
+      }
+    },
+    [host]
+  );
+  // Keep the DOM node and portal target stable; only move its presentation offscreen.
+  return {
+    ...overlay,
+    presentation: spatial ? ("spatial" as const) : ("screen" as const),
+    contentRef,
+    visibleRect: spatial
+      ? { left: 0, top: 0, width: 672, height: 720 }
+      : overlay.visibleRect,
+  };
+}
+
+export function usePanoSpatialControls(
+  ref: RefObject<HTMLElement | null>,
+  adapter: PanoSpatialControlAdapter
+) {
+  const host = useContext(SpatialHostContext);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!host || !node) return;
+    host.controls.set(node, adapter);
+    host.notify();
+    return () => {
+      host.controls.delete(node);
+      host.notify();
+    };
+  }, [host, ref, adapter]);
+}
+
+/** @internal Shared by ESM/CJS dialog parts; owned by the viewer runtime. */
+export const PanoDialogSurfaceContext = createContext<ReturnType<typeof usePanoDialogSurface> | null>(null);

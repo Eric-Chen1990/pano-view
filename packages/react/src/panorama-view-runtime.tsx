@@ -1,3 +1,4 @@
+import { SpatialHostContext } from "./spatial/host";
 import {
   applyLimitedYawDelta,
   clampViewAxis,
@@ -11,6 +12,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useXR } from "@react-three/xr";
 import {
   createContext,
+  useContext,
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -225,6 +227,7 @@ export const PanoramaViewRuntime = forwardRef<
   const interactingRef = useRef(false);
   const mouseActiveRef = useRef(false);
   const touchActiveRef = useRef(false);
+  const spatialHost = useContext(SpatialHostContext);
   const interactionLockCountRef = useRef(0);
   const keyboardActiveRef = useRef(false);
   const gyroActiveRef = useRef(false);
@@ -265,7 +268,7 @@ export const PanoramaViewRuntime = forwardRef<
     interactionLockCountRef.current > 0 ||
     xrSessionRef.current != null ||
     activeNavigationRef.current != null ||
-    hasInertia();
+    hasInertia() || Boolean(spatialHost?.mode && spatialHost.surfaces.size);
 
   const syncInteracting = () => {
     interactingRef.current = mouseActiveRef.current || touchActiveRef.current;

@@ -1,6 +1,6 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from "react";
-import { PanoOverlayPortalProvider, usePanoModal, usePanoOverlay } from "../overlay/pano-overlay";
+import { useCallback, useContext, forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from "react";
+import { PanoOverlayPortalProvider, PanoDialogSurfaceContext as SurfaceContext, usePanoDialogSurface, usePanoOverlay } from "../overlay/pano-overlay";
 
 export type PanoDialogRootProps = {
   open: boolean;
@@ -9,12 +9,12 @@ export type PanoDialogRootProps = {
 };
 
 export function PanoDialogRoot({ open, onOpenChange, children }: PanoDialogRootProps) {
-  usePanoModal(open);
+  const surface = usePanoDialogSurface({ open, onOpenChange });
   // Keep modality inside the viewer overlay. Radix modal mode would lock page
   // scroll and disable the host document; viewer input is already gated by usePanoModal.
   return (
     <DialogPrimitive.Root modal={false} open={open} onOpenChange={onOpenChange}>
-      {children}
+      <SurfaceContext.Provider value={surface}>{children}</SurfaceContext.Provider>
     </DialogPrimitive.Root>
   );
 }
@@ -24,7 +24,8 @@ export type PanoDialogBackdropProps = Omit<ComponentPropsWithoutRef<typeof Dialo
 export const PanoDialogBackdrop = forwardRef<HTMLDivElement, PanoDialogBackdropProps>(
   function PanoDialogBackdrop({ style, className, ...props }, ref) {
     const { portalContainer } = usePanoOverlay();
-    if (!portalContainer) return null;
+    const surface = useContext(SurfaceContext);
+    if (!portalContainer || surface?.presentation === "spatial") return null;
     return (
       <DialogPrimitive.Portal container={portalContainer}>
         <DialogPrimitive.Overlay
@@ -43,9 +44,12 @@ export type PanoDialogContentProps = Omit<ComponentPropsWithoutRef<typeof Dialog
 
 export const PanoDialogContent = forwardRef<HTMLDivElement, PanoDialogContentProps>(
   function PanoDialogContent({ children, style, className, onOpenAutoFocus, onCloseAutoFocus, ...props }, forwardedRef) {
-    const { portalContainer, visibleRect } = usePanoOverlay();
+    const overlay = usePanoOverlay();
+    const surface = useContext(SurfaceContext);
+    const { portalContainer, visibleRect } = surface ?? overlay;
     const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
     const returnFocus = useRef<HTMLElement | null>(null);
+    const contentRef = useCallback((node: HTMLDivElement | null) => { surface?.contentRef(node); if (typeof forwardedRef === "function") forwardedRef(node); else if (forwardedRef) forwardedRef.current = node; }, [surface?.contentRef, forwardedRef]);
     if (!portalContainer) return null;
     const layout: CSSProperties & Record<`--pano-dialog-${string}`, string> = {
       "--pano-dialog-available-width": `${Math.max(0, visibleRect.width - 32)}px`,
@@ -63,18 +67,21 @@ export const PanoDialogContent = forwardRef<HTMLDivElement, PanoDialogContentPro
       pointerEvents: "auto",
       zIndex: 1,
       ...style,
+      ...(surface?.presentation === "spatial" ? { left: -10000, top: 0, transform: "none", width: 640, maxHeight: 688 } : {}),
     };
     return (
       <DialogPrimitive.Portal container={portalContainer}>
         <DialogPrimitive.Content
           {...props}
-          ref={forwardedRef}
+          ref={contentRef}
           data-pano-dialog=""
           className={["pano-dialog-content", className].filter(Boolean).join(" ")}
           style={layout}
+          onInteractOutside={(event) => { if (surface?.presentation === "spatial") event.preventDefault(); props.onInteractOutside?.(event); }}
           onOpenAutoFocus={(event) => {
             const active = portalContainer.ownerDocument.activeElement;
             returnFocus.current = active instanceof HTMLElement ? active : null;
+            if (surface?.presentation === "spatial") event.preventDefault();
             onOpenAutoFocus?.(event);
           }}
           onCloseAutoFocus={(event) => {

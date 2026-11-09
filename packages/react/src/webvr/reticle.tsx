@@ -1,6 +1,9 @@
+import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
+import { SpatialHostContext } from "../spatial/host";
+import { canRunSpatialGaze, createGazeActionState, type GazeAction } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import {
   DoubleSide,
   Group,
@@ -135,6 +138,13 @@ export function WebVRReticle({
   scale?: number;
   visible: boolean;
 }) {
+  const spatial = useContext(SpatialHostContext);
+  const spatialGaze = useRef(createGazeActionState());
+  useEffect(() => {
+    const stop = () => spatialGaze.current.stop();
+    window.addEventListener("blur", stop); document.addEventListener("visibilitychange", stop);
+    return () => { stop(); window.removeEventListener("blur", stop); document.removeEventListener("visibilitychange", stop); };
+  }, []);
   const groupRef = useRef<Group>(null);
   const ringMeshRef = useRef<Mesh>(null);
   const directionRef = useRef(new Vector3());
@@ -148,6 +158,7 @@ export function WebVRReticle({
     const group = groupRef.current;
     const ringMesh = ringMeshRef.current;
     if (!visible || !group) {
+      spatialGaze.current.stop();
       if (hoveredRef.current) {
         emitHandler(
           hoveredRef.current,
@@ -167,13 +178,25 @@ export function WebVRReticle({
       return;
     }
 
+    group.traverse(node => node.layers.set(SPATIAL_UI_LAYER));
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     activeCamera.getWorldDirection(directionRef.current);
     const raycaster = raycasterRef.current;
-    raycaster.setFromCamera(CENTER_NDC, camera);
+    raycaster.layers.enable(SPATIAL_UI_LAYER);
+    activeCamera.getWorldPosition(raycaster.ray.origin);
+    raycaster.ray.direction.copy(directionRef.current);
     scene.updateMatrixWorld();
     const hits = raycaster.intersectObjects(scene.children, true);
-    const target = findGazeTarget(hits);
+    const spatialOpen = Boolean(spatial?.mode && spatial.surfaces.size);
+    let spatialTarget: GazeAction | null = null;
+    if (spatialOpen) {
+      for (const hit of hits) {
+        const resolve = hit.object.userData.panoGazeResolve as ((uv: Vector2) => GazeAction | null) | undefined;
+        if (resolve && hit.uv) { spatialTarget = resolve(hit.uv); break; }
+      }
+    }
+    const spatialProgress = spatialGaze.current.tick(canRunSpatialGaze(document.hidden, gl.xr.getSession()?.visibilityState, spatial?.suppressGazeUntil ?? 0, performance.now()) ? spatialTarget : null, deltaSeconds, resolveDwellMs(dwellMs));
+    const target = spatialOpen ? null : findGazeTarget(hits);
     const previous = hoveredRef.current;
     const acquiredNewTarget = Boolean(
       target && previous?.eventObject !== target.eventObject,
@@ -206,7 +229,7 @@ export function WebVRReticle({
       dwellRef.current = 0;
     }
 
-    const progress =
+    const progress = spatialOpen ? spatialProgress :
       target && !clickedRef.current
         ? resolvedDwellMs > 0
           ? Math.min(dwellRef.current / resolvedDwellMs, 1)

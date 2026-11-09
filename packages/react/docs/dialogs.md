@@ -614,3 +614,15 @@ Each export has a corresponding `*Props` type. Root is controlled and does not e
 | A hook reports a missing provider | Render the custom DOM component inside `PanoOverlay`; do not call Overlay hooks in the parent of `PanoViewer`. |
 
 Before integrating, verify normal and real element fullscreen modes, a partially scrolled viewer, keyboard open/close and focus restoration, long content, nested portals, media cleanup and your supported Safari/mobile devices. A maximized browser window does not exercise the Fullscreen API.
+
+## Spatial dialogs and gaze controls
+
+`PanoDialog`, its composed parts, and `ProjectPopupDialog` automatically reuse their content in VR. The original header close button remains available. The content toolbar does not add Close or Exit VR buttons. VR hotspot tooltips use scene sprites anchored to their hotspots, share the scene’s stereo projection and lens correction, and remain behind spatial dialogs. Fallback stereo renders dialogs in a separate flat pass after panorama lens distortion, then applies the final lens aperture mask to all content.
+
+Third-party dialogs can connect `usePanoDialogSurface({ open, onOpenChange })` from the main entry. Attach `contentRef` to the content node and use the returned `portalContainer`, `visibleRect`, and `presentation`. Keep the same DOM node in a viewer-local offscreen measuring area in spatial mode; do not hide it with `display:none` or move portals to `body`. Prevent outside-interaction dismissal in spatial mode and retain a clickable close button. See the Playground third-party dialog example.
+
+Register host model controls with `usePanoSpatialControls(elementRef, adapter)`. `PanoSpatialControlAdapter` supports `rotateBy(yawDegrees, pitchDegrees)`, `zoomBy(factor)`, `resetView()`, `canExecute(action)`, `subscribeFrame(invalidate)`, and a same-renderer-context `texture`. Action names are `left/right/up/down/in/out/reset`. The host owns limits and reset state. Separate canvases must expose readable frames after rendering. Models and project configuration are reused.
+
+Continuous actions start after `cursorDwellMs`, stop on gaze exit, and require fresh dwell on reentry. Defaults: half a viewport per second for scrolling, 30 degrees per second for rotation, and a 1.5 scale factor per second. Reset, close, and gallery buttons activate once. Explicitly disabling the cursor or dwell remains supported. Text input and virtual keyboards are out of scope. Cross-origin frames, unreadable canvases, and media blocked by browser policy require viewing or authorization outside VR; gaze cannot create trusted browser user activation.
+
+The spatial window sits about two meters away and scales to at most 32° horizontally and 40° vertically. The close button keeps its 36px visual size in both modes, with a minimum invisible 56px gaze target in VR. Native capture requires both `content="drawable"` and the painting APIs; older experimental implementations use the compatible renderer. The content node exposes capture status through `data-pano-spatial-state` (`loading`, `ready`, `error`).

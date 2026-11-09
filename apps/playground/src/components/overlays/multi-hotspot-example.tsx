@@ -1,3 +1,4 @@
+import { HostModelExample } from "./host-model-example";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   PanoOverlay,
@@ -49,7 +50,7 @@ function Gallery({ images }: { images: number[] }) {
 }
 
 type PopupDefinition = {
-  kind: "article" | "video" | "gallery" | "iframe";
+  kind: "article" | "video" | "gallery" | "iframe" | "model";
   title: string;
   body: ReactNode;
 };
@@ -58,6 +59,7 @@ export type PopupSelection = { sceneId: string; hotspotId: string };
 // Application content, separate from the marker's type and project JSON.
 export const POPUPS_BY_SCENE: Partial<Record<string, Partial<Record<string, PopupDefinition>>>> = {
   entrance: {
+    model: { kind: "model", title: "Host model controls", body: <HostModelExample /> },
     story: { kind: "article", title: "Courtyard story", body: <Story image={1} text="The courtyard opens onto a quiet garden and a path beside the water." /> },
     details: { kind: "article", title: "Garden details", body: <Story image={2} text="Explore the planting, stone paths and small details around the garden." /> },
     clip: { kind: "video", title: "Courtyard video", body: <Movie src="/fixtures/hotspots/loop.webm" /> },

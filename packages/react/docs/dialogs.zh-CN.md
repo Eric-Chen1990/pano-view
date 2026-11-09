@@ -614,3 +614,15 @@ export function DialogHelp() {
 | hook 提示缺少 provider | 把自定义 DOM 组件放在 `PanoOverlay` 内；不要在 `PanoViewer` 的父组件调用 Overlay hook。 |
 
 接入时应确认普通模式与真实元素全屏、viewer 部分滚出屏幕、键盘开关与焦点恢复、长内容、二级 Portal、媒体清理及目标 Safari/移动设备的表现。最大化浏览器窗口不能替代 Fullscreen API 验证。
+
+## VR 空间弹窗与凝视操作
+
+`PanoDialog`、组合式 `PanoDialogRoot/Content` 和 `ProjectPopupDialog` 会自动使用同一份内容切换为空间面板。原弹窗右上角的关闭按钮继续可用；面板底部只提供内容操作，不增加关闭或退出 VR 按钮。VR 中热点 Tooltip 使用固定于热点的三维精灵，与场景共用双眼投影和镜片校正，保留显示并位于弹窗下方。手机和模拟 VR 的弹窗通过每眼独立平面图层合成，不经过全景镜片畸变；最后统一应用镜片可见区域遮罩，弹窗不会越过遮罩。
+
+第三方弹窗可使用主入口的 `usePanoDialogSurface({ open, onOpenChange })`，将 `contentRef` 连接到内容节点，使用返回的 `portalContainer`、`visibleRect` 和 `presentation`。空间模式将内容放到 viewer 内的离屏测量区域（保留 DOM 实例），不要对内容调用 `display:none` 或将 portal 移到 `body`。空间模式应阻止第三方组件的外部点击自动关闭，并保留可凝视点击的关闭按钮。完整接入参见 Playground 的第三方弹窗示例。
+
+宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。
+
+连续操作在凝视计时完成后开始，移开即停；默认滚动每秒半个可见区域、旋转每秒 30 度、缩放每秒 1.5 倍。关闭、复位、图集切换为单次操作。明确禁用 `cursor` 或将 `cursorDwellMs` 设为零仍会禁用自动凝视。文字输入和虚拟键盘不在支持范围。跨域 iframe、不可读取的 Canvas 或被浏览器阻止的媒体需要退出 VR 后查看或授权；凝视不能替代浏览器要求的可信用户手势。
+
+空间窗口默认距视点约 2 米，外框按宽不超过 32°、高不超过 40°的视角缩放，避免长内容撑满双眼视野。关闭按钮视觉尺寸在普通模式和 VR 中均为 36px；VR 使用至少 56px 的不可见凝视命中范围。原生捕获会完整检测 `content="drawable"` 和绘制 API；旧实验 API 使用兼容捕获。可通过内容节点的 `data-pano-spatial-state`（`loading`、`ready`、`error`）观察捕获状态。

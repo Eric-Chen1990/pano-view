@@ -1,3 +1,4 @@
+import { SpatialHostContext } from "./spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useThree } from "@react-three/fiber";
 import { useContext, useEffect } from "react";
@@ -30,6 +31,7 @@ function makePanoramaPointerEvent(
  * publishes them on the viewer event bus.
  */
 export function PanoramaEventSurface() {
+  const spatialHost = useContext(SpatialHostContext);
   const eventBus = useContext(PanoEventBusContext);
   const { camera, gl } = useThree();
 
@@ -44,6 +46,7 @@ export function PanoramaEventSurface() {
     const direction = new Vector3();
 
     const handleContextMenu = (nativeEvent: MouseEvent) => {
+      if (spatialHost?.mode && spatialHost.surfaces.size) return;
       const rect = element.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) {
         return;
@@ -74,7 +77,7 @@ export function PanoramaEventSurface() {
     return () => {
       element.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [camera, eventBus, gl]);
+  }, [camera, eventBus, gl, spatialHost]);
 
   if (!eventBus) {
     return null;
@@ -85,6 +88,7 @@ export function PanoramaEventSurface() {
     event: ThreeEvent<MouseEvent | PointerEvent>,
   ) => {
     event.stopPropagation();
+    if (spatialHost?.mode && spatialHost.surfaces.size) return;
     eventBus.emit(type, makePanoramaPointerEvent(event));
   };
 

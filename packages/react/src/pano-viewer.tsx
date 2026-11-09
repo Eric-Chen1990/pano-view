@@ -1,3 +1,5 @@
+import { SpatialHostContext, createSpatialHost } from "./spatial/host";
+import { SpatialPanels } from "./spatial/panel";
 import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
@@ -324,6 +326,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaViewRuntimeHandle>(null);
+    const spatialHost = useMemo(() => createSpatialHost(), []);
+    const spatialRevision = useSyncExternalStore(spatialHost.subscribe, spatialHost.getSnapshot, () => 0);
+    const spatialOpen = spatialHost.mode && spatialHost.surfaces.size > 0;
+    void spatialRevision;
     const modalHost = useMemo(() => createPanoModalHost(), []);
     const modalOpen = useSyncExternalStore(modalHost.subscribe, modalHost.getSnapshot, () => false);
     const setControlsRuntime = useCallback((runtime: PanoramaViewRuntimeHandle | null) => {
@@ -887,6 +893,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           <WebVRRuntimeContext.Provider
             value={{ host: webVRHost, xrStore, stereoView }}
           >
+          <SpatialHostContext.Provider value={spatialHost}>
           <PanoramaXROrigin />
           <HotspotAccessibilityContext.Provider value={registry}>
             <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
@@ -927,7 +934,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     />
                   )}
                   <AutoRotate
-                    enabled={legacyAutoRotate}
+                    enabled={legacyAutoRotate && !spatialOpen}
                     speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
                   <PanoramaEventSurface />
@@ -935,6 +942,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}
                   <ControlClaimsContext.Provider value={controlClaims}>
+                    <SpatialPanels />
                     {sceneChildren}
                     <DefaultControlChannels
                       fovSpeed={controlOptions.fovSpeed}
@@ -957,6 +965,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoEventBusContext.Provider>
             </HotspotTargetRegistryContext.Provider>
           </HotspotAccessibilityContext.Provider>
+          </SpatialHostContext.Provider>
           </WebVRRuntimeContext.Provider>
           </XR>
         </Canvas>
@@ -976,6 +985,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         {contextMenuOverlay}
         {hotspotAccessibilityControls}
         </div>
+        <SpatialHostContext.Provider value={spatialHost}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
@@ -992,6 +1002,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </SpatialHostContext.Provider>
       </div>
     );
   },

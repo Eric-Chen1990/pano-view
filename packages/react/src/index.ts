@@ -1,6 +1,7 @@
 export { PanoViewer } from "./pano-viewer";
 export {
   PanoOverlay,
+  PanoDialogSurfaceContext,
   usePanoOverlay,
   usePanoModal,
   PanoOverlayPortalProvider,
@@ -320,3 +321,6 @@ export {
   imagePointToContainer,
   sectorRotation,
 } from "./map/geometry";
+
+export { usePanoDialogSurface, usePanoSpatialControls } from "./overlay/pano-overlay";
+export type { PanoSpatialControlAdapter } from "./overlay/pano-overlay";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  AutoRotate, PanoOverlay, PanoViewer, ProjectScenes, loadPanoProject, usePanoOverlay, usePanoViewer,
+  AutoRotate, WebVR, PanoOverlay, PanoViewer, ProjectScenes, loadPanoProject, usePanoOverlay, usePanoViewer,
   type LoadedPanoProject, type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
@@ -150,9 +150,11 @@ export function OverlayPage() {
         {(["default", "composed", "custom"] as const).map((value) => <button key={value} type="button" className={cn(segmentedButtonClassName, mode === value && segmentedButtonActiveClassName)} aria-pressed={mode === value} onClick={() => setMode(value)}>
           {{ default: "Default dialog", composed: "Compose parts", custom: "Third-party dialog" }[value]}
         </button>)}
+        <button className={segmentedButtonClassName} onClick={() => void viewer.toggleVR()}>Toggle VR</button>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRotate} onChange={(event) => setAutoRotate(event.target.checked)} />Auto rotate</label>
       </div>
       <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}>
+        <WebVR mousePointerLock={false} />
         <AutoRotate enabled={autoRotate} speed={8} />
         {project ? <ProjectScenes project={project} activeSceneId={activeSceneId} transition="dissolve" onActiveSceneIdChange={(id) => { setActiveSceneId(id); setSelected(null); }}
           onHotspotClick={(event) => {

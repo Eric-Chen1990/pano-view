@@ -35,7 +35,8 @@
 - **Polyline Hotspot**: an open spherical path defined by at least two
   vertices. It has an outline only and never reconnects its final vertex to
   its first.
-- **Hotspot Tooltip**: a screen-space DOM bubble at the hotspot edge. It can
+- **Hotspot Tooltip**: a DOM bubble outside VR and a scene sprite in VR,
+  anchored at the hotspot edge. The VR sprite shares scene lens correction. It can
   show plain text, an image, or both. Placement is top/bottom/left/right with
   a configurable pixel gap. It is not `TextHotspot` (a canvas texture) and not
   `IframeHotspot` (an embedded document).
