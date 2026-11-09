@@ -1,3 +1,5 @@
+import { PanoramaMovieControls } from "../overlays/spatial-controls-example";
+import { PanoOverlay, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 import {
   PanoViewer,
   PanoVideo,
@@ -114,6 +116,7 @@ function buildVideoSnippet(
 }
 
 export function VideoPage() {
+  const viewer = usePanoViewer();
   const [loop, setLoop] = useState(true);
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
@@ -207,8 +210,9 @@ export function VideoPage() {
             />
           </label>
         </div>
+        <button type="button" onClick={() => void viewer.toggleVR()}>Toggle VR controls demo</button>
         <div className="bg-[#020607]">
-          <PanoViewer
+          <PanoViewer ref={viewer.ref}
             aria-label="360 panorama video demo"
             mediaActivation={{
               onActivate: (media) => {
@@ -217,6 +221,8 @@ export function VideoPage() {
             }}
             style={{ height: "min(540px, 68dvh)" }}
           >
+            <WebVR />
+            <PanoOverlay><PanoramaMovieControls viewer={viewer} /></PanoOverlay>
             <PanoVideo
               autoPlay
               captions={captions}

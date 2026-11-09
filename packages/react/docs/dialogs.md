@@ -628,3 +628,47 @@ Continuous actions start after `cursorDwellMs`, stop on gaze exit, and require f
 The spatial window sits about two meters away and scales to at most 32° horizontally and 40° vertically. The close button keeps its 36px visual size in both modes, with a minimum invisible 56px gaze target in VR. Native capture requires both `content="drawable"` and the painting APIs; older experimental implementations use the compatible renderer. The content node exposes capture status through `data-pano-spatial-state` (`loading`, `ready`, `error`).
 
 Screen-plane UI inside `PanoOverlay` / `renderOverlay` is hidden and cannot receive focus during VR; it returns on exit. The portal host stays mounted and measurable so registered dialogs can still render as spatial panels. Built-in VR session controls remain available.
+
+## VR icon controls and scrolling
+
+New controls are visible and interactive only in VR. Outside VR, retain native video controls, scrolling and host model pointer controls. No project JSON changes are required. Import the main package and its `styles.css`.
+
+Exports: `PanoMediaControls`, `PanoModelControls`, `PanoScrollControls`, `PanoControlGroup`, `PanoControlButton`, `PanoSpatialControls`, `usePanoMediaController`, and the `PanoMediaController` / `PanoControlAction` types.
+
+```tsx
+const mediaRef = useRef<HTMLVideoElement>(null);
+const controller = usePanoMediaController(mediaRef);
+// Inside PanoDialog:
+<video ref={mediaRef} src="/movie.mp4" controls playsInline />
+<PanoMediaControls controller={controller} />
+// For a scene video, inside PanoOverlay:
+<PanoSpatialControls position={{ yaw: 55, pitch: -14 }} width={28} distance={10}>
+  <PanoMediaControls controller={controller} />
+</PanoSpatialControls>
+```
+
+`position` uses hotspot yaw/pitch degrees, `width` is angular width (28° by default), and `distance` defaults to 2. Omit position to place the bar below the initial VR view and keep it stationary. `PanoSpatialControls` must be inside `PanoOverlay`. Use `usePanoViewer().getVideo/subscribeVideo` for the active 360° video controller. `VideoHotspot` now accepts a controller `ref`; synchronize controlled `playing` through `onPlaybackStateChange`. Source and playback lifetime remain owned by the media component.
+
+`PanoModelControls` takes an existing `adapter`, `rotateSpeed` (30 degrees/second) and `zoomSpeed` (1.5 times/second). The host retains loading, view state and limits through `canExecute`.
+
+VR dialogs overlay translucent double-chevron scroll arrows at the top and bottom edges of the scroll viewport, independently of model controls. Only directions with remaining scroll space are shown. Default opacity is 0.3, increasing to 0.9 on gaze or hover. Nested regions select the nearest scrollable ancestor of the gaze target and retain it while operating arrows. Default dialogs bind their body. For explicit targeting, pass `scrollTargetRef` to `usePanoDialogSurface` or `PanoDialogRoot`. Alternatively place `<PanoScrollControls targetRef={scrollRef} speed={0.2} />` to overlay controls on the target viewport edges. Cross-origin iframe scrolling is unavailable.
+
+Each control group accepts an `actions` array mixing built-in IDs and custom actions, plus a children render function for custom layouts. Media IDs: `play/pause/rewind/forward/vol-/vol+/mute/unmute`; model IDs: `left/right/up/down/in/out/reset`; scroll IDs: `up/down/left/right`. Include both play/pause and mute/unmute when filtering dynamic states.
+
+```tsx
+<PanoMediaControls controller={controller} actions={["rewind", "play", "pause", "forward"]}>
+  {actions => <div className="my-layout">{actions.map(action =>
+    <PanoControlButton key={action.id === "pause" ? "play" : action.id} action={action} />
+  )}</div>}
+</PanoMediaControls>
+```
+
+Custom actions have `id`, accessible `label`, optional React `icon`, `disabled` / `enabled()`, one-shot `activate()`, continuous `update(seconds)` and cleanup `end()`. Optional `repeatIntervalMs` spaces held updates instead of running every frame. Keep toggle button keys stable across icon changes to avoid restarting dwell. Use `PanoControlButton` to preserve gaze binding; `PanoControlGroup` accepts custom action arrays directly.
+
+Customize explicit groups with `className`, `style`, and `--pano-control-background/color/border/radius/size/gap/padding/focus`. Automatic controls support the background variable; supply explicit controls for custom icons or layouts. Explicit groups suppress automatic controls for the same target.
+
+After `cursorDwellMs`, play, mute and reset fire once; seek, volume, rotation and zoom continue until gaze leaves. Scrolling advances in paced steps, with a 700 ms pause between updates. Defaults: `seekSpeed=10` seconds/second, `volumeSpeed=0.25` per second, scroll `speed=0.2` viewports/second (0.14 viewports per step at the default interval). Set `PanoScrollControls.repeatIntervalMs` to adjust the repeat interval. Leaving the target clears pending time and requires a fresh dwell. Closing, leaving VR, disabling or losing visibility stops actions. Gaze cannot bypass trusted media-gesture requirements. Volume buttons disable when the platform does not support volume adjustment; mute remains available.
+
+Customize scroll arrows with `--pano-scroll-opacity`, `--pano-scroll-active-opacity`, `--pano-scroll-background` and `--pano-scroll-color`.
+
+See Playground `/overlays` for custom layouts, scene video, long content, nested scrolling and mouse/keyboard model controls; `/video` includes a 360° spatial control bar.

@@ -1,3 +1,6 @@
+import { SceneMovie, SceneMovieControls } from "./spatial-controls-example";
+import spatialControlsCode from "./spatial-controls-example.tsx?raw";
+import { type PanoMediaController } from "@ericchen1990/pano-view";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -110,6 +113,7 @@ function OverlayChrome({
 
 export function OverlayPage() {
   const viewer = usePanoViewer();
+  const [movieController, setMovieController] = useState<PanoMediaController | null>(null);
   const [mode, setMode] = useState<DialogMode>("default");
   const [selected, setSelected] = useState<PopupSelection | null>(() => new URLSearchParams(window.location.search).has("initialOpen") ? { sceneId: "entrance", hotspotId: "story" } : null);
   const [activeSceneId, setActiveSceneId] = useState("entrance");
@@ -125,11 +129,11 @@ export function OverlayPage() {
         setProject({ ...loaded, scenes: loaded.scenes.map((entry) => ({ ...entry,
           hotspots: [
             ...Object.entries(POPUPS_BY_SCENE[entry.scene.id] ?? {}).flatMap(([id, popup], index): ProjectHotspotDefinition[] => popup ? [{
-              type: "graphic", id, label: popup.title, position: { yaw: (index - 2) * 14, pitch: 0 }, width: 7, height: 7,
+              type: "graphic", id, label: popup.title, position: { yaw: (index - 2) * 32, pitch: 0 }, width: 7, height: 7,
               graphic: { kind: "circle", fill: "#df6b42", stroke: "#ffffff", strokeWidth: 3 }, tooltip: popup.title,
             }] : []),
             {
-              type: "graphic", id: "next-room", label: "Go to next room", position: { yaw: 0, pitch: -18 }, width: 7, height: 7,
+              type: "graphic", id: "next-room", label: "Go to next room", position: { yaw: 0, pitch: -28 }, width: 7, height: 7,
               graphic: { kind: "arrow", fill: "#67e8f9" }, tooltip: "Go to next room",
               action: { type: "scene", sceneId: entry.scene.id === "entrance" ? "hall" : "entrance" },
             },
@@ -155,6 +159,7 @@ export function OverlayPage() {
       </div>
       <PanoViewer ref={viewer.ref} aria-label="Hotspot stories viewer" style={{ height: 560 }}>
         <WebVR />
+        <SceneMovie onController={setMovieController} />
         <AutoRotate enabled={autoRotate} speed={8} />
         {project ? <ProjectScenes project={project} activeSceneId={activeSceneId} transition="dissolve" onActiveSceneIdChange={(id) => { setActiveSceneId(id); setSelected(null); }}
           onHotspotClick={(event) => {
@@ -164,6 +169,7 @@ export function OverlayPage() {
             setSelected({ sceneId: event.sceneId, hotspotId: event.hotspot.id });
           }} /> : null}
         <PanoOverlay>
+          <SceneMovieControls controller={movieController} />
           <OverlayChrome
             activeSceneId={activeSceneId}
             mode={mode}
@@ -185,6 +191,8 @@ export function OverlayPage() {
           <tbody>{Object.entries(POPUPS_BY_SCENE[activeSceneId] ?? {}).map(([id, popup]) => popup ? <tr key={id} className="border-t border-[#244047]"><td className="p-2 font-mono">{id}</td><td className="p-2">{popup.kind}</td><td className="p-2">{popup.title}</td></tr> : null)}</tbody>
         </table>
       </section>
+      <p className="p-4 text-sm">In VR, hold your gaze to operate icons. Translucent arrows appear at the edges where content can scroll. Look right for the scene video. Outside VR, drag the model and scroll to zoom.</p>
+      <CodeSnippet label="VR controls and custom layout" blurb="Scene video, custom icons and layout, and a 360° video control bar." code={spatialControlsCode} />
       <CodeSnippet key={mode} {...dialogSnippet(mode)} />
     </section>
     <SiteFooter label="@ericchen1990/pano-view · overlays" />

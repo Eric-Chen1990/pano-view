@@ -1,3 +1,9 @@
+import { scrollEdges, scrollViewportBounds } from "./scroll-edges";
+import { probeVolumeAdjustable } from "../video/format";
+import { mediaControllers } from "../controls/media";
+import { CONTROL_PATHS, findScrollTarget, scrollActions, mediaActions, modelActions } from "../controls/actions";
+import { controlBindings, explicitTargets } from "../controls/components";
+import { panoPositionToVector3 } from "../hotspot/coordinates";
 import { supportsNativeHtmlCapture } from "./capture-support";
 import { spatialPanelScale, spatialUvToPoint } from "./layout";
 import { SPATIAL_UI_LAYER } from "./render-layer";
@@ -27,10 +33,11 @@ import {
 } from "./host";
 import { WebVRRuntimeContext, subscribeWebVRHost } from "../webvr/host";
 import { ScenesHostContext } from "../scenes-host";
-import type { GazeAction } from "./gaze-action";
+import { createActionUpdateState, type GazeAction } from "./gaze-action";
 
 type Button = {
   label: string;
+  icon?: string;
   action: GazeAction;
   x: number;
   y: number;
@@ -41,6 +48,7 @@ const WIDTH = 640;
 const BODY_HEIGHT = 688;
 const HEIGHT = 1000;
 const RASTER_SCALE = 2;
+const volumeCapabilities = new WeakMap<HTMLMediaElement, boolean>();
 
 function makeCanvas() {
   const canvas = document.createElement("canvas");
@@ -89,6 +97,7 @@ async function capture(
     clone.setAttribute("drawable", "");
     canvas.append(clone);
     owner.append(canvas);
+    originals.forEach((node, i) => { copies[i].scrollTop = node.scrollTop; copies[i].scrollLeft = node.scrollLeft; });
     try {
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(
@@ -195,6 +204,7 @@ async function capture(
       width: WIDTH,
       height: Math.min(BODY_HEIGHT, element.offsetHeight),
       scale: 2,
+      features: { restoreScrollPosition: true },
       timeout: 3000,
     });
   } finally {
@@ -216,6 +226,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     return t;
   }, [canvas, gl]);
   const pressed = useRef<GazeAction | null>(null);
+  const pressedUpdates = useRef(createActionUpdateState());
   const layers = useRef(
     new Map<HTMLElement, Mesh<PlaneGeometry, MeshBasicMaterial>>()
   );
@@ -233,8 +244,11 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     failed: false,
     mediaBlocked: false,
     buttons: [] as Button[],
+    edgeButtons: [] as Button[],
     target: surface.element,
     adapter: null as PanoSpatialControlAdapter | null,
+    scrollTarget: null as HTMLElement | null,
+    mediaTarget: null as HTMLMediaElement | null,
   });
   const sceneHost = useContext(ScenesHostContext);
   useEffect(() => {
@@ -253,8 +267,16 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       .copy(activeCamera.position)
       .addScaledVector(scratch, 2);
     group.current?.quaternion.copy(activeCamera.quaternion);
+    if (surface.anchor && group.current) {
+      const { position, distance, width } = surface.anchor;
+      if (position) { group.current.position.copy(panoPositionToVector3(position, distance)); group.current.lookAt(activeCamera.position); }
+      else { group.current.position.copy(activeCamera.position).addScaledVector(scratch, distance); group.current.position.y -= distance * .32; }
+      group.current.scale.setScalar((2 * distance * Math.tan(width * Math.PI / 360)) / (WIDTH * spatialPanelScale(HEIGHT)));
+    }
     const releasePointer = () => {
+      pressed.current?.end?.();
       pressed.current = null;
+      pressedUpdates.current.reset();
       host.suppressGazeUntil = 0;
     };
     window.addEventListener("pointerup", releasePointer);
@@ -301,6 +323,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     };
     sceneHost?.listeners.add(sceneChanged);
     return () => {
+      releasePointer();
       window.removeEventListener("pointerup", releasePointer);
       window.removeEventListener("blur", releasePointer);
       s.disposed = true;
@@ -332,7 +355,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
   const resolve = (uv: Vector2): GazeAction | null => {
     const s = state.current;
     const { x, y } = spatialUvToPoint(uv, s.height);
-    const button = s.buttons.find(
+    const button = [...s.edgeButtons, ...s.buttons].find(
       (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
     );
     if (button) return button.action;
@@ -396,6 +419,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       ([node]) => node === target || node.contains(target)
     );
     s.adapter = control?.[1] ?? null;
+    if (target instanceof HTMLMediaElement) s.mediaTarget = target;
     let scroll: HTMLElement | null = target;
     while (
       scroll &&
@@ -407,9 +431,13 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     )
       scroll = scroll.parentElement;
     s.target = control?.[0] ?? scroll ?? surface.element;
+    const nextScroll = surface.scrollTarget?.() ?? findScrollTarget(surface.element, target);
+    if (nextScroll) s.scrollTarget = nextScroll;
     const clickable = target.closest<HTMLElement>('button,a,[role="button"]');
     if (!clickable || clickable.matches(':disabled,[aria-disabled="true"]'))
       return null;
+    const binding = controlBindings.get(clickable);
+    if (binding) return { ...binding, id: clickable, enabled: () => clickable.isConnected && !binding.disabled && binding.enabled?.() !== false };
     return {
       id: clickable,
       activate: () => {
@@ -421,15 +449,16 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
 
   useFrame((_, delta) => {
     const s = state.current;
-    if (delta > 0.25 || document.hidden) pressed.current = null;
+    if (delta > 0.25 || document.hidden) { pressed.current?.end?.(); pressed.current = null; }
     if (pressed.current) {
       host.suppressGazeUntil = performance.now() + 350;
       if (pressed.current.enabled?.() !== false)
-        pressed.current.update?.(Math.min(delta, 0.048));
+        pressedUpdates.current.tick(pressed.current, delta);
+      else { pressed.current.end?.(); pressed.current = null; }
     }
     const ctx = canvas.getContext("2d")!;
     const nextHeight = Math.max(
-      200,
+      surface.anchor ? 1 : 200,
       Math.min(BODY_HEIGHT, surface.element.offsetHeight) +
         (s.buttons.length ? 32 + Math.ceil(s.buttons.length / 5) * 88 : 0)
     );
@@ -439,14 +468,14 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       canvas.height = nextHeight * RASTER_SCALE;
       s.height = nextHeight;
       const scale = spatialPanelScale(nextHeight);
+      if (surface.anchor) group.current?.scale.setScalar((2 * surface.anchor.distance * Math.tan(surface.anchor.width * Math.PI / 360)) / (WIDTH * scale));
       panelMesh.current?.scale.set(WIDTH * scale, nextHeight * scale, 1);
     }
     ctx.setTransform(RASTER_SCALE, 0, 0, RASTER_SCALE, 0, 0);
     const now = performance.now();
     if (now - s.painted < 1000 / 30) return;
     s.painted = now;
-    const media =
-      surface.element.querySelector<HTMLMediaElement>("video,audio");
+    const media = s.mediaTarget && surface.element.contains(s.mediaTarget) ? s.mediaTarget : surface.element.querySelector<HTMLMediaElement>("video,audio");
     const restricted = [...surface.element.querySelectorAll("iframe")].some(
       (frame) => {
         try {
@@ -611,128 +640,51 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         action: { id, update, activate, enabled },
       });
     };
-    const target = s.target;
-    const scrollable =
-      target.scrollHeight > target.clientHeight + 1 ||
-      target.scrollWidth > target.clientWidth + 1;
-    if (scrollable && !s.adapter) {
-      const axis = (dx: number, dy: number) => (dt: number) => {
-        target.scrollLeft += (dx * target.clientWidth * dt) / 2;
-        target.scrollTop += (dy * target.clientHeight * dt) / 2;
-        s.dirty = true;
+    if (surface.scrollTarget?.()) s.scrollTarget = surface.scrollTarget();
+    if (!s.scrollTarget || !surface.element.contains(s.scrollTarget) || !scrollActions(s.scrollTarget).length) {
+      s.scrollTarget = surface.element.querySelector<HTMLElement>("[data-pano-scroll-viewport]") ?? [surface.element, ...surface.element.querySelectorAll<HTMLElement>("*")].find(node => findScrollTarget(surface.element, node) === node) ?? null;
+    }
+    s.edgeButtons = !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
+      ? scrollEdges(s.scrollTarget, scrollViewportBounds(surface.element, s.scrollTarget, Math.min(BODY_HEIGHT, surface.element.offsetHeight)), () => { s.dirty = true; }) : [];
+    const adapter = s.adapter;
+    if (adapter && !explicitTargets.has(adapter)) for (const action of modelActions(adapter)) {
+      add(action.id, action.label, action.update, action.activate, action.enabled);
+    }
+    if (media && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
+      if (!volumeCapabilities.has(media)) volumeCapabilities.set(media, probeVolumeAdjustable(media));
+      const controller = {
+        subscribe: () => () => {},
+        getSnapshot: () => ({ ready: media.readyState >= 1, playing: !media.paused && !media.ended, currentTime: media.currentTime, duration: media.duration, volume: media.volume, volumeAdjustable: volumeCapabilities.get(media) ?? false, muted: media.muted }),
+        play: async () => { try { await media.play(); } catch (error) { s.mediaBlocked = true; throw error; } },
+        pause: () => media.pause(),
+        seek: (time: number) => { media.currentTime = time; },
+        setVolume: (value: number) => { media.volume = value; },
+        setMuted: (value: boolean) => { media.muted = value; },
       };
-      add("up", "Up", axis(0, -1), undefined, () => target.scrollTop > 0);
-      add(
-        "down",
-        "Down",
-        axis(0, 1),
-        undefined,
-        () => target.scrollTop < target.scrollHeight - target.clientHeight - 1
-      );
-      if (target.scrollWidth > target.clientWidth + 1) {
-        add(
-          "left",
-          "Left",
-          axis(-1, 0),
-          undefined,
-          () => target.scrollLeft > 0
-        );
-        add(
-          "right",
-          "Right",
-          axis(1, 0),
-          undefined,
-          () => target.scrollLeft < target.scrollWidth - target.clientWidth - 1
-        );
-      }
+      for (const action of mediaActions(controller)) add(action.id === "pause" ? "play" : action.id === "unmute" ? "mute" : action.id, action.label, action.update, action.activate, action.enabled);
     }
-    const a = s.adapter;
-    if (a) {
-      const rotate = (yaw: number, pitch: number) => (dt: number) => {
-        a.rotateBy?.(yaw * 30 * dt, pitch * 30 * dt);
-        s.dirty = true;
-      };
-      if (a.rotateBy)
-        for (const [id, label, yaw, pitch] of [
-          ["left", "Left", -1, 0],
-          ["right", "Right", 1, 0],
-          ["up", "Up", 0, 1],
-          ["down", "Down", 0, -1],
-        ] as const)
-          add(
-            id,
-            label,
-            rotate(yaw, pitch),
-            undefined,
-            () => a.canExecute?.(id) !== false
-          );
-      if (a.zoomBy) {
-        add(
-          "in",
-          "Zoom +",
-          (dt) => a.zoomBy!(1.5 ** dt),
-          undefined,
-          () => a.canExecute?.("in") !== false
-        );
-        add(
-          "out",
-          "Zoom -",
-          (dt) => a.zoomBy!(1.5 ** -dt),
-          undefined,
-          () => a.canExecute?.("out") !== false
-        );
-      }
-      if (a.resetView) add("reset", "Reset", undefined, a.resetView);
-    }
-    if (media && !a) {
-      add("play", media.paused ? "Play" : "Pause", undefined, () => {
-        if (media.paused)
-          void media.play().catch(() => {
-            s.mediaBlocked = true;
-          });
-        else media.pause();
-      });
-      if (Number.isFinite(media.duration)) {
-        add("rewind", "-10s", (dt) => {
-          media.currentTime = Math.max(0, media.currentTime - dt * 10);
-        });
-        add("forward", "+10s", (dt) => {
-          media.currentTime = Math.min(
-            media.duration,
-            media.currentTime + dt * 10
-          );
-        });
-      }
-      add(
-        "vol-",
-        "Vol -",
-        (dt) => {
-          media.volume = Math.max(0, media.volume - dt / 4);
-        },
-        undefined,
-        () => media.volume > 0
-      );
-      add(
-        "vol+",
-        "Vol +",
-        (dt) => {
-          media.volume = Math.min(1, media.volume + dt / 4);
-        },
-        undefined,
-        () => media.volume < 1
-      );
-      add("mute", media.muted ? "Unmute" : "Mute", undefined, () => {
-        media.muted = !media.muted;
-      });
-    }
-    s.buttons = buttons;
+    s.buttons = surface.anchor ? [] : buttons;
+    if (surface.anchor) buttons.length = 0;
     for (const b of buttons) {
-      ctx.fillStyle = b.action.enabled?.() === false ? "#333a43" : "#39424e";
+      ctx.fillStyle = b.action.enabled?.() === false ? "#333a43" : appearance.getPropertyValue("--pano-control-background").trim() || "#39424e";
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = "#fff";
-      ctx.font = "20px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(b.label, b.x + b.w / 2, b.y + 39);
+      const id = String(b.action.id).replace("scroll-", "");
+      const icon = id === "play" && media && !media.paused ? "pause" : id === "mute" && media?.muted ? "unmute" : id;
+      ctx.save(); ctx.translate(b.x + b.w / 2 - 16, b.y + b.h / 2 - 16); ctx.scale(32 / 24, 32 / 24);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.stroke(new Path2D(CONTROL_PATHS[icon] ?? CONTROL_PATHS.reset)); ctx.restore();
+    }
+    for (const button of s.edgeButtons) {
+      const focused = host.action?.id === button.action.id || pressed.current?.id === button.action.id;
+      ctx.save();
+      const opacity = Number(appearance.getPropertyValue(focused ? "--pano-scroll-active-opacity" : "--pano-scroll-opacity").trim() || (focused ? .9 : .3));
+      ctx.globalAlpha = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : focused ? .9 : .3;
+      ctx.fillStyle = appearance.getPropertyValue("--pano-scroll-background").trim() || "#101923";
+      ctx.beginPath(); ctx.roundRect(button.x, button.y, button.w, button.h, 12); ctx.fill();
+      ctx.translate(button.x + button.w / 2 - 14, button.y + button.h / 2 - 14); ctx.scale(28 / 24, 28 / 24);
+      ctx.strokeStyle = appearance.getPropertyValue("--pano-scroll-color").trim() || "#fff"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.stroke(new Path2D(CONTROL_PATHS[`scroll-${button.icon}`] ?? CONTROL_PATHS[button.icon!])); ctx.restore();
     }
     ctx.textAlign = "start";
     ctx.restore();
@@ -745,14 +697,17 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         onPointerDown={(event) => {
           host.suppressGazeUntil = performance.now() + 350;
           event.stopPropagation();
+          pressedUpdates.current.reset();
           if (event.uv) pressed.current = resolve(event.uv);
         }}
         onPointerUp={() => {
           host.suppressGazeUntil = 0;
+          pressed.current?.end?.();
           pressed.current = null;
         }}
         onPointerOut={() => {
           host.suppressGazeUntil = 0;
+          pressed.current?.end?.();
           pressed.current = null;
         }}
         userData={{ panoGazeResolve: resolve }}
@@ -807,5 +762,5 @@ export function SpatialPanels() {
   }, [host, vr.host, mode]);
   const surfaces = [...host.surfaces];
   const surface = surfaces[surfaces.length - 1];
-  return mode && surface ? <SurfacePanel surface={surface} /> : null;
+  return mode ? surface ? <SurfacePanel surface={surface} /> : <>{[...host.panels].map((panel, index) => <SurfacePanel key={index} surface={panel} />)}</> : null;
 }

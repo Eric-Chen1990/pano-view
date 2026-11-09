@@ -15,6 +15,10 @@ function Story({ image, text }: { image: number; text: string }) {
     <img src={`/fixtures/panorama/panos/${image}/sphere.webp`} alt={text}
       style={{ display: "block", width: "100%", height: "auto" }} />
     <p>{text}</p>
+    {Array.from({ length: 8 }, (_, index) => <p key={index}>Chapter {index + 1}. Explore the courtyard history and details. In VR, look at the down arrow to continue reading.</p>)}
+    <div style={{ height: 160, overflow: 'auto', border: '1px solid #68778a', padding: 12 }}>
+      {Array.from({ length: 6 }, (_, index) => <p key={index}>Nested reading area, paragraph {index + 1}. Look here to select this scroll region, then look at the arrows at its edges.</p>)}
+    </div>
     <label style={{ display: "grid", gap: 8 }}>Your notes
       <input placeholder="Keep a note while switching fullscreen"
         style={{ padding: 8, border: "1px solid currentColor", background: "transparent", color: "inherit" }} />
@@ -59,7 +63,7 @@ export type PopupSelection = { sceneId: string; hotspotId: string };
 // Application content, separate from the marker's type and project JSON.
 export const POPUPS_BY_SCENE: Partial<Record<string, Partial<Record<string, PopupDefinition>>>> = {
   entrance: {
-    model: { kind: "model", title: "Host model controls", body: <HostModelExample /> },
+    model: { kind: "model", title: "Host model controls", body: <><HostModelExample />{Array.from({ length: 6 }, (_, index) => <p key={index}>Model detail {index + 1}. Rotate the model in VR while the independent scroll arrows remain available. Outside VR, drag to rotate or use the arrow keys; scroll over the model to zoom.</p>)}</> },
     story: { kind: "article", title: "Courtyard story", body: <Story image={1} text="The courtyard opens onto a quiet garden and a path beside the water." /> },
     details: { kind: "article", title: "Garden details", body: <Story image={2} text="Explore the planting, stone paths and small details around the garden." /> },
     clip: { kind: "video", title: "Courtyard video", body: <Movie src="/fixtures/hotspots/loop.webm" /> },

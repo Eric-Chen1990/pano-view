@@ -1,15 +1,16 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useCallback, useContext, forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useContext, forwardRef, useId, useRef, useState, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { PanoOverlayPortalProvider, PanoDialogSurfaceContext as SurfaceContext, usePanoDialogSurface, usePanoOverlay } from "../overlay/pano-overlay";
 
 export type PanoDialogRootProps = {
+  scrollTargetRef?: RefObject<HTMLElement | null>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: ReactNode;
 };
 
-export function PanoDialogRoot({ open, onOpenChange, children }: PanoDialogRootProps) {
-  const surface = usePanoDialogSurface({ open, onOpenChange });
+export function PanoDialogRoot({ open, onOpenChange, children, scrollTargetRef }: PanoDialogRootProps) {
+  const surface = usePanoDialogSurface({ open, onOpenChange, scrollTargetRef });
   // Keep modality inside the viewer overlay. Radix modal mode would lock page
   // scroll and disable the host document; viewer input is already gated by usePanoModal.
   return (
@@ -125,10 +126,10 @@ export type PanoDialogProps = PanoDialogRootProps & {
 };
 
 /** A ready-to-use modal; compose the exported parts for a different layout. */
-export function PanoDialog({ open, onOpenChange, title, description, closeLabel = "Close", children, className, style }: PanoDialogProps) {
+export function PanoDialog({ open, onOpenChange, title, description, closeLabel = "Close", children, className, style, scrollTargetRef }: PanoDialogProps) {
   const descriptionId = useId();
   return (
-    <PanoDialogRoot open={open} onOpenChange={onOpenChange}>
+    <PanoDialogRoot open={open} onOpenChange={onOpenChange} scrollTargetRef={scrollTargetRef}>
       <PanoDialogBackdrop />
       <PanoDialogContent
         className={className}
@@ -148,7 +149,7 @@ export function PanoDialog({ open, onOpenChange, title, description, closeLabel 
             <path d="m4 4 8 8M12 4l-8 8" />
           </svg>
         </PanoDialogClose>
-        <div className="pano-dialog-body" style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
+        <div data-pano-scroll-viewport="" className="pano-dialog-body" style={{ overflow: "auto", minHeight: 0 }}>{children}</div>
       </PanoDialogContent>
     </PanoDialogRoot>
   );

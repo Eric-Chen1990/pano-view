@@ -1,5 +1,8 @@
+import { mediaControllers } from "../controls/media";
+import { usePanoMediaController } from "../controls/media";
+import type { PanoMediaController } from "../controls/actions";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import {
   ClampToEdgeWrapping,
   LinearFilter,
@@ -27,6 +30,7 @@ export type VideoHotspotErrorEvent = {
 };
 
 export type VideoHotspotProps = HotspotCommonProps & {
+  ref?: Ref<PanoMediaController>;
   src: string;
   playing: boolean;
   poster?: string;
@@ -237,6 +241,7 @@ function useVideoResource({
 }
 
 export function VideoHotspot({
+  ref,
   id,
   src,
   playing,
@@ -267,6 +272,18 @@ export function VideoHotspot({
     poster,
     src,
   });
+  const mediaRef = useRef<HTMLMediaElement | null>(null);
+  mediaRef.current = resource?.video ?? null;
+  const controller = usePanoMediaController(mediaRef);
+  const exposedController = useMemo<PanoMediaController>(() => ({ ...controller, play: async () => {
+    try { await controller.play(); } catch (error) {
+      onPlaybackStateChangeRef.current?.("blocked");
+      onPlaybackErrorRef.current?.(error);
+      throw error;
+    }
+  } }), [controller]);
+  useImperativeHandle(ref, () => exposedController, [exposedController]);
+  useEffect(() => { const video = mediaRef.current; if (video) mediaControllers.set(video, exposedController); return () => { if (video) mediaControllers.delete(video); }; }, [exposedController, resource]);
   const posterTexture = usePosterTexture(id, poster, onError);
   const onPlaybackErrorRef = useRef(onPlaybackError);
   const onPlaybackStateChangeRef = useRef(onPlaybackStateChange);

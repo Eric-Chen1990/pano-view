@@ -3,15 +3,66 @@ export type GazeAction = {
   enabled?: () => boolean;
   activate?: () => void;
   update?: (seconds: number) => void;
+  /** Optional pause between held updates; update receives one interval in seconds. */
+  repeatIntervalMs?: number;
   end?: () => void;
 };
 
+/** Shared by gaze and pointer holds; timing lives outside recreated render actions. */
+export function createActionUpdateState() {
+  let id: unknown = null;
+  let started = false;
+  let elapsed = 0;
+  const reset = () => {
+    id = null;
+    started = false;
+    elapsed = 0;
+  };
+  return {
+    reset,
+    tick(action: GazeAction, seconds: number) {
+      if (
+        !Number.isFinite(seconds) ||
+        seconds < 0 ||
+        seconds > 0.25 ||
+        action.enabled?.() === false
+      ) {
+        reset();
+        return;
+      }
+      if (action.id !== id) {
+        reset();
+        id = action.id;
+      }
+      const interval = action.repeatIntervalMs;
+      if (
+        interval === undefined ||
+        !Number.isFinite(interval) ||
+        interval <= 0
+      ) {
+        action.update?.(Math.min(seconds, 0.048));
+        return;
+      }
+      if (started) {
+        elapsed += seconds * 1000;
+        if (elapsed + 1e-6 < interval) return;
+      }
+      started = true;
+      // Do not replay missed steps after a slow frame or interruption.
+      elapsed = 0;
+      action.update?.(interval / 1000);
+    },
+  };
+}
+
 /** One timer per logical target, independent of frame rate and DOM repainting. */
 export function createGazeActionState() {
+  const updates = createActionUpdateState();
   let current: GazeAction | null = null;
   let elapsed = 0;
   let active = false;
   const stop = () => {
+    updates.reset();
     if (active) current?.end?.();
     current = null;
     elapsed = 0;
@@ -44,7 +95,7 @@ export function createGazeActionState() {
           current.activate?.();
         }
       }
-      if (active) current.update?.(Math.min(seconds, 0.048));
+      if (active) updates.tick(current, seconds);
       return active ? 0 : Math.min(1, elapsed / dwellMs);
     },
   };

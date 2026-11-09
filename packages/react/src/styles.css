@@ -863,3 +863,21 @@
   --pano-overlay-anchor-radius: var(--pano-scene-menu-radius, 8px);
   background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
 }
+
+.pano-control-group { display:flex; flex-wrap:wrap; justify-content:center; gap:var(--pano-control-gap,12px); padding:var(--pano-control-padding,12px); }
+.pano-control-button { display:grid; place-items:center; width:var(--pano-control-size,64px); height:var(--pano-control-size,64px); border:var(--pano-control-border,1px solid #68778a); border-radius:var(--pano-control-radius,12px); background:var(--pano-control-background,#39424e); color:var(--pano-control-color,#fff); cursor:pointer; }
+.pano-control-button svg { width:32px; height:32px; }
+.pano-control-button:disabled { opacity:.4; cursor:default; }
+.pano-control-button:focus-visible { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
+
+.pano-scroll-controls { display:block; }
+.pano-scroll-controls .pano-control-button { position:absolute; width:112px; height:44px; border:0; border-radius:12px; background:var(--pano-scroll-background,#101923); color:var(--pano-scroll-color,#fff); opacity:var(--pano-scroll-opacity,.3); pointer-events:auto; transition:opacity .15s; }
+.pano-scroll-controls .pano-control-button:hover,
+.pano-scroll-controls .pano-control-button:focus-visible,
+.pano-scroll-controls [data-pano-gaze-active] { opacity:var(--pano-scroll-active-opacity,.9); }
+.pano-scroll-controls [data-scroll-direction="up"] { top:6px; left:50%; transform:translateX(-50%); }
+.pano-scroll-controls [data-scroll-direction="down"] { bottom:6px; left:50%; transform:translateX(-50%); }
+.pano-scroll-controls [data-scroll-direction="left"],
+.pano-scroll-controls [data-scroll-direction="right"] { width:44px; top:50%; transform:translateY(-50%); }
+.pano-scroll-controls [data-scroll-direction="left"] { left:6px; }
+.pano-scroll-controls [data-scroll-direction="right"] { right:6px; }

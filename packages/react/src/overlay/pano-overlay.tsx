@@ -142,9 +142,11 @@ export type { PanoSpatialControlAdapter } from "../spatial/host";
 export function usePanoDialogSurface({
   open,
   onOpenChange,
+  scrollTargetRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  scrollTargetRef?: RefObject<HTMLElement | null>;
 }) {
   const host = useContext(SpatialHostContext);
   const overlay = usePanoOverlay();
@@ -168,13 +170,13 @@ export function usePanoDialogSurface({
         host.notify();
       }
       if (host && node && open) {
-        const entry = { element: node, close: () => callback.current(false) };
+        const entry = { element: node, close: () => callback.current(false), scrollTarget: () => scrollTargetRef?.current ?? null };
         surface.current = entry;
         host.surfaces.add(entry);
         host.notify();
       }
     },
-    [host, open]
+    [host, open, scrollTargetRef]
   );
   useLayoutEffect(
     () => () => {

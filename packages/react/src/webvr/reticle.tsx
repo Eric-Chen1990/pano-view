@@ -1,6 +1,7 @@
+import { resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
 import { SpatialHostContext } from "../spatial/host";
-import { canRunSpatialGaze, createGazeActionState, type GazeAction } from "../spatial/gaze-action";
+import { canRunSpatialGaze, createGazeActionState } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
@@ -9,7 +10,7 @@ import {
   Group,
   Intersection,
   Mesh,
-  Object3D,
+  type Object3D,
   Raycaster,
   Vector2,
   Vector3,
@@ -31,36 +32,7 @@ const GAZE_POINTER_ID = 1_000_001;
 export const DEFAULT_WEBVR_CURSOR_DWELL_MS = 1_500;
 const MAX_DWELL_DELTA_MS = 48;
 
-type R3FObject = Object3D & {
-  __r3f?: {
-    handlers?: {
-      onClick?: (event: ThreeEvent<PointerEvent>) => void;
-      onPointerOver?: (event: ThreeEvent<PointerEvent>) => void;
-      onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
-    };
-  };
-};
-
-type GazeTarget = {
-  eventObject: Object3D;
-  intersection: Intersection;
-};
-
 function noopRaycast() {}
-
-function findGazeTarget(hits: Intersection[]): GazeTarget | null {
-  for (const intersection of hits) {
-    let current: Object3D | null = intersection.object;
-    while (current) {
-      const handlers = (current as R3FObject).__r3f?.handlers;
-      if (handlers?.onClick && handlers.onPointerOver) {
-        return { eventObject: current, intersection };
-      }
-      current = current.parent;
-    }
-  }
-  return null;
-}
 
 function createNativePointerEvent(type: string): PointerEvent {
   return new PointerEvent(type, {
@@ -159,6 +131,8 @@ export function WebVRReticle({
     const group = groupRef.current;
     const ringMesh = ringMeshRef.current;
     if (!visible || !group) {
+      if (spatial?.action?.id instanceof HTMLElement) delete spatial.action.id.dataset.panoGazeActive;
+      if (spatial) spatial.action = null;
       spatialGaze.current.stop();
       if (hoveredRef.current) {
         emitHandler(
@@ -188,16 +162,22 @@ export function WebVRReticle({
     raycaster.ray.direction.copy(directionRef.current);
     scene.updateMatrixWorld();
     const hits = raycaster.intersectObjects(scene.children, true);
-    const spatialOpen = Boolean(spatial?.mode && spatial.surfaces.size);
-    let spatialTarget: GazeAction | null = null;
-    if (spatialOpen) {
-      for (const hit of hits) {
-        const resolve = hit.object.userData.panoGazeResolve as ((uv: Vector2) => GazeAction | null) | undefined;
-        if (resolve && hit.uv) { spatialTarget = resolve(hit.uv); break; }
+    const route = resolveGazeTarget(hits, {
+      modalOpen: Boolean(spatial?.mode && spatial.surfaces.size),
+      panelsOpen: Boolean(spatial?.mode && spatial.panels.size),
+    });
+    const spatialOpen = route.channel === "spatial";
+    const spatialTarget = route.channel === "spatial" ? route.action : null;
+    if (spatial) {
+      const previous = spatial.action?.id;
+      if (previous !== spatialTarget?.id) {
+        if (previous instanceof HTMLElement) delete previous.dataset.panoGazeActive;
+        if (spatialTarget?.id instanceof HTMLElement) spatialTarget.id.dataset.panoGazeActive = "";
       }
+      spatial.action = spatialTarget;
     }
     const spatialProgress = spatialGaze.current.tick(canRunSpatialGaze(document.hidden, gl.xr.getSession()?.visibilityState, spatial?.suppressGazeUntil ?? 0, performance.now()) ? spatialTarget : null, deltaSeconds, resolveDwellMs(dwellMs));
-    const target = spatialOpen ? null : findGazeTarget(hits);
+    const target = route.channel === "hotspot" ? route.target : null;
     const previous = hoveredRef.current;
     const acquiredNewTarget = Boolean(
       target && previous?.eventObject !== target.eventObject,

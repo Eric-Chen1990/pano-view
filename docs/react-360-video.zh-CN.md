@@ -67,3 +67,5 @@ iPhone/iPad Safari 和 Android Chrome 中确认：
 
 变体、字幕、自定义控制和完整 prop 见
 [PanoVideo](../packages/react/README.zh-CN.md#panovideo)。
+
+VR 模式可使用 `PanoSpatialControls` + `PanoMediaControls` 连接现有视频 controller；普通模式仍保留原控制条。见[VR 控件指南](../packages/react/docs/dialogs.zh-CN.md#vr-图标控件与滚动)和 Playground `/video`。

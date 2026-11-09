@@ -2714,3 +2714,7 @@ viewLimits: {
 `ProjectScenes.onHotspotEvent(event)` 提供 `trigger`、`sceneId`、`hotspot`、`interaction` 和 `preventDefault()`。点击时先调用它，再调用原有 `onHotspotClick`，任一回调均可取消动作。`onCustomAction(event)` 额外提供 `action`，支持返回 Promise。宿主按稳定的 `action.actionId` 分发，校验业务参数，对未知动作抛出错误。缺少执行器、同步异常和 Promise 拒绝进入附带 `trigger` 的 `onHotspotError`。请求、鉴权、取消、防重复和迟到响应由宿主负责；各事件独立分发，不自动重试。
 
 悬停按整个热点的边界触发一次，跳过触屏和键盘焦点，并遵循可见性、指针交互设置。切换场景、隐藏和卸载仅清理状态，不执行离开动作。原有 tooltip 行为独立保留。自定义渲染器需同时转发 `context.onHoverChange(hovered, interaction)` 和 `context.onClick`；调用 `context.renderDefault()` 会自动接线。
+
+## VR 操作按钮组
+
+视频、模型和滚动支持可定制图标按钮组，仅在 VR 显示。接口、凝视行为与完整示例见[VR 控件指南](./docs/dialogs.zh-CN.md#vr-图标控件与滚动)。

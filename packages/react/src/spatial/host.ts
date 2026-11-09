@@ -14,13 +14,14 @@ export type PanoSpatialControlAdapter = {
   /** A texture must belong to this viewer's WebGL context. */
   texture?: Texture;
 };
-export type SpatialSurface = { element: HTMLElement; close: () => void };
+export type SpatialSurface = { element: HTMLElement; close: () => void; scrollTarget?: () => HTMLElement | null; anchor?: { position?: { yaw: number; pitch: number }; width: number; distance: number } };
 export function createSpatialHost() {
   const listeners = new Set<() => void>();
   const host = {
     mode: false,
     suppressGazeUntil: 0,
     surfaces: new Set<SpatialSurface>(),
+    panels: new Set<SpatialSurface>(),
     controls: new Map<HTMLElement, PanoSpatialControlAdapter>(),
     revision: 0,
     action: null as GazeAction | null,

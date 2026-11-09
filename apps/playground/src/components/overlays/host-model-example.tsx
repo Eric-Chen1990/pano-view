@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   usePanoSpatialControls,
   type PanoSpatialControlAdapter,
@@ -9,6 +9,7 @@ import type { Mesh } from "three";
 /** An existing host renderer owns its model and viewing state in both modes. */
 export function HostModelExample() {
   const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number } | null>(null);
   const view = useRef({ yaw: 0, pitch: 0, scale: 1 });
   const frames = useMemo(() => new Set<() => void>(), []);
   const adapter = useMemo<PanoSpatialControlAdapter>(
@@ -50,6 +51,16 @@ export function HostModelExample() {
     [frames]
   );
   usePanoSpatialControls(ref, adapter);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      adapter.zoomBy?.(Math.exp(-event.deltaY * 0.001));
+    };
+    node.addEventListener("wheel", wheel, { passive: false });
+    return () => node.removeEventListener("wheel", wheel);
+  }, [adapter]);
   function Model() {
     const mesh = useRef<Mesh>(null);
     useFrame(() => {
@@ -73,8 +84,48 @@ export function HostModelExample() {
   return (
     <div
       ref={ref}
-      style={{ width: "100%", height: 300 }}
-      aria-label="Host model preview"
+      style={{
+        width: "100%",
+        height: 300,
+        touchAction: "none",
+        cursor: "grab",
+      }}
+      aria-label="Host model preview. Drag to rotate, scroll to zoom. Arrow keys rotate, plus and minus zoom, Home resets."
+      role="application"
+      tabIndex={0}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current) return;
+        adapter.rotateBy?.(
+          (event.clientX - drag.current.x) * 0.4,
+          (drag.current.y - event.clientY) * 0.4
+        );
+        drag.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={() => {
+        drag.current = null;
+      }}
+      onLostPointerCapture={() => {
+        drag.current = null;
+      }}
+      onKeyDown={(event) => {
+        const rotations: Record<string, [number, number]> = {
+          ArrowLeft: [-15, 0],
+          ArrowRight: [15, 0],
+          ArrowUp: [0, 15],
+          ArrowDown: [0, -15],
+        };
+        if (rotations[event.key]) adapter.rotateBy?.(...rotations[event.key]);
+        else if (event.key === "+" || event.key === "=") adapter.zoomBy?.(1.2);
+        else if (event.key === "-") adapter.zoomBy?.(1 / 1.2);
+        else if (event.key === "Home") adapter.resetView?.();
+        else return;
+        event.preventDefault();
+      }}
     >
       <Canvas
         camera={{ position: [0, 0, 3] }}
@@ -82,15 +133,6 @@ export function HostModelExample() {
       >
         <Model />
       </Canvas>
-      <button type="button" onClick={() => adapter.rotateBy?.(30, 0)}>
-        Rotate
-      </button>
-      <button type="button" onClick={() => adapter.zoomBy?.(1.2)}>
-        Zoom in
-      </button>
-      <button type="button" onClick={() => adapter.resetView?.()}>
-        Reset model
-      </button>
     </div>
   );
 }

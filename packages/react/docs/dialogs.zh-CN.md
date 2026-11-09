@@ -623,8 +623,58 @@ export function DialogHelp() {
 
 宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。
 
-连续操作在凝视计时完成后开始，移开即停；默认滚动每秒半个可见区域、旋转每秒 30 度、缩放每秒 1.5 倍。关闭、复位、图集切换为单次操作。明确禁用 `cursor` 或将 `cursorDwellMs` 设为零仍会禁用自动凝视。文字输入和虚拟键盘不在支持范围。跨域 iframe、不可读取的 Canvas 或被浏览器阻止的媒体需要退出 VR 后查看或授权；凝视不能替代浏览器要求的可信用户手势。
+连续操作在凝视计时完成后开始，移开即停；滚动默认每隔 700 毫秒移动一小步；旋转每秒 30 度、缩放每秒 1.5 倍。关闭、复位、图集切换为单次操作。明确禁用 `cursor` 或将 `cursorDwellMs` 设为零仍会禁用自动凝视。文字输入和虚拟键盘不在支持范围。跨域 iframe、不可读取的 Canvas 或被浏览器阻止的媒体需要退出 VR 后查看或授权；凝视不能替代浏览器要求的可信用户手势。
 
 空间窗口默认距视点约 2 米，外框按宽不超过 32°、高不超过 40°的视角缩放，避免长内容撑满双眼视野。关闭按钮视觉尺寸在普通模式和 VR 中均为 36px；VR 使用至少 56px 的不可见凝视命中范围。原生捕获会完整检测 `content="drawable"` 和绘制 API；旧实验 API 使用兼容捕获。可通过内容节点的 `data-pano-spatial-state`（`loading`、`ready`、`error`）观察捕获状态。
 
 `PanoOverlay` / `renderOverlay` 内的屏幕平面 UI 在 VR 中隐藏且不可聚焦，退出后恢复。Portal 容器保持挂载和可测量，以便已注册的弹窗继续渲染为空间面板。内置 VR 会话控制仍可使用。
+
+## VR 图标控件与滚动
+
+这些新增控件只在 VR 模式显示；退出后隐藏且不可聚焦。普通模式继续使用视频原生控件、鼠标模型交互和原生滚动。无需改变项目 JSON。
+
+主入口导出 `PanoMediaControls`、`PanoModelControls`、`PanoScrollControls`、`PanoControlGroup`、`PanoControlButton`、`PanoSpatialControls`、`usePanoMediaController`，以及 `PanoMediaController`、`PanoControlAction` 类型。导入 `@ericchen1990/pano-view/styles.css`。
+
+```tsx
+const mediaRef = useRef<HTMLVideoElement>(null);
+const controller = usePanoMediaController(mediaRef);
+// 在 PanoDialog 内；同一个 video 保留原生控件供普通模式使用。
+<video ref={mediaRef} src="/movie.mp4" controls playsInline />
+<PanoMediaControls controller={controller} />
+```
+
+场景内按钮组放在 `PanoOverlay` 内，使用 `PanoSpatialControls` 将 DOM 内容呈现为空间面板：
+
+```tsx
+<PanoOverlay>
+  <PanoSpatialControls position={{ yaw: 55, pitch: -14 }} width={28} distance={10}>
+    <PanoMediaControls controller={controller} />
+  </PanoSpatialControls>
+</PanoOverlay>
+```
+
+`position` 使用与热点相同的 yaw/pitch 度数；`width` 是角宽（默认 28°），`distance` 默认 2。省略 position 时，面板出现在进入 VR 时的视线下方并保持位置。面板应位于内容旁边，避免遮挡视频。360° 视频可通过 `usePanoViewer()` 的 `getVideo` / `subscribeVideo` 获取 controller；订阅后用同一组件。`VideoHotspot` 的 `ref` 返回 controller，配合 `onPlaybackStateChange` 同步宿主的 `playing` 状态。关闭、切源和卸载仍遵循媒体本身的生命周期。
+
+`PanoModelControls` 接收已有 `adapter`，支持 `rotateSpeed`（默认每秒 30°）、`zoomSpeed`（默认每秒 1.5 倍）；不会加载模型或接管宿主视角状态。宿主通过 `canExecute` 限制角度和缩放范围。
+
+默认 VR 弹窗自动提供半透明滚动图标，使用双箭头，贴在可滚动区域的上下边缘，并可与模型操作同时存在。仅显示仍可滚动的方向；没有溢出时隐藏。默认不透明度为 0.3，凝视或悬停时提升至 0.9。默认弹窗绑定正文；嵌套内容可自动选择最近滚动区域。第三方弹窗可向 `usePanoDialogSurface({ open, onOpenChange, scrollTargetRef })` 传入滚动容器 ref；组合弹窗可传给 `PanoDialogRoot`。显式绑定优先于自动选择。也可自行添加 `<PanoScrollControls targetRef={scrollRef} speed={0.2} />`，组件会将按钮叠加到目标滚动区域边缘。跨域 iframe 的内部页面无法访问，仍需退出 VR 操作。
+
+所有操作组支持 `actions` 数组：内置动作 ID 与自定义动作可混合排序。媒体 ID 为 `play/pause/rewind/forward/vol-/vol+/mute/unmute`，模型 ID 为 `left/right/up/down/in/out/reset`，滚动 ID 为 `up/down/left/right`。播放与静音 ID 随状态变化；筛选时同时包含两种状态。
+
+```tsx
+<PanoMediaControls controller={controller} actions={["rewind", "play", "pause", "forward"]}>
+  {actions => <div className="my-layout">{actions.map(action =>
+    <PanoControlButton key={action.id === "pause" ? "play" : action.id} action={action} />
+  )}</div>}
+</PanoMediaControls>
+```
+
+自定义动作包含 `id`、无障碍 `label`、可选 React `icon`、`disabled` / `enabled()`、单次 `activate()`、连续 `update(seconds)` 和停止 `end()`；可选 `repeatIntervalMs` 将连续动作改为间隔执行。使用 `PanoControlButton` 保留凝视绑定；切换播放／静音图标时保持按钮 key 稳定，防止重新计时。`PanoControlGroup` 可直接渲染自定义动作数组。
+
+可通过 `className`、`style` 和 `--pano-control-background/color/border/radius/size/gap/padding/focus` CSS 变量定制显式按钮组。自动操作区支持 background 变量；完整布局或图标替换需显式按钮组。同一目标的显式媒体、模型或滚动组会替代自动操作组。
+
+凝视完成 `cursorDwellMs` 后，播放、静音、复位执行一次；跳转、音量和模型持续执行；滚动每隔 700 毫秒执行一小步，移开即停。默认跳转每秒 10 秒（`seekSpeed`），音量每秒 0.25（`volumeSpeed`），滚动每秒 0.2 个可见区域（`speed`），每步默认移动 0.14 个可见区域。`PanoScrollControls.repeatIntervalMs` 可调整重复间隔；间隔计时不受组件重新渲染影响，移开会清零，重新凝视需重新完成 dwell。关闭、退出 VR、禁用和失焦会停止操作。凝视不能替代浏览器要求的可信用户手势；音量不可调整的平台禁用音量按钮，仍可静音。
+
+通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
+
+在 Playground `/overlays` 查看长正文、嵌套滚动、模型鼠标／键盘操作、场景视频和自定义主题；`/video` 展示 360° 视频空间控制条。

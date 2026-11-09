@@ -64,9 +64,12 @@ if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrec
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type PanoViewLimits,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
 import type {ProjectScenesProps} from "@ericchen1990/pano-view";
 import type {PanoDialogProps,PanoDialogContentProps,ProjectPopupDialogProps} from "@ericchen1990/pano-view/ui";
-import type {PanoOverlayRenderContext,PanoViewerProps} from "@ericchen1990/pano-view";
+import type {PanoMediaController,PanoControlAction,PanoSpatialControlsProps,PanoOverlayRenderContext,PanoViewerProps} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
 const limits:PanoViewLimits={yaw:{min:170,max:-170},fov:{min:60,max:60}};
+const action:PanoControlAction={id:"custom",label:"Custom",update:seconds=>{void seconds;}};
+const spatial:PanoSpatialControlsProps={children:null,position:{yaw:0,pitch:-20}};
+void [action,spatial];
 const viewer:PanoViewerProps={viewLimits:limits};
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
 const loaded:Promise<LoadedPanoProject>=loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/"});
