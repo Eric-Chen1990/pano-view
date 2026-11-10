@@ -47,7 +47,7 @@ export function resolveGazeTarget(
   hits: Intersection[],
   { modalOpen, panelsOpen }: { modalOpen: boolean; panelsOpen: boolean }
 ): GazeRoute {
-  if (modalOpen || panelsOpen) {
+  if (modalOpen || panelsOpen || hits.some(hit => hit.object.userData.panoGazeResolve)) {
     for (const hit of hits) {
       const resolve = hit.object.userData.panoGazeResolve as
         | ((uv: Vector2) => GazeAction | null)

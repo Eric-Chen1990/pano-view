@@ -3189,3 +3189,49 @@ Hover runs once per logical hotspot boundary, skips touch and keyboard focus, an
 ## VR control groups
 
 Customizable VR-only icon groups support media, models and scrolling. See the [VR controls guide](./docs/dialogs.md#vr-icon-controls-and-scrolling) for APIs and examples.
+
+## WebVRSceneMenu
+
+Mount beside `WebVR` and `Scenes` inside `PanoViewer`. This native spatial menu appears in WebXR, MobileVR and desktop simulated VR. Previous/next buttons surround a circular scene-menu button below the horizon. Opening it reveals a curved thumbnail grid with pagination, gaze/pointer controls and accessible keyboard buttons. The active scene has a border and check mark; reopening locates its page.
+
+```tsx
+<WebVRSceneMenu
+  items={[
+    { id: "hall", thumbnailUrl: "/hall.webp", title: "Hall" },
+    { id: "garden", thumbnailUrl: "/garden.webp", title: "Garden" },
+  ]}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+  columns={4}
+  rows={3}
+  appearance={{ labelPlacement: "center", selectionColor: "#ffffff" }}
+/>
+```
+
+Items reuse `PanoSceneMenuItem`. Titles default to centered image overlays, wrap to two lines and truncate with an ellipsis. Empty titles fall back to IDs; accessible names retain the full title. Thumbnail sources must permit cross-origin image access. Cards remain selectable when images fail.
+
+| Prop | Default / range |
+| --- | --- |
+| `layout` | `"compact"` (default, original curved grid), `"flat"` (flat wall), or `"arc"` (independent flat cards around the viewer) |
+| `displayMode` | `"paged"` (default) or `"all"`; all mode grows rows, ignores `rows`, and hides paging controls |
+| `arcAngle` | 180°; clamped to 60–360°, used only by arc layout |
+| `columns`, `rows` | compact/flat: 4 columns; arc: automatic (8 at 180°, 16 at 360°). Column ranges: compact 2–4, flat/arc 2–24. Paged rows: 3, range 1–3 |
+| `loop` | `true`; wraps scene navigation, never pagination |
+| `closeOnSelect` | `true`; use `false` for continuous browsing |
+| `follow` | `true`; navigation follows horizontal heading, the open grid remains anchored |
+| `navigationPitch` | −25 degrees; −40 to −15 |
+| `distance`, `scale` | 2 meters, 1; ranges 1.5–3, 0.75–1.25 |
+| `fadeDurationMs` | 200; 0–600ms, respects reduced motion |
+| `showTitles` | `true` |
+
+Dwell timing inherits `WebVR.cursorDwellMs`. `activeId` owns selection; `onSelect` requests navigation from the host, which retains scene loading/error handling. Dialogs and VR Setup temporarily hide the menu. Empty lists render nothing; a single scene disables previous/next navigation.
+
+The bounded `appearance` interface includes `controlColor` (white), `controlBackground` (`transparent`), `controlOpacity` (0.75, range 0–1), `selectionColor` (white), `borderRadius` (8, range 0–48), `labelColor` (white), `labelBackground` (`transparent`), `fontSize` (28, range 16–48), and `labelPlacement` (`"center"` or `"bottom"`). Sizes use reference-canvas pixels and follow the overall scale. Exports include `WebVRSceneMenuProps`, `WebVRSceneMenuAppearance`, and `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`.
+
+The WebVR example includes behavior, layout and appearance controls, editable scene titles, a 25-scene pagination fixture and reset. Settings live in page state only.
+
+The floating navigation is a compact button group with equal-height icons, transparent backgrounds and subtle shadows for contrast against the panorama.
+
+Flat and arc layouts use bounded texture atlases. Compact/flat default to four columns; arc defaults to one column per 22.5° (8 for a semicircle, 16 for a full circle). Compact supports 2–4 columns; new layouts support 2–24. Paged rows default to 3, clamped to 1–3. All mode extends the wall without shrinking cards, so large lists require more looking around. Opening centers the menu on the current heading; it then follows translation but not head rotation. New layouts keep close/paging controls in a separate forward control strip. The playground exposes layout, display mode, and arc angle; leave columns blank for automatic defaults.
+
+VR scene titles default to a transparent background with a subtle dark text shadow. Menu textures use 2× raster resolution, mipmaps and anisotropic filtering while layout and hit areas remain unchanged.

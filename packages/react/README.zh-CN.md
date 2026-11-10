@@ -2717,3 +2717,49 @@ viewLimits: {
 ## VR 操作按钮组
 
 视频、模型和滚动支持可定制图标按钮组，仅在 VR 显示。接口、凝视行为与完整示例见[VR 控件指南](./docs/dialogs.zh-CN.md#vr-图标控件与滚动)。
+
+## WebVRSceneMenu
+
+在 `PanoViewer` 内与 `WebVR`、`Scenes` 同级挂载。仅在 WebXR、手机 VR 或桌面模拟 VR 中显示：前下方的三按钮导航可切换场景并打开弧形缩略图网格，支持凝视、指针和键盘操作。当前场景带选中框和勾选标记；再次打开时定位到当前场景所在页。
+
+```tsx
+<WebVRSceneMenu
+  items={[
+    { id: "hall", thumbnailUrl: "/hall.webp", title: "大厅" },
+    { id: "garden", thumbnailUrl: "/garden.webp", title: "花园" },
+  ]}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+  columns={4}
+  rows={3}
+  appearance={{ labelPlacement: "center", selectionColor: "#ffffff" }}
+/>
+```
+
+`items` 复用 `PanoSceneMenuItem`。标题默认居中叠字，最多两行，超长省略；空标题回退到 ID，完整标题保留为无障碍名称。缩略图需允许跨域图片访问，加载失败时仍可通过标题选择。
+
+| 参数 | 默认值／范围 |
+| --- | --- |
+| `layout` | `"compact"`（默认，原有弧形网格）、`"flat"`（平面墙）、`"arc"`（独立平卡环绕画廊） |
+| `displayMode` | `"paged"`（默认）或 `"all"`；全部模式自动增长行数，忽略 `rows`，隐藏翻页与页码 |
+| `arcAngle` | 180°；范围 60–360°，仅环绕布局使用 |
+| `columns`、`rows` | compact/flat 默认 4 列；arc 自动按每 22.5° 一列（半环 8 列，整圈 16 列）；compact 列范围 2–4，新布局 2–24。分页默认 3 行，范围 1–3 |
+| `loop` | `true`，场景首尾循环；分页始终在边界停止 |
+| `closeOnSelect` | `true`；设为 `false` 可连续浏览 |
+| `follow` | `true`；仅导航跟随水平朝向，展开网格固定在空间中 |
+| `navigationPitch` | −25°；−40°至 −15° |
+| `distance`、`scale` | 2 米、1；范围 1.5–3、0.75–1.25 |
+| `fadeDurationMs` | 200；0–600ms，尊重减少动态效果设置 |
+| `showTitles` | `true` |
+
+凝视时间沿用 `WebVR.cursorDwellMs`。`activeId` 是选中状态来源，`onSelect` 请求宿主切换场景；场景加载和错误处理仍由宿主负责。弹窗或 VR Setup 打开时暂时隐藏此组件。无场景时隐藏，单场景时禁用左右导航。
+
+`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
+
+WebVR 示例提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示和恢复默认。设置仅保存在当前页面状态中。
+
+悬浮导航作为紧凑的整体按钮组呈现，默认仅显示等高图标，以轻微阴影增强场景中的辨识度。
+
+平面墙与环绕画廊使用有界分块图集。全部模式保留卡片尺寸并扩展墙面；大列表可能需要更多转头浏览。打开时以当前水平朝向为中心，展开后不跟随转头，但随用户平移。新布局的关闭和翻页按钮始终位于正前方独立控制区。Playground 支持切换布局、全部／分页和环绕角度；列数留空使用自动值。
+
+VR 场景标题默认不带背景，并带有轻微黑色文字阴影。菜单纹理以 2 倍分辨率绘制，使用 mipmap 与各向异性过滤；布局和命中区域保持不变。

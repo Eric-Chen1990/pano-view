@@ -330,3 +330,6 @@ export { PanoControlGroup, PanoControlButton, PanoMediaControls, PanoModelContro
 export type { PanoControlGroupProps, PanoSpatialControlsProps } from "./controls/components";
 export type { PanoControlAction, PanoMediaController } from "./controls/actions";
 export { usePanoMediaController } from "./controls/media";
+
+export { WebVRSceneMenu, DEFAULT_WEBVR_SCENE_MENU_APPEARANCE } from "./webvr/scene-menu";
+export type { WebVRSceneMenuProps, WebVRSceneMenuAppearance } from "./webvr/scene-menu";
