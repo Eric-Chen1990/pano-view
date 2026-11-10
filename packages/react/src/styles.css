@@ -869,8 +869,9 @@
 .pano-control-button svg { width:32px; height:32px; }
 .pano-control-button:disabled { opacity:.4; cursor:default; }
 .pano-control-button:focus-visible { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
-.pano-media-controls { background:#161b22; }
-.pano-media-controls .pano-control-button { flex:none; border-radius:var(--pano-control-radius,50%); color:var(--pano-control-color,#baf5ff); }
+.pano-media-controls { background:#161b22; gap:var(--pano-control-gap,8px); padding:var(--pano-control-padding,8px); }
+.pano-media-controls .pano-control-button { flex:none; width:var(--pano-control-size,48px); height:var(--pano-control-size,48px); border-radius:var(--pano-control-radius,50%); color:var(--pano-control-color,#baf5ff); }
+.pano-media-controls .pano-control-button svg { width:24px; height:24px; }
 .pano-media-controls [data-pano-gaze-active] { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 
 .pano-scroll-controls { display:block; }

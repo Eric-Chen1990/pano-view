@@ -1,6 +1,6 @@
-import { resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
+import { dispatchGazeHotspotClick, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
-import { SpatialHostContext } from "../spatial/host";
+import { SpatialHostContext, type SpatialSurface } from "../spatial/host";
 import { canRunSpatialGaze, createGazeActionState } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -82,20 +82,25 @@ function emitHandler(
   ray: Raycaster["ray"],
   type: "onPointerOver" | "onPointerOut" | "onClick",
   nativeType: string,
+  surfaces: Iterable<SpatialSurface> = [],
 ): void {
   const handler = (target.eventObject as R3FObject).__r3f?.handlers?.[type];
   if (!handler) {
     return;
   }
-  handler(
-    createThreePointerEvent(
-      target.intersection,
-      target.eventObject,
-      camera,
-      createNativePointerEvent(nativeType),
-      ray,
-    ),
+  const nativeEvent = createNativePointerEvent(nativeType);
+  const event = createThreePointerEvent(
+    target.intersection,
+    target.eventObject,
+    camera,
+    nativeEvent,
+    ray,
   );
+  if (type === "onClick") {
+    dispatchGazeHotspotClick(surfaces, nativeEvent, () => handler(event));
+  } else {
+    handler(event);
+  }
 }
 
 function resolveDwellMs(value: number | undefined): number {
@@ -204,7 +209,7 @@ export function WebVRReticle({
       if (dwellRef.current >= resolvedDwellMs) {
         clickedRef.current = true;
         dwellRef.current = 0;
-        emitHandler(target, camera, raycaster.ray, "onClick", "click");
+        emitHandler(target, camera, raycaster.ray, "onClick", "click", spatial?.mode ? spatial.surfaces : []);
       }
     } else if (!target) {
       dwellRef.current = 0;
