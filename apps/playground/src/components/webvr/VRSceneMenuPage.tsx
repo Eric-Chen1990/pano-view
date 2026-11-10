@@ -1,6 +1,8 @@
 import {
   PanoEvents,
   PanoViewer,
+  PanoOverlay,
+  PanoSceneMenu,
   Scenes,
   WebVR,
   WebVRSceneMenu,
@@ -53,6 +55,7 @@ const MENU_DEFAULTS = {
   scale: 1,
   fadeDurationMs: 200,
   showTitles: true,
+  showVisited: false,
 };
 const MANY_SCENES: Scene[] = Array.from({ length: 25 }, (_, index) => ({
   ...VR_SCENES[index % 4]!,
@@ -185,7 +188,7 @@ export function VRSceneMenuPage() {
           <details>
             <summary>Behavior</summary>
             <div className="flex flex-wrap gap-4 py-3">
-              {(["loop", "closeOnSelect", "follow", "showTitles"] as const).map(
+              {(["loop", "closeOnSelect", "follow", "showTitles", "showVisited"] as const).map(
                 (key) => (
                   <label key={key}>
                     <input
@@ -306,6 +309,7 @@ export function VRSceneMenuPage() {
                 [
                   ["controlOpacity", 0, 1, 0.05],
                   ["borderRadius", 0, 48, 1],
+                  ["selectionWidth", 0, 8, 1],
                   ["fontSize", 16, 48, 1],
                 ] as const
               ).map(([key, min, max, step]) => (
@@ -412,12 +416,25 @@ export function VRSceneMenuPage() {
               scenes={menuScenes}
               transition="crossfade"
             />
+            <PanoOverlay>
+              <PanoSceneMenu
+                items={menuItems}
+                activeId={activeSceneId}
+                onSelect={setActiveSceneId}
+                showVisited={settings.showVisited}
+                width="80%"
+                appearance={{
+                  selectionColor: appearance.selectionColor,
+                  focusColor: appearance.focusColor,
+                }}
+              />
+            </PanoOverlay>
           </PanoViewer>
         </div>
         <CodeSnippet
           blurb="Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it."
           code={`import { useState } from "react";
-import { PanoViewer, Scenes, WebVR, WebVRSceneMenu, usePanoViewer, type Scene, type WebVRSceneMenuProps } from "@ericchen1990/pano-view";
+import { PanoViewer, PanoOverlay, PanoSceneMenu, Scenes, WebVR, WebVRSceneMenu, usePanoViewer, type Scene, type WebVRSceneMenuProps } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 const scenes = ${JSON.stringify(menuScenes, null, 2)} satisfies readonly Scene[];
@@ -433,6 +450,19 @@ export function Tour() {
       <WebVR />
       <Scenes scenes={scenes} activeSceneId={activeId} onActiveSceneIdChange={setActiveId} transition="crossfade" />
       <WebVRSceneMenu {...menuSettings} items={items} activeId={activeId} onSelect={setActiveId} />
+      <PanoOverlay>
+        <PanoSceneMenu
+          items={items}
+          activeId={activeId}
+          onSelect={setActiveId}
+          showVisited={menuSettings.showVisited}
+          appearance={{
+            selectionColor: menuSettings.appearance?.selectionColor,
+            focusColor: menuSettings.appearance?.focusColor,
+          }}
+          width="80%"
+        />
+      </PanoOverlay>
     </PanoViewer>
   </>;
 }`}

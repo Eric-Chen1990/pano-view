@@ -1692,10 +1692,28 @@ via `label`. When collapsible, `defaultExpanded` defaults to `true`.
 
 ### Appearance and CSS hooks
 
-Pass `appearance` for common chrome tokens without writing CSS. The active-item
-ring sits above the thumbnail and is controlled by `selectionColor` /
-`selectionWidth` (`selectionWidth: 0` hides it). Scene titles default to start
-alignment; set `labelAlign: "center"` or `"end"` to change that.
+Pass `appearance` for common chrome tokens without writing CSS. The border sits
+inside the thumbnail: `selectionColor` defaults to white for the current scene;
+`focusColor` defaults to `"#7dd3fc"` for mouse hover and keyboard focus, taking
+priority over selection. All three states share `selectionWidth` (default 2px).
+`selectionWidth: 0` hides these borders while retaining the independent keyboard
+focus outline. Scene titles default to start alignment; set `labelAlign: "center"`
+or `"end"` to change that.
+
+Set `showVisited` (default `false`) to show a dark circular check icon in the
+thumbnail's top-right corner, with no visible text. `visitedLabel` (default
+`"Visited"`) customizes only the accessible description. A scene is recorded when
+`Scenes` / `ProjectScenes` first reports it paintable, including the initial and
+current scene; clicks, preloads and failed loads do not count. Both menu types in
+the same `PanoViewer` share this session history, including visits made before
+turning the option on. Collapsing, hiding or remounting a menu and entering/exiting
+VR retain the history. Refreshing or remounting the viewer clears it. Standalone
+menus without a scene-ready source do not generate visits; `activeId` alone does
+not record one.
+
+```tsx
+<PanoSceneMenu items={menuItems} activeId={activeSceneId} onSelect={setActiveSceneId} showVisited />
+```
 
 ```tsx
 <PanoSceneMenu
@@ -1732,7 +1750,8 @@ use `className` / `style` against these stable classes:
 
 The root also exposes `data-placement`, `data-align`, `data-orientation`
 (`horizontal` | `vertical`), `data-expanded`, and `data-collapsible`. The active
-item has `data-active="true"`.
+item has `data-active="true"`; a visited item has `data-visited="true"` when
+`showVisited` is enabled. The badge uses `pano-scene-menu-visited`.
 
 When `collapsible` is set, `toggle` replaces the edge-tab icon or restyles that
 button. Omit `toggle` to keep the default chevron. Pass an element (`<Icon />`)
@@ -3223,12 +3242,15 @@ Items reuse `PanoSceneMenuItem`. Titles default to centered image overlays, wrap
 | `distance`, `scale` | 2 meters, 1; ranges 1.5–3, 0.75–1.25 |
 | `fadeDurationMs` | 200; 0–600ms, respects reduced motion |
 | `showTitles` | `true` |
+| `showVisited`, `visitedLabel` | `false`, `"Visited"`; icon-only visit badge and its accessible description |
 
 Dwell timing inherits `WebVR.cursorDwellMs`. `activeId` owns selection; `onSelect` requests navigation from the host, which retains scene loading/error handling. Dialogs and VR Setup temporarily hide the menu. Empty lists render nothing; a single scene disables previous/next navigation.
 
-The bounded `appearance` interface includes `controlColor` (white), `controlBackground` (`transparent`), `controlOpacity` (0.75, range 0–1), `selectionColor` (white), `focusColor` (`#7dd3fc`), `borderRadius` (8, range 0–48), `labelColor` (white), `labelBackground` (`transparent`), `fontSize` (28, range 16–48), and `labelPlacement` (`"center"` or `"bottom"`). Scene outlines meet the thumbnail edge from the outside, with no checkmark. The current scene uses `selectionColor`; gaze and keyboard focus use `focusColor`, taking priority on the current scene. Sizes use reference-canvas pixels and follow the overall scale. Exports include `WebVRSceneMenuProps`, `WebVRSceneMenuAppearance`, and `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`.
+The bounded `appearance` interface includes `controlColor` (white), `controlBackground` (`transparent`), `controlOpacity` (0.75, range 0–1), `selectionColor` (white), `focusColor` (`#7dd3fc`), `selectionWidth` (4, range 0–8), `borderRadius` (8, range 0–48), `labelColor` (white), `labelBackground` (`transparent`), `fontSize` (28, range 16–48), and `labelPlacement` (`"center"` or `"bottom"`). Scene outlines meet the thumbnail edge from the outside. Selected, gaze and keyboard-focus borders share `selectionWidth`; zero hides them while retaining a separate keyboard-focus indicator. The optional visited check icon is independent of selection and remains visible at zero border width. The current scene uses `selectionColor`; gaze and keyboard focus use `focusColor`, taking priority on the current scene. Sizes use reference-canvas pixels and follow the overall scale. Exports include `WebVRSceneMenuProps`, `WebVRSceneMenuAppearance`, and `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`.
 
-The `/webvr` example teaches VR entry, exit, capability events and gaze activation. `/vr-scene-menu` includes behavior, layout and appearance controls, editable scene titles, a 25-scene pagination fixture and reset. `/spatial-controls` teaches media, model and scrolling targets; `/immersive-tour` combines them. Settings live in page state only.
+`showVisited` and `visitedLabel` follow the same session and scene-ready rules as `PanoSceneMenu` above. The badge remains visible when `showTitles={false}` or a thumbnail fails to load. Dialogs, VR Setup, pagination and VR re-entry preserve the shared viewer history.
+
+The `/webvr` example teaches VR entry, exit, capability events and gaze activation. `/vr-scene-menu` includes behavior, layout and appearance controls, editable scene titles, a 25-scene pagination fixture, reset, and a regular scene menu for checking shared visit history across VR entry/exit. `/spatial-controls` teaches media, model and scrolling targets; `/immersive-tour` combines them. Settings live in page state only.
 
 The floating navigation is a compact button group with equal-height icons, transparent backgrounds and subtle shadows for contrast against the panorama.
 

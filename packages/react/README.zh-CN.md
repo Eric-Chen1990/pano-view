@@ -1540,7 +1540,13 @@ export function Tour() {
 
 ### 外观与样式钩子
 
-常用外观可用 `appearance`，不必手写 CSS。当前项边框叠在缩略图上方，可用 `selectionColor` / `selectionWidth` 调节（`selectionWidth: 0` 隐藏）；场景名默认左对齐，设 `labelAlign: "center"` 或 `"end"` 可改对齐。
+常用外观可用 `appearance`，不必手写 CSS。场景边框位于缩略图内侧：当前场景使用 `selectionColor`（默认白色），鼠标悬停和键盘焦点使用 `focusColor`（默认 `"#7dd3fc"`），交互颜色优先于选中颜色。三种状态共用 `selectionWidth`（默认 2px）；设为 `0` 隐藏这些边框，但保留独立的键盘焦点提示。场景名默认左对齐，设 `labelAlign: "center"` 或 `"end"` 可改对齐。
+
+设置 `showVisited`（默认 `false`）后，已浏览场景的缩略图右上角显示深色圆底的勾选图标，不增加可见文字。`visitedLabel`（默认 `"Visited"`）只用于无障碍描述。`Scenes` / `ProjectScenes` 在场景首次可显示时记录，包括首个场景和当前场景；点击、预加载及加载失败不计入。同一 `PanoViewer` 内的普通和 VR 菜单共享本次会话记录，也包含启用开关前浏览过的场景。收起、隐藏、重新挂载菜单或进出 VR 均保留记录；刷新或重新挂载查看器后清空。独立菜单没有场景就绪来源时不会产生记录，单独改变 `activeId` 不会标记已浏览。
+
+```tsx
+<PanoSceneMenu items={menuItems} activeId={activeSceneId} onSelect={setActiveSceneId} showVisited visitedLabel="已浏览" />
+```
 
 ```tsx
 <PanoSceneMenu
@@ -1573,7 +1579,7 @@ export function Tour() {
 - `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
 - `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
 
-根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
+根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。启用 `showVisited` 时，已浏览项带 `data-visited="true"`，图标类名为 `pano-scene-menu-visited`。
 
 `collapsible` 时，边缘拉手可用 `toggle` 换图标或改样式。省略 `toggle` 时仍是默认箭头。`icon` 传元素（`<Icon />`），不要传组件类型。图标要随收起状态变化时传函数，参数为 `{ collapsed }`（菜单展开时 `collapsed` 为 `false`）。`className` 追加到按钮上。`style` 覆盖背景、边框、颜色和尺寸；位置和 `transform` 由贴边布局负责，不要在 `style` 里改。默认箭头使用 `currentColor`，只改 `style.color` 就会变色。
 
@@ -2751,12 +2757,15 @@ viewLimits: {
 | `distance`、`scale` | 2 米、1；范围 1.5–3、0.75–1.25 |
 | `fadeDurationMs` | 200；0–600ms，尊重减少动态效果设置 |
 | `showTitles` | `true` |
+| `showVisited`、`visitedLabel` | `false`、`"Visited"`；已浏览图标及其无障碍描述 |
 
 凝视时间沿用 `WebVR.cursorDwellMs`。`activeId` 是选中状态来源，`onSelect` 请求宿主切换场景；场景加载和错误处理仍由宿主负责。弹窗或 VR Setup 打开时暂时隐藏此组件。无场景时隐藏，单场景时禁用左右导航。
 
-`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘，不显示对号。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
+`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`selectionWidth`（4，范围 0–8）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘。选中、凝视和键盘焦点共用 `selectionWidth`；设为零时隐藏这些边框，但保留独立的键盘焦点提示。可选的已浏览勾选图标与选中状态独立，边框宽度为零时仍显示。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
 
-`/webvr` 示例讲解 VR 进入、退出、能力事件与凝视激活。`/vr-scene-menu` 提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示和恢复默认；`/spatial-controls` 分别讲解媒体、模型及滚动控件，`/immersive-tour` 展示完整组合。设置仅保存在当前页面状态中。
+`showVisited` 和 `visitedLabel` 沿用上述 `PanoSceneMenu` 的会话及场景就绪规则。隐藏标题（`showTitles={false}`）或缩略图加载失败时，已浏览图标仍显示；弹窗、VR Setup、翻页和重新进入 VR 均保留查看器共享记录。
+
+`/webvr` 示例讲解 VR 进入、退出、能力事件与凝视激活。`/vr-scene-menu` 提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示、恢复默认，以及用于验证进出 VR 后共享浏览记录的普通菜单；`/spatial-controls` 分别讲解媒体、模型及滚动控件，`/immersive-tour` 展示完整组合。设置仅保存在当前页面状态中。
 
 悬浮导航作为紧凑的整体按钮组呈现，默认仅显示等高图标，以轻微阴影增强场景中的辨识度。
 

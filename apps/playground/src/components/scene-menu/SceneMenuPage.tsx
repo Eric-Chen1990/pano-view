@@ -50,6 +50,10 @@ function buildSceneMenuSnippet(options: {
   axis: PanoOverlayAxis;
   collapsible: boolean;
   showArrows: boolean;
+  showVisited: boolean;
+  selectionWidth: number;
+  selectionColor: string;
+  focusColor: string;
   loop: boolean;
   dragMotionEnabled: boolean;
   labelAlign: PanoSceneMenuLabelAlign;
@@ -60,6 +64,10 @@ function buildSceneMenuSnippet(options: {
     axis,
     collapsible,
     showArrows,
+    showVisited,
+    selectionWidth,
+    selectionColor,
+    focusColor,
     loop,
     dragMotionEnabled,
     labelAlign,
@@ -83,6 +91,7 @@ function buildSceneMenuSnippet(options: {
   const optionalProps = [
     collapsible ? "      collapsible" : null,
     showArrows ? "      showArrows" : null,
+    showVisited ? "      showVisited" : null,
     loop ? "      loop" : null,
     dragMotionEnabled ? null : "      dragMotion={false}",
   ]
@@ -118,8 +127,9 @@ ${anchorLines}
       }}
       appearance={{
         labelAlign: "${labelAlign}",
-        selectionColor: "#7dd3fc",
-        selectionWidth: 3,
+        selectionColor: "${selectionColor}",
+        focusColor: "${focusColor}",
+        selectionWidth: ${selectionWidth},
       }}
 ${optionalProps ? `${optionalProps}\n` : ""}${
     customToggle
@@ -147,6 +157,10 @@ export function SceneMenuPage() {
   const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
   const [collapsible, setCollapsible] = useState(true);
   const [showArrows, setShowArrows] = useState(true);
+  const [showVisited, setShowVisited] = useState(false);
+  const [selectionWidth, setSelectionWidth] = useState(3);
+  const [selectionColor, setSelectionColor] = useState("#7dd3fc");
+  const [focusColor, setFocusColor] = useState("#ffffff");
   const [loop, setLoop] = useState(true);
   const [dragMotionEnabled, setDragMotionEnabled] = useState(true);
   const [labelAlign, setLabelAlign] =
@@ -185,6 +199,10 @@ export function SceneMenuPage() {
         axis,
         collapsible,
         showArrows,
+        showVisited,
+        selectionWidth,
+        selectionColor,
+        focusColor,
         loop,
         dragMotionEnabled,
         labelAlign,
@@ -199,6 +217,10 @@ export function SceneMenuPage() {
       labelAlign,
       loop,
       showArrows,
+      showVisited,
+      selectionWidth,
+      selectionColor,
+      focusColor,
     ],
   );
 
@@ -352,6 +374,17 @@ export function SceneMenuPage() {
                 <button
                   className={cn(
                     segmentedButtonClassName,
+                    showVisited && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={showVisited}
+                  onClick={() => setShowVisited((value) => !value)}
+                  type="button"
+                >
+                  Show visited
+                </button>
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
                     loop && segmentedButtonActiveClassName,
                   )}
                   aria-pressed={loop}
@@ -406,6 +439,37 @@ export function SceneMenuPage() {
               </div>
             </div>
           </div>
+          <div className={pageControlsClassName}>
+            <label className={controlLabelClassName}>
+              Border width
+              <input
+                className="w-20 border border-line p-1"
+                type="number"
+                min="0"
+                step="1"
+                value={selectionWidth}
+                onChange={(event) =>
+                  setSelectionWidth(Math.max(0, Number(event.target.value)))
+                }
+              />
+            </label>
+            <label className={controlLabelClassName}>
+              Selection color
+              <input
+                type="color"
+                value={selectionColor}
+                onChange={(event) => setSelectionColor(event.target.value)}
+              />
+            </label>
+            <label className={controlLabelClassName}>
+              Hover / focus color
+              <input
+                type="color"
+                value={focusColor}
+                onChange={(event) => setFocusColor(event.target.value)}
+              />
+            </label>
+          </div>
         </details>
         <div className="bg-[#020607] p-0">
           <PanoViewer
@@ -430,8 +494,9 @@ export function SceneMenuPage() {
                 }}
                 appearance={{
                   labelAlign,
-                  selectionColor: "#7dd3fc",
-                  selectionWidth: 3,
+                  selectionColor,
+                  focusColor,
+                  selectionWidth,
                 }}
                 collapsible={collapsible}
                 dragMotion={dragMotionEnabled ? undefined : false}
@@ -443,6 +508,7 @@ export function SceneMenuPage() {
                   setStatus(`Selected ${id}.`);
                 }}
                 showArrows={showArrows}
+                showVisited={showVisited}
                 toggle={
                   customToggle
                     ? {

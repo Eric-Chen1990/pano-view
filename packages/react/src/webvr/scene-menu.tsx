@@ -22,6 +22,7 @@ import {
   Vector3,
 } from "three";
 import type { PanoSceneMenuItem } from "../pano-scene-menu";
+import { useVisitedSceneIds } from "../scenes-host";
 import { SpatialHostContext } from "../spatial/host";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
 import type { GazeAction } from "../spatial/gaze-action";
@@ -44,6 +45,8 @@ export type WebVRSceneMenuAppearance = {
   controlOpacity?: number;
   selectionColor?: string;
   focusColor?: string;
+  /** Shared selected/gaze/focus outline width in reference pixels. Defaults to 4; range 0–8. */
+  selectionWidth?: number;
   borderRadius?: number;
   labelColor?: string;
   labelBackground?: string;
@@ -57,6 +60,7 @@ export const DEFAULT_WEBVR_SCENE_MENU_APPEARANCE: Required<WebVRSceneMenuAppeara
     controlOpacity: 0.75,
     selectionColor: "#ffffff",
     focusColor: "#7dd3fc",
+    selectionWidth: 4,
     borderRadius: 8,
     labelColor: "#ffffff",
     labelBackground: "transparent",
@@ -67,6 +71,10 @@ export type WebVRSceneMenuProps = {
   items: readonly PanoSceneMenuItem[];
   activeId?: string | null;
   onSelect?: (id: string) => void;
+  /** Show an icon for scenes successfully displayed by this viewer. Defaults to false. */
+  showVisited?: boolean;
+  /** Accessible description for visited scenes; never rendered as visible text. */
+  visitedLabel?: string;
   /** Defaults to the original compact curved grid. */
   layout?: "compact" | "flat" | "arc";
   /** All mode grows the row count and ignores rows. Defaults to paged. */
@@ -120,6 +128,8 @@ function MenuSurface({
   items,
   activeId,
   onSelect,
+  showVisited = false,
+  visitedLabel = "Visited",
   layout = "compact",
   displayMode = "paged",
   arcAngle,
@@ -135,6 +145,7 @@ function MenuSurface({
   showTitles = true,
   appearance,
 }: WebVRSceneMenuProps) {
+  const visitedSceneIds = useVisitedSceneIds(showVisited);
   const { camera, gl } = useThree();
   const spatial = useContext(SpatialHostContext)!;
   const all = displayMode === "all";
@@ -205,6 +216,7 @@ function MenuSurface({
   a.fontSize = bounded(a.fontSize, 28, 16, 48);
   a.borderRadius = bounded(a.borderRadius, 8, 0, 48);
   a.controlOpacity = bounded(a.controlOpacity, 0.75, 0, 1);
+  a.selectionWidth = bounded(a.selectionWidth, 4, 0, 8);
   const rowHeight = ((W / cols - 16) * 9) / 16 + 16;
   const gridHeight = open ? Math.ceil(rowCount * rowHeight) : 0;
   const controls = sceneMenuControlLayout(W, gridHeight, open, all);
@@ -713,14 +725,16 @@ function MenuSurface({
       };
       for (const t of targets) {
         const focused = t.id === s.focus;
+        const outlineMargin = Math.max(5, a.selectionWidth);
         if (
-          t.x + t.w + 5 < atlasX ||
-          t.x - 5 > atlasX + atlasWidth ||
-          t.y + t.h + 5 < atlasY ||
-          t.y - 5 > atlasY + atlasHeight
+          t.x + t.w + outlineMargin < atlasX ||
+          t.x - outlineMargin > atlasX + atlasWidth ||
+          t.y + t.h + outlineMargin < atlasY ||
+          t.y - outlineMargin > atlasY + atlasHeight
         )
           continue;
         const item = open ? visibleByTarget.get(t.id) : undefined;
+        const visited = item !== undefined && visitedSceneIds.has(item.id);
         ctx.save();
         ctx.globalAlpha = t.disabled
           ? 0.22
@@ -754,7 +768,7 @@ function MenuSurface({
             ctx.font = `${a.fontSize}px sans-serif`;
             const lines = wrapSceneTitle(
               t.label,
-              t.w - 24,
+              t.w - 24 - (visited ? 40 : 0),
               (text) => ctx.measureText(text).width
             );
             const lineHeight = a.fontSize * 1.15,
@@ -773,9 +787,36 @@ function MenuSurface({
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             lines.forEach((line, i) =>
-              ctx.fillText(line, t.x + t.w / 2, y + 5 + lineHeight * (i + 0.5))
+              ctx.fillText(
+                line,
+                t.x + (t.w - (visited ? 40 : 0)) / 2,
+                y + 5 + lineHeight * (i + 0.5)
+              )
             );
             ctx.restore();
+          }
+          if (visited) {
+            ctx.save();
+            ctx.translate(t.x + t.w - 40, t.y + 8);
+            ctx.fillStyle = "rgba(0,0,0,0.78)";
+            ctx.beginPath();
+            ctx.arc(16, 16, 16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(8, 16);
+            ctx.lineTo(13, 21);
+            ctx.lineTo(24, 10);
+            ctx.stroke();
+            ctx.restore();
+          }
+          if (focused && c.keyboardFocus === t.id && a.selectionWidth === 0) {
+            ctx.strokeStyle = a.focusColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(t.x + 2, t.y + 2, t.w - 4, t.h - 4);
           }
         } else {
           ctx.fillStyle = a.controlColor;
@@ -794,19 +835,24 @@ function MenuSurface({
           ctx.strokeRect(t.x + 2, t.y + 2, t.w - 4, t.h - 4);
         }
         ctx.restore();
-        if (item && (focused || item.id === activeId || item.id === s.selected)) {
+        if (
+          item &&
+          a.selectionWidth > 0 &&
+          (focused || item.id === activeId || item.id === s.selected)
+        ) {
           // The inner stroke edge meets the thumbnail without covering it.
+          const halfWidth = a.selectionWidth / 2;
           ctx.save();
           ctx.beginPath();
           ctx.roundRect(
-            t.x - 2,
-            t.y - 2,
-            t.w + 4,
-            t.h + 4,
-            a.borderRadius + 2
+            t.x - halfWidth,
+            t.y - halfWidth,
+            t.w + a.selectionWidth,
+            t.h + a.selectionWidth,
+            a.borderRadius + halfWidth
           );
           ctx.strokeStyle = focused ? a.focusColor : a.selectionColor;
-          ctx.lineWidth = 4;
+          ctx.lineWidth = a.selectionWidth;
           ctx.stroke();
           ctx.restore();
         }
@@ -850,6 +896,11 @@ function MenuSurface({
             className="pano-sr-only"
             disabled={t.disabled || state.current.closing}
             aria-label={t.label}
+            aria-description={
+              visitedSceneIds.has(visibleByTarget.get(t.id)?.id ?? "")
+                ? visitedLabel
+                : undefined
+            }
             aria-current={
               open && t.id === `grid:${epoch}:${activeId}` ? "true" : undefined
             }

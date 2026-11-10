@@ -14,6 +14,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { cn } from "./cn";
+import { useVisitedSceneIds } from "./scenes-host";
 import {
   constrainDragPosition,
   integrateAxis,
@@ -53,6 +54,9 @@ export type PanoSceneMenuAppearance = {
   gap?: number | string;
   borderRadius?: number | string;
   selectionColor?: string;
+  /** Hover and keyboard-focus border color. Defaults to `"#7dd3fc"`. */
+  focusColor?: string;
+  /** Shared active/hover/focus border width in pixels. Defaults to 2. */
   selectionWidth?: number;
   labelBackground?: string;
   labelColor?: string;
@@ -67,6 +71,10 @@ export type PanoSceneMenuProps = {
   items: readonly PanoSceneMenuItem[];
   activeId?: string | null;
   onSelect?: (id: string) => void;
+  /** Show an icon for scenes successfully displayed by this viewer. Defaults to false. */
+  showVisited?: boolean;
+  /** Accessible description for visited scenes; never rendered as visible text. */
+  visitedLabel?: string;
   /**
    * Screen anchor. Defaults to bottom, centered on that edge, with a 12px inset.
    * Corner `axis` chooses a horizontal or vertical strip.
@@ -121,6 +129,7 @@ export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: Required<PanoSceneMenuAppearanc
     gap: 8,
     borderRadius: 8,
     selectionColor: "#ffffff",
+    focusColor: "#7dd3fc",
     selectionWidth: 2,
     labelBackground: "rgba(0, 0, 0, 0.55)",
     labelColor: "#ffffff",
@@ -220,6 +229,8 @@ export function PanoSceneMenu({
   items,
   activeId = null,
   onSelect,
+  showVisited = false,
+  visitedLabel = "Visited",
   anchor,
   width,
   height,
@@ -240,6 +251,7 @@ export function PanoSceneMenu({
   collapseLabel = "Hide scenes",
   toggle,
 }: PanoSceneMenuProps) {
+  const visitedSceneIds = useVisitedSceneIds(showVisited);
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -445,6 +457,7 @@ export function PanoSceneMenu({
       "--pano-scene-menu-gap": cssLength(resolved.gap),
       "--pano-scene-menu-radius": cssLength(resolved.borderRadius),
       "--pano-scene-menu-selection-color": resolved.selectionColor,
+      "--pano-scene-menu-focus-color": resolved.focusColor,
       "--pano-scene-menu-selection-width": cssLength(resolved.selectionWidth),
       "--pano-scene-menu-label-background": resolved.labelBackground,
       "--pano-scene-menu-label-color": resolved.labelColor,
@@ -756,11 +769,14 @@ export function PanoSceneMenu({
             {items.map((item) => {
               const name = itemLabel(item);
               const selected = item.id === activeId;
+              const visited = visitedSceneIds.has(item.id);
               return (
                 <button
                   aria-checked={selected}
+                  aria-description={visited ? visitedLabel : undefined}
                   className="pano-scene-menu-item"
                   data-active={selected ? "true" : undefined}
+                  data-visited={visited ? "true" : undefined}
                   key={item.id}
                   onClick={(event) => onItemClick(event, item.id)}
                   onPointerDown={(event) => {
@@ -794,6 +810,23 @@ export function PanoSceneMenu({
                       src={item.thumbnailUrl}
                     />
                     <span className="pano-scene-menu-label">{name}</span>
+                    {visited ? (
+                      <svg
+                        aria-hidden="true"
+                        className="pano-scene-menu-visited"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle cx="12" cy="12" r="12" fill="rgba(0, 0, 0, 0.78)" />
+                        <path
+                          d="m6.5 12 3.5 3.5 7.5-7.5"
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
                   </span>
                 </button>
               );

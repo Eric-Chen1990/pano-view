@@ -997,6 +997,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         </div>
         <SpatialHostContext.Provider value={spatialHost}>
+        <ScenesHostContext.Provider value={scenesHost}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
@@ -1017,6 +1018,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </ScenesHostContext.Provider>
         </SpatialHostContext.Provider>
       </div>
     );

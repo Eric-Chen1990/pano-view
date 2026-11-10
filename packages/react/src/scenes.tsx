@@ -36,6 +36,7 @@ import {
   type SceneRuntimePhase,
 } from "./scene-transition-policy";
 import {
+  markSceneVisited,
   notifyScenesHost,
   ScenesHostContext,
   type ScenesController,
@@ -303,6 +304,7 @@ function ScenesController({
   phaseRef: externalPhaseRef,
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
+  const scenesHost = useContext(ScenesHostContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
     () => resolveTransition(transitionInput),
@@ -450,8 +452,9 @@ function ScenesController({
     if (!scene || readySceneRef.current === scene) return;
     readySceneRef.current = scene;
     controlsRef?.current?.setSceneViewLimits(sceneMap.get(scene.id)?.viewLimits);
+    if (scenesHost) markSceneVisited(scenesHost, scene.id);
     onSceneReady?.(scene.id);
-  }, [controlsRef, onSceneReady, sceneMap]);
+  }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
 
   const handleReady = useCallback((slot: number) => {
     if (slot === liveSlotRef.current && pendingSlot === null && phaseRef.current === "idle") {
