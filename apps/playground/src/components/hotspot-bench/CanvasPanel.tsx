@@ -1,26 +1,16 @@
 import {
-  AutoRotate,
-  Gyro,
   PanoViewer,
   Sphere,
   Tile,
-  type GyroHandle,
   usePanoViewer,
 } from "@ericchen1990/pano-view";
-import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../cn";
-import { Metric } from "../Metric";
 import { INITIAL_VIEW } from "../../constants";
 import {
   segmentedButtonClassName,
   segmentedControlClassName,
   segmentedControlOptionClassName,
-  toggleControlClassName,
-  toggleThumbClassName,
-  toggleThumbOnClassName,
-  toggleTrackClassName,
-  toggleTrackOnClassName,
 } from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
@@ -37,45 +27,11 @@ const PLACING_CURSORS = {
   dragging: "crosshair",
 } as const;
 
-function ToolbarSwitch({
-  checked,
-  label,
-  onClick,
-}: {
-  checked: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-checked={checked}
-      className={toggleControlClassName}
-      onClick={onClick}
-      role="switch"
-      type="button"
-    >
-      {label}
-      <span
-        aria-hidden="true"
-        className={cn(toggleTrackClassName, checked && toggleTrackOnClassName)}
-      >
-        <span className={cn(toggleThumbClassName, checked && toggleThumbOnClassName)} />
-      </span>
-    </button>
-  );
-}
-
 export function CanvasPanel() {
   const viewer = usePanoViewer();
-  const gyroRef = useRef<GyroHandle>(null);
-  const [gyroEnabled, setGyroEnabled] = useState(false);
+  const selectPreset = useHotspotBenchStore((state) => state.selectPreset);
   const {
     mode,
-    view,
-    level,
-    progress,
-    tileErrors,
-    autoRotate,
     placementTool,
     drawingPath,
     drawingPolygon,
@@ -84,12 +40,6 @@ export function CanvasPanel() {
     draftPolygonFilled,
     lastAction,
     selectMode,
-    toggleAutoRotate,
-    setView,
-    setLastAction,
-    setLevel,
-    setProgress,
-    incrementTileErrors,
     addHotspot,
     finishPolygonDraft,
     cancelPolygonDraft,
@@ -97,11 +47,6 @@ export function CanvasPanel() {
   } = useHotspotBenchStore(
     useShallow((state) => ({
       mode: state.mode,
-      view: state.view,
-      level: state.level,
-      progress: state.progress,
-      tileErrors: state.tileErrors,
-      autoRotate: state.autoRotate,
       placementTool: selectPlacementTool(state),
       drawingPath: selectDrawingPath(state),
       drawingPolygon: selectDrawingPolygon(state),
@@ -110,12 +55,6 @@ export function CanvasPanel() {
       draftPolygonFilled: state.draftPolygonFilled,
       lastAction: state.lastAction,
       selectMode: state.selectMode,
-      toggleAutoRotate: state.toggleAutoRotate,
-      setView: state.setView,
-      setLastAction: state.setLastAction,
-      setLevel: state.setLevel,
-      setProgress: state.setProgress,
-      incrementTileErrors: state.incrementTileErrors,
       addHotspot: state.addHotspot,
       finishPolygonDraft: state.finishPolygonDraft,
       cancelPolygonDraft: state.cancelPolygonDraft,
@@ -125,6 +64,44 @@ export function CanvasPanel() {
 
   return (
     <section aria-label="Panorama canvas" className="min-w-0 bg-[#071316]/80">
+      <div
+        className="flex flex-wrap gap-2 border-b border-line p-4"
+        role="group"
+        aria-label="Hotspot presets"
+      >
+        {(
+          [
+            "image",
+            "graphic",
+            "sequence",
+            "video",
+            "audio",
+            "text",
+            "iframe",
+            "polygon",
+            "polyline",
+          ] as const
+        ).map((type) => (
+          <button
+            type="button"
+            className={segmentedButtonClassName}
+            key={type}
+            onClick={() => {
+              const id = selectPreset(type);
+              if (!id) return;
+              const state = useHotspotBenchStore.getState();
+              const point = state.hotspots.find((entry) => entry.id === id);
+              const path =
+                state.polygons.find((entry) => entry.id === id) ??
+                state.polylines.find((entry) => entry.id === id);
+              const position = point?.position ?? path?.vertices[0];
+              if (position) void viewer.lookTo(position, { fov: 75 });
+            }}
+          >
+            {type.charAt(0).toUpperCase() + type.slice(1)} preset
+          </button>
+        ))}
+      </div>
       <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
         <div
           aria-label="Panorama source"
@@ -169,61 +146,6 @@ export function CanvasPanel() {
           className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-2"
           role="group"
         >
-          <ToolbarSwitch
-            checked={autoRotate}
-            label="Auto rotate"
-            onClick={toggleAutoRotate}
-          />
-          <ToolbarSwitch
-            checked={gyroEnabled}
-            label="Gyro"
-            onClick={() => {
-              if (gyroEnabled) {
-                setGyroEnabled(false);
-                return;
-              }
-              if (!window.isSecureContext) {
-                window.alert(
-                  "Gyro requires HTTPS. Open this playground over a secure connection and try again.",
-                );
-                return;
-              }
-              void gyroRef.current
-                ?.requestPermission()
-                .then((granted) => setGyroEnabled(granted));
-            }}
-          />
-          <button
-            className={segmentedButtonClassName}
-            onClick={() => viewer.reset()}
-            type="button"
-          >
-            Reset view
-          </button>
-          <button
-            className={segmentedButtonClassName}
-            onClick={() => {
-              setLastAction("Navigating to visitor guide…");
-              void viewer
-                .lookToHotspot("visitor-guide", { fov: 55 })
-                .then(({ status }) => setLastAction(`Visitor guide navigation ${status}.`));
-            }}
-            type="button"
-          >
-            Look to hotspot
-          </button>
-          <button
-            className={segmentedButtonClassName}
-            onClick={() => {
-              setLastAction("Navigating to the north view…");
-              void viewer
-                .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
-                .then(({ status }) => setLastAction(`North view navigation ${status}.`));
-            }}
-            type="button"
-          >
-            Look north
-          </button>
           <button
             className={segmentedButtonClassName}
             onClick={() => void viewer.toggleFullscreen()}
@@ -255,7 +177,11 @@ export function CanvasPanel() {
             >
               {drawingPolyline ? "Finish polyline" : "Finish polygon"}
             </button>
-            <button className={segmentedButtonClassName} onClick={cancelPolygonDraft} type="button">
+            <button
+              className={segmentedButtonClassName}
+              onClick={cancelPolygonDraft}
+              type="button"
+            >
               Cancel
             </button>
           </div>
@@ -273,7 +199,10 @@ export function CanvasPanel() {
           key={mode}
           ref={viewer.ref}
           aria-label={`${mode} panorama hotspot editor`}
-          className={cn("h-full w-full", (placementTool || drawingPath) && "cursor-crosshair")}
+          className={cn(
+            "h-full w-full",
+            (placementTool || drawingPath) && "cursor-crosshair",
+          )}
           controls={placementTool || drawingPath ? false : VIEWER_CONTROLS}
           cursors={placementTool || drawingPath ? PLACING_CURSORS : undefined}
           initialView={INITIAL_VIEW}
@@ -281,19 +210,7 @@ export function CanvasPanel() {
           onPanoramaDoubleClick={() => {
             if (drawingPath) finishPolygonDraft();
           }}
-          onViewChange={setView}
         >
-          <AutoRotate
-            enabled={autoRotate && !placementTool && !drawingPath}
-            speed={18}
-            acceleration={18}
-            startDelay={1_000}
-          />
-          <Gyro
-            ref={gyroRef}
-            enabled={gyroEnabled && !placementTool && !drawingPath}
-            onDenied={() => setGyroEnabled(false)}
-          />
           {mode === "sphere" ? (
             <Sphere
               src="/fixtures/panorama/panos/1/sphere.webp"
@@ -305,9 +222,6 @@ export function CanvasPanel() {
               multires="512,1000,2000"
               urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
               previewUrl="previews/cube-vertical.webp"
-              onLevelChange={setLevel}
-              onLoadProgress={setProgress}
-              onTileError={incrementTileErrors}
             />
           )}
           <HotspotLayer />
@@ -319,22 +233,6 @@ export function CanvasPanel() {
           {lastAction}
         </p>
       </div>
-
-      <dl
-        aria-label="Viewer state"
-        className="m-0 grid grid-cols-7 border-t border-[#27454d] max-[760px]:grid-cols-4"
-      >
-        <Metric label="SOURCE" value={mode === "sphere" ? "2:1 SPHERE" : "CUBE TILE"} />
-        <Metric label="YAW" value={`${view.yaw.toFixed(1)}°`} />
-        <Metric label="PITCH" value={`${view.pitch.toFixed(1)}°`} />
-        <Metric label="FOV" value={`${view.fov.toFixed(1)}°`} />
-        <Metric label="LOD" value={mode === "tile" ? `L${level}` : "—"} />
-        <Metric
-          label="TILES"
-          value={mode === "tile" ? `${progress.loaded}/${progress.requested}` : "—"}
-        />
-        <Metric label="ERRORS" value={mode === "tile" ? String(tileErrors) : "—"} />
-      </dl>
     </section>
   );
 }

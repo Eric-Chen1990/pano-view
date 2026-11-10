@@ -51,7 +51,7 @@ export function PanoramaMovieControls({
   const controller = useSyncExternalStore(
     viewer.subscribeVideo,
     viewer.getVideo,
-    () => null
+    () => null,
   );
   return (
     <PanoSpatialControls>

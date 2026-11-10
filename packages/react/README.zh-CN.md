@@ -2756,10 +2756,10 @@ viewLimits: {
 
 `appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
 
-WebVR 示例提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示和恢复默认。设置仅保存在当前页面状态中。
+`/webvr` 示例讲解 VR 进入、退出、能力事件与凝视激活。`/vr-scene-menu` 提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示和恢复默认；`/spatial-controls` 分别讲解媒体、模型及滚动控件，`/immersive-tour` 展示完整组合。设置仅保存在当前页面状态中。
 
 悬浮导航作为紧凑的整体按钮组呈现，默认仅显示等高图标，以轻微阴影增强场景中的辨识度。
 
-平面墙与环绕画廊使用有界分块图集。全部模式保留卡片尺寸并扩展墙面；大列表可能需要更多转头浏览。打开时以当前水平朝向为中心，展开后不跟随转头，但随用户平移。新布局的关闭和翻页按钮始终位于正前方独立控制区。Playground 支持切换布局、全部／分页和环绕角度；列数留空使用自动值。
+平面墙与环绕画廊使用有界分块图集。全部模式保留卡片尺寸并扩展墙面；大列表可能需要更多转头浏览。打开时以当前水平朝向为中心，展开后不跟随转头，但随用户平移。新布局的关闭和翻页按钮始终位于正前方独立控制区。`/vr-scene-menu` 支持切换布局、全部／分页和环绕角度；列数留空使用自动值。
 
 VR 场景标题默认不带背景，并带有轻微黑色文字阴影。菜单纹理以 2 倍分辨率绘制，使用 mipmap 与各向异性过滤；布局和命中区域保持不变。

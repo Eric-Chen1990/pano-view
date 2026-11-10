@@ -30,7 +30,7 @@ export const pageControlsClassName =
 const segmentedButtonLayoutClassName =
   "inline-flex min-h-9 items-center justify-center border border-[#3e6c73] px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
 
-export const segmentedButtonClassName = `${segmentedButtonLayoutClassName} bg-transparent`;
+export const segmentedButtonClassName = `${segmentedButtonLayoutClassName} bg-transparent aria-pressed:border-brand aria-pressed:bg-brand`;
 
 export const viewerChromeButtonClassName = `${segmentedButtonLayoutClassName} bg-[#081619]/75`;
 

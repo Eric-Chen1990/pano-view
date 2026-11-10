@@ -29,7 +29,10 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const SCENE_MENU_TITLES: Record<(typeof TRANSITION_SCENES)[number]["id"], string> = {
+const SCENE_MENU_TITLES: Record<
+  (typeof TRANSITION_SCENES)[number]["id"],
+  string
+> = {
   "sphere-1": "Sphere 1",
   "sphere-2": "Sphere 2",
   "tile-3": "Cube 3",
@@ -118,7 +121,9 @@ ${anchorLines}
         selectionColor: "#7dd3fc",
         selectionWidth: 3,
       }}
-${optionalProps ? `${optionalProps}\n` : ""}${customToggle ? `      toggle={{
+${optionalProps ? `${optionalProps}\n` : ""}${
+    customToggle
+      ? `      toggle={{
         style: {
           background: "#0c4a6e",
           color: "#7dd3fc",
@@ -126,7 +131,9 @@ ${optionalProps ? `${optionalProps}\n` : ""}${customToggle ? `      toggle={{
         },
         icon: ({ collapsed }) => (collapsed ? "+" : "–"),
       }}
-` : ""}      items={sceneMenuItems}
+`
+      : ""
+  }      items={sceneMenuItems}
       onSelect={setActiveSceneId}
 ${sizeProps}
     />
@@ -228,6 +235,7 @@ export function SceneMenuPage() {
                     segmentedButtonClassName,
                     align === value && segmentedButtonActiveClassName,
                   )}
+                  aria-pressed={align === value}
                   key={value}
                   onClick={() => {
                     setAlign(value);
@@ -254,6 +262,7 @@ export function SceneMenuPage() {
                       segmentedButtonClassName,
                       axis === value && segmentedButtonActiveClassName,
                     )}
+                    aria-pressed={axis === value}
                     key={value}
                     onClick={() => {
                       setAxis(value);
@@ -267,126 +276,137 @@ export function SceneMenuPage() {
               </div>
             </div>
           ) : null}
-          <div className={controlLabelClassName}>
-            Label
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label="Scene title alignment"
-            >
-              {LABEL_ALIGNS.map((value) => (
+        </div>
+        <details className="border-b border-line">
+          <summary className="px-6 py-4">Appearance and behavior</summary>
+          <div className={pageControlsClassName}>
+            <div className={controlLabelClassName}>
+              Label
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Scene title alignment"
+              >
+                {LABEL_ALIGNS.map((value) => (
+                  <button
+                    className={cn(
+                      segmentedButtonClassName,
+                      labelAlign === value && segmentedButtonActiveClassName,
+                    )}
+                    aria-pressed={labelAlign === value}
+                    key={value}
+                    onClick={() => {
+                      setLabelAlign(value);
+                      setStatus(`Title labels ${value}-aligned.`);
+                    }}
+                    type="button"
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className={pageControlsClassName}>
+            <div className={controlLabelClassName}>
+              Chrome
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Scene menu chrome"
+              >
                 <button
                   className={cn(
                     segmentedButtonClassName,
-                    labelAlign === value && segmentedButtonActiveClassName,
+                    collapsible && segmentedButtonActiveClassName,
                   )}
-                  key={value}
+                  aria-pressed={collapsible}
                   onClick={() => {
-                    setLabelAlign(value);
-                    setStatus(`Title labels ${value}-aligned.`);
+                    setCollapsible((value) => !value);
+                    setStatus(
+                      collapsible
+                        ? "Menu stays expanded."
+                        : "Collapse toggle enabled.",
+                    );
                   }}
                   type="button"
                 >
-                  {value}
+                  Collapsible
                 </button>
-              ))}
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
+                    showArrows && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={showArrows}
+                  onClick={() => {
+                    setShowArrows((value) => !value);
+                    setStatus(
+                      showArrows ? "End arrows hidden." : "End arrows shown.",
+                    );
+                  }}
+                  type="button"
+                >
+                  Arrows
+                </button>
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
+                    loop && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={loop}
+                  onClick={() => {
+                    setLoop((value) => !value);
+                    setStatus(
+                      loop
+                        ? "Previous/next stop at the ends."
+                        : "Previous/next wrap around.",
+                    );
+                  }}
+                  type="button"
+                >
+                  Loop
+                </button>
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
+                    dragMotionEnabled && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={dragMotionEnabled}
+                  onClick={() => {
+                    setDragMotionEnabled((value) => !value);
+                    setStatus(
+                      dragMotionEnabled
+                        ? "Native overflow scroll."
+                        : "Custom drag inertia and bounce.",
+                    );
+                  }}
+                  type="button"
+                >
+                  Drag motion
+                </button>
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
+                    customToggle && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={customToggle}
+                  onClick={() => {
+                    setCustomToggle((value) => !value);
+                    setStatus(
+                      customToggle
+                        ? "Default collapse tab."
+                        : "Custom collapse tab icon and color.",
+                    );
+                  }}
+                  type="button"
+                >
+                  Custom toggle
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <div className={pageControlsClassName}>
-          <div className={controlLabelClassName}>
-            Chrome
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label="Scene menu chrome"
-            >
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  collapsible && segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setCollapsible((value) => !value);
-                  setStatus(
-                    collapsible
-                      ? "Menu stays expanded."
-                      : "Collapse toggle enabled.",
-                  );
-                }}
-                type="button"
-              >
-                Collapsible
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  showArrows && segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setShowArrows((value) => !value);
-                  setStatus(
-                    showArrows ? "End arrows hidden." : "End arrows shown.",
-                  );
-                }}
-                type="button"
-              >
-                Arrows
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  loop && segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setLoop((value) => !value);
-                  setStatus(
-                    loop
-                      ? "Previous/next stop at the ends."
-                      : "Previous/next wrap around.",
-                  );
-                }}
-                type="button"
-              >
-                Loop
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  dragMotionEnabled && segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setDragMotionEnabled((value) => !value);
-                  setStatus(
-                    dragMotionEnabled
-                      ? "Native overflow scroll."
-                      : "Custom drag inertia and bounce.",
-                  );
-                }}
-                type="button"
-              >
-                Drag motion
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  customToggle && segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setCustomToggle((value) => !value);
-                  setStatus(
-                    customToggle
-                      ? "Default collapse tab."
-                      : "Custom collapse tab icon and color.",
-                  );
-                }}
-                type="button"
-              >
-                Custom toggle
-              </button>
-            </div>
-          </div>
-        </div>
+        </details>
         <div className="bg-[#020607] p-0">
           <PanoViewer
             aria-label="Panorama scene menu demo"

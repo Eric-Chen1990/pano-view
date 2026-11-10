@@ -8,6 +8,7 @@ import {
 import "@ericchen1990/pano-editor/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { CodeSnippet } from "../CodeSnippet";
+import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
 
@@ -64,7 +65,8 @@ export function EditorPage() {
   return (
     <main className={shellClassName}>
       <SiteHeader />
-      <div className="flex items-center justify-between gap-4 py-5">
+      <h1 className="mb-0 mt-8 text-3xl font-bold">Tour editor</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4 py-5">
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
             ? "Try the sample tour: edit hotspots, test click actions, and reuse shared popup content."
@@ -121,6 +123,7 @@ export function EditorPage() {
           label="PanoEditor"
         />
       </div>
+      <SiteFooter label="@ericchen1990/pano-view · tour editor" />
     </main>
   );
 }

@@ -8,6 +8,10 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器�
 在[在线 Playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) 中试用热点、场景过渡、
 360 视频、WebXR、滤镜与立方体瓦片场景。
 
+## Playground 学习路径
+
+从 `/basics` 的 Sphere / Tile 加载开始，再学习 `/controls` 的视角控制及 `/hotspots` 的九类可编辑热点预设。专题示例包括 `/scene-transitions`、`/scene-menu`、`/map`、`/overlays`、`/context-menu`、`/video`、`/background-audio` 和 `/filters`。沉浸式能力分为 `/webvr`（VR 基础）、`/vr-scene-menu`（菜单配置）和 `/spatial-controls`（媒体、模型与滚动）。最后查看 `/project`（静态 JSON 漫游）、`/immersive-tour`（运行时集成）或 `/editor`（漫游编辑）。Playground 首页列出全部 17 个入口。
+
 ## 目录
 
 - [包](#包)
@@ -72,7 +76,7 @@ const project = await loadPanoProject("/tour/project.json");
 
 优先通过 `PanoOverlay` 在 Three.js 渲染树之外渲染普通 DOM 界面。viewer 提供稳定的本地 Portal 容器、实际可用尺寸和全屏状态；已有 Dialog 可以直接使用该容器。可选默认弹窗从 `@ericchen1990/pano-view/ui` 导入，默认外观单独导入 `@ericchen1990/pano-view/ui/styles.css`。
 
-本地 Playground 的 `/overlays` 展示图文、视频、画册、iframe，以及默认弹窗、组成组件定制和第三方 Dialog 接入。独立的[弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md)提供完整示例、主题变量、组件 API、二级 Portal、焦点和媒体清理说明。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
+本地 Playground 的 `/overlays` 聚焦默认弹窗、组成组件与第三方 Dialog 接入；`/immersive-tour` 组合丰富内容、场景导航和 VR；`/spatial-controls` 分别讲解媒体、模型和滚动控件。独立的[弹窗使用与自定义样式指南](./packages/react/docs/dialogs.zh-CN.md)提供完整示例、主题变量、组件 API、二级 Portal、焦点和媒体清理说明。此能力支持元素全屏；沉浸式 WebXR 与原生视频全屏需使用相应界面。
 
 ## 安装
 

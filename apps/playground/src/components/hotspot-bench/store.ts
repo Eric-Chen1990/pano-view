@@ -3,16 +3,9 @@ import {
   validatePolygonVertices,
   type GraphicDefinition,
   type HotspotPosition,
-  type PanoViewerState,
-  type TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import { create } from "zustand";
-import {
-  DEMO_HOTSPOTS,
-  INITIAL_PROGRESS,
-  INITIAL_VIEW,
-  SEQUENCE_SPRITE,
-} from "../../constants";
+import { DEMO_HOTSPOTS, SEQUENCE_SPRITE } from "../../constants";
 import type {
   EditorHotspot,
   EditorPolygon,
@@ -32,7 +25,9 @@ import {
   withoutTrailingDuplicate,
 } from "../../utils";
 
-export type HotspotPatch = Partial<Omit<EditorHotspot, "id" | "type" | "graphic">>;
+export type HotspotPatch = Partial<
+  Omit<EditorHotspot, "id" | "type" | "graphic">
+>;
 export type SequencePatch = Partial<
   Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">
 >;
@@ -52,11 +47,6 @@ export type IframePatch = Partial<
 type HotspotBenchState = {
   mode: ViewerMode;
   tool: EditorTool;
-  view: PanoViewerState;
-  level: number;
-  progress: TileLoadProgress;
-  autoRotate: boolean;
-  tileErrors: number;
   hotspots: EditorHotspot[];
   polygons: EditorPolygon[];
   polylines: EditorPolyline[];
@@ -67,14 +57,12 @@ type HotspotBenchState = {
 };
 
 type HotspotBenchActions = {
-  setView: (view: PanoViewerState) => void;
-  setLevel: (level: number) => void;
-  setProgress: (progress: TileLoadProgress) => void;
-  toggleAutoRotate: () => void;
-  incrementTileErrors: () => void;
   setLastAction: (message: string) => void;
   toggleDraftFill: () => void;
   selectMode: (mode: ViewerMode) => void;
+  selectPreset: (
+    type: EditorHotspot["type"] | "polygon" | "polyline",
+  ) => string | undefined;
   selectTool: (tool: EditorTool, message: string) => void;
   selectItem: (id: string, message?: string) => void;
   startPolygon: () => void;
@@ -87,8 +75,14 @@ type HotspotBenchActions = {
   updateAudio: (id: string, patch: AudioPatch) => void;
   updateText: (id: string, patch: TextPatch) => void;
   updateIframe: (id: string, patch: IframePatch) => void;
-  updatePolygon: (id: string, patch: Partial<Omit<EditorPolygon, "id">>) => void;
-  updatePolyline: (id: string, patch: Partial<Omit<EditorPolyline, "id">>) => void;
+  updatePolygon: (
+    id: string,
+    patch: Partial<Omit<EditorPolygon, "id">>,
+  ) => void;
+  updatePolyline: (
+    id: string,
+    patch: Partial<Omit<EditorPolyline, "id">>,
+  ) => void;
   cancelPolygonDraft: () => void;
   finishPolygonDraft: () => void;
   addHotspot: (position: HotspotPosition) => void;
@@ -125,11 +119,6 @@ function isDrawingPath(tool: EditorTool): boolean {
 export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
   mode: "sphere",
   tool: "navigate",
-  view: INITIAL_VIEW,
-  level: 1,
-  progress: INITIAL_PROGRESS,
-  autoRotate: false,
-  tileErrors: 0,
   hotspots: cloneDemoHotspots(),
   polygons: cloneDemoPolygons(),
   polylines: cloneDemoPolylines(),
@@ -138,22 +127,47 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
   selectedId: DEMO_HOTSPOTS[0]!.id,
   lastAction: "Select a tool to begin.",
 
-  setView: (view) => set({ view }),
-  setLevel: (level) => set({ level }),
-  setProgress: (progress) => set({ progress }),
-  toggleAutoRotate: () => set((state) => ({ autoRotate: !state.autoRotate })),
-  incrementTileErrors: () => set((state) => ({ tileErrors: state.tileErrors + 1 })),
   setLastAction: (lastAction) => set({ lastAction }),
   toggleDraftFill: () =>
     set((state) => ({ draftPolygonFilled: !state.draftPolygonFilled })),
 
-  selectMode: (mode) =>
+  selectPreset: (type) => {
+    const state = get();
+    if (state.draftVertices.length) {
+      set({
+        lastAction:
+          "Finish or cancel the current drawing before choosing a preset.",
+      });
+      return undefined;
+    }
+    let id: string;
+    if (type === "polygon") {
+      const preset = state.polygons[0] ?? cloneDemoPolygons()[0]!;
+      id = preset.id;
+      if (!state.polygons.length)
+        set({ polygons: [...state.polygons, preset] });
+    } else if (type === "polyline") {
+      const preset = state.polylines[0] ?? cloneDemoPolylines()[0]!;
+      id = preset.id;
+      if (!state.polylines.length)
+        set({ polylines: [...state.polylines, preset] });
+    } else {
+      const preset =
+        state.hotspots.find((entry) => entry.type === type) ??
+        cloneDemoHotspots().find((entry) => entry.type === type)!;
+      id = preset.id;
+      if (!state.hotspots.some((entry) => entry.id === id))
+        set({ hotspots: [...state.hotspots, preset] });
+    }
     set({
-      mode,
-      level: 1,
-      progress: INITIAL_PROGRESS,
-      tileErrors: 0,
-    }),
+      selectedId: id,
+      tool: "select",
+      lastAction: `${type} example selected. Existing edits are preserved.`,
+    });
+    return id;
+  },
+
+  selectMode: (mode) => set({ mode }),
 
   selectTool: (tool, lastAction) => set({ tool, lastAction }),
 
@@ -581,7 +595,8 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
 
   deleteSelected: () => {
     const { selectedId, hotspots, polygons, polylines } = get();
-    const selected = hotspots.find((hotspot) => hotspot.id === selectedId) ?? null;
+    const selected =
+      hotspots.find((hotspot) => hotspot.id === selectedId) ?? null;
     if (selected) {
       set({
         hotspots: hotspots.filter((hotspot) => hotspot.id !== selected.id),
@@ -590,19 +605,25 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       });
       return;
     }
-    const selectedPolygon = polygons.find((polygon) => polygon.id === selectedId) ?? null;
+    const selectedPolygon =
+      polygons.find((polygon) => polygon.id === selectedId) ?? null;
     if (selectedPolygon) {
       set({
-        polygons: polygons.filter((polygon) => polygon.id !== selectedPolygon.id),
+        polygons: polygons.filter(
+          (polygon) => polygon.id !== selectedPolygon.id,
+        ),
         selectedId: null,
         lastAction: "Polygon removed.",
       });
       return;
     }
-    const selectedPolyline = polylines.find((polyline) => polyline.id === selectedId) ?? null;
+    const selectedPolyline =
+      polylines.find((polyline) => polyline.id === selectedId) ?? null;
     if (selectedPolyline) {
       set({
-        polylines: polylines.filter((polyline) => polyline.id !== selectedPolyline.id),
+        polylines: polylines.filter(
+          (polyline) => polyline.id !== selectedPolyline.id,
+        ),
         selectedId: null,
         lastAction: "Polyline removed.",
       });
@@ -635,13 +656,19 @@ export const selectDrawingPolyline = (state: HotspotBenchStore): boolean =>
 export const selectDrawingPath = (state: HotspotBenchStore): boolean =>
   isDrawingPath(state.tool);
 
-export const selectSelected = (state: HotspotBenchStore): EditorHotspot | null =>
+export const selectSelected = (
+  state: HotspotBenchStore,
+): EditorHotspot | null =>
   state.hotspots.find((hotspot) => hotspot.id === state.selectedId) ?? null;
 
-export const selectSelectedPolygon = (state: HotspotBenchStore): EditorPolygon | null =>
+export const selectSelectedPolygon = (
+  state: HotspotBenchStore,
+): EditorPolygon | null =>
   state.polygons.find((polygon) => polygon.id === state.selectedId) ?? null;
 
-export const selectSelectedPolyline = (state: HotspotBenchStore): EditorPolyline | null =>
+export const selectSelectedPolyline = (
+  state: HotspotBenchStore,
+): EditorPolyline | null =>
   state.polylines.find((polyline) => polyline.id === state.selectedId) ?? null;
 
 export const selectHotspotCount = (state: HotspotBenchStore): number =>

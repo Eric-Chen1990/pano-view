@@ -122,7 +122,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 | `entrance` | `guide` | iframe | Courtyard guide |
 | `hall` | `story` | article | Hall story |
 
-下面是完整源码，包含所有内容组件、映射、选中状态和点击处理。`/overlays` 页的 Default dialog 展示这份源码；Compose parts 与 Third-party dialog 会换成各自的弹窗示例。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
+下面是完整源码，包含所有内容组件、映射、选中状态和点击处理。`/immersive-tour` 综合案例在此映射基础上加入模型与 VR；`/overlays` 使用更小的单场景示例比较三种弹窗接入方式。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
 
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -280,7 +280,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
 5. 内容容器的 key 同时包含两个 ID。通过代码直接切换选中热点时，旧内容的表单/画册状态会重置并执行清理，包括暂停原视频；外层弹窗和焦点范围继续复用。
 6. 关闭弹窗或切换场景会清空 `selected`，卸载内容并释放模态锁。切换全屏不改变选中热点的 key，因此不会重置内容。
 
-在 `/overlays` 中分别打开 **Courtyard story** 和 **Garden details**，比较两个图文热点，再尝试视频、画册和指南。点击 **Go to next room** 进入 hall 后，同样的 `story` ID 会打开内容不同的 **Hall story**。viewer 下的映射表与可复制代码会展示实际对应关系。
+在 `/immersive-tour` 中分别打开 **Courtyard story** 和 **Garden details**，比较两个图文热点，再尝试视频、画册和指南。点击 **Go to next room** 进入 hall 后，同样的 `story` ID 会打开内容不同的 **Hall story**。viewer 下的映射表与可复制代码会展示实际对应关系。
 
 `body` 接受任意 React 节点：原生媒体、业务组件、图文内容，或请求 API 数据的组件。加载中/错误状态在内容组件中处理，自定义播放器和订阅在 cleanup 中释放。如果内容来自 JSON，应将已校验的内容类型映射到 React 渲染器，不要将 React 节点写进 JSON。iframe 的权限按嵌入来源配置，第三方响应头可能禁止嵌入；视频自动播放需明确开启，并受浏览器策略限制。
 
@@ -681,4 +681,4 @@ const controller = usePanoMediaController(mediaRef);
 
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
-在 Playground `/overlays` 查看长正文、嵌套滚动、模型鼠标／键盘操作、场景视频和媒体控件；`/video` 展示 360° 视频空间控制条。
+在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、360° 视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 聚焦普通 360° 视频播放、画质与字幕。

@@ -9,6 +9,9 @@ import { SceneTransitionPage } from "./components/scene-transitions/SceneTransit
 import { VideoPage } from "./components/video/VideoPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
+import { BasicsPage } from "./components/basics/BasicsPage";
+import { ControlsPage } from "./components/controls/ControlsPage";
+import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { MapPage } from "./components/map/MapPage";
 
 const EditorPage = lazy(() =>
@@ -16,13 +19,35 @@ const EditorPage = lazy(() =>
     default: module.EditorPage,
   })),
 );
-const OverlayPage = lazy(() => import("./components/overlays/OverlayPage").then((module) => ({ default: module.OverlayPage })));
+const OverlayPage = lazy(() =>
+  import("./components/overlays/OverlayPage").then((module) => ({
+    default: module.OverlayPage,
+  })),
+);
+
+const VRSceneMenuPage = lazy(() =>
+  import("./components/webvr/VRSceneMenuPage").then((module) => ({
+    default: module.VRSceneMenuPage,
+  })),
+);
+const SpatialControlsPage = lazy(() =>
+  import("./components/spatial-controls/SpatialControlsPage").then(
+    (module) => ({ default: module.SpatialControlsPage }),
+  ),
+);
+const ImmersiveTourPage = lazy(() =>
+  import("./components/immersive-tour/ImmersiveTourPage").then((module) => ({
+    default: module.ImmersiveTourPage,
+  })),
+);
 
 export const PLAYGROUND_NAV_GROUPS = [
-  { id: "project", label: "Project" },
+  { id: "start", label: "Start" },
   { id: "scenes", label: "Scenes" },
   { id: "interaction", label: "Interaction" },
   { id: "media", label: "Media" },
+  { id: "immersive", label: "Immersive" },
+  { id: "project", label: "Projects & tools" },
 ] as const;
 
 export type PlaygroundNavGroupId = (typeof PLAYGROUND_NAV_GROUPS)[number]["id"];
@@ -50,10 +75,21 @@ export const HOME_ROUTE: PlaygroundRoute = {
  * Item order within a group is the order shown in that group's menu.
  */
 export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
-  { path: "/editor", navLabel: "Editor", group: "project", Component: EditorPage },
+  {
+    path: "/basics",
+    navLabel: "Panorama basics",
+    group: "start",
+    Component: BasicsPage,
+  },
+  {
+    path: "/controls",
+    navLabel: "View controls",
+    group: "start",
+    Component: ControlsPage,
+  },
   {
     path: "/project",
-    navLabel: "Static project",
+    navLabel: "Static JSON tour",
     group: "project",
     Component: ProjectPage,
   },
@@ -69,23 +105,78 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     group: "scenes",
     Component: SceneMenuPage,
   },
-  { path: "/map", navLabel: "Floor plan map", group: "scenes", Component: MapPage },
+  {
+    path: "/map",
+    navLabel: "Floor plan map",
+    group: "scenes",
+    Component: MapPage,
+  },
   {
     path: "/hotspots",
     navLabel: "Hotspot bench",
     group: "interaction",
     Component: HotspotBenchPage,
   },
-  { path: "/overlays", navLabel: "Overlays", group: "interaction", Component: OverlayPage },
+  {
+    path: "/overlays",
+    navLabel: "Dialogs & overlays",
+    group: "interaction",
+    Component: OverlayPage,
+  },
   {
     path: "/context-menu",
     navLabel: "Context menu",
     group: "interaction",
     Component: ContextMenuPage,
   },
-  { path: "/video", navLabel: "360 video", group: "media", Component: VideoPage },
-  { path: "/webvr", navLabel: "WebVR", group: "media", Component: WebVRPage },
-  { path: "/filters", navLabel: "Filters", group: "media", Component: FilterPage },
+  {
+    path: "/video",
+    navLabel: "360 video",
+    group: "media",
+    Component: VideoPage,
+  },
+  {
+    path: "/background-audio",
+    navLabel: "Background audio",
+    group: "media",
+    Component: BackgroundAudioPage,
+  },
+  {
+    path: "/webvr",
+    navLabel: "VR basics",
+    group: "immersive",
+    Component: WebVRPage,
+  },
+  {
+    path: "/vr-scene-menu",
+    navLabel: "VR scene menu",
+    group: "immersive",
+    Component: VRSceneMenuPage,
+  },
+  {
+    path: "/spatial-controls",
+    navLabel: "Spatial controls",
+    group: "immersive",
+    Component: SpatialControlsPage,
+  },
+  {
+    path: "/immersive-tour",
+    navLabel: "Immersive tour",
+    group: "project",
+    Component: ImmersiveTourPage,
+  },
+  {
+    path: "/editor",
+    navLabel: "Tour editor",
+    group: "project",
+    Component: EditorPage,
+  },
+  {
+    path: "/filters",
+    navLabel: "Filters",
+    group: "media",
+    Component: FilterPage,
+  },
 ];
 
 export function playgroundNavSections() {
@@ -96,7 +187,10 @@ export function playgroundNavSections() {
   })).filter((section) => section.routes.length > 0);
 }
 
-const ALL_PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [HOME_ROUTE, ...PLAYGROUND_ROUTES];
+const ALL_PLAYGROUND_ROUTES: readonly PlaygroundRoute[] = [
+  HOME_ROUTE,
+  ...PLAYGROUND_ROUTES,
+];
 
 export function isKnownPlaygroundRoute(pathname: string): boolean {
   return ALL_PLAYGROUND_ROUTES.some((route) => route.path === pathname);
@@ -104,5 +198,8 @@ export function isKnownPlaygroundRoute(pathname: string): boolean {
 
 export function matchPlaygroundRoute(pathname: string): PlaygroundRoute {
   const normalized = pathname === "" ? HOME_ROUTE.path : pathname;
-  return ALL_PLAYGROUND_ROUTES.find((route) => route.path === normalized) ?? HOME_ROUTE;
+  return (
+    ALL_PLAYGROUND_ROUTES.find((route) => route.path === normalized) ??
+    HOME_ROUTE
+  );
 }

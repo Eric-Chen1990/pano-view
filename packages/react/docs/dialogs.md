@@ -122,7 +122,7 @@ The registry below contains two different articles, a video, a gallery and an if
 | `entrance` | `guide` | iframe | Courtyard guide |
 | `hall` | `story` | article | Hall story |
 
-The complete source defines every content component, the registry, selection state and click handler. On `/overlays`, Default dialog shows this file; Compose parts and Third-party dialog switch the sample to their own dialog shells. Save it as `multi-hotspot-example.tsx`, pass a loaded project as `project`, and replace the `/fixtures/...` URLs with your own assets outside this repository.
+The complete source defines every content component, the registry, selection state and click handler. The `/immersive-tour` integration extends this mapping with models and VR. `/overlays` uses a smaller single-scene example to compare the three dialog shells. Save it as `multi-hotspot-example.tsx`, pass a loaded project as `project`, and replace the `/fixtures/...` URLs with your own assets outside this repository.
 
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -280,7 +280,7 @@ All these markers use `type: "graphic"`. The `kind` field in `POPUPS_BY_SCENE` i
 5. The content wrapper's key includes both IDs. Direct programmatic selection changes reset the previous content's form/gallery state and run its cleanup, including pausing the old video. The outer dialog and its focus boundary remain shared.
 6. Closing or changing scenes clears `selected`, unmounts the content and releases the modal lock. Fullscreen changes do not alter the selection key, so they do not reset the content.
 
-In `/overlays`, open **Courtyard story** and **Garden details** to compare two articles, then try video, gallery and guide. Use **Go to next room** to enter the hall; the `story` ID now opens **Hall story** with different content. The mapping table below the viewer and the copyable code show the exact relationship.
+In `/immersive-tour`, open **Courtyard story** and **Garden details** to compare two articles, then try video, gallery and guide. Use **Go to next room** to enter the hall; the `story` ID now opens **Hall story** with different content. The mapping table below the viewer and the copyable code show the exact relationship.
 
 `body` accepts any React node: native media, a business component, rich text, or a component that fetches API data. Handle loading/errors in that component and dispose custom players/subscriptions in cleanup. If the content comes from JSON, map a validated content kind to a React renderer rather than putting React nodes in JSON. Configure iframe permissions for the embed; third-party response headers can reject embedding. Video autoplay remains opt-in and subject to browser policy.
 
@@ -675,4 +675,4 @@ After `cursorDwellMs`, play, mute and reset fire once; seek, volume, rotation an
 
 Customize scroll arrows with `--pano-scroll-opacity`, `--pano-scroll-active-opacity`, `--pano-scroll-background` and `--pano-scroll-color`.
 
-See Playground `/overlays` for custom layouts, scene video, long content, nested scrolling and mouse/keyboard model controls; `/video` includes a 360° spatial control bar.
+Use `/overlays` to compare dialog integration styles, `/spatial-controls` for separate scene-video, 360-video, model and scrolling examples, and `/immersive-tour` for the complete combination. `/video` focuses on ordinary 360° playback, quality and captions.
