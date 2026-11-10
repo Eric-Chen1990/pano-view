@@ -47,6 +47,13 @@ test("media controls clamp seeking and volume, retain target identity, and do no
   assert.equal(snapshot.volume, 1);
   snapshot.volumeAdjustable = false;
   assert.equal(actions.find((a) => a.id === "vol-")!.enabled!(), false);
+  const fixedVolumeActions = mediaActions(controller);
+  assert.equal(fixedVolumeActions.some((action) => action.id.startsWith("vol")), false);
+  fixedVolumeActions.find((action) => action.id === "unmute")!.activate!();
+  assert.equal(snapshot.muted, false);
+  snapshot.volumeAdjustable = true;
+  assert.equal(mediaActions(controller).find((action) => action.id === "vol+")!.enabled!(), false);
+  assert.equal(mediaActions(controller).find((action) => action.id === "vol-")!.enabled!(), true);
   const gaze = createGazeActionState();
   const toggle = { ...actions[0]!, id: controller };
   for (let index = 0; index < 50; index++) gaze.tick(toggle, 0.02, 100);

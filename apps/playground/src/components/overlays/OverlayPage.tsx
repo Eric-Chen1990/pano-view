@@ -192,7 +192,7 @@ export function OverlayPage() {
         </table>
       </section>
       <p className="p-4 text-sm">In VR, hold your gaze to operate icons. Translucent arrows appear at the edges where content can scroll. Look right for the scene video. Outside VR, drag the model and scroll to zoom.</p>
-      <CodeSnippet label="VR controls and custom layout" blurb="Scene video, custom icons and layout, and a 360° video control bar." code={spatialControlsCode} />
+      <CodeSnippet label="VR media controls" blurb="Scene video, shared media controls, and a 360° video control bar." code={spatialControlsCode} />
       <CodeSnippet key={mode} {...dialogSnippet(mode)} />
     </section>
     <SiteFooter label="@ericchen1990/pano-view · overlays" />

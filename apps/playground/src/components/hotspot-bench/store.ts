@@ -463,7 +463,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         poster: "/fixtures/hotspots/gallery-card.svg",
         playing: false,
         loop: true,
-        muted: true,
+        muted: false,
         volume: 1,
         ...defaultEditorTooltip("Play video window"),
       };

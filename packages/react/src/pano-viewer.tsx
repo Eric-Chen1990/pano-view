@@ -1,5 +1,6 @@
 import { SpatialHostContext, createSpatialHost } from "./spatial/host";
 import { SpatialPanels } from "./spatial/panel";
+import { SpatialMediaControls } from "./spatial/media-controls";
 import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
@@ -1000,6 +1001,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
               <PanoOverlayOutletContext.Provider value={true}>
+                <SpatialMediaControls />
                 <div
                   data-pano-overlay=""
                   ref={setPortalContainer}

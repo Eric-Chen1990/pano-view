@@ -48,7 +48,7 @@ const content: Record<
     height: 9,
     playing: false,
     loop: false,
-    muted: true,
+    muted: false,
     volume: 1,
     playsInline: true,
     preload: "metadata",

@@ -1,4 +1,5 @@
 import {
+  createContext,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -26,6 +27,13 @@ import {
 
 export const controlBindings = new WeakMap<HTMLElement, PanoControlAction>();
 export const explicitTargets = new WeakMap<object, number>();
+const targetListeners = new Set<() => void>();
+export function subscribeExplicitTargets(listener: () => void) {
+  targetListeners.add(listener);
+  return () => { targetListeners.delete(listener); };
+}
+/** Automatic controls must not claim the target from a host's explicit controls. */
+export const AutomaticControlContext = createContext(false);
 function useVR() {
   const host = useContext(SpatialHostContext);
   useSyncExternalStore(
@@ -143,15 +151,18 @@ function choose(actions: PanoControlAction[], selected?: Options["actions"]) {
 }
 function useTarget(target: object | null) {
   const vr = useVR();
+  const automatic = useContext(AutomaticControlContext);
   useEffect(() => {
-    if (!target || !vr) return;
+    if (!target || !vr || automatic) return;
     explicitTargets.set(target, (explicitTargets.get(target) ?? 0) + 1);
+    targetListeners.forEach((listener) => listener());
     return () => {
       const count = (explicitTargets.get(target) ?? 1) - 1;
       if (count) explicitTargets.set(target, count);
       else explicitTargets.delete(target);
+      targetListeners.forEach((listener) => listener());
     };
-  }, [target, vr]);
+  }, [target, vr, automatic]);
 }
 export function PanoMediaControls({
   controller,
@@ -170,13 +181,14 @@ export function PanoMediaControls({
     () => null
   );
   useTarget(controller);
+  const available = mediaActions(controller, seekSpeed, volumeSpeed);
+  const ordered = ["rewind", "play", "pause", "forward", "mute", "unmute", "vol-", "vol+"]
+    .flatMap((id) => available.filter((action) => action.id === id));
   return (
     <PanoControlGroup
       {...props}
-      actions={choose(
-        mediaActions(controller, seekSpeed, volumeSpeed),
-        actions
-      )}
+      className={`pano-media-controls ${props.className ?? ""}`}
+      actions={choose(ordered, actions)}
     />
   );
 }
@@ -378,6 +390,7 @@ export function PanoSpatialControls({
             width: 640,
             background: "#161b22",
             color: "white",
+            pointerEvents: "auto",
             ...style,
           }}
         >

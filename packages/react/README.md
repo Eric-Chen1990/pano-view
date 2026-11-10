@@ -2796,11 +2796,10 @@ handler, `onEnded`, or playback error.
 ## VideoHotspot
 
 `VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
-prop is likewise controlled: toggle it from your click handler or application
-state. On source change or unmount, the element is paused and its texture is
+prop is likewise controlled: initialize it to `false` for manual playback, then toggle it from your click handler or application state. On source change or unmount, the element is paused and its texture is
 released. `playsInline` defaults to `true` and uses the same inline-playback
 attributes as `PanoVideo`. The element is mounted inside the viewer, hidden,
-so mobile browsers keep it in the page. `muted` defaults to `true`, `loop` to
+so mobile browsers keep it in the page. `muted` defaults to `false`, `loop` to
 `false`, `preload` to `"metadata"` (also `"none"` | `"auto"`), and `volume` to
 `1` (0–1). Omitted size defaults to `16×9`. Cross-origin media may set
 `crossOrigin` (`""` | `"anonymous"` | `"use-credentials"`).
@@ -2818,7 +2817,6 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
   src="/hotspots/room.webm"
   poster="/hotspots/room-poster.webp"
   playing={isClipPlaying}
-  muted
   volume={0.8}
   onClick={() => setClipPlaying((playing) => !playing)}
   onEnded={() => setClipPlaying(false)}
@@ -2827,7 +2825,7 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-Browsers can reject unmuted or otherwise non-gesture playback. In that case
+Loading or entering VR does not start playback. Readiness events and seeking preserve controller-set mute and volume; changing the corresponding props or source applies the new settings. Pass `muted` explicitly when you want silent playback. Browsers can reject unmuted or otherwise non-gesture playback. In that case
 `onPlaybackStateChange` receives `"blocked"` and `onPlaybackError` receives
 the browser error; retain control of `playing` in the host and offer an
 explicit user action.

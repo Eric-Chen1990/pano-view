@@ -209,7 +209,7 @@ export function createHotspot(
     case "sequence":
       return { ...common, type: kind, src, frameCount: 1, fps: 12, loop: true };
     case "video":
-      return { ...common, type: kind, src, muted: true, loop: false };
+      return { ...common, type: kind, src, muted: false, loop: false };
     case "audio":
       return { ...common, type: kind, src, marker: true, volume: 1 };
     case "iframe":

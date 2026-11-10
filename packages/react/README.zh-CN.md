@@ -2410,7 +2410,7 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 
 ## VideoHotspot
 
-`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `true`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
+`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：手动播放时初始化为 `false`，在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `false`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
 
 ```tsx
 import { VideoHotspot } from "@ericchen1990/pano-view";
@@ -2425,7 +2425,6 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
   src="/hotspots/room.webm"
   poster="/hotspots/room-poster.webp"
   playing={isClipPlaying}
-  muted
   volume={0.8}
   onClick={() => setClipPlaying((playing) => !playing)}
   onEnded={() => setClipPlaying(false)}
@@ -2434,7 +2433,7 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
+加载或进入 VR 不会自动开始播放。就绪事件和跳转不会重置通过 controller 设置的静音与音量；修改对应 prop 或切换源时才应用新的配置。需要静音播放时显式传入 `muted`。浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
 
 视频通过 `onError` 报告媒体与 poster 失败，参数含 `source: "poster" | "video"`。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
 

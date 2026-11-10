@@ -133,7 +133,13 @@ export function PanoDialog({ open, onOpenChange, title, description, closeLabel 
       <PanoDialogBackdrop />
       <PanoDialogContent
         className={className}
-        style={{ overflow: "hidden", ...style }}
+        style={{
+          // Recompute media height when scrollbars change its available width.
+          display: "grid",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          overflow: "hidden",
+          ...style,
+        }}
         aria-describedby={description == null ? undefined : descriptionId}
       >
         <header className="pano-dialog-header" style={{ flexShrink: 0 }}>

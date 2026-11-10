@@ -87,7 +87,7 @@ export function mediaActions(
           )
         ),
     })),
-    ...([-1, 1] as const).map((direction) => ({
+    ...(snapshot().volumeAdjustable ? [-1, 1] as const : []).map((direction) => ({
       id: direction < 0 ? "vol-" : "vol+",
       label: direction < 0 ? "Volume down" : "Volume up",
       enabled: () =>

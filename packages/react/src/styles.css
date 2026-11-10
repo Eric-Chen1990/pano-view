@@ -869,6 +869,9 @@
 .pano-control-button svg { width:32px; height:32px; }
 .pano-control-button:disabled { opacity:.4; cursor:default; }
 .pano-control-button:focus-visible { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
+.pano-media-controls { background:#161b22; }
+.pano-media-controls .pano-control-button { flex:none; border-radius:var(--pano-control-radius,50%); color:var(--pano-control-color,#baf5ff); }
+.pano-media-controls [data-pano-gaze-active] { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 
 .pano-scroll-controls { display:block; }
 .pano-scroll-controls .pano-control-button { position:absolute; width:112px; height:44px; border:0; border-radius:12px; background:var(--pano-scroll-background,#101923); color:var(--pano-scroll-color,#fff); opacity:var(--pano-scroll-opacity,.3); pointer-events:auto; transition:opacity .15s; }

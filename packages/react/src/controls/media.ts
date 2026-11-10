@@ -85,7 +85,7 @@ export function usePanoMediaController(
     events.forEach((event) => media.addEventListener(event, notify));
     notify();
     return () => {
-      mediaControllers.delete(media);
+      if (mediaControllers.get(media) === controller) mediaControllers.delete(media);
       events.forEach((event) => media.removeEventListener(event, notify));
     };
   }, [ref, ref.current]);

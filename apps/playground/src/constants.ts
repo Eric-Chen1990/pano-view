@@ -250,7 +250,7 @@ export const DEMO_HOTSPOTS: EditorHotspot[] = [
     poster: "/fixtures/hotspots/gallery-card.svg",
     playing: false,
     loop: true,
-    muted: true,
+    muted: false,
     volume: 1,
     tooltip: { text: "Video window" },
     tooltipTrigger: "always",

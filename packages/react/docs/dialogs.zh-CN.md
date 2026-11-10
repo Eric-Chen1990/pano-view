@@ -671,10 +671,12 @@ const controller = usePanoMediaController(mediaRef);
 
 自定义动作包含 `id`、无障碍 `label`、可选 React `icon`、`disabled` / `enabled()`、单次 `activate()`、连续 `update(seconds)` 和停止 `end()`；可选 `repeatIntervalMs` 将连续动作改为间隔执行。使用 `PanoControlButton` 保留凝视绑定；切换播放／静音图标时保持按钮 key 稳定，防止重新计时。`PanoControlGroup` 可直接渲染自定义动作数组。
 
-可通过 `className`、`style` 和 `--pano-control-background/color/border/radius/size/gap/padding/focus` CSS 变量定制显式按钮组。自动操作区支持 background 变量；完整布局或图标替换需显式按钮组。同一目标的显式媒体、模型或滚动组会替代自动操作组。
+可通过 `className`、`style` 和 `--pano-control-background/color/border/radius/size/gap/padding/focus` CSS 变量定制显式按钮组。自动视频按钮组也支持这些变量；其他自动操作区支持 background 变量。完整布局或图标替换需显式按钮组。同一目标的显式媒体、模型或滚动组会替代自动操作组。
 
-凝视完成 `cursorDwellMs` 后，播放、静音、复位执行一次；跳转、音量和模型持续执行；滚动每隔 700 毫秒执行一小步，移开即停。默认跳转每秒 10 秒（`seekSpeed`），音量每秒 0.25（`volumeSpeed`），滚动每秒 0.2 个可见区域（`speed`），每步默认移动 0.14 个可见区域。`PanoScrollControls.repeatIntervalMs` 可调整重复间隔；间隔计时不受组件重新渲染影响，移开会清零，重新凝视需重新完成 dwell。关闭、退出 VR、禁用和失焦会停止操作。凝视不能替代浏览器要求的可信用户手势；音量不可调整的平台禁用音量按钮，仍可静音。
+自动接管的每个弹窗视频会在视频下方显示独立的圆形按钮控制栏，顺序为后退、播放／暂停、前进、静音／取消静音，以及平台支持时的减音量、加音量。控制栏在布局中独立占位，不遮挡画面或后续正文，随视频一起滚动并遵守所在滚动容器的裁剪。空间控件默认使用浅蓝色线框图标；窄区域中按钮可换行。退出 VR 时移除自动控件占位，原视频节点和普通模式原生控件保持不变。播放前优先显示封面；没有封面时临时提示 `preload="auto"` 尝试获取首帧，不播放、不跳转、不重新加载，也不创建第二个视频元素。没有可读取画面时显示明确的视频占位。封面需要同源或允许 CORS；不可读取的媒体不会污染面板纹理。关闭弹窗或退出 VR 时释放预览资源并恢复临时预载设置。
+
+凝视完成 `cursorDwellMs` 后，播放、静音、复位执行一次；跳转、音量和模型持续执行；滚动每隔 700 毫秒执行一小步，移开即停。默认跳转每秒 10 秒（`seekSpeed`），音量每秒 0.25（`volumeSpeed`），滚动每秒 0.2 个可见区域（`speed`），每步默认移动 0.14 个可见区域。`PanoScrollControls.repeatIntervalMs` 可调整重复间隔；间隔计时不受组件重新渲染影响，移开会清零，重新凝视需重新完成 dwell。关闭、退出 VR、禁用和失焦会停止操作。凝视不能替代浏览器要求的可信用户手势；音量不可调整的平台（包括 iOS）隐藏音量加减按钮，仍可静音；支持调节的平台在音量上下限禁用对应按钮。
 
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
-在 Playground `/overlays` 查看长正文、嵌套滚动、模型鼠标／键盘操作、场景视频和自定义主题；`/video` 展示 360° 视频空间控制条。
+在 Playground `/overlays` 查看长正文、嵌套滚动、模型鼠标／键盘操作、场景视频和媒体控件；`/video` 展示 360° 视频空间控制条。
