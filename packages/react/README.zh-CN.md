@@ -2754,7 +2754,7 @@ viewLimits: {
 
 凝视时间沿用 `WebVR.cursorDwellMs`。`activeId` 是选中状态来源，`onSelect` 请求宿主切换场景；场景加载和错误处理仍由宿主负责。弹窗或 VR Setup 打开时暂时隐藏此组件。无场景时隐藏，单场景时禁用左右导航。
 
-`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
+`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘，不显示对号。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
 
 `/webvr` 示例讲解 VR 进入、退出、能力事件与凝视激活。`/vr-scene-menu` 提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示和恢复默认；`/spatial-controls` 分别讲解媒体、模型及滚动控件，`/immersive-tour` 展示完整组合。设置仅保存在当前页面状态中。
 

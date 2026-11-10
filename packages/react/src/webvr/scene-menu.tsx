@@ -28,6 +28,7 @@ import type { GazeAction } from "../spatial/gaze-action";
 import { WebVRRuntimeContext, subscribeWebVRHost } from "./host";
 import {
   bounded,
+  sceneMenuControlLayout,
   sceneMenuLayoutConfig,
   sceneMenuAtlasRects,
   sceneMenuPoint,
@@ -42,6 +43,7 @@ export type WebVRSceneMenuAppearance = {
   controlBackground?: string;
   controlOpacity?: number;
   selectionColor?: string;
+  focusColor?: string;
   borderRadius?: number;
   labelColor?: string;
   labelBackground?: string;
@@ -54,6 +56,7 @@ export const DEFAULT_WEBVR_SCENE_MENU_APPEARANCE: Required<WebVRSceneMenuAppeara
     controlBackground: "transparent",
     controlOpacity: 0.75,
     selectionColor: "#ffffff",
+    focusColor: "#7dd3fc",
     borderRadius: 8,
     labelColor: "#ffffff",
     labelBackground: "transparent",
@@ -203,8 +206,9 @@ function MenuSurface({
   a.borderRadius = bounded(a.borderRadius, 8, 0, 48);
   a.controlOpacity = bounded(a.controlOpacity, 0.75, 0, 1);
   const rowHeight = ((W / cols - 16) * 9) / 16 + 16;
-  const h = open ? Math.ceil(rowCount * rowHeight + 110) : 220;
   const gridHeight = open ? Math.ceil(rowCount * rowHeight) : 0;
+  const controls = sceneMenuControlLayout(W, gridHeight, open, all);
+  const h = controls.height;
   const radius = bounded(distance, 2, 1.5, 3);
   const menuScale = bounded(scale, 1, 0.75, 1.25);
   const surfaces = useMemo(() => {
@@ -441,30 +445,38 @@ function MenuSurface({
     add(
       "previous",
       "Previous scene",
-      316,
-      30,
-      128,
-      160,
+      controls.previous.x,
+      controls.previous.y,
+      controls.previous.w,
+      controls.previous.h,
       () => prev && select(prev),
       !prev
     );
-    add("open", "Show scenes", 448, 30, 128, 160, () => {
-      const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-      activeCamera.getWorldDirection(direction);
-      state.current.yaw =
-        (Math.atan2(direction.x, -direction.z) * 180) / Math.PI;
-      state.current.alpha = 0;
-      setPage(sceneMenuPage(items, activeId, capacity));
-      setEpoch((v) => v + 1);
-      setOpen(true);
-    });
+    add(
+      "open",
+      "Show scenes",
+      controls.center.x,
+      controls.center.y,
+      controls.center.w,
+      controls.center.h,
+      () => {
+        const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
+        activeCamera.getWorldDirection(direction);
+        state.current.yaw =
+          (Math.atan2(direction.x, -direction.z) * 180) / Math.PI;
+        state.current.alpha = 0;
+        setPage(sceneMenuPage(items, activeId, capacity));
+        setEpoch((v) => v + 1);
+        setOpen(true);
+      }
+    );
     add(
       "next",
       "Next scene",
-      580,
-      30,
-      128,
-      160,
+      controls.next.x,
+      controls.next.y,
+      controls.next.w,
+      controls.next.h,
       () => next && select(next),
       !next
     );
@@ -485,30 +497,37 @@ function MenuSurface({
           () => select(item.id)
         )
       );
-    const y = h - 90;
     if (!all)
       add(
         "previous-page",
         "Previous page",
-        W / 2 - 292,
-        y,
-        140,
-        80,
+        controls.previous.x,
+        controls.previous.y,
+        controls.previous.w,
+        controls.previous.h,
         () => {
           setPage(currentPage - 1);
           setEpoch((v) => v + 1);
         },
         currentPage === 0
       );
-    add("close", "Hide scenes", W / 2 - 70, y, 140, 80, close);
+    add(
+      "close",
+      "Hide scenes",
+      controls.center.x,
+      controls.center.y,
+      controls.center.w,
+      controls.center.h,
+      close
+    );
     if (!all)
       add(
         "next-page",
         "Next page",
-        W / 2 + 152,
-        y,
-        140,
-        80,
+        controls.next.x,
+        controls.next.y,
+        controls.next.w,
+        controls.next.h,
         () => {
           setPage(currentPage + 1);
           setEpoch((v) => v + 1);
@@ -695,10 +714,10 @@ function MenuSurface({
       for (const t of targets) {
         const focused = t.id === s.focus;
         if (
-          t.x + t.w < atlasX ||
-          t.x > atlasX + atlasWidth ||
-          t.y + t.h < atlasY ||
-          t.y > atlasY + atlasHeight
+          t.x + t.w + 5 < atlasX ||
+          t.x - 5 > atlasX + atlasWidth ||
+          t.y + t.h + 5 < atlasY ||
+          t.y - 5 > atlasY + atlasHeight
         )
           continue;
         const item = open ? visibleByTarget.get(t.id) : undefined;
@@ -716,7 +735,9 @@ function MenuSurface({
         if (item) {
           const img = images.current.get(item.id);
           if (img) {
-            const ratio = Math.max(t.w / img.width, t.h / img.height);
+            const ratio =
+              Math.max(t.w / img.width, t.h / img.height) *
+              (focused && !reduced ? 1.06 : 1);
             ctx.drawImage(
               img,
               t.x + (t.w - img.width * ratio) / 2,
@@ -724,6 +745,10 @@ function MenuSurface({
               img.width * ratio,
               img.height * ratio
             );
+          }
+          if (focused) {
+            ctx.fillStyle = "rgba(0,0,0,.24)";
+            ctx.fillRect(t.x, t.y, t.w, t.h);
           }
           if (showTitles) {
             ctx.font = `${a.fontSize}px sans-serif`;
@@ -752,18 +777,10 @@ function MenuSurface({
             );
             ctx.restore();
           }
-          if (item.id === activeId || item.id === s.selected) {
-            ctx.strokeStyle = a.selectionColor;
-            ctx.lineWidth = 6;
-            ctx.strokeRect(t.x + 3, t.y + 3, t.w - 6, t.h - 6);
-            ctx.fillStyle = a.selectionColor;
-            ctx.font = "28px sans-serif";
-            ctx.fillText("✓", t.x + t.w - 30, t.y + 30);
-          }
         } else {
           ctx.fillStyle = a.controlColor;
           const kind = t.id.split(":").slice(2).join(":");
-          const iconSize = open ? 80 : 120;
+          const iconSize = controls.iconSize;
           drawIcon(
             kind,
             t.x + t.w / 2 - iconSize / 2,
@@ -771,21 +788,40 @@ function MenuSurface({
             iconSize
           );
         }
-        if (focused && item) {
-          ctx.fillStyle = "rgba(255,255,255,.18)";
-          ctx.fillRect(t.x, t.y, t.w, t.h);
-        } else if (focused) {
+        if (focused && !item) {
           ctx.strokeStyle = a.controlColor;
           ctx.lineWidth = 2;
           ctx.strokeRect(t.x + 2, t.y + 2, t.w - 4, t.h - 4);
         }
         ctx.restore();
+        if (item && (focused || item.id === activeId || item.id === s.selected)) {
+          // The inner stroke edge meets the thumbnail without covering it.
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(
+            t.x - 2,
+            t.y - 2,
+            t.w + 4,
+            t.h + 4,
+            a.borderRadius + 2
+          );
+          ctx.strokeStyle = focused ? a.focusColor : a.selectionColor;
+          ctx.lineWidth = 4;
+          ctx.stroke();
+          ctx.restore();
+        }
       }
-      if (open && !all) {
-        ctx.font = "22px sans-serif";
+      if (controls.pageLabel) {
+        const label = controls.pageLabel;
+        ctx.font = `${label.height}px sans-serif`;
         ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         ctx.fillStyle = a.labelColor;
-        ctx.fillText(`${currentPage + 1} / ${pages}`, W / 2, h - 92);
+        ctx.fillText(
+          `${currentPage + 1} / ${pages}`,
+          label.x,
+          label.y + label.height / 2
+        );
       }
       ctx.restore();
       texture.needsUpdate = true;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   bounded,
+  sceneMenuControlLayout,
   sceneMenuLayoutConfig,
   sceneMenuAtlasRects,
   sceneMenuPoint,
@@ -22,6 +23,79 @@ const items = Array.from({ length: 25 }, (_, i) => ({
   id: String(i),
   thumbnailUrl: "",
 }));
+test("collapsed controls stay centered with square targets and unchanged icons", () => {
+  const controls = sceneMenuControlLayout(1024, 0, false, false);
+  assert.equal(controls.height, 220);
+  assert.equal(controls.iconSize, 120);
+  assert.equal(controls.pageLabel, null);
+  for (const [index, button] of [
+    controls.previous,
+    controls.center,
+    controls.next,
+  ].entries()) {
+    assert.equal(button.w, 128);
+    assert.equal(button.h, button.w);
+    assert.equal(button.x + button.w / 2, 380 + index * 132);
+    assert.equal(button.y + button.h / 2, 110);
+  }
+  assert.ok(controls.previous.x + controls.previous.w < controls.center.x);
+  assert.ok(controls.center.x + controls.center.w < controls.next.x);
+});
+
+test("expanded footer separates labels and square controls without empty page space in all mode", () => {
+  for (const width of [512, 1024, 2048, 6144]) {
+    for (const gridHeight of [151, 453, 1963]) {
+      for (const all of [false, true]) {
+        const controls = sceneMenuControlLayout(width, gridHeight, true, all);
+        assert.equal(controls.height - gridHeight, all ? 136 : 178);
+        assert.equal(controls.iconSize, 80);
+        if (all) {
+          assert.equal(controls.pageLabel, null);
+          assert.equal(controls.center.y - gridHeight, 24);
+        } else {
+          const label = controls.pageLabel!;
+          assert.equal(label.x, width / 2);
+          assert.equal(label.y - gridHeight, 24);
+          assert.equal(label.height, 22);
+          assert.equal(controls.center.y - label.y - label.height, 20);
+        }
+        assert.equal(controls.height - controls.center.y - controls.center.h, 16);
+        const buttons = [controls.previous, controls.center, controls.next];
+        buttons.forEach((button, index) => {
+          assert.equal(button.w, 96);
+          assert.equal(button.h, button.w);
+          assert.equal(button.y, controls.center.y);
+          assert.equal(button.x + button.w / 2, width / 2 + (index - 1) * 144);
+          assert.ok(button.x >= 0 && button.x + button.w <= width);
+          if (index > 0)
+            assert.equal(button.x - buttons[index - 1]!.x - button.w, 48);
+        });
+      }
+    }
+  }
+});
+
+test("expanded control squares retain their proportions in every spatial layout", () => {
+  for (const layout of ["compact", "flat", "arc"] as const) {
+    const cols = layout === "compact" ? 4 : 8;
+    const width = layout === "compact" ? 1024 : cols * 256;
+    const gridHeight = 453;
+    const controls = sceneMenuControlLayout(width, gridHeight, true, false);
+    for (const button of [controls.previous, controls.center, controls.next]) {
+      const point = (x: number, y: number) =>
+        new Vector3(
+          ...(sceneMenuPoint(
+            x, y, width, controls.height, gridHeight, cols, layout, 180, 2, 1
+          ) as [number, number, number])
+        );
+      const topLeft = point(button.x, button.y);
+      const horizontal = topLeft.distanceTo(point(button.x + button.w, button.y));
+      const vertical = topLeft.distanceTo(point(button.x, button.y + button.h));
+      assert.ok(Math.abs(horizontal / vertical - 1) < 0.001);
+    }
+  }
+});
+
 test("menu locates active pages at capacity boundaries and wraps only scene navigation", () => {
   for (const capacity of [2, 6, 12])
     for (const index of [0, 11, 12, 24])

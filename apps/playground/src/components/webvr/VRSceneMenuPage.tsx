@@ -282,6 +282,7 @@ export function VRSceneMenuPage() {
                   "controlColor",
                   "controlBackground",
                   "selectionColor",
+                  "focusColor",
                   "labelColor",
                   "labelBackground",
                 ] as const

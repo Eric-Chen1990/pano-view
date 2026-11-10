@@ -66,6 +66,35 @@ export function wrapSceneTitle(
 }
 
 export type SceneMenuLayout = "compact" | "flat" | "arc";
+export function sceneMenuControlLayout(
+  width: number,
+  gridHeight: number,
+  open: boolean,
+  all: boolean
+) {
+  const size = open ? 96 : 128;
+  const spacing = open ? 144 : 132;
+  const pageLabel =
+    open && !all ? { x: width / 2, y: gridHeight + 24, height: 22 } : null;
+  const y = open
+    ? gridHeight + 24 + (pageLabel ? pageLabel.height + 20 : 0)
+    : 110 - size / 2;
+  const button = (center: number) => ({
+    x: center - size / 2,
+    y,
+    w: size,
+    h: size,
+  });
+  return {
+    height: open ? y + size + 16 : 220,
+    iconSize: open ? 80 : 120,
+    pageLabel,
+    previous: button(width / 2 - spacing),
+    center: button(width / 2),
+    next: button(width / 2 + spacing),
+  };
+}
+
 export function sceneMenuLayoutConfig(
   layout: SceneMenuLayout,
   columns: number | undefined,
