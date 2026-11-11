@@ -28,7 +28,19 @@ export function cloneDemoPolygons(): EditorPolygon[] {
 }
 
 export function cloneDemoPolylines(): EditorPolyline[] {
-  return [];
+  return [{
+    id: "runtime-polyline-example",
+    label: "Garden path",
+    vertices: [{ yaw: -24, pitch: -20 }, { yaw: -8, pitch: -12 }, { yaw: 12, pitch: -16 }],
+    stroke: "#75cbd3",
+    strokeWidth: 3,
+    strokeOpacity: 1,
+    strokeDashSize: 0,
+    strokeGapSize: 0,
+    visible: true,
+    pointerEvents: "auto",
+    ...defaultEditorTooltip("Garden path"),
+  }];
 }
 
 export function createId(type: EditorHotspot["type"]): string {

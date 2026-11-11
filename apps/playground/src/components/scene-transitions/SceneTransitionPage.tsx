@@ -1,11 +1,8 @@
+import fullSource from "./SceneTransitionPage.tsx?raw";
 import {
-  BackgroundAudio,
   ImageHotspot,
-  KeyboardControls,
   Scenes,
   PanoViewer,
-  cycleSceneId,
-  usePanoViewer,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState } from "react";
@@ -28,66 +25,19 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const BGM_SHARED = "/fixtures/bgm/ambient-light.mp3";
-
-const PER_SCENE_SOURCES = {
-  "sphere-1": "/fixtures/bgm/ambient-light.mp3",
-  "sphere-2": "/fixtures/bgm/death-scene.mp3",
-  "tile-3": "/fixtures/bgm/building-scene.mp3",
-  "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
-} as const;
-
-type BackgroundMode = "shared" | "per-scene";
-
-function buildSceneTransitionSnippet(
-  preset: SceneTransitionPreset,
-  backgroundPlaying: boolean,
-  backgroundMode: BackgroundMode,
-): string {
-  const audioBlock = !backgroundPlaying
-    ? `  {/* BackgroundAudio omitted while BGM is off */}`
-    : backgroundMode === "shared"
-      ? `  <BackgroundAudio src="${BGM_SHARED}" playing={true} />`
-      : `  <BackgroundAudio
-    playing={true}
-    sceneId={activeSceneId}
-    sources={{
-      "sphere-1": "/fixtures/bgm/ambient-light.mp3",
-      "sphere-2": "/fixtures/bgm/death-scene.mp3",
-      "tile-3": "/fixtures/bgm/building-scene.mp3",
-      "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
-    }}
-  />`;
-
+function buildSceneTransitionSnippet(preset: SceneTransitionPreset): string {
   return `import {
-  BackgroundAudio,
   ImageHotspot,
-  KeyboardControls,
   PanoViewer,
   Scenes,
-  cycleSceneId,
-  usePanoViewer,
 } from "@ericchen1990/pano-view";
 
 const scenes = [/* sphere + cube scenes */];
 const [activeSceneId, setActiveSceneId] = useState("sphere-1");
-const viewer = usePanoViewer();
 
 <PanoViewer
-  ref={viewer.ref}
   style={{ height: "min(540px, 68dvh)" }}
 >
-  <KeyboardControls
-    onNextScene={() => {
-      const next = cycleSceneId(scenes, activeSceneId, 1);
-      if (next) setActiveSceneId(next);
-    }}
-    onPreviousScene={() => {
-      const next = cycleSceneId(scenes, activeSceneId, -1);
-      if (next) setActiveSceneId(next);
-    }}
-  />
-${audioBlock}
   <Scenes
     activeSceneId={activeSceneId}
     onActiveSceneIdChange={setActiveSceneId}
@@ -107,18 +57,12 @@ ${audioBlock}
 }
 
 export function SceneTransitionPage() {
-  const viewer = usePanoViewer();
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
-  const [status, setStatus] = useState("Choose a scene and a blend.");
-  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(
-    "shared",
+  const [status, setStatus] = useState(
+    "Compare transition presets across sphere and cube scenes. Choose a scene and a blend.",
   );
-  const [backgroundPlaying, setBackgroundPlaying] = useState(false);
-  const snippet = useMemo(
-    () => buildSceneTransitionSnippet(preset, backgroundPlaying, backgroundMode),
-    [backgroundMode, backgroundPlaying, preset],
-  );
+  const snippet = useMemo(() => buildSceneTransitionSnippet(preset), [preset]);
 
   return (
     <main className={shellClassName}>
@@ -130,14 +74,21 @@ export function SceneTransitionPage() {
         <div className={pageHeadingWrapClassName}>
           <div>
             <p className={eyebrowClassName}>Scene transition bench</p>
-            <h1 className={pageHeadingTitleClassName} id="transition-bench-title">
+            <h1
+              className={pageHeadingTitleClassName}
+              id="transition-bench-title"
+            >
               Blend between scenes
             </h1>
           </div>
           <p className={pageHeadingStatusClassName}>{status}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Target panorama scene">
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label="Target panorama scene"
+          >
             {TRANSITION_SCENES.map((scene) => (
               <button
                 className={cn(
@@ -156,119 +107,12 @@ export function SceneTransitionPage() {
             Blend
             <BlendSelect onChange={setPreset} value={preset} />
           </div>
-          <div className={controlLabelClassName}>
-            BGM
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="group"
-              aria-label="Background music"
-            >
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  !backgroundPlaying && segmentedButtonActiveClassName,
-                )}
-                onClick={() => setBackgroundPlaying(false)}
-                type="button"
-              >
-                Off
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  backgroundPlaying &&
-                    backgroundMode === "shared" &&
-                    segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setBackgroundMode("shared");
-                  setBackgroundPlaying(true);
-                }}
-                type="button"
-              >
-                Shared
-              </button>
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  backgroundPlaying &&
-                    backgroundMode === "per-scene" &&
-                    segmentedButtonActiveClassName,
-                )}
-                onClick={() => {
-                  setBackgroundMode("per-scene");
-                  setBackgroundPlaying(true);
-                }}
-                type="button"
-              >
-                Per scene
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className={controlLabelClassName}>
-          Ref API
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ref-driven controls">
-            <button
-              className={segmentedButtonClassName}
-              onClick={() => viewer.previousScene()}
-              type="button"
-            >
-              ← Prev
-            </button>
-            <button
-              className={segmentedButtonClassName}
-              onClick={() => viewer.nextScene()}
-              type="button"
-            >
-              Next →
-            </button>
-            <button
-              className={segmentedButtonClassName}
-              onClick={() => void viewer.toggleFullscreen()}
-              type="button"
-            >
-              Fullscreen
-            </button>
-            <button
-              className={segmentedButtonClassName}
-              onClick={() => setBackgroundPlaying((playing) => !playing)}
-              type="button"
-            >
-              Toggle BGM
-            </button>
-          </div>
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
-            ref={viewer.ref}
             aria-label="Panorama scene transition demo"
             style={{ height: "min(540px, 68dvh)" }}
           >
-            <KeyboardControls
-              onNextScene={() => {
-                const next = cycleSceneId(TRANSITION_SCENES, activeSceneId, 1);
-                if (next) {
-                  setActiveSceneId(next);
-                }
-              }}
-              onPreviousScene={() => {
-                const next = cycleSceneId(TRANSITION_SCENES, activeSceneId, -1);
-                if (next) {
-                  setActiveSceneId(next);
-                }
-              }}
-            />
-            <BackgroundAudio
-              playing={backgroundPlaying}
-              sceneId={
-                backgroundMode === "per-scene" ? activeSceneId : undefined
-              }
-              sources={
-                backgroundMode === "per-scene" ? PER_SCENE_SOURCES : undefined
-              }
-              src={backgroundMode === "shared" ? BGM_SHARED : undefined}
-            />
             <Scenes
               activeSceneId={activeSceneId}
               onActiveSceneIdChange={setActiveSceneId}
@@ -276,11 +120,19 @@ export function SceneTransitionPage() {
               maxTextureMemoryMb={96}
               scenes={TRANSITION_SCENES}
               transition={preset}
-              onTransitionEnd={({ previousSceneId, sceneId, preset: completedPreset }) => {
-                setStatus(`${previousSceneId} → ${sceneId} · ${completedPreset}`);
+              onTransitionEnd={({
+                previousSceneId,
+                sceneId,
+                preset: completedPreset,
+              }) => {
+                setStatus(
+                  `${previousSceneId} → ${sceneId} · ${completedPreset}`,
+                );
               }}
               onTransitionError={({ sceneId }) => {
-                setStatus(`Could not prepare ${sceneId}; current scene remains visible.`);
+                setStatus(
+                  `Could not prepare ${sceneId}; current scene remains visible.`,
+                );
               }}
               renderHotspots={(scene) => (
                 <ImageHotspot
@@ -296,10 +148,18 @@ export function SceneTransitionPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="Scenes blend with the selected preset. BackgroundAudio sits beside Scenes so music survives transitions."
+          blurb="Compare transition presets across sphere and cube scenes. A marker rendered per scene makes scene-owned content visible during the transition. Completion and error callbacks update the status above."
           code={snippet}
-          label="Scenes + BackgroundAudio"
+          label="Scenes: transition presets"
         />
+        <details className="border-t border-line p-5">
+          <summary>Complete running example</summary>
+          <CodeSnippet
+            label="Scene transitions page"
+            blurb="Full page implementation, including the displayed controls, loading/error status and example code generation."
+            code={fullSource}
+          />
+        </details>
       </section>
       <SiteFooter label="@ericchen1990/pano-view · panorama scene transitions" />
     </main>

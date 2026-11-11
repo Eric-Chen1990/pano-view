@@ -1,341 +1,49 @@
-import {
-  GraphicHotspot,
-  PanoEvents,
-  PanoViewer,
-  Scenes,
-  WebVR,
-  usePanoViewer,
-  type Scene,
-} from "@ericchen1990/pano-view";
-import { useState, useSyncExternalStore } from "react";
-import {
-  eyebrowClassName,
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
-  pageSectionClassName,
-  segmentedButtonClassName,
-  shellClassName,
-} from "../../ui";
+import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
-import { SiteFooter } from "../SiteFooter";
-import { SiteHeader } from "../SiteHeader";
+import { VRBasicsExample } from "./vr-basics-example";
+import source from "./vr-basics-example.tsx?raw";
 
-const WEBVR_SNIPPET = `import { useState, useSyncExternalStore } from "react";
-import {
-  GraphicHotspot,
-  PanoEvents,
-  PanoViewer,
-  Scenes,
-  WebVR,
-  usePanoViewer,
-} from "@ericchen1990/pano-view";
+const minimalCode = `import { PanoViewer, Sphere, GraphicHotspot, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
-const scenes = [
-  {
-    id: "tile-1",
-    type: "tile",
-    baseUrl: "/fixtures/panorama/cube-tiles/1",
-    multires: "512,1000,2000",
-    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-    previewUrl: "previews/cube-vertical.webp",
-  },
-  {
-    id: "tile-2",
-    type: "tile",
-    baseUrl: "/fixtures/panorama/cube-tiles/2",
-    multires: "512,1000,2000",
-    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-    previewUrl: "previews/cube-vertical.webp",
-  },
-];
-
-export function WebVRTour() {
+export function VRPanorama() {
   const viewer = usePanoViewer();
-  const vr = useSyncExternalStore(
-    viewer.subscribeVR,
-    viewer.getVRState,
-    viewer.getVRState,
-  );
-  const [activeSceneId, setActiveSceneId] = useState("tile-1");
-
-  return (
-    <>
-      <button
-        disabled={!vr.available}
-        type="button"
-        onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
-      >
-        {vr.enabled ? "Exit VR" : "Enter VR"}
-      </button>
-      <PanoViewer ref={viewer.ref} contextMenu={false} style={{ height: 560 }}>
-        <PanoEvents
-          onVRAvailable={() => {}}
-          onVREnter={(mode) => console.log("Entered", mode)}
-          onVRExit={() => {}}
-        />
-        <WebVR
-          chrome={{
-            accent: "#75cbd3",
-            background: "rgba(7, 19, 22, 0.82)",
-          }}
-        />
-        <Scenes
-          scenes={scenes}
-          activeSceneId={activeSceneId}
-          transition="crossfade"
-          renderHotspots={(scene) =>
-            scene.id === "tile-1" ? (
-              <GraphicHotspot
-                id="to-tile-2"
-                ariaLabel="Go to Tile 2"
-                graphic={{ kind: "arrow", fill: "#75cbd3" }}
-                position={{ yaw: 48, pitch: 2 }}
-                width={10}
-                height={10}
-                tooltip="Tile 2"
-                tooltipTrigger="hover"
-                onClick={() => setActiveSceneId("tile-2")}
-              />
-            ) : (
-              <GraphicHotspot
-                id="to-tile-1"
-                ariaLabel="Go to Tile 1"
-                graphic={{ kind: "arrow", fill: "#df6b42" }}
-                position={{ yaw: 155, pitch: 4 }}
-                rotation={210}
-                width={10}
-                height={10}
-                tooltip="Tile 1"
-                tooltipTrigger="hover"
-                onClick={() => setActiveSceneId("tile-1")}
-              />
-            )
-          }
-        />
-      </PanoViewer>
-    </>
-  );
+  return <>
+    <button onClick={() => void viewer.enterVR()}>Enter VR</button>
+    <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+      <WebVR />
+      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      <GraphicHotspot id="gaze-target" ariaLabel="Activate marker" position={{ yaw: 0, pitch: 0 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} onClick={() => console.log("Marker activated")} />
+    </PanoViewer>
+  </>;
 }`;
 
-const TILE_SCENE = {
-  type: "tile" as const,
-  multires: "512,1000,2000",
-  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-  previewUrl: "previews/cube-vertical.webp",
-};
-
-const VR_SCENES = [
-  { id: "tile-1", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/1" },
-  { id: "tile-2", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/2" },
-  { id: "tile-3", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/3" },
-  { id: "tile-4", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/4" },
-] satisfies readonly Scene[];
-
-const INITIAL_SCENE_ID = VR_SCENES[0]!.id;
-
-const PREV_GRAPHIC = {
-  kind: "arrow" as const,
-  fill: "#df6b42",
-  stroke: "#f5fbfc",
-  strokeWidth: 10,
-};
-
-const NEXT_GRAPHIC = {
-  kind: "arrow" as const,
-  fill: "#75cbd3",
-  stroke: "#f5fbfc",
-  strokeWidth: 10,
-};
-
-const SCENE_LINKS = {
-  "tile-1": [
-    {
-      id: "prev",
-      label: "Tile 4",
-      targetSceneId: "tile-4",
-      position: { yaw: -32, pitch: -6 },
-      rotation: 180,
-      graphic: PREV_GRAPHIC,
-    },
-    {
-      id: "next",
-      label: "Tile 2",
-      targetSceneId: "tile-2",
-      position: { yaw: 48, pitch: 2 },
-      rotation: 0,
-      graphic: NEXT_GRAPHIC,
-    },
-  ],
-  "tile-2": [
-    {
-      id: "prev",
-      label: "Tile 1",
-      targetSceneId: "tile-1",
-      position: { yaw: 155, pitch: 4 },
-      rotation: 210,
-      graphic: PREV_GRAPHIC,
-    },
-    {
-      id: "next",
-      label: "Tile 3",
-      targetSceneId: "tile-3",
-      position: { yaw: -78, pitch: -12 },
-      rotation: 15,
-      graphic: NEXT_GRAPHIC,
-    },
-  ],
-  "tile-3": [
-    {
-      id: "prev",
-      label: "Tile 2",
-      targetSceneId: "tile-2",
-      position: { yaw: 22, pitch: 18 },
-      rotation: 160,
-      graphic: PREV_GRAPHIC,
-    },
-    {
-      id: "next",
-      label: "Tile 4",
-      targetSceneId: "tile-4",
-      position: { yaw: -140, pitch: -3 },
-      rotation: -25,
-      graphic: NEXT_GRAPHIC,
-    },
-  ],
-  "tile-4": [
-    {
-      id: "prev",
-      label: "Tile 3",
-      targetSceneId: "tile-3",
-      position: { yaw: 88, pitch: -8 },
-      rotation: 195,
-      graphic: PREV_GRAPHIC,
-    },
-    {
-      id: "next",
-      label: "Tile 1",
-      targetSceneId: "tile-1",
-      position: { yaw: -18, pitch: 10 },
-      rotation: 40,
-      graphic: NEXT_GRAPHIC,
-    },
-  ],
-} as const;
-
 export function WebVRPage() {
-  const viewer = usePanoViewer();
-  const vr = useSyncExternalStore(
-    viewer.subscribeVR,
-    viewer.getVRState,
-    viewer.getVRState,
-  );
-  const [status, setStatus] = useState("Detecting VR capabilities…");
-  const [activeSceneId, setActiveSceneId] = useState(INITIAL_SCENE_ID);
-  const [lastClick, setLastClick] = useState("Look at a hotspot in VR to switch scenes");
-
   return (
-    <main className={shellClassName}>
-      <SiteHeader />
-      <section className={`${pageSectionClassName} mt-6`}>
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>Immersive viewer</p>
-            <h1 className={pageHeadingTitleClassName}>WebVR</h1>
-          </div>
-          <p className={pageHeadingStatusClassName}>
-            WebXR is preferred on headsets. Phones fall back to stereoscopic
-            gyro viewing, while desktop browsers can preview simulated VR. In
-            VR, look at a hotspot until the reticle ring fills to switch scenes.
-            Enter VR from the host button; session Exit / Setup fade after idle.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 border-b border-line px-6 py-4">
-          <button
-            className={segmentedButtonClassName}
-            disabled={!vr.available}
-            onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
-            type="button"
-          >
-            {vr.enabled ? "Exit VR" : "Enter VR"}
-          </button>
-          <span className="font-mono text-xs text-muted-2">{status}</span>
-          <span className="font-mono text-xs text-muted-2">
-            Scene: {activeSceneId}
-          </span>
-          <span className="font-mono text-xs text-muted-2">{lastClick}</span>
-        </div>
-        <div className="h-[min(68vh,680px)] min-h-105">
-          <PanoViewer
-            ref={viewer.ref}
-            contextMenu={false}
-            style={{ height: "100%" }}
-          >
-            <PanoEvents
-              onVRAvailable={() => setStatus("VR is available")}
-              onVRDenied={(error) =>
-                setStatus(
-                  error instanceof Error
-                    ? `VR denied: ${error.message}`
-                    : "VR permission was denied",
-                )
-              }
-              onVREnter={(mode) => setStatus(`Active mode: ${mode}`)}
-              onVRExit={() => setStatus("VR session ended")}
-              onVRUnavailable={() => setStatus("VR is unavailable")}
-              onVRUnknownDevice={() =>
-                setStatus("Unknown screen size — open VR Setup to calibrate")
-              }
-            />
-            <WebVR
-              chrome={{
-                accent: "#75cbd3",
-                background: "rgba(7, 19, 22, 0.82)",
-              }}
-            />
-            <Scenes
-              activeSceneId={activeSceneId}
-              maxConcurrentTileLoads={3}
-              maxTextureMemoryMb={96}
-              onTransitionEnd={({ previousSceneId, sceneId }) => {
-                setLastClick(`${previousSceneId} → ${sceneId}`);
-              }}
-              onTransitionError={({ sceneId }) => {
-                setLastClick(`Could not prepare ${sceneId}; current scene remains visible.`);
-              }}
-              renderHotspots={(scene) => {
-                const links = SCENE_LINKS[scene.id as keyof typeof SCENE_LINKS];
-                if (!links) {
-                  return null;
-                }
-                return links.map((target) => (
-                  <GraphicHotspot
-                    ariaLabel={`Go to ${target.label}`}
-                    graphic={target.graphic}
-                    height={10}
-                    id={`${scene.id}-${target.id}`}
-                    key={`${scene.id}-${target.id}`}
-                    onClick={() => setActiveSceneId(target.targetSceneId)}
-                    position={target.position}
-                    rotation={target.rotation}
-                    tooltip={target.label}
-                    tooltipTrigger="hover"
-                    width={10}
-                  />
-                ));
-              }}
-              scenes={VR_SCENES}
-              transition="crossfade"
-            />
-          </PanoViewer>
-        </div>
+    <ExamplePage
+      title="VR basics"
+      description="Enter VR, then look at the orange marker until the reticle fills. Supported headsets use WebXR; phones use stereoscopic gyro viewing; desktop browsers provide a simulated preview. Exit and Setup controls appear within the session."
+    >
+      <VRBasicsExample />
+      <p className="px-6 text-sm text-muted-2">
+        In desktop preview, right-click releases the pointer. Left-click locks
+        it again; gaze pauses while unlocked. Phones need HTTPS and sensor
+        permission. Use a supported physical device to verify its immersive
+        mode.
+      </p>
+      <CodeSnippet
+        label="VR basics: minimal setup"
+        blurb="WebVR supplies immersive presentation and gaze activation. The complete example adds capability and permission status, an activation counter, and host-owned entry/exit controls."
+        code={minimalCode}
+      />
+      <details className="border-t border-line p-5">
+        <summary>Complete VR example</summary>
         <CodeSnippet
-          blurb="Host Enter/Exit VR via usePanoViewer + subscribeVR. Built-in chrome only shows session Exit/Setup. Looking at a GraphicHotspot fills the reticle, then runs onClick to switch scenes."
-          code={WEBVR_SNIPPET}
-          label="WebVR + Scenes"
+          label="VR basics: complete example"
+          blurb="Mount WebVR beside a source and hotspots. usePanoViewer controls entry/exit; PanoEvents reports support, permission and session state."
+          code={source}
         />
-      </section>
-      <SiteFooter label="@ericchen1990/pano-view · WebVR" />
-    </main>
+      </details>
+    </ExamplePage>
   );
 }

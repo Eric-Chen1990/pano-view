@@ -1,3 +1,5 @@
+import { WebVRInputBridge } from "./input-bridge";
+import { bindEmulatedXRViewport } from "./emulated-viewport";
 import { useThree } from "@react-three/fiber";
 import {
   forwardRef,
@@ -77,6 +79,7 @@ function getViewerElement(canvas: HTMLCanvasElement): Element {
 
 export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   {
+    interactionMode = "auto",
     chrome = true,
     mobileVr = true,
     desktopSupport = false,
@@ -594,6 +597,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   }, [exitVR, gl.domElement, mode]);
 
   useEffect(() => {
+    if (mode === "webxr") return bindEmulatedXRViewport(gl.domElement);
+  }, [gl.domElement, mode]);
+
+  useEffect(() => {
     if (mode !== "webxr") {
       return;
     }
@@ -648,6 +655,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
         profile={resolvedProfile}
         screensize={effectiveScreensize}
       />
+      <WebVRInputBridge mode={mode} policy={interactionMode} chrome={chrome} gazeEnabled={cursor && cursorDwellMs > 0} />
       <WebVRReticle
         dwellMs={cursorDwellMs}
         scale={mode === "mobilevr" ? MOBILE_VR_RETICLE_SCALE : mode === "fake" ? 0.6 : 1}

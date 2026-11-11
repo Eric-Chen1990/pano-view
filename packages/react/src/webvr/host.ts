@@ -26,6 +26,7 @@ export type WebVRHostSnapshot = {
   screensizeManaged: boolean;
   profileManaged: boolean;
   profileLabel: string;
+  input?: WebVRState["input"];
   available: boolean;
   chrome: WebVRChrome;
   mode: WebVRMode | null;
@@ -102,9 +103,9 @@ export function updateWebVRHost(
 
   if (
     previous.available !== next.available ||
-    previous.mode !== next.mode
+    previous.mode !== next.mode || previous.input !== next.input
   ) {
-    host.state = createWebVRState(next.available, next.mode);
+    host.state = Object.freeze({ ...createWebVRState(next.available, next.mode), ...(next.input ? { input: next.input } : {}) });
   }
 
   for (const listener of host.listeners) {

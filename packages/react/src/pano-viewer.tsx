@@ -1,5 +1,6 @@
 import { SpatialHostContext, createSpatialHost } from "./spatial/host";
 import { SpatialPanels } from "./spatial/panel";
+import { SpatialMediaControls } from "./spatial/media-controls";
 import { parseViewLimits, type PanoViewLimits } from "./view-limits";
 import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
@@ -372,6 +373,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       () =>
         createXRStore({
           anchors: false,
+          controller: { grabPointer: false },
+          hand: { grabPointer: false, touchPointer: false },
           bodyTracking: false,
           depthSensing: false,
           domOverlay: false,
@@ -996,10 +999,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         </div>
         <SpatialHostContext.Provider value={spatialHost}>
+        <ScenesHostContext.Provider value={scenesHost}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
               <PanoOverlayOutletContext.Provider value={true}>
+                <SpatialMediaControls />
                 <div
                   data-pano-overlay=""
                   ref={setPortalContainer}
@@ -1015,6 +1020,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </ScenesHostContext.Provider>
         </SpatialHostContext.Provider>
       </div>
     );

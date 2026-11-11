@@ -9,6 +9,10 @@ components and manage their own UI, controls, routes, and data.
 Try the [live playground](https://pano-view-playground.vercel.app/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=playground) to explore
 hotspots, scene transitions, 360 video, WebXR, filters, and cube-tile scenes.
 
+## Playground learning path
+
+Start with `/basics` for Sphere and Tile loading, then `/controls` for view navigation and `/hotspots` for nine editable hotspot presets. Focused examples cover `/scene-transitions`, `/scene-menu`, `/map`, `/overlays`, `/context-menu`, `/video`, `/background-audio` and `/filters`. Immersive topics are separate: `/webvr` for VR basics, `/vr-scene-menu` for menu configuration, and `/spatial-controls` for media, models and scrolling. Continue with `/project` (static JSON tour), `/immersive-tour` (runtime integration) or `/editor` (tour authoring). All 17 examples are listed on the playground home page.
+
 ## Contents
 
 - [Packages](#packages)
@@ -73,7 +77,7 @@ See [Static projects and JSON data](./packages/react/README.md#static-projects-a
 
 Prefer `PanoOverlay` for ordinary DOM UI outside the Three.js tree. The viewer supplies a stable local Portal container, measured size and fullscreen state. Existing Dialog components can use this container; optional `PanoDialog` components are available from `@ericchen1990/pano-view/ui`, with a separate `@ericchen1990/pano-view/ui/styles.css` stylesheet.
 
-Open `/overlays` in the local playground for image/text, video, gallery and iframe examples, default styling, composed parts and third-party Dialog integration. The separate [dialog and styling guide](./packages/react/docs/dialogs.md) includes complete examples, theme variables, component APIs, nested portals, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
+Open `/overlays` for focused default, composed and third-party Dialog examples. `/immersive-tour` combines rich content, scene navigation and VR; `/spatial-controls` teaches media, model and scroll controls separately. The separate [dialog and styling guide](./packages/react/docs/dialogs.md) includes complete examples, theme variables, component APIs, nested portals, focus and media cleanup. This supports element fullscreen; immersive WebXR and native video fullscreen require their own UI.
 
 ## Installation
 

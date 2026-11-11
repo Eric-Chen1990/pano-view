@@ -33,57 +33,14 @@ export function SceneMovieControls({
 }: {
   controller: PanoMediaController | null;
 }) {
-  const [theme, setTheme] = useState(false);
   return (
     <PanoSpatialControls
       position={{ yaw: 145, pitch: -14 }}
       width={28}
       distance={10}
     >
-      <PanoMediaControls
-        controller={controller}
-        style={{ background: theme ? "#422b69" : "#161b22" }}
-        actions={[
-          "rewind",
-          "play",
-          "pause",
-          "forward",
-          {
-            id: "theme",
-            label: "Change control theme",
-            icon: (
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="8" fill="currentColor" />
-              </svg>
-            ),
-            activate: () => setTheme((value) => !value),
-          },
-        ]}
-      >
-        {(actions) => (
-          <div style={{ display: "flex", gap: 16 }}>
-            {actions.map((action) => (
-              <CustomButton
-                key={action.id === "pause" ? "play" : action.id}
-                action={action}
-              />
-            ))}
-          </div>
-        )}
-      </PanoMediaControls>
+      <PanoMediaControls controller={controller} />
     </PanoSpatialControls>
-  );
-}
-import {
-  PanoControlButton,
-  type PanoControlAction,
-} from "@ericchen1990/pano-view";
-function CustomButton({ action }: { action: PanoControlAction }) {
-  return (
-    <PanoControlButton
-      action={action}
-      style={{ borderRadius: "50%", color: "#baf5ff" }}
-    />
   );
 }
 export function PanoramaMovieControls({
@@ -94,7 +51,7 @@ export function PanoramaMovieControls({
   const controller = useSyncExternalStore(
     viewer.subscribeVideo,
     viewer.getVideo,
-    () => null
+    () => null,
   );
   return (
     <PanoSpatialControls>

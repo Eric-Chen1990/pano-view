@@ -1,3 +1,4 @@
+import { applySpatialAxes, axisValue, pointerInput, pointerStick, type PointerInput } from "../webvr/input";
 import { scrollEdges, scrollViewportBounds } from "./scroll-edges";
 import { probeVolumeAdjustable } from "../video/format";
 import { mediaControllers } from "../controls/media";
@@ -34,6 +35,9 @@ import {
 import { WebVRRuntimeContext, subscribeWebVRHost } from "../webvr/host";
 import { ScenesHostContext } from "../scenes-host";
 import { createActionUpdateState, type GazeAction } from "./gaze-action";
+import { createSpatialVideo, type SpatialVideo } from "./video";
+import { spatialVideoPlaybackBlocked } from "./media-controls";
+import type { PanoMediaController } from "../controls/actions";
 
 type Button = {
   label: string;
@@ -87,6 +91,14 @@ async function capture(
       const css = getComputedStyle(node);
       for (const key of css)
         copy.style.setProperty(key, css.getPropertyValue(key));
+      if (node.matches("video,canvas,audio")) {
+        const box = document.createElement("div");
+        box.style.cssText = copy.style.cssText;
+        const rect = node.getBoundingClientRect();
+        box.style.width = `${rect.width}px`;
+        box.style.height = `${rect.height}px`;
+        copy.replaceWith(box);
+      }
     });
     Object.assign(clone.style, {
       left: "0",
@@ -225,8 +237,21 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
     return t;
   }, [canvas, gl]);
-  const pressed = useRef<GazeAction | null>(null);
-  const pressedUpdates = useRef(createActionUpdateState());
+  type Contact = { event: PointerInput; action: GazeAction | null; adapter: PanoSpatialControlAdapter | null; scroll: HTMLElement | null; x: number; y: number; moved: boolean; target: object; updates: ReturnType<typeof createActionUpdateState>; release: () => void };
+  const contacts = useRef(new Map<number, Contact>());
+  const hovering = useRef(new Map<number, Contact>());
+  const stopContact = (id: number) => {
+    const contact = contacts.current.get(id);
+    if (contact) { contacts.current.delete(id); contact.action?.end?.(); contact.release(); host.input.release(contact.target, id); }
+  };
+  useEffect(() => {
+    const stop = () => { for (const id of [...contacts.current.keys()]) stopContact(id); hovering.current.clear(); };
+    const unsubscribe = host.input.onCancel(stop);
+    return () => { unsubscribe(); stop(); };
+  }, [host, surface]);
+  const videos = useRef(new Map<HTMLVideoElement, SpatialVideo>());
+  const controllers = useRef(new Map<HTMLMediaElement, PanoMediaController>());
+  const blockedMedia = useRef(new WeakSet<HTMLMediaElement>());
   const layers = useRef(
     new Map<HTMLElement, Mesh<PlaneGeometry, MeshBasicMaterial>>()
   );
@@ -250,6 +275,33 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     scrollTarget: null as HTMLElement | null,
     mediaTarget: null as HTMLMediaElement | null,
   });
+  const controllerFor = (media: HTMLMediaElement) => {
+    let controller = controllers.current.get(media);
+    if (!controller) {
+      if (!volumeCapabilities.has(media)) volumeCapabilities.set(media, probeVolumeAdjustable(media));
+      controller = {
+        subscribe: () => () => {},
+        getSnapshot: () => ({ ready: media.readyState >= 1, playing: !media.paused && !media.ended, currentTime: media.currentTime, duration: media.duration, volume: media.volume, volumeAdjustable: volumeCapabilities.get(media) ?? false, muted: media.muted }),
+        play: async () => {
+          try {
+            await media.play();
+            blockedMedia.current.delete(media);
+            if (media instanceof HTMLAudioElement) state.current.mediaBlocked = false;
+          } catch (error) {
+            blockedMedia.current.add(media);
+            if (media instanceof HTMLAudioElement) state.current.mediaBlocked = true;
+            throw error;
+          }
+        },
+        pause: () => media.pause(),
+        seek: (time) => { if (Number.isFinite(time) && Number.isFinite(media.duration)) media.currentTime = Math.max(0, Math.min(media.duration, time)); },
+        setVolume: (value) => { media.volume = value; },
+        setMuted: (value) => { media.muted = value; },
+      };
+      controllers.current.set(media, controller);
+    }
+    return controller;
+  };
   const sceneHost = useContext(ScenesHostContext);
   useEffect(() => {
     const s = state.current;
@@ -259,6 +311,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     s.adapter = null;
     s.dirty = true;
     s.image = null;
+    s.mediaBlocked = false;
     surface.element.dataset.panoSpatialState = "loading";
     group.current?.traverse((node) => node.layers.set(SPATIAL_UI_LAYER));
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
@@ -274,12 +327,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       group.current.scale.setScalar((2 * distance * Math.tan(width * Math.PI / 360)) / (WIDTH * spatialPanelScale(HEIGHT)));
     }
     const releasePointer = () => {
-      pressed.current?.end?.();
-      pressed.current = null;
-      pressedUpdates.current.reset();
+      for (const id of [...contacts.current.keys()]) stopContact(id);
+      hovering.current.clear();
       host.suppressGazeUntil = 0;
     };
-    window.addEventListener("pointerup", releasePointer);
     window.addEventListener("blur", releasePointer);
     const observer = new MutationObserver((records) => {
       if (
@@ -324,7 +375,6 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     sceneHost?.listeners.add(sceneChanged);
     return () => {
       releasePointer();
-      window.removeEventListener("pointerup", releasePointer);
       window.removeEventListener("blur", releasePointer);
       s.disposed = true;
       s.generation++;
@@ -335,6 +385,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       sceneHost?.listeners.delete(sceneChanged);
       surface.element.removeEventListener("scroll", dirty, true);
       surface.element.removeEventListener("load", dirty, true);
+      videos.current.forEach((video) => video.dispose());
+      videos.current.clear();
+      controllers.current.clear();
+      blockedMedia.current = new WeakSet();
       surface.element
         .querySelectorAll("video,audio")
         .forEach((m) => (m as HTMLMediaElement).pause());
@@ -354,11 +408,12 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
 
   const resolve = (uv: Vector2): GazeAction | null => {
     const s = state.current;
+    s.adapter = null; s.scrollTarget = null;
     const { x, y } = spatialUvToPoint(uv, s.height);
     const button = [...s.edgeButtons, ...s.buttons].find(
       (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
     );
-    if (button) return button.action;
+    if (button) return button.action.enabled?.() === false ? null : button.action;
     if (y >= BODY_HEIGHT) return null;
     const rect = surface.element.getBoundingClientRect();
     // The source stays offscreen. Measured boxes provide hit testing without moving portals.
@@ -437,7 +492,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     if (!clickable || clickable.matches(':disabled,[aria-disabled="true"]'))
       return null;
     const binding = controlBindings.get(clickable);
-    if (binding) return { ...binding, id: clickable, enabled: () => clickable.isConnected && !binding.disabled && binding.enabled?.() !== false };
+    if (binding) return { ...binding, id: clickable, enabled: () => {
+      const visible = scrollViewportBounds(surface.element, clickable, Math.min(BODY_HEIGHT, surface.element.offsetHeight));
+      return clickable.isConnected && !binding.disabled && binding.enabled?.() !== false && visible.width > 0 && visible.height > 0;
+    } };
     return {
       id: clickable,
       activate: () => {
@@ -449,12 +507,23 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
 
   useFrame((_, delta) => {
     const s = state.current;
-    if (delta > 0.25 || document.hidden) { pressed.current?.end?.(); pressed.current = null; }
-    if (pressed.current) {
-      host.suppressGazeUntil = performance.now() + 350;
-      if (pressed.current.enabled?.() !== false)
-        pressedUpdates.current.tick(pressed.current, delta);
-      else { pressed.current.end?.(); pressed.current = null; }
+    if (delta > 0.25 || (gl.xr.isPresenting ? gl.xr.getSession()?.visibilityState !== "visible" : document.hidden)) host.input.cancel();
+    for (const [id, contact] of contacts.current) {
+      if (contact.adapter && ![...host.controls.values()].includes(contact.adapter)) { stopContact(id); continue; }
+      if (contact.action?.enabled?.() === false) { stopContact(id); continue; }
+      if (contact.action) contact.updates.tick(contact.action, delta);
+    }
+    for (const [id, contact] of hovering.current) {
+      if (contacts.current.has(id) || contact.event.pointerState?.inputSource !== host.input.activeSource || !host.input.hasStick || host.input.getSnapshot().mode !== "pointer") continue;
+      const stick = pointerStick(contact.event);
+      if (!stick || delta > .25) continue;
+      const x = axisValue(stick.xAxis), y = axisValue(stick.yAxis);
+      if (!x && !y) continue;
+      const adapter = contact.adapter;
+      const target = adapter?.zoomBy ? adapter : contact.scroll;
+      if (!target || !host.input.claim(target, id)) continue;
+      applySpatialAxes(adapter, contact.scroll, x, y, delta);
+      host.input.release(target, id); s.dirty = true;
     }
     const ctx = canvas.getContext("2d")!;
     const nextHeight = Math.max(
@@ -547,6 +616,12 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       ctx.fillText("Exit VR to view this content", 30, 165);
     }
     const rootRect = surface.element.getBoundingClientRect();
+    for (const [node, video] of videos.current) {
+      if (!surface.element.contains(node)) { video.dispose(); videos.current.delete(node); }
+    }
+    for (const node of controllers.current.keys()) {
+      if (!surface.element.contains(node)) controllers.current.delete(node);
+    }
     for (const [node, mesh] of layers.current)
       if (!host.controls.has(node) || !surface.element.contains(node)) {
         mesh.geometry.dispose();
@@ -603,19 +678,43 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         ([el]) => el === node || el.contains(node)
       )?.[1];
       if (adapter?.texture) continue;
+      const clip = scrollViewportBounds(surface.element, node, Math.min(BODY_HEIGHT, surface.element.offsetHeight));
+      const style = getComputedStyle(node);
+      if (!clip.width || !clip.height || style.visibility === "hidden") continue;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(
-        0,
-        0,
-        WIDTH,
-        Math.min(BODY_HEIGHT, surface.element.offsetHeight)
-      );
+      ctx.rect(clip.x, clip.y, clip.width, clip.height);
       ctx.clip();
-      try {
-        ctx.drawImage(node, x, y, r.width, r.height);
-      } catch {
-        /* Loading media has no frame yet. */
+      if (node instanceof HTMLVideoElement) {
+        let video = videos.current.get(node);
+        if (!video) { video = createSpatialVideo(node); videos.current.set(node, video); }
+        const frame = video.getFrame();
+        ctx.fillStyle = "#101419";
+        ctx.fillRect(x, y, r.width, r.height);
+        if (frame) {
+          const scale = Math.min(r.width / frame.width, r.height / frame.height);
+          const width = frame.width * scale, height = frame.height * scale;
+          ctx.drawImage(frame.image, x + (r.width - width) / 2, y + (r.height - height) / 2, width, height);
+        } else {
+          ctx.fillStyle = style.getPropertyValue("--pano-control-color").trim() || "#fff";
+          ctx.font = "20px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(node.error ? "Video unavailable" : "Video · Press play to start", x + r.width / 2, y + r.height / 2, Math.max(1, r.width - 24));
+          ctx.textAlign = "start";
+        }
+        if (blockedMedia.current.has(node) || spatialVideoPlaybackBlocked.has(node)) {
+          ctx.fillStyle = "rgba(12, 17, 24, 0.9)";
+          ctx.fillRect(x, y, r.width, 44);
+          ctx.fillStyle = "#fff";
+          ctx.font = "18px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Playback blocked · Exit VR to allow playback", x + r.width / 2, y + 28, Math.max(1, r.width - 24));
+          ctx.textAlign = "start";
+        }
+
+      } else {
+        try { ctx.drawImage(node, x, y, r.width, r.height); }
+        catch { /* A host canvas may not have a frame yet. */ }
       }
       ctx.restore();
     }
@@ -644,24 +743,15 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     if (!s.scrollTarget || !surface.element.contains(s.scrollTarget) || !scrollActions(s.scrollTarget).length) {
       s.scrollTarget = surface.element.querySelector<HTMLElement>("[data-pano-scroll-viewport]") ?? [surface.element, ...surface.element.querySelectorAll<HTMLElement>("*")].find(node => findScrollTarget(surface.element, node) === node) ?? null;
     }
-    s.edgeButtons = !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
+    s.edgeButtons = !host.input.hasStick && !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
       ? scrollEdges(s.scrollTarget, scrollViewportBounds(surface.element, s.scrollTarget, Math.min(BODY_HEIGHT, surface.element.offsetHeight)), () => { s.dirty = true; }) : [];
     const adapter = s.adapter;
     if (adapter && !explicitTargets.has(adapter)) for (const action of modelActions(adapter)) {
+      if ((host.input.canDrag && adapter.rotateBy && ["left", "right", "up", "down"].includes(action.id)) || (host.input.hasStick && adapter.zoomBy && ["in", "out"].includes(action.id))) continue;
       add(action.id, action.label, action.update, action.activate, action.enabled);
     }
-    if (media && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
-      if (!volumeCapabilities.has(media)) volumeCapabilities.set(media, probeVolumeAdjustable(media));
-      const controller = {
-        subscribe: () => () => {},
-        getSnapshot: () => ({ ready: media.readyState >= 1, playing: !media.paused && !media.ended, currentTime: media.currentTime, duration: media.duration, volume: media.volume, volumeAdjustable: volumeCapabilities.get(media) ?? false, muted: media.muted }),
-        play: async () => { try { await media.play(); } catch (error) { s.mediaBlocked = true; throw error; } },
-        pause: () => media.pause(),
-        seek: (time: number) => { media.currentTime = time; },
-        setVolume: (value: number) => { media.volume = value; },
-        setMuted: (value: boolean) => { media.muted = value; },
-      };
-      for (const action of mediaActions(controller)) add(action.id === "pause" ? "play" : action.id === "unmute" ? "mute" : action.id, action.label, action.update, action.activate, action.enabled);
+    if (media instanceof HTMLAudioElement && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
+      for (const action of mediaActions(controllerFor(media))) add(action.id === "pause" ? "play" : action.id === "unmute" ? "mute" : action.id, action.label, action.update, action.activate, action.enabled);
     }
     s.buttons = surface.anchor ? [] : buttons;
     if (surface.anchor) buttons.length = 0;
@@ -676,7 +766,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       ctx.stroke(new Path2D(CONTROL_PATHS[icon] ?? CONTROL_PATHS.reset)); ctx.restore();
     }
     for (const button of s.edgeButtons) {
-      const focused = host.action?.id === button.action.id || pressed.current?.id === button.action.id;
+      const focused = host.action?.id === button.action.id || [...contacts.current.values()].some(contact => contact.action?.id === button.action.id);
       ctx.save();
       const opacity = Number(appearance.getPropertyValue(focused ? "--pano-scroll-active-opacity" : "--pano-scroll-opacity").trim() || (focused ? .9 : .3));
       ctx.globalAlpha = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : focused ? .9 : .3;
@@ -694,32 +784,59 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     <group ref={group} renderOrder={90000}>
       <mesh
         ref={panelMesh}
+        pointerEventsOrder={10}
         onPointerDown={(event) => {
-          host.suppressGazeUntil = performance.now() + 350;
           event.stopPropagation();
-          pressedUpdates.current.reset();
-          if (event.uv) pressed.current = resolve(event.uv);
+          const inputEvent = pointerInput(event);
+          if (!host.input.accept(inputEvent, "down", !!pointerStick(inputEvent)) || !event.uv) return;
+          const action = resolve(event.uv);
+          const adapter = state.current.adapter;
+          const target = action?.id && typeof action.id === "object" ? action.id : adapter ?? surface.element;
+          if (!host.input.claim(target, inputEvent.pointerId)) return;
+          host.suppressGazeUntil = performance.now() + 350;
+          event.eventObject.setPointerCapture(inputEvent.pointerId);
+          contacts.current.set(inputEvent.pointerId, {
+            event: inputEvent, action, adapter: action ? null : adapter, scroll: state.current.scrollTarget,
+            x: event.uv.x, y: event.uv.y, moved: false, target, updates: createActionUpdateState(),
+            release: () => { if (event.eventObject.hasPointerCapture(inputEvent.pointerId)) event.eventObject.releasePointerCapture(inputEvent.pointerId); },
+          });
         }}
-        onPointerUp={() => {
-          host.suppressGazeUntil = 0;
-          pressed.current?.end?.();
-          pressed.current = null;
+        onPointerUp={(event) => {
+          event.stopPropagation();
+          const e = pointerInput(event), contact = contacts.current.get(e.pointerId);
+          if (host.input.accept(e, "up") && contact && !contact.moved && event.uv) {
+            const action = resolve(event.uv);
+            if (action?.id === contact.action?.id && action?.enabled?.() !== false) action?.activate?.();
+          }
+          stopContact(e.pointerId); host.suppressGazeUntil = performance.now() + 350;
         }}
-        onPointerOut={() => {
-          host.suppressGazeUntil = 0;
-          pressed.current?.end?.();
-          pressed.current = null;
-        }}
+        onPointerCancel={event => { stopContact(pointerInput(event).pointerId); }}
+        onLostPointerCapture={event => { stopContact(pointerInput(event).pointerId); }}
+        onPointerOut={(event) => { hovering.current.delete(pointerInput(event).pointerId); }}
         userData={{ panoGazeResolve: resolve }}
         onPointerMove={(event) => {
           event.stopPropagation();
-          if (event.uv) host.action = resolve(event.uv);
+          const e = pointerInput(event);
+          if (!host.input.accept(e, "hover", !!pointerStick(e)) || !event.uv) return;
+          const action = resolve(event.uv), contact = contacts.current.get(e.pointerId);
+          if (contact?.adapter?.rotateBy && host.input.canDrag) {
+            const dx = event.uv.x - contact.x, dy = event.uv.y - contact.y;
+            if (contact.moved || Math.hypot(dx, dy) > .01) {
+              contact.moved = true;
+              const yaw = dx * 180, pitch = dy * 180;
+              contact.adapter.rotateBy(contact.adapter.canExecute?.(yaw > 0 ? "right" : "left") === false ? 0 : yaw,
+                contact.adapter.canExecute?.(pitch > 0 ? "up" : "down") === false ? 0 : pitch);
+              contact.x = event.uv.x; contact.y = event.uv.y; state.current.dirty = true;
+            }
+          }
+          if (contact?.action && action?.id !== contact.action.id) stopContact(e.pointerId);
+          hovering.current.set(e.pointerId, { event: e, action, adapter: action ? null : state.current.adapter,
+            scroll: state.current.scrollTarget, x: event.uv.x, y: event.uv.y, moved: false,
+            target: surface.element, updates: createActionUpdateState(), release: () => {} });
+          host.action = action;
         }}
-        onPointerOver={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (event.uv) resolve(event.uv)?.activate?.();
-        }}
+        onPointerOver={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); host.input.accept(pointerInput(event), "click"); }}
       >
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial

@@ -122,7 +122,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 | `entrance` | `guide` | iframe | Courtyard guide |
 | `hall` | `story` | article | Hall story |
 
-下面是完整源码，包含所有内容组件、映射、选中状态和点击处理。`/overlays` 页的 Default dialog 展示这份源码；Compose parts 与 Third-party dialog 会换成各自的弹窗示例。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
+下面是完整源码，包含所有内容组件、映射、选中状态和点击处理。`/immersive-tour` 综合案例在此映射基础上加入模型与 VR；`/overlays` 使用更小的单场景示例比较三种弹窗接入方式。保存为 `multi-hotspot-example.tsx`，以 `project` 传入已加载的项目即可；在仓库外使用时，将 `/fixtures/...` 替换为自己的资源地址。
 
 ```tsx
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -280,7 +280,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
 5. 内容容器的 key 同时包含两个 ID。通过代码直接切换选中热点时，旧内容的表单/画册状态会重置并执行清理，包括暂停原视频；外层弹窗和焦点范围继续复用。
 6. 关闭弹窗或切换场景会清空 `selected`，卸载内容并释放模态锁。切换全屏不改变选中热点的 key，因此不会重置内容。
 
-在 `/overlays` 中分别打开 **Courtyard story** 和 **Garden details**，比较两个图文热点，再尝试视频、画册和指南。点击 **Go to next room** 进入 hall 后，同样的 `story` ID 会打开内容不同的 **Hall story**。viewer 下的映射表与可复制代码会展示实际对应关系。
+在 `/immersive-tour` 中分别打开 **Courtyard story** 和 **Garden details**，比较两个图文热点，再尝试视频、画册和指南。点击 **Go to next room** 进入 hall 后，同样的 `story` ID 会打开内容不同的 **Hall story**。viewer 下的映射表与可复制代码会展示实际对应关系。
 
 `body` 接受任意 React 节点：原生媒体、业务组件、图文内容，或请求 API 数据的组件。加载中/错误状态在内容组件中处理，自定义播放器和订阅在 cleanup 中释放。如果内容来自 JSON，应将已校验的内容类型映射到 React 渲染器，不要将 React 节点写进 JSON。iframe 的权限按嵌入来源配置，第三方响应头可能禁止嵌入；视频自动播放需明确开启，并受浏览器策略限制。
 
@@ -623,6 +623,8 @@ export function DialogHelp() {
 
 宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。
 
+VR 中，视线移到弹窗外时可凝视场景热点。短暂经过热点或看向空白处会保持弹窗；在热点上完成现有 `cursorDwellMs` 后，先从上到下关闭当前弹窗栈，再触发一次目标热点操作，新操作打开的弹窗会保留，并按当前凝视方向重新定位。即使宿主复用同一个弹窗组件，也会先完成旧弹窗的关闭再执行目标操作。凝视弹窗内容时，弹窗优先于其后的热点。仅进入或退出 VR 不会关闭已打开的弹窗。
+
 连续操作在凝视计时完成后开始，移开即停；滚动默认每隔 700 毫秒移动一小步；旋转每秒 30 度、缩放每秒 1.5 倍。关闭、复位、图集切换为单次操作。明确禁用 `cursor` 或将 `cursorDwellMs` 设为零仍会禁用自动凝视。文字输入和虚拟键盘不在支持范围。跨域 iframe、不可读取的 Canvas 或被浏览器阻止的媒体需要退出 VR 后查看或授权；凝视不能替代浏览器要求的可信用户手势。
 
 空间窗口默认距视点约 2 米，外框按宽不超过 32°、高不超过 40°的视角缩放，避免长内容撑满双眼视野。关闭按钮视觉尺寸在普通模式和 VR 中均为 36px；VR 使用至少 56px 的不可见凝视命中范围。原生捕获会完整检测 `content="drawable"` 和绘制 API；旧实验 API 使用兼容捕获。可通过内容节点的 `data-pano-spatial-state`（`loading`、`ready`、`error`）观察捕获状态。
@@ -671,10 +673,22 @@ const controller = usePanoMediaController(mediaRef);
 
 自定义动作包含 `id`、无障碍 `label`、可选 React `icon`、`disabled` / `enabled()`、单次 `activate()`、连续 `update(seconds)` 和停止 `end()`；可选 `repeatIntervalMs` 将连续动作改为间隔执行。使用 `PanoControlButton` 保留凝视绑定；切换播放／静音图标时保持按钮 key 稳定，防止重新计时。`PanoControlGroup` 可直接渲染自定义动作数组。
 
-可通过 `className`、`style` 和 `--pano-control-background/color/border/radius/size/gap/padding/focus` CSS 变量定制显式按钮组。自动操作区支持 background 变量；完整布局或图标替换需显式按钮组。同一目标的显式媒体、模型或滚动组会替代自动操作组。
+可通过 `className`、`style` 和 `--pano-control-background/color/border/radius/size/gap/padding/focus` CSS 变量定制显式按钮组。自动视频按钮组也支持这些变量；其他自动操作区支持 background 变量。完整布局或图标替换需显式按钮组。同一目标的显式媒体、模型或滚动组会替代自动操作组。
 
-凝视完成 `cursorDwellMs` 后，播放、静音、复位执行一次；跳转、音量和模型持续执行；滚动每隔 700 毫秒执行一小步，移开即停。默认跳转每秒 10 秒（`seekSpeed`），音量每秒 0.25（`volumeSpeed`），滚动每秒 0.2 个可见区域（`speed`），每步默认移动 0.14 个可见区域。`PanoScrollControls.repeatIntervalMs` 可调整重复间隔；间隔计时不受组件重新渲染影响，移开会清零，重新凝视需重新完成 dwell。关闭、退出 VR、禁用和失焦会停止操作。凝视不能替代浏览器要求的可信用户手势；音量不可调整的平台禁用音量按钮，仍可静音。
+自动接管的每个弹窗视频会在视频下方显示独立的圆形按钮控制栏，顺序为后退、播放／暂停、前进、静音／取消静音，以及平台支持时的减音量、加音量。控制栏在布局中独立占位，不遮挡画面或后续正文，随视频一起滚动并遵守所在滚动容器的裁剪。媒体按钮默认大小为 48px，浅蓝色线框图标为 24px，间距和内边距均为 8px；窄区域中按钮可换行。这些默认值同时适用于自动视频控制栏和显式 `PanoMediaControls`（包括音频），仍可使用现有控件 CSS 变量覆盖按钮大小、间距和内边距。退出 VR 时移除自动控件占位，原视频节点和普通模式原生控件保持不变。播放前优先显示封面；没有封面时临时提示 `preload="auto"` 尝试获取首帧，不播放、不跳转、不重新加载，也不创建第二个视频元素。没有可读取画面时显示明确的视频占位。封面需要同源或允许 CORS；不可读取的媒体不会污染面板纹理。关闭弹窗或退出 VR 时释放预览资源并恢复临时预载设置。
+
+凝视完成 `cursorDwellMs` 后，播放、静音、复位执行一次；跳转、音量和模型持续执行；滚动每隔 700 毫秒执行一小步，移开即停。默认跳转每秒 10 秒（`seekSpeed`），音量每秒 0.25（`volumeSpeed`），滚动每秒 0.2 个可见区域（`speed`），每步默认移动 0.14 个可见区域。`PanoScrollControls.repeatIntervalMs` 可调整重复间隔；间隔计时不受组件重新渲染影响，移开会清零，重新凝视需重新完成 dwell。关闭、退出 VR、禁用和失焦会停止操作。凝视不能替代浏览器要求的可信用户手势；音量不可调整的平台（包括 iOS）隐藏音量加减按钮，仍可静音；支持调节的平台在音量上下限禁用对应按钮。
 
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
-在 Playground `/overlays` 查看长正文、嵌套滚动、模型鼠标／键盘操作、场景视频和自定义主题；`/video` 展示 360° 视频空间控制条。
+在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、360° 视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 聚焦普通 360° 视频播放、画质与字幕。
+
+### VR 输入方式与控件适配
+
+`WebVR.interactionMode` 默认为 `"auto"`：手机分屏与桌面模拟沿用凝视；WebXR 使用射线配合扳机、捏合或系统选择事件，不执行停留点击。可设为 `"gaze"` 或 `"pointer"` 固定策略。`getVRState()` / `subscribeVR()` 的可选 `input` 快照提供当前 `mode`（`gaze/pointer/paused/null`）与 `source`（`head/controller/hand/system/null`）；原有呈现模式不变。
+
+手柄指向模型后按住扳机拖动可旋转模型，上下推摇杆可缩放；指向正文时摇杆滚动最近的可滚动区域，显式滚动目标优先。模型缩放优先于外层滚动。摇杆死区为 0.2，滚动最大每秒一屏，缩放默认每秒 1.5 倍。只有具备可用替代能力时，默认模型与滚动控件才隐藏对应方向按钮。复位、媒体、关闭和场景导航保留；显式 `actions` 和自定义渲染布局不会被自动过滤。
+
+使用过的手柄断开或丢失跟踪后暂停操作，不自动恢复凝视。默认 WebXR 会话工具栏提供退出和主动启用凝视的入口；等待输入或暂停时，只有启用凝视入口接受头部停留选择。宿主关闭 `cursor` 或自动凝视、固定输入策略、关闭 `chrome` 时，界面尊重宿主设置。恢复手柄的第一次明确选择只切换输入，不点击内容。系统瞬时输入不会因暂时消失而触发凝视回退。基础手势保留方向按钮；不提供双手缩放、近距离触碰或移动面板。
+
+Immersive Web Emulator 接管画布时，模拟预览会铺满浏览器内容区域，使用与模拟器相同的显示尺寸及宽高比，并随窗口变化更新。不会调用浏览器 Fullscreen API。退出后恢复原 viewer 的画布样式；真实 WebXR 头显、手机 VR 和桌面非 XR 模式不受此适配影响。

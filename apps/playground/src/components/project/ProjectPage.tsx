@@ -114,11 +114,11 @@ export function ProjectPage() {
         aria-labelledby="project-title"
       >
         <h1 className={pageHeadingTitleClassName} id="project-title">
-          A tour from static JSON
+          Static JSON tour
         </h1>
         <p className="my-4 text-sm text-slate-300">
           One project.json connects two viewer.json files, scene links, labels
-          spatial audio, view actions and shared popup content. No database.
+          spatial audio, view actions and shared popup content. No database. This integration demonstrates data-driven navigation and popup requests; use the related examples below to learn individual components.
         </p>
         <p
           role={error ? "alert" : "status"}

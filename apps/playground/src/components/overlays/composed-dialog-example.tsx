@@ -1,5 +1,4 @@
 import { useRef, type ReactNode } from "react";
-import { PanoScrollControls } from "@ericchen1990/pano-view";
 import {
   PanoDialogBackdrop,
   PanoDialogClose,
@@ -24,9 +23,9 @@ export function ComposedHotspotDialog({
   title: string;
   children: ReactNode;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollTargetRef = useRef<HTMLDivElement>(null);
   return (
-    <PanoDialogRoot open={open} onOpenChange={onOpenChange}>
+    <PanoDialogRoot scrollTargetRef={scrollTargetRef} open={open} onOpenChange={onOpenChange}>
       <PanoDialogBackdrop style={{ background: "rgb(8 25 29 / 85%)" }} />
       <PanoDialogContent style={{ borderRadius: 0, border: "2px solid #df6b42", overflow: "hidden" }}>
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-orange-400 p-4">
@@ -38,8 +37,7 @@ export function ComposedHotspotDialog({
           </div>
           <PanoDialogClose className={closeButtonClassName}>Close</PanoDialogClose>
         </header>
-        <div ref={scrollRef} className="min-h-0 overflow-auto p-4">{children}</div>
-        <PanoScrollControls targetRef={scrollRef} />
+        <div ref={scrollTargetRef} className="min-h-0 overflow-auto p-4">{children}</div>
       </PanoDialogContent>
     </PanoDialogRoot>
   );

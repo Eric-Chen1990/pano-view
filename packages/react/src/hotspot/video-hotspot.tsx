@@ -35,6 +35,7 @@ export type VideoHotspotProps = HotspotCommonProps & {
   playing: boolean;
   poster?: string;
   loop?: boolean;
+  /** Defaults to false so manually started playback includes audio. */
   muted?: boolean;
   volume?: number;
   /**
@@ -183,7 +184,7 @@ function useVideoResource({
         return;
       }
       setResource((current) =>
-        current?.video === video ? { ...current, ready: true } : current,
+        current?.video === video && !current.ready ? { ...current, ready: true } : current,
       );
     };
     const reportError = () => {
@@ -227,15 +228,16 @@ function useVideoResource({
     };
   }, [crossOrigin, gl, id, playsInline, poster, src]);
 
+  const video = resource?.video;
   useLayoutEffect(() => {
-    if (!resource) {
+    if (!video) {
       return;
     }
-    mountTextureVideo(resource.video, gl.domElement);
+    mountTextureVideo(video, gl.domElement);
     return () => {
-      resource.video.remove();
+      video.remove();
     };
-  }, [gl, resource]);
+  }, [gl, video]);
 
   return resource;
 }
@@ -247,7 +249,7 @@ export function VideoHotspot({
   playing,
   poster,
   loop = false,
-  muted = true,
+  muted = false,
   volume = 1,
   playsInline = true,
   preload = "metadata",
@@ -272,8 +274,9 @@ export function VideoHotspot({
     poster,
     src,
   });
+  const video = resource?.video;
   const mediaRef = useRef<HTMLMediaElement | null>(null);
-  mediaRef.current = resource?.video ?? null;
+  mediaRef.current = video ?? null;
   const controller = usePanoMediaController(mediaRef);
   const exposedController = useMemo<PanoMediaController>(() => ({ ...controller, play: async () => {
     try { await controller.play(); } catch (error) {
@@ -283,7 +286,12 @@ export function VideoHotspot({
     }
   } }), [controller]);
   useImperativeHandle(ref, () => exposedController, [exposedController]);
-  useEffect(() => { const video = mediaRef.current; if (video) mediaControllers.set(video, exposedController); return () => { if (video) mediaControllers.delete(video); }; }, [exposedController, resource]);
+  useEffect(() => {
+    if (video) mediaControllers.set(video, exposedController);
+    return () => {
+      if (video && mediaControllers.get(video) === exposedController) mediaControllers.delete(video);
+    };
+  }, [exposedController, video]);
   const posterTexture = usePosterTexture(id, poster, onError);
   const onPlaybackErrorRef = useRef(onPlaybackError);
   const onPlaybackStateChangeRef = useRef(onPlaybackStateChange);
@@ -291,29 +299,36 @@ export function VideoHotspot({
   onPlaybackStateChangeRef.current = onPlaybackStateChange;
 
   useLayoutEffect(() => {
-    if (!resource) {
+    if (!video) {
       return;
     }
-    resource.video.loop = loop;
-    resource.video.muted = muted;
-    resource.video.volume = clampVolume(volume);
-    applyInlineVideoPlayback(resource.video, playsInline);
-    resource.video.preload = preload;
-  }, [loop, muted, playsInline, preload, resource, volume]);
+    video.loop = loop;
+    applyInlineVideoPlayback(video, playsInline);
+    video.preload = preload;
+  }, [loop, playsInline, preload, video]);
+
+  // Readiness changes must not overwrite the user's media controller settings.
+  useLayoutEffect(() => {
+    if (video) video.muted = muted;
+  }, [muted, video]);
+
+  useLayoutEffect(() => {
+    if (video) video.volume = clampVolume(volume);
+  }, [video, volume]);
 
   useEffect(() => {
-    if (!resource) {
+    if (!video) {
       return;
     }
     let active = true;
     if (!playing) {
-      resource.video.pause();
+      video.pause();
       return () => {
         active = false;
       };
     }
 
-    void resource.video.play().catch((error: unknown) => {
+    void video.play().catch((error: unknown) => {
       if (!active) {
         return;
       }
@@ -324,7 +339,7 @@ export function VideoHotspot({
     return () => {
       active = false;
     };
-  }, [playing, resource]);
+  }, [playing, video]);
 
   const activeTexture = resource?.ready ? resource.texture : posterTexture;
 

@@ -136,8 +136,7 @@ export function FilterPage() {
             </h1>
           </div>
           <p className={pageHeadingStatusClassName}>
-            Filters tint Sphere, Tile, and PanoVideo. The orange marker and
-            signal hotspot keep their original color.
+            Compare filters on Sphere and Tile sources here. The orange marker and signal hotspot keep their original color. PanoVideo is also supported by the API, but is not demonstrated on this page.
           </p>
         </div>
         <div className={pageControlsClassName}>
@@ -228,7 +227,7 @@ export function FilterPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="PanoFilter applies the selected preset and intensity to Sphere, Tile, or PanoVideo. Hotspots stay unfiltered unless colorMatrixScope is set to all."
+          blurb="This demo applies PanoFilter to Sphere or Tile. Hotspots stay unfiltered unless colorMatrixScope is set to all."
           code={snippet}
           label="PanoFilter"
         />

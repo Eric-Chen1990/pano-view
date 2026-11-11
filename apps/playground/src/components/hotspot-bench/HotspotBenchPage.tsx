@@ -54,8 +54,7 @@ export function HotspotBenchPage() {
           </h1>
         </div>
         <p className="m-0 max-w-[36rem] text-[0.95rem] leading-7 text-[#9ab1b7]">
-          Place media, draw local regions or open paths, then adjust every hotspot
-          directly in its panoramic context.
+          Choose a ready-made preset for any of the nine hotspot types, then place media, draw regions or paths and edit their properties. Preset selection preserves your edits.
         </p>
       </section>
 

@@ -808,15 +808,37 @@
   width: 100%;
 }
 
-.pano-scene-menu-item[data-active="true"] .pano-scene-menu-thumb::after {
-  border: var(--pano-scene-menu-selection-width, 2px) solid
-    var(--pano-scene-menu-selection-color, #ffffff);
+.pano-scene-menu-thumb::after {
+  border: var(--pano-scene-menu-selection-width, 2px) solid transparent;
   border-radius: inherit;
   box-sizing: border-box;
   content: "";
   inset: 0;
   pointer-events: none;
   position: absolute;
+}
+
+.pano-scene-menu-item[data-active="true"] .pano-scene-menu-thumb::after {
+  border-color: var(--pano-scene-menu-selection-color, #ffffff);
+}
+
+.pano-scene-menu-item:focus-visible .pano-scene-menu-thumb::after {
+  border-color: var(--pano-scene-menu-focus-color, #7dd3fc);
+}
+
+@media (hover: hover) {
+  .pano-scene-menu-item:hover .pano-scene-menu-thumb::after {
+    border-color: var(--pano-scene-menu-focus-color, #7dd3fc);
+  }
+}
+
+.pano-scene-menu-visited {
+  height: 18px;
+  pointer-events: none;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 18px;
 }
 
 .pano-scene-menu-label {
@@ -869,6 +891,10 @@
 .pano-control-button svg { width:32px; height:32px; }
 .pano-control-button:disabled { opacity:.4; cursor:default; }
 .pano-control-button:focus-visible { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
+.pano-media-controls { background:#161b22; gap:var(--pano-control-gap,8px); padding:var(--pano-control-padding,8px); }
+.pano-media-controls .pano-control-button { flex:none; width:var(--pano-control-size,48px); height:var(--pano-control-size,48px); border-radius:var(--pano-control-radius,50%); color:var(--pano-control-color,#baf5ff); }
+.pano-media-controls .pano-control-button svg { width:24px; height:24px; }
+.pano-media-controls [data-pano-gaze-active] { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 
 .pano-scroll-controls { display:block; }
 .pano-scroll-controls .pano-control-button { position:absolute; width:112px; height:44px; border:0; border-radius:12px; background:var(--pano-scroll-background,#101923); color:var(--pano-scroll-color,#fff); opacity:var(--pano-scroll-opacity,.3); pointer-events:auto; transition:opacity .15s; }

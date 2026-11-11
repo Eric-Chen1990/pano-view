@@ -1,6 +1,6 @@
-import { resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
+import { dispatchGazeHotspotClick, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
-import { SpatialHostContext } from "../spatial/host";
+import { SpatialHostContext, type SpatialSurface } from "../spatial/host";
 import { canRunSpatialGaze, createGazeActionState } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -82,20 +82,25 @@ function emitHandler(
   ray: Raycaster["ray"],
   type: "onPointerOver" | "onPointerOut" | "onClick",
   nativeType: string,
+  surfaces: Iterable<SpatialSurface> = [],
 ): void {
   const handler = (target.eventObject as R3FObject).__r3f?.handlers?.[type];
   if (!handler) {
     return;
   }
-  handler(
-    createThreePointerEvent(
-      target.intersection,
-      target.eventObject,
-      camera,
-      createNativePointerEvent(nativeType),
-      ray,
-    ),
+  const nativeEvent = createNativePointerEvent(nativeType);
+  const event = createThreePointerEvent(
+    target.intersection,
+    target.eventObject,
+    camera,
+    nativeEvent,
+    ray,
   );
+  if (type === "onClick") {
+    dispatchGazeHotspotClick(surfaces, nativeEvent, () => handler(event));
+  } else {
+    handler(event);
+  }
 }
 
 function resolveDwellMs(value: number | undefined): number {
@@ -130,10 +135,11 @@ export function WebVRReticle({
   useFrame((_, deltaSeconds) => {
     const group = groupRef.current;
     const ringMesh = ringMeshRef.current;
-    if (!visible || !group) {
+    if (!visible || !group || spatial?.input.getSnapshot().mode !== "gaze" || !canRunSpatialGaze(document.hidden, gl.xr.getSession()?.visibilityState, 0, performance.now())) {
       if (spatial?.action?.id instanceof HTMLElement) delete spatial.action.id.dataset.panoGazeActive;
-      if (spatial) spatial.action = null;
+      if (spatial && spatial.input.getSnapshot().mode !== "pointer") spatial.action = null;
       spatialGaze.current.stop();
+      if (group) group.visible = false;
       if (hoveredRef.current) {
         emitHandler(
           hoveredRef.current,
@@ -153,6 +159,7 @@ export function WebVRReticle({
       return;
     }
 
+    group.visible = true;
     group.traverse(node => node.layers.set(SPATIAL_UI_LAYER));
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     activeCamera.getWorldDirection(directionRef.current);
@@ -204,7 +211,7 @@ export function WebVRReticle({
       if (dwellRef.current >= resolvedDwellMs) {
         clickedRef.current = true;
         dwellRef.current = 0;
-        emitHandler(target, camera, raycaster.ray, "onClick", "click");
+        emitHandler(target, camera, raycaster.ray, "onClick", "click", spatial?.mode ? spatial.surfaces : []);
       }
     } else if (!target) {
       dwellRef.current = 0;

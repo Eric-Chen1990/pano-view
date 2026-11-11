@@ -1,5 +1,19 @@
 # @ericchen1990/pano-view
 
+## 5.0.0
+
+### Major Changes
+
+- Default `VideoHotspot` `muted` to `false`. Callers that need silent playback must pass `muted`. New editor video hotspots use the same default; hotspots that already store `muted` are unchanged.
+
+### Minor Changes
+
+- Add `WebVRSceneMenu` for scene selection in WebXR, MobileVR, and desktop simulated VR, with compact, flat, and arc layouts, pagination, `focusColor`, and control placement that follows the open menu.
+
+  Add `showVisited` and `visitedLabel` on `PanoSceneMenu` and `WebVRSceneMenu`. Add `WebVR` `interactionMode` (`auto`, `gaze`, or `pointer`) and expose the active input state.
+
+  Add automatic per-video VR controls, poster and first-frame previews, clipping, resource cleanup, and playback-blocked feedback. Keep controller mute and volume across readiness changes, and keep dialog scrolling correct after resize.
+
 ## 4.1.0
 
 ### Minor Changes

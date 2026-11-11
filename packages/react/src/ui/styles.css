@@ -10,6 +10,8 @@
   border-radius: var(--pano-dialog-radius, 12px);
   box-shadow: var(--pano-dialog-shadow, 0 16px 64px rgb(0 0 0 / 45%));
   font: inherit;
+  scrollbar-color: var(--pano-dialog-muted-color, #a7b4c4) transparent;
+  scrollbar-width: thin;
 }
 
 .pano-dialog-header {
@@ -34,6 +36,7 @@
 .pano-dialog-body {
   padding: 0 var(--pano-dialog-padding, 20px) max(var(--pano-dialog-padding, 20px), env(safe-area-inset-bottom, 0px));
   overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .pano-dialog-close {

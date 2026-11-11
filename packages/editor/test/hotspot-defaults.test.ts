@@ -90,7 +90,7 @@ test("defaults follow each viewer type and preserve explicit false, zero and emp
   );
   assert.equal(
     hotspotFieldDefault(createHotspot("video", position), "muted"),
-    true
+    false
   );
   assert.equal(
     hotspotFieldDefault(createHotspot("audio", position), "muted"),
@@ -114,6 +114,19 @@ test("defaults follow each viewer type and preserve explicit false, zero and emp
     fieldValue(getField(reset, "scale"), hotspotFieldDefault(reset, "scale")),
     1
   );
+});
+
+test("new videos start paused with audio while explicit mute settings round-trip", () => {
+  const video = createHotspot("video", position, "media/movie.mp4");
+  if (video.type !== "video") assert.fail("expected a video hotspot");
+  assert.equal(video.muted, false);
+  assert.equal(video.playing ?? hotspotFieldDefault(video, "playing"), false);
+  const muted = { ...video, muted: true };
+  const document = readDocument({
+    schemaVersion: 1,
+    scenes: [{ id: "scene", source: { viewerUrl: "pano/viewer.json" }, hotspots: [muted] }],
+  });
+  assert.deepEqual(JSON.parse(exportDocument(document)).scenes[0].hotspots[0], muted);
 });
 
 test("field rendering displays effective defaults without committing them", () => {

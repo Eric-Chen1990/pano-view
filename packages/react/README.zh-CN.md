@@ -1540,7 +1540,13 @@ export function Tour() {
 
 ### 外观与样式钩子
 
-常用外观可用 `appearance`，不必手写 CSS。当前项边框叠在缩略图上方，可用 `selectionColor` / `selectionWidth` 调节（`selectionWidth: 0` 隐藏）；场景名默认左对齐，设 `labelAlign: "center"` 或 `"end"` 可改对齐。
+常用外观可用 `appearance`，不必手写 CSS。场景边框位于缩略图内侧：当前场景使用 `selectionColor`（默认白色），鼠标悬停和键盘焦点使用 `focusColor`（默认 `"#7dd3fc"`），交互颜色优先于选中颜色。三种状态共用 `selectionWidth`（默认 2px）；设为 `0` 隐藏这些边框，但保留独立的键盘焦点提示。场景名默认左对齐，设 `labelAlign: "center"` 或 `"end"` 可改对齐。
+
+设置 `showVisited`（默认 `false`）后，已浏览场景的缩略图右上角显示深色圆底的勾选图标，不增加可见文字。`visitedLabel`（默认 `"Visited"`）只用于无障碍描述。`Scenes` / `ProjectScenes` 在场景首次可显示时记录，包括首个场景和当前场景；点击、预加载及加载失败不计入。同一 `PanoViewer` 内的普通和 VR 菜单共享本次会话记录，也包含启用开关前浏览过的场景。收起、隐藏、重新挂载菜单或进出 VR 均保留记录；刷新或重新挂载查看器后清空。独立菜单没有场景就绪来源时不会产生记录，单独改变 `activeId` 不会标记已浏览。
+
+```tsx
+<PanoSceneMenu items={menuItems} activeId={activeSceneId} onSelect={setActiveSceneId} showVisited visitedLabel="已浏览" />
+```
 
 ```tsx
 <PanoSceneMenu
@@ -1573,7 +1579,7 @@ export function Tour() {
 - `pano-scene-menu-item` / `pano-scene-menu-thumb` / `pano-scene-menu-label`
 - `pano-scene-menu-control` / `pano-scene-menu-arrow` / `pano-scene-menu-toggle`
 
-根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。
+根节点还带 `data-placement`、`data-align`、`data-orientation`（`horizontal` | `vertical`）、`data-expanded`、`data-collapsible`；当前项带 `data-active="true"`。启用 `showVisited` 时，已浏览项带 `data-visited="true"`，图标类名为 `pano-scene-menu-visited`。
 
 `collapsible` 时，边缘拉手可用 `toggle` 换图标或改样式。省略 `toggle` 时仍是默认箭头。`icon` 传元素（`<Icon />`），不要传组件类型。图标要随收起状态变化时传函数，参数为 `{ collapsed }`（菜单展开时 `collapsed` 为 `false`）。`className` 追加到按钮上。`style` 覆盖背景、边框、颜色和尺寸；位置和 `transform` 由贴边布局负责，不要在 `style` 里改。默认箭头使用 `currentColor`，只改 `style.color` 就会变色。
 
@@ -2410,7 +2416,7 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 
 ## VideoHotspot
 
-`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `true`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
+`VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：手动播放时初始化为 `false`，在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `false`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
 
 ```tsx
 import { VideoHotspot } from "@ericchen1990/pano-view";
@@ -2425,7 +2431,6 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
   src="/hotspots/room.webm"
   poster="/hotspots/room-poster.webp"
   playing={isClipPlaying}
-  muted
   volume={0.8}
   onClick={() => setClipPlaying((playing) => !playing)}
   onEnded={() => setClipPlaying(false)}
@@ -2434,7 +2439,7 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
+加载或进入 VR 不会自动开始播放。就绪事件和跳转不会重置通过 controller 设置的静音与音量；修改对应 prop 或切换源时才应用新的配置。需要静音播放时显式传入 `muted`。浏览器可能拒绝非静音或非手势播放。此时 `onPlaybackStateChange` 收到 `"blocked"`，`onPlaybackError` 收到浏览器错误；宿主仍控制 `playing` 并提供显式用户操作。
 
 视频通过 `onError` 报告媒体与 poster 失败，参数含 `source: "poster" | "video"`。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
 
@@ -2718,3 +2723,52 @@ viewLimits: {
 ## VR 操作按钮组
 
 视频、模型和滚动支持可定制图标按钮组，仅在 VR 显示。接口、凝视行为与完整示例见[VR 控件指南](./docs/dialogs.zh-CN.md#vr-图标控件与滚动)。
+
+## WebVRSceneMenu
+
+在 `PanoViewer` 内与 `WebVR`、`Scenes` 同级挂载。仅在 WebXR、手机 VR 或桌面模拟 VR 中显示：前下方的三按钮导航可切换场景并打开弧形缩略图网格，支持凝视、指针和键盘操作。当前场景带选中框和勾选标记；再次打开时定位到当前场景所在页。
+
+```tsx
+<WebVRSceneMenu
+  items={[
+    { id: "hall", thumbnailUrl: "/hall.webp", title: "大厅" },
+    { id: "garden", thumbnailUrl: "/garden.webp", title: "花园" },
+  ]}
+  activeId={activeSceneId}
+  onSelect={setActiveSceneId}
+  columns={4}
+  rows={3}
+  appearance={{ labelPlacement: "center", selectionColor: "#ffffff" }}
+/>
+```
+
+`items` 复用 `PanoSceneMenuItem`。标题默认居中叠字，最多两行，超长省略；空标题回退到 ID，完整标题保留为无障碍名称。缩略图需允许跨域图片访问，加载失败时仍可通过标题选择。
+
+| 参数 | 默认值／范围 |
+| --- | --- |
+| `layout` | `"compact"`（默认，原有弧形网格）、`"flat"`（平面墙）、`"arc"`（独立平卡环绕画廊） |
+| `displayMode` | `"paged"`（默认）或 `"all"`；全部模式自动增长行数，忽略 `rows`，隐藏翻页与页码 |
+| `arcAngle` | 180°；范围 60–360°，仅环绕布局使用 |
+| `columns`、`rows` | compact/flat 默认 4 列；arc 自动按每 22.5° 一列（半环 8 列，整圈 16 列）；compact 列范围 2–4，新布局 2–24。分页默认 3 行，范围 1–3 |
+| `loop` | `true`，场景首尾循环；分页始终在边界停止 |
+| `closeOnSelect` | `true`；设为 `false` 可连续浏览 |
+| `follow` | `true`；仅导航跟随水平朝向，展开网格固定在空间中 |
+| `navigationPitch` | −25°；−40°至 −15° |
+| `distance`、`scale` | 2 米、1；范围 1.5–3、0.75–1.25 |
+| `fadeDurationMs` | 200；0–600ms，尊重减少动态效果设置 |
+| `showTitles` | `true` |
+| `showVisited`、`visitedLabel` | `false`、`"Visited"`；已浏览图标及其无障碍描述 |
+
+凝视时间沿用 `WebVR.cursorDwellMs`。`activeId` 是选中状态来源，`onSelect` 请求宿主切换场景；场景加载和错误处理仍由宿主负责。弹窗或 VR Setup 打开时暂时隐藏此组件。无场景时隐藏，单场景时禁用左右导航。
+
+`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`selectionWidth`（4，范围 0–8）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘。选中、凝视和键盘焦点共用 `selectionWidth`；设为零时隐藏这些边框，但保留独立的键盘焦点提示。可选的已浏览勾选图标与选中状态独立，边框宽度为零时仍显示。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
+
+`showVisited` 和 `visitedLabel` 沿用上述 `PanoSceneMenu` 的会话及场景就绪规则。隐藏标题（`showTitles={false}`）或缩略图加载失败时，已浏览图标仍显示；弹窗、VR Setup、翻页和重新进入 VR 均保留查看器共享记录。
+
+`/webvr` 示例讲解 VR 进入、退出、能力事件与凝视激活。`/vr-scene-menu` 提供行为、布局、外观设置及当前场景标题编辑、25 场景分页演示、恢复默认，以及用于验证进出 VR 后共享浏览记录的普通菜单；`/spatial-controls` 分别讲解媒体、模型及滚动控件，`/immersive-tour` 展示完整组合。设置仅保存在当前页面状态中。
+
+悬浮导航作为紧凑的整体按钮组呈现，默认仅显示等高图标，以轻微阴影增强场景中的辨识度。
+
+平面墙与环绕画廊使用有界分块图集。全部模式保留卡片尺寸并扩展墙面；大列表可能需要更多转头浏览。打开时以当前水平朝向为中心，展开后不跟随转头，但随用户平移。新布局的关闭和翻页按钮始终位于正前方独立控制区。`/vr-scene-menu` 支持切换布局、全部／分页和环绕角度；列数留空使用自动值。
+
+VR 场景标题默认不带背景，并带有轻微黑色文字阴影。菜单纹理以 2 倍分辨率绘制，使用 mipmap 与各向异性过滤；布局和命中区域保持不变。

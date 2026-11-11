@@ -1,10 +1,37 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import {
   usePanoSpatialControls,
   type PanoSpatialControlAdapter,
 } from "@ericchen1990/pano-view";
 import type { Mesh } from "three";
+
+function Model({
+  view,
+  frames,
+}: {
+  view: RefObject<{ yaw: number; pitch: number; scale: number }>;
+  frames: Set<() => void>;
+}) {
+  const mesh = useRef<Mesh>(null);
+  useFrame(() => {
+    if (mesh.current) {
+      mesh.current.rotation.set(
+        (view.current.pitch * Math.PI) / 180,
+        (view.current.yaw * Math.PI) / 180,
+        0,
+      );
+      mesh.current.scale.setScalar(view.current.scale);
+    }
+    frames.forEach((fn) => fn());
+  });
+  return (
+    <mesh ref={mesh}>
+      <torusKnotGeometry args={[0.7, 0.22, 96, 16]} />
+      <meshNormalMaterial />
+    </mesh>
+  );
+}
 
 /** An existing host renderer owns its model and viewing state in both modes. */
 export function HostModelExample() {
@@ -18,13 +45,13 @@ export function HostModelExample() {
         view.current.yaw += yaw;
         view.current.pitch = Math.max(
           -80,
-          Math.min(80, view.current.pitch + pitch)
+          Math.min(80, view.current.pitch + pitch),
         );
       },
       zoomBy(factor) {
         view.current.scale = Math.max(
           0.5,
-          Math.min(2, view.current.scale * factor)
+          Math.min(2, view.current.scale * factor),
         );
       },
       resetView() {
@@ -34,12 +61,12 @@ export function HostModelExample() {
         return action === "in"
           ? view.current.scale < 2
           : action === "out"
-          ? view.current.scale > 0.5
-          : action === "up"
-          ? view.current.pitch < 80
-          : action === "down"
-          ? view.current.pitch > -80
-          : true;
+            ? view.current.scale > 0.5
+            : action === "up"
+              ? view.current.pitch < 80
+              : action === "down"
+                ? view.current.pitch > -80
+                : true;
       },
       subscribeFrame(fn) {
         frames.add(fn);
@@ -48,7 +75,7 @@ export function HostModelExample() {
         };
       },
     }),
-    [frames]
+    [frames],
   );
   usePanoSpatialControls(ref, adapter);
   useEffect(() => {
@@ -61,26 +88,6 @@ export function HostModelExample() {
     node.addEventListener("wheel", wheel, { passive: false });
     return () => node.removeEventListener("wheel", wheel);
   }, [adapter]);
-  function Model() {
-    const mesh = useRef<Mesh>(null);
-    useFrame(() => {
-      if (mesh.current) {
-        mesh.current.rotation.set(
-          (view.current.pitch * Math.PI) / 180,
-          (view.current.yaw * Math.PI) / 180,
-          0
-        );
-        mesh.current.scale.setScalar(view.current.scale);
-      }
-      frames.forEach((fn) => fn());
-    });
-    return (
-      <mesh ref={mesh}>
-        <torusKnotGeometry args={[0.7, 0.22, 96, 16]} />
-        <meshNormalMaterial />
-      </mesh>
-    );
-  }
   return (
     <div
       ref={ref}
@@ -102,7 +109,7 @@ export function HostModelExample() {
         if (!drag.current) return;
         adapter.rotateBy?.(
           (event.clientX - drag.current.x) * 0.4,
-          (drag.current.y - event.clientY) * 0.4
+          (drag.current.y - event.clientY) * 0.4,
         );
         drag.current = { x: event.clientX, y: event.clientY };
       }}
@@ -131,7 +138,7 @@ export function HostModelExample() {
         camera={{ position: [0, 0, 3] }}
         gl={{ preserveDrawingBuffer: true }}
       >
-        <Model />
+        <Model view={view} frames={frames} />
       </Canvas>
     </div>
   );

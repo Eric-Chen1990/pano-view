@@ -220,6 +220,29 @@ export function MapPage() {
                   ))}
                 </div>
               </div>
+              <div className={controlLabelClassName}>
+                Scene
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Scenes">
+                  {project.scenes.map((entry) => (
+                    <button
+                      key={entry.scene.id}
+                      type="button"
+                      className={cn(
+                        segmentedButtonClassName,
+                        activeSceneId === entry.scene.id && segmentedButtonActiveClassName,
+                      )}
+                      aria-pressed={activeSceneId === entry.scene.id}
+                      onClick={() => setActiveSceneId(entry.scene.id)}
+                    >
+                      {entry.title ?? entry.scene.id}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <details className="border-b border-line">
+              <summary className="px-6 py-4">Placement and appearance</summary>
+              <div className={pageControlsClassName}>
               {presentation === "panel" ? (
                 <div className={controlLabelClassName}>
                   Align
@@ -278,26 +301,8 @@ export function MapPage() {
                   </button>
                 </div>
               </div>
-              <div className={controlLabelClassName}>
-                Scene
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Scenes">
-                  {project.scenes.map((entry) => (
-                    <button
-                      key={entry.scene.id}
-                      type="button"
-                      className={cn(
-                        segmentedButtonClassName,
-                        activeSceneId === entry.scene.id && segmentedButtonActiveClassName,
-                      )}
-                      aria-pressed={activeSceneId === entry.scene.id}
-                      onClick={() => setActiveSceneId(entry.scene.id)}
-                    >
-                      {entry.title ?? entry.scene.id}
-                    </button>
-                  ))}
-                </div>
               </div>
-            </div>
+            </details>
             <PanoViewer style={{ height: 560 }}>
               <ProjectScenes
                 project={project}

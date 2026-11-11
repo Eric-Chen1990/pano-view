@@ -9,7 +9,7 @@ import {
   type PlaygroundNavGroupId,
 } from "../routes";
 
-const NAV_BREAKPOINT_PX = 960;
+const NAV_BREAKPOINT_PX = 1280;
 
 const inlineLinkClassName =
   "border border-transparent bg-transparent px-[9px] py-[7px] font-mono text-[0.64rem] tracking-[0.06em] text-[#769198] uppercase no-underline transition hover:border-[#3e6c73] hover:text-[#dcecef]";
@@ -241,7 +241,7 @@ export function SiteHeader() {
       </a>
       <nav
         aria-label="Playground pages"
-        className="hidden gap-1.5 min-[960px]:flex"
+        className="hidden gap-1.5 min-[1280px]:flex"
         ref={desktopNavRef}
       >
         {sections.map((section, index) => {
@@ -346,7 +346,7 @@ export function SiteHeader() {
         })}
       </nav>
       <ProjectLinks className="ml-auto" />
-      <details className="group relative min-[960px]:hidden" ref={detailsRef}>
+      <details className="group relative min-[1280px]:hidden" ref={detailsRef}>
         <summary
           aria-label="Open playground pages"
           className="flex size-9 cursor-pointer list-none items-center justify-center border border-[#3e6c73] text-[#dcecef] transition hover:border-[#75cbd3] marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent group-open:border-[#df6b42] [&::-webkit-details-marker]:hidden"

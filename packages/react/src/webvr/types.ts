@@ -1,5 +1,11 @@
 import type { CSSProperties, ReactNode } from "react";
 
+export type WebVRInteractionMode = "auto" | "gaze" | "pointer";
+export type WebVRInputState = Readonly<{
+  mode: "gaze" | "pointer" | "paused" | null;
+  source: "head" | "controller" | "hand" | "system" | null;
+}>;
+
 export type WebVRMode = "webxr" | "mobilevr" | "fake";
 
 export type WebVRProfileId =
@@ -43,12 +49,15 @@ export type WebVRChromeAppearance = {
 export type WebVRChrome = boolean | WebVRChromeAppearance;
 
 export type WebVRState = {
+  input?: WebVRInputState;
   available: boolean;
   enabled: boolean;
   mode: WebVRMode | null;
 };
 
 export type WebVRProps = {
+  /** Input policy; auto uses explicit selection in WebXR and dwell in fallback VR. */
+  interactionMode?: WebVRInteractionMode;
   /**
    * Mount the built-in session chrome (Exit VR / MobileVR Setup). Defaults to
    * true. Enter VR is not rendered; host apps drive entry through the handle
