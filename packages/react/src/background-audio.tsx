@@ -212,7 +212,7 @@ export function BackgroundAudio({
         setInternalPlaying((prev) => !prev);
       },
       setVolume: (vol) => {
-        if (isControlledRef.current) {
+        if (isControlledRef.current || !Number.isFinite(vol)) {
           return;
         }
         const next = clampAudioVolume(vol);

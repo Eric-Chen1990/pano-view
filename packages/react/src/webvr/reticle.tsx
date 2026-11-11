@@ -1,10 +1,11 @@
+import { createReticleRing } from "./reticle-geometry";
 import { dispatchGazeHotspotClick, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
 import { SpatialHostContext, type SpatialSurface } from "../spatial/host";
 import { canRunSpatialGaze, createGazeActionState } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   DoubleSide,
   Group,
@@ -23,10 +24,9 @@ const RETICLE_SCALE = 1;
 export const MOBILE_VR_RETICLE_SCALE = 3;
 const RETICLE_RENDER_ORDER = 100_000;
 const CROSSHAIR_LENGTH = 0.044;
-const CROSSHAIR_THICKNESS = 0.008;
+const CROSSHAIR_THICKNESS = 0.006;
 const RING_INNER_RADIUS = 0.05;
 const RING_OUTER_RADIUS = 0.058;
-const RING_SEGMENTS = 96;
 const RING_INDICES_PER_SEGMENT = 6;
 const GAZE_POINTER_ID = 1_000_001;
 export const DEFAULT_WEBVR_CURSOR_DWELL_MS = 1_500;
@@ -125,6 +125,13 @@ export function WebVRReticle({
   }, []);
   const groupRef = useRef<Group>(null);
   const ringMeshRef = useRef<Mesh>(null);
+  const ringBackdropRef = useRef<Group>(null);
+  const rings = useMemo(() => ({
+    outline: createReticleRing(RING_INNER_RADIUS - .003, RING_OUTER_RADIUS + .003),
+    track: createReticleRing(RING_INNER_RADIUS, RING_OUTER_RADIUS),
+    progress: createReticleRing(RING_INNER_RADIUS, RING_OUTER_RADIUS),
+  }), []);
+  useEffect(() => () => { Object.values(rings).forEach(geometry => geometry.dispose()); }, [rings]);
   const directionRef = useRef(new Vector3());
   const raycasterRef = useRef(new Raycaster());
   const hoveredRef = useRef<GazeTarget | null>(null);
@@ -152,6 +159,7 @@ export function WebVRReticle({
       }
       dwellRef.current = 0;
       clickedRef.current = false;
+      if (ringBackdropRef.current) ringBackdropRef.current.visible = false;
       if (ringMesh) {
         ringMesh.visible = false;
         ringMesh.geometry.setDrawRange(0, 0);
@@ -223,8 +231,9 @@ export function WebVRReticle({
           ? Math.min(dwellRef.current / resolvedDwellMs, 1)
           : 1
         : 0;
+    if (ringBackdropRef.current) ringBackdropRef.current.visible = progress > 0.001;
     if (ringMesh) {
-      const segments = Math.max(0, Math.ceil(progress * RING_SEGMENTS));
+      const segments = Math.max(0, Math.ceil(progress * rings.progress.index!.count / RING_INDICES_PER_SEGMENT));
       ringMesh.visible = progress > 0.001;
       ringMesh.geometry.setDrawRange(0, segments * RING_INDICES_PER_SEGMENT);
     }
@@ -243,6 +252,18 @@ export function WebVRReticle({
       renderOrder={RETICLE_RENDER_ORDER}
       visible={visible}
     >
+      {[false, true].map(vertical => <mesh key={String(vertical)} frustumCulled={false} raycast={noopRaycast} renderOrder={RETICLE_RENDER_ORDER}>
+        <boxGeometry args={vertical ? [CROSSHAIR_THICKNESS + .006, CROSSHAIR_LENGTH + .006, .001] : [CROSSHAIR_LENGTH + .006, CROSSHAIR_THICKNESS + .006, .001]} />
+        <meshBasicMaterial color="#101419" transparent depthTest={false} depthWrite={false} toneMapped={false} />
+      </mesh>)}
+      <group ref={ringBackdropRef} renderOrder={RETICLE_RENDER_ORDER} visible={false}>
+        <mesh geometry={rings.outline} frustumCulled={false} raycast={noopRaycast} renderOrder={RETICLE_RENDER_ORDER}>
+          <meshBasicMaterial color="#101419" transparent side={DoubleSide} depthTest={false} depthWrite={false} toneMapped={false} />
+        </mesh>
+        <mesh geometry={rings.track} frustumCulled={false} raycast={noopRaycast} renderOrder={RETICLE_RENDER_ORDER + 1}>
+          <meshBasicMaterial color="#ffffff" transparent opacity={.45} side={DoubleSide} depthTest={false} depthWrite={false} toneMapped={false} />
+        </mesh>
+      </group>
       <mesh
         frustumCulled={false}
         raycast={noopRaycast}
@@ -275,19 +296,10 @@ export function WebVRReticle({
         frustumCulled={false}
         raycast={noopRaycast}
         ref={ringMeshRef}
+        geometry={rings.progress}
         renderOrder={RETICLE_RENDER_ORDER + 2}
         visible={false}
       >
-        <ringGeometry
-          args={[
-            RING_INNER_RADIUS,
-            RING_OUTER_RADIUS,
-            RING_SEGMENTS,
-            1,
-            Math.PI / 2,
-            Math.PI * -2,
-          ]}
-        />
         <meshBasicMaterial
           color="#ffffff"
           depthTest={false}

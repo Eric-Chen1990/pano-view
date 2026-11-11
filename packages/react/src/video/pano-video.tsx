@@ -1,3 +1,4 @@
+import { probeMediaHasAudio, subscribeMediaAudio } from "../controls/media-audio";
 import { useThree } from "@react-three/fiber";
 import {
   useCallback,
@@ -474,6 +475,7 @@ export function PanoVideo({
         ended: playbackState === "ended",
         currentTime: video?.currentTime ?? 0,
         duration: video && Number.isFinite(video.duration) ? video.duration : 0,
+        hasAudio: video ? probeMediaHasAudio(video) : undefined,
         volume: video ? clampVolume(video.volume) : clampVolume(volume),
         volumeAdjustable: mediaCapabilitiesRef.current.volumeAdjustable,
         muted: video?.muted ?? muted,
@@ -684,7 +686,7 @@ export function PanoVideo({
         emitSnapshot();
       },
       setVolume: (nextVolume) => {
-        if (!mediaCapabilitiesRef.current.volumeAdjustable) {
+        if (!Number.isFinite(nextVolume) || !mediaCapabilitiesRef.current.volumeAdjustable) {
           return;
         }
         video.volume = clampVolume(nextVolume);
@@ -791,7 +793,7 @@ export function PanoVideo({
     const handleVolume = () => {
       emitSnapshot();
     };
-    video.addEventListener("timeupdate", handleTimeUpdate);
+    const unsubscribeAudio = subscribeMediaAudio(video, handleTimeUpdate);
     video.addEventListener("durationchange", handleTimeUpdate);
     video.addEventListener("progress", handleTimeUpdate);
     video.addEventListener("play", handlePlay);
@@ -801,7 +803,7 @@ export function PanoVideo({
     video.addEventListener("ratechange", handleVolume);
     return () => {
       active = false;
-      video.removeEventListener("timeupdate", handleTimeUpdate);
+      unsubscribeAudio();
       video.removeEventListener("durationchange", handleTimeUpdate);
       video.removeEventListener("progress", handleTimeUpdate);
       video.removeEventListener("play", handlePlay);

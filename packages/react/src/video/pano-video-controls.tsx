@@ -569,6 +569,7 @@ function VolumeControl({
 
   useEffect(() => {
     onOpenChange(open);
+    return () => onOpenChange(false);
   }, [onOpenChange, open]);
 
   useEffect(() => {
@@ -1063,7 +1064,7 @@ export function PanoVideoControlsHud({
           {formatMediaTime(duration)}
         </span>
       )}
-      <VolumeControl
+      {snapshot.hasAudio === false ? null : <VolumeControl
         appearance={resolved}
         muted={snapshot.muted}
         onOpenChange={setVolumeOpen}
@@ -1075,7 +1076,7 @@ export function PanoVideoControlsHud({
         }}
         volume={snapshot.volume}
         volumeAdjustable={snapshot.volumeAdjustable}
-      />
+      />}
       {compact ? (
         <div className="pano-video-menu" data-pano-video-menu="more">
           {menu !== null ? menuNode : null}
