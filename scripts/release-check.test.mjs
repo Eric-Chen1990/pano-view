@@ -3,7 +3,36 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { checkRelease, readNpmPackage, verifyPublishedVersions } from "./release-check.mjs";
+import { checkRelease, readNpmPackage, shouldTestConverter, verifyPublishedVersions } from "./release-check.mjs";
+
+test("viewer/editor-only releases skip converter tests", () => {
+  const paths = ["packages/react/package.json", "packages/react/src/index.ts", "packages/editor/package.json"];
+  assert.equal(shouldTestConverter("push", paths), false);
+  assert.equal(shouldTestConverter("pull_request", paths), false);
+  assert.equal(shouldTestConverter("push", []), false);
+  assert.equal(shouldTestConverter("push", ["packages/converter/README.md"]), false);
+});
+
+test("converter releases, source and shared inputs require converter tests", () => {
+  assert.equal(shouldTestConverter("push", ["packages/react/package.json"], true), true);
+  for (const path of [
+    "packages/converter/src/index.ts", "packages/converter/test/converter.test.mjs",
+    "packages/converter/package.json", "shared/viewer-config.ts", "package.json",
+    "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json", ".changeset/config.json",
+    ".github/workflows/release.yml", ".github/workflows/converter.yml",
+    ".github/actions/setup-ffmpeg/action.yml",
+    "scripts/release-check.mjs", "scripts/release-check.test.mjs",
+  ]) {
+    assert.equal(shouldTestConverter("push", [path]), true, path);
+    assert.equal(shouldTestConverter("pull_request", [path]), true, path);
+  }
+});
+
+test("manual runs and unavailable comparisons keep full converter verification", () => {
+  assert.equal(shouldTestConverter("workflow_dispatch", []), true);
+  assert.equal(shouldTestConverter("push", null), true);
+  assert.equal(shouldTestConverter("pull_request", null), true);
+});
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "pano-release-check-"));
