@@ -13,6 +13,26 @@ const expectedPackages = new Set([
 ]);
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
+export function shouldTestConverter(eventName, paths, hasConverterRelease = false) {
+  // Manual runs and unavailable comparisons retain full release validation.
+  if (eventName === "workflow_dispatch" || paths === null || hasConverterRelease) return true;
+  const sharedFiles = new Set([
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json",
+    ".changeset/config.json",
+    ".github/workflows/release.yml",
+    ".github/workflows/converter.yml",
+  ]);
+  return paths.some((path) => !path.endsWith(".md") && (
+    path.startsWith("packages/converter/") ||
+    path.startsWith("shared/") ||
+    sharedFiles.has(path) ||
+    /^scripts\/release-check.*\.mjs$/.test(path)
+  ));
+}
+
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
@@ -129,7 +149,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       : "All workspace versions are already published; publication will be skipped.";
     console.log(summary);
     if (process.env.GITHUB_OUTPUT) {
-      await appendFile(process.env.GITHUB_OUTPUT, `has-releases=${unpublished.length > 0}\n`);
+      const hasConverterRelease = unpublished.some(({ name }) => name === "@ericchen1990/pano-converter");
+      await appendFile(process.env.GITHUB_OUTPUT,
+        `has-releases=${unpublished.length > 0}\nhas-converter-release=${hasConverterRelease}\n`);
     }
     if (process.env.GITHUB_STEP_SUMMARY) {
       await appendFile(process.env.GITHUB_STEP_SUMMARY, `${summary}\n\n`);

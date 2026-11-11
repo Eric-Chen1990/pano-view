@@ -35,6 +35,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
@@ -46,17 +47,55 @@ jobs:
         id: plan
         if: github.event_name != 'pull_request'
         run: node scripts/release-check.mjs
+      - name: Determine converter verification scope
+        id: scope
+        env:
+          HAS_CONVERTER_RELEASE: ${{ steps.plan.outputs.has-converter-release }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { shouldTestConverter } from './scripts/release-check.mjs';
+
+          const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const eventName = process.env.GITHUB_EVENT_NAME;
+          const base = eventName === 'pull_request' ? event.pull_request.base.sha : event.before;
+          const head = eventName === 'pull_request' ? event.pull_request.head.sha : event.after;
+          let paths = null;
+          if (base && head && !/^0+$/.test(base)) {
+            const range = eventName === 'pull_request' ? `${base}...${head}` : `${base}..${head}`;
+            try {
+              paths = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', range],
+                { encoding: 'utf8' }).split('\0').filter(Boolean);
+            } catch {
+              console.log('Change comparison unavailable; running converter verification.');
+            }
+          }
+          const run = shouldTestConverter(eventName, paths, process.env.HAS_CONVERTER_RELEASE === 'true');
+          console.log(run ? 'Running converter verification.' : 'No converter release or relevant changes; skipping converter verification.');
+          appendFileSync(process.env.GITHUB_OUTPUT, `converter=${run}\n`);
+          NODE
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Require FFmpeg for converter tests
+        if: steps.scope.outputs.converter == 'true'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: pnpm typecheck
-      - run: pnpm test
+      - name: Test viewer and editor
+        run: pnpm --filter @ericchen1990/pano-view test && pnpm --filter @ericchen1990/pano-editor test
+      - name: Test converter
+        if: steps.scope.outputs.converter == 'true'
+        run: pnpm --filter @ericchen1990/pano-converter test
         env:
           PANO_REQUIRE_FFMPEG: "1"
       - run: pnpm build
-      - run: pnpm pack:check
+      - name: Check viewer and editor packages
+        run: pnpm --filter @ericchen1990/pano-view pack:check && pnpm --filter @ericchen1990/pano-editor pack:check
+      - name: Check converter package
+        if: steps.scope.outputs.converter == 'true'
+        run: pnpm --filter @ericchen1990/pano-converter pack:check
       - name: Test converter tarball in an isolated consumer
+        if: steps.scope.outputs.converter == 'true'
         run: node packages/converter/test/pack-smoke.mjs
       - name: Check tracked files are unchanged
         run: git diff --exit-code && git diff --check
