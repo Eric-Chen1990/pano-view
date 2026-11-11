@@ -676,3 +676,13 @@ After `cursorDwellMs`, play, mute and reset fire once; seek, volume, rotation an
 Customize scroll arrows with `--pano-scroll-opacity`, `--pano-scroll-active-opacity`, `--pano-scroll-background` and `--pano-scroll-color`.
 
 Use `/overlays` to compare dialog integration styles, `/spatial-controls` for separate scene-video, 360-video, model and scrolling examples, and `/immersive-tour` for the complete combination. `/video` focuses on ordinary 360° playback, quality and captions.
+
+### VR input and adaptive controls
+
+`WebVR.interactionMode` defaults to `"auto"`: phone and simulated VR use dwell, while WebXR uses explicit controller, hand, or system selection. Set `"gaze"` or `"pointer"` to enforce a host policy. The optional `input` snapshot from `getVRState()` / `subscribeVR()` reports `mode` (`gaze/pointer/paused/null`) and `source` (`head/controller/hand/system/null`) without changing presentation modes.
+
+Point at a registered model and hold the trigger to rotate; use the thumbstick vertically to zoom. Over scrollable content, the stick scrolls the nearest container, with explicit scroll targets taking precedence. Model zoom takes precedence over outer scrolling. The stick has a 0.2 dead zone, scrolling is capped at one viewport per second, and zoom defaults to 1.5 times per second. Default directional buttons disappear only when their replacement capability is available. Reset, media, close, and scene navigation remain available. Explicit `actions` and custom render callbacks retain their requested controls.
+
+Loss of an active controller pauses operations without enabling dwell. The WebXR session toolbar provides exit and an explicit gaze entry point; only that entry point accepts head dwell while waiting or paused. Host cursor/dwell restrictions, forced input policies, and `chrome={false}` remain authoritative. The first selection after recovery only switches input. Transient system inputs do not cause gaze fallback when absent. Basic hand selection keeps directional controls; two-hand scaling, near touch, and moving panels are outside this version.
+
+When Immersive Web Emulator takes ownership of the canvas, the preview fills the browser content area and keeps its display dimensions and aspect ratio aligned with the emulator as the window resizes. It does not request browser fullscreen. Exiting restores the embedded canvas styles. Native WebXR headsets, MobileVR, and non-XR desktop presentation are unchanged.

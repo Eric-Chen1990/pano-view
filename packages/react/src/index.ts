@@ -48,6 +48,8 @@ export type {
   WebVRFrameRate,
   WebVRHandle,
   WebVRMode,
+  WebVRInputState,
+  WebVRInteractionMode,
   WebVRProfile,
   WebVRProfileId,
   WebVRProps,

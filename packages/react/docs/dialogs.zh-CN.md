@@ -682,3 +682,13 @@ const controller = usePanoMediaController(mediaRef);
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
 在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、360° 视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 聚焦普通 360° 视频播放、画质与字幕。
+
+### VR 输入方式与控件适配
+
+`WebVR.interactionMode` 默认为 `"auto"`：手机分屏与桌面模拟沿用凝视；WebXR 使用射线配合扳机、捏合或系统选择事件，不执行停留点击。可设为 `"gaze"` 或 `"pointer"` 固定策略。`getVRState()` / `subscribeVR()` 的可选 `input` 快照提供当前 `mode`（`gaze/pointer/paused/null`）与 `source`（`head/controller/hand/system/null`）；原有呈现模式不变。
+
+手柄指向模型后按住扳机拖动可旋转模型，上下推摇杆可缩放；指向正文时摇杆滚动最近的可滚动区域，显式滚动目标优先。模型缩放优先于外层滚动。摇杆死区为 0.2，滚动最大每秒一屏，缩放默认每秒 1.5 倍。只有具备可用替代能力时，默认模型与滚动控件才隐藏对应方向按钮。复位、媒体、关闭和场景导航保留；显式 `actions` 和自定义渲染布局不会被自动过滤。
+
+使用过的手柄断开或丢失跟踪后暂停操作，不自动恢复凝视。默认 WebXR 会话工具栏提供退出和主动启用凝视的入口；等待输入或暂停时，只有启用凝视入口接受头部停留选择。宿主关闭 `cursor` 或自动凝视、固定输入策略、关闭 `chrome` 时，界面尊重宿主设置。恢复手柄的第一次明确选择只切换输入，不点击内容。系统瞬时输入不会因暂时消失而触发凝视回退。基础手势保留方向按钮；不提供双手缩放、近距离触碰或移动面板。
+
+Immersive Web Emulator 接管画布时，模拟预览会铺满浏览器内容区域，使用与模拟器相同的显示尺寸及宽高比，并随窗口变化更新。不会调用浏览器 Fullscreen API。退出后恢复原 viewer 的画布样式；真实 WebXR 头显、手机 VR 和桌面非 XR 模式不受此适配影响。

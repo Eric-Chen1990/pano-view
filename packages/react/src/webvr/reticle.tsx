@@ -135,10 +135,11 @@ export function WebVRReticle({
   useFrame((_, deltaSeconds) => {
     const group = groupRef.current;
     const ringMesh = ringMeshRef.current;
-    if (!visible || !group) {
+    if (!visible || !group || spatial?.input.getSnapshot().mode !== "gaze" || !canRunSpatialGaze(document.hidden, gl.xr.getSession()?.visibilityState, 0, performance.now())) {
       if (spatial?.action?.id instanceof HTMLElement) delete spatial.action.id.dataset.panoGazeActive;
-      if (spatial) spatial.action = null;
+      if (spatial && spatial.input.getSnapshot().mode !== "pointer") spatial.action = null;
       spatialGaze.current.stop();
+      if (group) group.visible = false;
       if (hoveredRef.current) {
         emitHandler(
           hoveredRef.current,
@@ -158,6 +159,7 @@ export function WebVRReticle({
       return;
     }
 
+    group.visible = true;
     group.traverse(node => node.layers.set(SPATIAL_UI_LAYER));
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     activeCamera.getWorldDirection(directionRef.current);

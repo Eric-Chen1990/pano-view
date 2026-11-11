@@ -373,6 +373,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       () =>
         createXRStore({
           anchors: false,
+          controller: { grabPointer: false },
+          hand: { grabPointer: false, touchPointer: false },
           bodyTracking: false,
           depthSensing: false,
           domOverlay: false,

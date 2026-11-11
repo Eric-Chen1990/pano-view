@@ -204,10 +204,14 @@ export function PanoModelControls({
   zoomSpeed?: number;
 }) {
   useTarget(adapter);
+  const spatial = useContext(SpatialHostContext);
+  const defaults = modelActions(adapter, rotateSpeed, zoomSpeed).filter(action =>
+    !(spatial?.input.canDrag && adapter.rotateBy && ["left", "right", "up", "down"].includes(action.id)) &&
+    !(spatial?.input.hasStick && adapter.zoomBy && ["in", "out"].includes(action.id)));
   return (
     <PanoControlGroup
       {...props}
-      actions={choose(modelActions(adapter, rotateSpeed, zoomSpeed), actions)}
+      actions={actions || props.children ? choose(modelActions(adapter, rotateSpeed, zoomSpeed), actions) : defaults}
     />
   );
 }
@@ -282,7 +286,8 @@ export function PanoScrollControls({
     scrollActions(targetRef.current, speed, repeatIntervalMs),
     actions
   ).filter((action) => action.enabled?.() !== false);
-  if (!vr || !placement || !available.length) return null;
+  const spatial = useContext(SpatialHostContext);
+  if (!vr || !placement || !available.length || (!actions && !props.children && spatial?.input.hasStick)) return null;
   return createPortal(
     <PanoControlGroup
       {...props}

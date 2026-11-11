@@ -1,3 +1,4 @@
+import { createVRInput } from "../webvr/input";
 import { createContext } from "react";
 import type { Texture } from "three";
 import type { GazeAction } from "./gaze-action";
@@ -18,6 +19,7 @@ export type SpatialSurface = { element: HTMLElement; close: () => void; scrollTa
 export function createSpatialHost() {
   const listeners = new Set<() => void>();
   const host = {
+    input: createVRInput(),
     mode: false,
     suppressGazeUntil: 0,
     surfaces: new Set<SpatialSurface>(),

@@ -1,3 +1,4 @@
+import { applySpatialAxes, axisValue, pointerInput, pointerStick, type PointerInput } from "../webvr/input";
 import { scrollEdges, scrollViewportBounds } from "./scroll-edges";
 import { probeVolumeAdjustable } from "../video/format";
 import { mediaControllers } from "../controls/media";
@@ -236,8 +237,18 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
     return t;
   }, [canvas, gl]);
-  const pressed = useRef<GazeAction | null>(null);
-  const pressedUpdates = useRef(createActionUpdateState());
+  type Contact = { event: PointerInput; action: GazeAction | null; adapter: PanoSpatialControlAdapter | null; scroll: HTMLElement | null; x: number; y: number; moved: boolean; target: object; updates: ReturnType<typeof createActionUpdateState>; release: () => void };
+  const contacts = useRef(new Map<number, Contact>());
+  const hovering = useRef(new Map<number, Contact>());
+  const stopContact = (id: number) => {
+    const contact = contacts.current.get(id);
+    if (contact) { contacts.current.delete(id); contact.action?.end?.(); contact.release(); host.input.release(contact.target, id); }
+  };
+  useEffect(() => {
+    const stop = () => { for (const id of [...contacts.current.keys()]) stopContact(id); hovering.current.clear(); };
+    const unsubscribe = host.input.onCancel(stop);
+    return () => { unsubscribe(); stop(); };
+  }, [host, surface]);
   const videos = useRef(new Map<HTMLVideoElement, SpatialVideo>());
   const controllers = useRef(new Map<HTMLMediaElement, PanoMediaController>());
   const blockedMedia = useRef(new WeakSet<HTMLMediaElement>());
@@ -316,12 +327,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       group.current.scale.setScalar((2 * distance * Math.tan(width * Math.PI / 360)) / (WIDTH * spatialPanelScale(HEIGHT)));
     }
     const releasePointer = () => {
-      pressed.current?.end?.();
-      pressed.current = null;
-      pressedUpdates.current.reset();
+      for (const id of [...contacts.current.keys()]) stopContact(id);
+      hovering.current.clear();
       host.suppressGazeUntil = 0;
     };
-    window.addEventListener("pointerup", releasePointer);
     window.addEventListener("blur", releasePointer);
     const observer = new MutationObserver((records) => {
       if (
@@ -366,7 +375,6 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     sceneHost?.listeners.add(sceneChanged);
     return () => {
       releasePointer();
-      window.removeEventListener("pointerup", releasePointer);
       window.removeEventListener("blur", releasePointer);
       s.disposed = true;
       s.generation++;
@@ -400,6 +408,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
 
   const resolve = (uv: Vector2): GazeAction | null => {
     const s = state.current;
+    s.adapter = null; s.scrollTarget = null;
     const { x, y } = spatialUvToPoint(uv, s.height);
     const button = [...s.edgeButtons, ...s.buttons].find(
       (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h
@@ -498,12 +507,23 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
 
   useFrame((_, delta) => {
     const s = state.current;
-    if (delta > 0.25 || document.hidden) { pressed.current?.end?.(); pressed.current = null; }
-    if (pressed.current) {
-      host.suppressGazeUntil = performance.now() + 350;
-      if (pressed.current.enabled?.() !== false)
-        pressedUpdates.current.tick(pressed.current, delta);
-      else { pressed.current.end?.(); pressed.current = null; }
+    if (delta > 0.25 || (gl.xr.isPresenting ? gl.xr.getSession()?.visibilityState !== "visible" : document.hidden)) host.input.cancel();
+    for (const [id, contact] of contacts.current) {
+      if (contact.adapter && ![...host.controls.values()].includes(contact.adapter)) { stopContact(id); continue; }
+      if (contact.action?.enabled?.() === false) { stopContact(id); continue; }
+      if (contact.action) contact.updates.tick(contact.action, delta);
+    }
+    for (const [id, contact] of hovering.current) {
+      if (contacts.current.has(id) || contact.event.pointerState?.inputSource !== host.input.activeSource || !host.input.hasStick || host.input.getSnapshot().mode !== "pointer") continue;
+      const stick = pointerStick(contact.event);
+      if (!stick || delta > .25) continue;
+      const x = axisValue(stick.xAxis), y = axisValue(stick.yAxis);
+      if (!x && !y) continue;
+      const adapter = contact.adapter;
+      const target = adapter?.zoomBy ? adapter : contact.scroll;
+      if (!target || !host.input.claim(target, id)) continue;
+      applySpatialAxes(adapter, contact.scroll, x, y, delta);
+      host.input.release(target, id); s.dirty = true;
     }
     const ctx = canvas.getContext("2d")!;
     const nextHeight = Math.max(
@@ -723,10 +743,11 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     if (!s.scrollTarget || !surface.element.contains(s.scrollTarget) || !scrollActions(s.scrollTarget).length) {
       s.scrollTarget = surface.element.querySelector<HTMLElement>("[data-pano-scroll-viewport]") ?? [surface.element, ...surface.element.querySelectorAll<HTMLElement>("*")].find(node => findScrollTarget(surface.element, node) === node) ?? null;
     }
-    s.edgeButtons = !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
+    s.edgeButtons = !host.input.hasStick && !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
       ? scrollEdges(s.scrollTarget, scrollViewportBounds(surface.element, s.scrollTarget, Math.min(BODY_HEIGHT, surface.element.offsetHeight)), () => { s.dirty = true; }) : [];
     const adapter = s.adapter;
     if (adapter && !explicitTargets.has(adapter)) for (const action of modelActions(adapter)) {
+      if ((host.input.canDrag && adapter.rotateBy && ["left", "right", "up", "down"].includes(action.id)) || (host.input.hasStick && adapter.zoomBy && ["in", "out"].includes(action.id))) continue;
       add(action.id, action.label, action.update, action.activate, action.enabled);
     }
     if (media instanceof HTMLAudioElement && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
@@ -745,7 +766,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       ctx.stroke(new Path2D(CONTROL_PATHS[icon] ?? CONTROL_PATHS.reset)); ctx.restore();
     }
     for (const button of s.edgeButtons) {
-      const focused = host.action?.id === button.action.id || pressed.current?.id === button.action.id;
+      const focused = host.action?.id === button.action.id || [...contacts.current.values()].some(contact => contact.action?.id === button.action.id);
       ctx.save();
       const opacity = Number(appearance.getPropertyValue(focused ? "--pano-scroll-active-opacity" : "--pano-scroll-opacity").trim() || (focused ? .9 : .3));
       ctx.globalAlpha = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : focused ? .9 : .3;
@@ -763,32 +784,59 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     <group ref={group} renderOrder={90000}>
       <mesh
         ref={panelMesh}
+        pointerEventsOrder={10}
         onPointerDown={(event) => {
-          host.suppressGazeUntil = performance.now() + 350;
           event.stopPropagation();
-          pressedUpdates.current.reset();
-          if (event.uv) pressed.current = resolve(event.uv);
+          const inputEvent = pointerInput(event);
+          if (!host.input.accept(inputEvent, "down", !!pointerStick(inputEvent)) || !event.uv) return;
+          const action = resolve(event.uv);
+          const adapter = state.current.adapter;
+          const target = action?.id && typeof action.id === "object" ? action.id : adapter ?? surface.element;
+          if (!host.input.claim(target, inputEvent.pointerId)) return;
+          host.suppressGazeUntil = performance.now() + 350;
+          event.eventObject.setPointerCapture(inputEvent.pointerId);
+          contacts.current.set(inputEvent.pointerId, {
+            event: inputEvent, action, adapter: action ? null : adapter, scroll: state.current.scrollTarget,
+            x: event.uv.x, y: event.uv.y, moved: false, target, updates: createActionUpdateState(),
+            release: () => { if (event.eventObject.hasPointerCapture(inputEvent.pointerId)) event.eventObject.releasePointerCapture(inputEvent.pointerId); },
+          });
         }}
-        onPointerUp={() => {
-          host.suppressGazeUntil = 0;
-          pressed.current?.end?.();
-          pressed.current = null;
+        onPointerUp={(event) => {
+          event.stopPropagation();
+          const e = pointerInput(event), contact = contacts.current.get(e.pointerId);
+          if (host.input.accept(e, "up") && contact && !contact.moved && event.uv) {
+            const action = resolve(event.uv);
+            if (action?.id === contact.action?.id && action?.enabled?.() !== false) action?.activate?.();
+          }
+          stopContact(e.pointerId); host.suppressGazeUntil = performance.now() + 350;
         }}
-        onPointerOut={() => {
-          host.suppressGazeUntil = 0;
-          pressed.current?.end?.();
-          pressed.current = null;
-        }}
+        onPointerCancel={event => { stopContact(pointerInput(event).pointerId); }}
+        onLostPointerCapture={event => { stopContact(pointerInput(event).pointerId); }}
+        onPointerOut={(event) => { hovering.current.delete(pointerInput(event).pointerId); }}
         userData={{ panoGazeResolve: resolve }}
         onPointerMove={(event) => {
           event.stopPropagation();
-          if (event.uv) host.action = resolve(event.uv);
+          const e = pointerInput(event);
+          if (!host.input.accept(e, "hover", !!pointerStick(e)) || !event.uv) return;
+          const action = resolve(event.uv), contact = contacts.current.get(e.pointerId);
+          if (contact?.adapter?.rotateBy && host.input.canDrag) {
+            const dx = event.uv.x - contact.x, dy = event.uv.y - contact.y;
+            if (contact.moved || Math.hypot(dx, dy) > .01) {
+              contact.moved = true;
+              const yaw = dx * 180, pitch = dy * 180;
+              contact.adapter.rotateBy(contact.adapter.canExecute?.(yaw > 0 ? "right" : "left") === false ? 0 : yaw,
+                contact.adapter.canExecute?.(pitch > 0 ? "up" : "down") === false ? 0 : pitch);
+              contact.x = event.uv.x; contact.y = event.uv.y; state.current.dirty = true;
+            }
+          }
+          if (contact?.action && action?.id !== contact.action.id) stopContact(e.pointerId);
+          hovering.current.set(e.pointerId, { event: e, action, adapter: action ? null : state.current.adapter,
+            scroll: state.current.scrollTarget, x: event.uv.x, y: event.uv.y, moved: false,
+            target: surface.element, updates: createActionUpdateState(), release: () => {} });
+          host.action = action;
         }}
-        onPointerOver={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (event.uv) resolve(event.uv)?.activate?.();
-        }}
+        onPointerOver={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); host.input.accept(pointerInput(event), "click"); }}
       >
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial

@@ -1,3 +1,4 @@
+import { pointerInput, pointerStick } from "./input";
 import {
   useContext,
   useEffect,
@@ -949,6 +950,7 @@ function MenuSurface({
             geometry={surface.geometry}
             material={surface.material}
             renderOrder={90001}
+            pointerEventsOrder={10}
             userData={{
               panoGazeResolve: (uv: { x: number; y: number }) =>
                 resolve({
@@ -958,12 +960,12 @@ function MenuSurface({
             }}
             onClick={(event) => {
               event.stopPropagation();
-              if (event.uv)
+              if (spatial.input.accept(pointerInput(event), "click") && event.uv)
                 event.object.userData.panoGazeResolve(event.uv)?.activate?.();
             }}
             onPointerMove={(event) => {
               event.stopPropagation();
-              if (event.uv)
+              if (spatial.input.accept(pointerInput(event), "hover", !!pointerStick(pointerInput(event))) && event.uv)
                 spatial.action = event.object.userData.panoGazeResolve(
                   event.uv
                 );
@@ -971,7 +973,7 @@ function MenuSurface({
             onPointerOut={() => {
               spatial.action = null;
             }}
-            onPointerDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => { event.stopPropagation(); spatial.input.accept(pointerInput(event), "down", !!pointerStick(pointerInput(event))); }}
             raycast={function (this: Mesh, raycaster, intersections) {
               if (!state.current.closing && state.current.alpha > 0)
                 Mesh.prototype.raycast.call(this, raycaster, intersections);
