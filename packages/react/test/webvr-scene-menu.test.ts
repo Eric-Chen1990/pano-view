@@ -10,6 +10,7 @@ import {
   sceneMenuNavigationAnchor,
   sceneMenuNavigationFollow,
   sceneMenuNavigationNear,
+  sceneMenuNavigationPitchLimit,
   sceneMenuView,
   sceneMenuNeighbor,
   sceneMenuPage,
@@ -23,6 +24,7 @@ import {
   Raycaster,
   Vector3,
   Euler,
+  PerspectiveCamera,
 } from "three";
 const items = Array.from({ length: 25 }, (_, i) => ({
   id: String(i),
@@ -196,10 +198,57 @@ const navigationSettings = {
   scale: 1,
 };
 
+test("looking down then up keeps navigation below the view instead of stranding it", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  for (const pitch of [-65, -10, 30, -80, 0]) {
+    for (let i = 0; i < 180; i++)
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, navigationSettings, 1 / 60, false);
+    assert.ok(Math.abs(pose.pitch - pitch + 25) < 0.1,
+      `camera ${pitch}°: toolbar stranded at ${pose.pitch}°`);
+  }
+});
+
+test("stopping inside the old comfort band still recenters navigation below the view", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  for (let i = 0; i < 180; i++)
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false);
+  assert.ok(Math.abs(pose.pitch + 35) < 0.1, `toolbar stayed at ${pose.pitch}°`);
+});
+
+test("navigation fits complete targets inside narrow and shifted eye frustums", () => {
+  const controls = sceneMenuControlLayout(1024, 0, false, false);
+  for (const fov of [30, 50, 80]) {
+    for (const scale of [0.75, 1, 1.25]) {
+      for (const shift of [-100, 0, 100]) {
+        const camera = new PerspectiveCamera(fov, 0.7, 0.1, 10);
+        camera.setViewOffset(700, 1000, 0, shift, 700, 1000);
+        const settings = { ...navigationSettings, scale,
+          pitchLimit: sceneMenuNavigationPitchLimit(camera.projectionMatrix.elements, scale) };
+        const pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, settings);
+        assert.ok(pose.pitch >= -25 && pose.pitch < 0);
+        for (const button of [controls.previous, controls.center, controls.next]) {
+          for (const x of [button.x, button.x + button.w]) {
+            for (const y of [button.y, button.y + button.h]) {
+              const angle = 28 * scale * Math.PI / 180;
+              const theta = (x / 1024 - 0.5) * angle;
+              const point = new Vector3(Math.sin(theta) * 2,
+                (110 - y) * 2 * angle / 1024, -Math.cos(theta) * 2)
+                .applyEuler(new Euler(pose.pitch * Math.PI / 180, 0, 0, "YXZ"))
+                .project(camera);
+              assert.ok(point.y >= -0.81 && point.y < 1, `cropped target at ${fov}°: ${point.y}`);
+            }
+          }
+        }
+        assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, { ...settings, follow: false }).pitch, -25);
+      }
+    }
+  }
+});
+
 test("navigation anchors below the current view and preserves both legacy modes", () => {
   const view = { yaw: 80, pitch: -30 };
   assert.deepEqual(sceneMenuNavigationAnchor(view, navigationSettings), {
-    yaw: 80, pitch: -55, returning: false,
+    yaw: 80, pitch: -55, returning: false, approachHold: 0,
   });
   for (const settings of [
     { ...navigationSettings, follow: false },
@@ -212,21 +261,19 @@ test("navigation anchors below the current view and preserves both legacy modes"
     assert.equal(next.yaw > anchor.yaw, settings.follow);
     assert.equal(sceneMenuNavigationFollow(anchor, view, settings, 0.016, true).yaw, 80);
   }
-  assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: -90 }, navigationSettings).pitch, -75);
+  assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: -90 }, navigationSettings).pitch, -115);
   assert.equal(sceneMenuNavigationAnchor(view, { ...navigationSettings, navigationPitch: NaN }).pitch, -55);
 });
 
-test("vertical comfort zone holds small head movements and converges after either boundary", () => {
+test("vertical following holds a head-driven approach but converges after looking away or stopping", () => {
   const anchor = { yaw: 0, pitch: -25, returning: false };
-  for (const pitch of [-30, -10, 0, 15]) {
-    assert.equal(sceneMenuNavigationFollow(anchor, { yaw: 0, pitch }, navigationSettings, 1 / 60, false).pitch, -25);
-  }
+  assert.equal(sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false, 0).pitch, -25);
+  const stopped = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false, -10);
+  assert.ok(stopped.pitch < -25);
   const upward = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: 35 }, navigationSettings, 1 / 60, false);
   assert.ok(upward.pitch > -25 && upward.pitch < 10);
   assert.equal(upward.returning, true);
-  // Look sideways while checking downward recovery so the reticle safety guard
-  // doesn't intentionally stop a toolbar that would pass through the gaze ray.
-  const downward = sceneMenuNavigationFollow(anchor, { yaw: 90, pitch: -60 }, navigationSettings, 1 / 60, false);
+  const downward = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -60 }, navigationSettings, 1 / 60, false);
   assert.ok(downward.pitch < -25);
   assert.equal(downward.returning, true);
   let pose = upward;
@@ -248,18 +295,20 @@ test("pitch recovery is frame-rate independent, bounded and rejects invalid delt
   for (const delta of [NaN, Infinity, 0, -1])
     assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, delta, false), pose);
   const next = sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, 0.1, false);
-  assert.ok(next.pitch >= -75 && next.pitch < -60);
+  assert.ok(next.pitch >= -115 && next.pitch < -60);
 });
 
-test("focus and near-reticle aiming freeze both axes, including slow-frame crossings", () => {
+test("focus and head-driven aiming freeze both axes without locking automatic recovery", () => {
   const pose = { yaw: 0, pitch: -25, returning: true };
-  assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 40, pitch: 40 }, navigationSettings, 0.1, true), { ...pose, returning: false });
+  assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 40, pitch: 40 }, navigationSettings, 0.1, true), { ...pose, returning: false, approachHold: 0 });
   const near = { yaw: 5, pitch: -22 };
   assert.equal(sceneMenuNavigationNear(pose, near, 1), true);
-  assert.deepEqual(sceneMenuNavigationFollow(pose, near, navigationSettings, 0.1, false), { ...pose, returning: false });
+  assert.deepEqual(sceneMenuNavigationFollow(pose, near, navigationSettings, 0.1, false, 0), { ...pose, returning: false, approachHold: 0 });
   const above = { yaw: 0, pitch: 11, returning: false };
-  const stopped = sceneMenuNavigationFollow(above, { yaw: 0, pitch: 0 }, navigationSettings, 0.1, false);
-  assert.deepEqual(stopped, above, "do not sweep through the reticle on a slow frame");
+  const crossing = sceneMenuNavigationFollow(above, { yaw: 0, pitch: 0 }, navigationSettings, 0.1, false);
+  assert.ok(crossing.pitch < 0, "recovery must pass the reticle instead of stranding the toolbar");
+  const recovering = sceneMenuNavigationFollow({ ...pose, pitch: -20 }, near, navigationSettings, 0.1, false);
+  assert.ok(recovering.pitch < -20, "automatic proximity must not acquire an aim lock");
   assert.equal(sceneMenuNavigationNear(pose, { yaw: 180, pitch: -25 }, 1), false);
 });
 
@@ -282,13 +331,27 @@ test("navigation can be approached slowly for gaze and resumes recovery after lo
   for (const navigationPitch of [-40, -25, -15]) {
     const settings = { ...navigationSettings, navigationPitch };
     let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, settings);
+    let previousPitch = 0;
     for (let i = 0; i <= 120; i++) {
-      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: navigationPitch * i / 120 }, settings, 1 / 60, false);
+      const pitch = navigationPitch * i / 120;
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, settings, 1 / 60, false, previousPitch);
+      previousPitch = pitch;
       assert.equal(pose.pitch, navigationPitch, "the target must not escape a slow gaze approach");
     }
     const next = sceneMenuNavigationFollow(pose, { yaw: 30, pitch: 45 }, settings, 1 / 60, false);
     assert.ok(next.yaw > pose.yaw);
     assert.ok(next.pitch > pose.pitch);
+  }
+});
+
+test("gaze approach remains stable when head poses arrive slower than render frames", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  let previousPitch = 0;
+  for (let frame = 0; frame <= 150; frame++) {
+    const pitch = -Math.floor(frame / 3) / 2;
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, navigationSettings, 1 / 60, false, previousPitch);
+    previousPitch = pitch;
+    assert.equal(pose.pitch, -25, "a render frame between head samples must not restart recovery");
   }
 });
 

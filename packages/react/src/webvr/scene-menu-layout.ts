@@ -46,14 +46,46 @@ export function sceneMenuFollow(
   return { yaw: yaw + difference * blend, elapsed: 0 };
 }
 
-type SceneMenuPose = { yaw: number; pitch: number; returning: boolean };
+type SceneMenuPose = {
+  yaw: number;
+  pitch: number;
+  returning: boolean;
+  approachHold?: number;
+};
 type SceneMenuView = { yaw: number; pitch: number };
 type NavigationSettings = {
   follow: boolean;
   followPitch: boolean;
   navigationPitch: number;
   scale: number;
+  pitchLimit?: number;
 };
+
+function navigationOffset(settings: NavigationSettings) {
+  const requested = bounded(settings.navigationPitch, -25, -40, -15);
+  return settings.follow && settings.followPitch
+    ? Math.max(requested, bounded(settings.pitchLimit, -40, -40, -1))
+    : requested;
+}
+
+/** Leave the entire button target above the bottom 10% of the actual eye view. */
+export function sceneMenuNavigationPitchLimit(
+  projection: ArrayLike<number>,
+  scale: number
+) {
+  const verticalScale = projection[5]!;
+  const center = projection[9]!;
+  if (
+    !Number.isFinite(verticalScale) ||
+    verticalScale <= 0 ||
+    !Number.isFinite(center)
+  )
+    return -40;
+  const angle = (28 * bounded(scale, 1, 0.75, 1.25) * Math.PI) / 180;
+  const halfHeight = Math.atan((NAVIGATION_CONTROLS.center.h * angle) / 2048);
+  const available = Math.atan(Math.max(0, 0.8 - center) / verticalScale);
+  return -Math.max(1, ((available - halfHeight) * 180) / Math.PI);
+}
 
 export function sceneMenuView(
   direction: { x: number; y: number; z: number },
@@ -73,16 +105,17 @@ export function sceneMenuNavigationAnchor(
   view: SceneMenuView,
   settings: NavigationSettings
 ): SceneMenuPose {
-  const offset = bounded(settings.navigationPitch, -25, -40, -15);
+  const offset = navigationOffset(settings);
   return {
     yaw: view.yaw,
-    pitch: bounded(
-      settings.follow && settings.followPitch ? view.pitch + offset : offset,
-      offset,
-      -75,
-      75
-    ),
+    // Keep the offset in the head's pitch frame even when looking near the
+    // floor. A world-pitch clamp would push the toolbar above the gaze ray.
+    pitch:
+      settings.follow && settings.followPitch
+        ? bounded(view.pitch, 0, -90, 90) + offset
+        : offset,
     returning: false,
+    approachHold: 0,
   };
 }
 
@@ -105,7 +138,7 @@ export function sceneMenuNavigationNear(
     Math.cos(pitch) * Math.cos(viewPitch) * Math.cos(difference);
   const angle = 28 * bounded(scale, 1, 0.75, 1.25);
   const controls = NAVIGATION_CONTROLS;
-  // Pad the actual three-button bounds by four degrees so aiming can settle
+  // Pad the actual three-button bounds so a head-driven approach can settle
   // before the exact gaze/ray hit starts the dwell timer.
   const halfWidth = ((512 - controls.previous.x) * angle) / 1024 + 4;
   const halfHeight =
@@ -121,9 +154,10 @@ export function sceneMenuNavigationFollow(
   view: SceneMenuView,
   settings: NavigationSettings,
   delta: number,
-  paused: boolean
+  paused: boolean,
+  previousPitch = view.pitch
 ): SceneMenuPose {
-  const offset = bounded(settings.navigationPitch, -25, -40, -15);
+  const offset = navigationOffset(settings);
   if (!settings.follow || !settings.followPitch) {
     return {
       yaw:
@@ -132,34 +166,47 @@ export function sceneMenuNavigationFollow(
           : pose.yaw,
       pitch: offset,
       returning: false,
+      approachHold: 0,
     };
   }
-  if (paused || sceneMenuNavigationNear(pose, view, settings.scale))
-    return { yaw: pose.yaw, pitch: pose.pitch, returning: false };
-  if (!Number.isFinite(delta) || delta <= 0) return pose;
   const relative = pose.pitch - view.pitch;
-  const returning = pose.returning || relative < offset - 15 || relative > 10;
-  const target = bounded(view.pitch + offset, offset, -75, 75);
+  const approaching = (view.pitch - previousPitch) * relative > 0;
+  const near = sceneMenuNavigationNear(pose, view, settings.scale);
+  // Automatic recovery can cross the reticle. Only a head-driven approach or
+  // an existing aim lock may stop it; otherwise it would strand itself above
+  // the reticle forever. Gaze activation is disabled during that recovery.
+  if (paused || (near && (!pose.returning || approaching)))
+    return { yaw: pose.yaw, pitch: pose.pitch, returning: false, approachHold: 0 };
+  if (!Number.isFinite(delta) || delta <= 0) return pose;
+  // Head tracking can update more slowly than rendering. Preserve approach
+  // intent briefly across frames with the same head pose, but cancel it as
+  // soon as the user moves away.
+  const approachHold = approaching
+    ? 0.2
+    : Math.abs(view.pitch - previousPitch) > 1e-4
+      ? 0
+      : Math.max(0, (pose.approachHold ?? 0) - Math.min(delta, 0.1));
+  if (
+    approachHold > 0 &&
+    !pose.returning &&
+    relative >= offset - 15 &&
+    relative <= 10
+  )
+    return {
+      yaw: sceneMenuFollow(pose.yaw, view.yaw, 0, delta, false).yaw,
+      pitch: pose.pitch,
+      returning: false,
+      approachHold,
+    };
+  const target = bounded(view.pitch, 0, -90, 90) + offset;
   const blend = -Math.expm1(-Math.min(delta, 0.1) / 0.2);
-  const pitch = returning
-    ? pose.pitch + (target - pose.pitch) * blend
-    : pose.pitch;
-  const next = {
+  const pitch = pose.pitch + (target - pose.pitch) * blend;
+  return {
     yaw: sceneMenuFollow(pose.yaw, view.yaw, 0, delta, false).yaw,
-    pitch: returning && Math.abs(target - pitch) < 0.05 ? target : pitch,
-    returning: returning && Math.abs(target - pitch) >= 0.05,
+    pitch: Math.abs(target - pitch) < 0.05 ? target : pitch,
+    returning: Math.abs(target - pitch) >= 0.05,
+    approachHold: 0,
   };
-  // A slow frame must not carry the toolbar across the reticle between checks.
-  const crossesView =
-    (pose.pitch - view.pitch) * (next.pitch - view.pitch) < 0 &&
-    sceneMenuNavigationNear(
-      { yaw: next.yaw, pitch: view.pitch },
-      view,
-      settings.scale
-    );
-  if (crossesView || sceneMenuNavigationNear(next, view, settings.scale))
-    return { yaw: pose.yaw, pitch: pose.pitch, returning: false };
-  return next;
 }
 export function wrapSceneTitle(
   text: string,

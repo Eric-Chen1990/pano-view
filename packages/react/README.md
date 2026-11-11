@@ -3237,9 +3237,9 @@ Items reuse `PanoSceneMenuItem`. Titles default to centered image overlays, wrap
 | `columns`, `rows` | compact/flat: 4 columns; arc: automatic (8 at 180°, 16 at 360°). Column ranges: compact 2–4, flat/arc 2–24. Paged rows: 3, range 1–3 |
 | `loop` | `true`; wraps scene navigation, never pagination |
 | `closeOnSelect` | `true`; use `false` for continuous browsing |
-| `follow` | `true`; collapsed navigation follows the view, with a vertical comfort zone; `false` keeps the original fixed heading/world pitch |
+| `follow` | `true`; collapsed navigation follows the view smoothly and pauses for aiming; `false` keeps the original fixed heading/world pitch |
 | `followPitch` | `true`; requires `follow`; `false` restores horizontal-only following |
-| `navigationPitch` | −25 degrees; −40 to −15; view-relative offset when both follow options are enabled, otherwise fixed world pitch |
+| `navigationPitch` | −25 degrees; −40 to −15; view-relative offset when both follow options are enabled (reduced automatically to fit the actual eye frustums), otherwise fixed world pitch |
 | `distance`, `scale` | 2 meters, 1; ranges 1.5–3, 0.75–1.25 |
 | `fadeDurationMs` | 200; 0–600ms, respects reduced motion |
 | `showTitles` | `true` |
@@ -3255,7 +3255,7 @@ The `/webvr` example teaches VR entry, exit, capability events and gaze activati
 
 The floating navigation is a compact button group with equal-height icons, transparent backgrounds and subtle shadows for contrast against the panorama.
 
-Vertical following is enabled by default. Navigation starts below the current view and stays still while its relative pitch is between `navigationPitch − 15°` and `+10°`. Outside that comfort zone it eases toward the configured offset with a 0.2-second time constant, limited to ±75° world pitch, without following head roll. Gaze/ray hits and keyboard focus pause both axes. A padded aiming region also pauses following before an exact hit, and recovery stops before crossing the reticle, so the controls remain reachable. Set `followPitch={false}` for the previous horizontal-only behavior, or `follow={false}` for fixed navigation. Closing the grid reanchors navigation below the current view before fading it in.
+Vertical following is enabled by default. Navigation starts below the current view and eases toward the configured offset with a 0.2-second time constant, without following head roll. A head-driven approach toward the buttons holds their pitch so they do not escape a slow gaze movement; aiming near the buttons, pointer/ray hits and keyboard focus pause both axes. Looking away resumes recovery, and stopping outside the aiming region recenters the toolbar instead of leaving it at an old height. Automatic recovery does not acquire an aim lock as it passes the reticle; gaze activation is disabled during recovery to prevent accidental selection. The view-relative offset also works when looking toward the floor, without a fixed world-pitch clamp pushing the toolbar above the view. Set `followPitch={false}` for the previous horizontal-only behavior, or `follow={false}` for fixed navigation. Closing the grid reanchors navigation below the current view before fading it in.
 
 Flat and arc layouts use bounded texture atlases. Compact/flat default to four columns; arc defaults to one column per 22.5° (8 for a semicircle, 16 for a full circle). Compact supports 2–4 columns; new layouts support 2–24. Paged rows default to 3, clamped to 1–3. All mode extends the wall without shrinking cards, so large lists require more looking around. All three layouts open at the current heading and pitch (limited to ±75°, without head roll), then follow translation but not head rotation. New layouts keep close/paging controls in a separate forward control strip. The `/vr-scene-menu` playground exposes layout, display mode, and arc angle; leave columns blank for automatic defaults.
 

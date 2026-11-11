@@ -36,6 +36,7 @@ import {
   sceneMenuPoint,
   sceneMenuNavigationAnchor,
   sceneMenuNavigationFollow,
+  sceneMenuNavigationPitchLimit,
   sceneMenuView,
   sceneMenuNeighbor,
   sceneMenuPage,
@@ -90,7 +91,7 @@ export type WebVRSceneMenuProps = {
   closeOnSelect?: boolean;
   /** Follow the view while collapsed. Defaults to true. */
   follow?: boolean;
-  /** Include vertical comfort-zone following. Defaults to true; requires follow. */
+  /** Include smooth vertical following with aim locking. Defaults to true; requires follow. */
   followPitch?: boolean;
   /** View-relative offset when following pitch, otherwise world pitch; defaults to -25°, range -40° to -15°. */
   navigationPitch?: number;
@@ -155,6 +156,7 @@ function MenuSurface({
 }: WebVRSceneMenuProps) {
   const visitedSceneIds = useVisitedSceneIds(showVisited);
   const { camera, gl } = useThree();
+  const runtime = useContext(WebVRRuntimeContext)!;
   const spatial = useContext(SpatialHostContext)!;
   const all = displayMode === "all";
   const { cols, rowCount, capacity, degrees } = sceneMenuLayoutConfig(
@@ -175,7 +177,9 @@ function MenuSurface({
   const state = useRef({
     yaw: 0,
     pitch: 0,
+    viewPitch: 0,
     returning: false,
+    approachHold: 0,
     initialized: false,
     alpha: 0,
     closing: false,
@@ -490,6 +494,7 @@ function MenuSurface({
         state.current.yaw = view.yaw;
         state.current.pitch = bounded(view.pitch, 0, -75, 75);
         state.current.returning = false;
+        state.current.approachHold = 0;
         state.current.alpha = 0;
         setPage(sceneMenuPage(items, activeId, capacity));
         setEpoch((v) => v + 1);
@@ -568,6 +573,7 @@ function MenuSurface({
     followPitch,
     navigationPitch,
     scale: menuScale,
+    pitchLimit: -40,
     keyboardFocus,
   });
   current.current = {
@@ -577,6 +583,7 @@ function MenuSurface({
     followPitch,
     navigationPitch,
     scale: menuScale,
+    pitchLimit: -40,
     keyboardFocus,
   };
   useEffect(() => {
@@ -622,6 +629,8 @@ function MenuSurface({
   }, [imageKey]);
   const resolve = (uv: { x: number; y: number }): GazeAction | null => {
     if (state.current.closing || state.current.selected) return null;
+    if (state.current.returning && spatial.input.getSnapshot().mode === "gaze")
+      return null;
     const target = current.current.targets.find(
       (t) =>
         uv.x * W >= t.x &&
@@ -644,10 +653,33 @@ function MenuSurface({
     const s = state.current,
       c = current.current;
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
+    if (gl.xr.isPresenting) {
+      c.pitchLimit = -40;
+      for (const eye of gl.xr.getCamera().cameras)
+        c.pitchLimit = Math.max(
+          c.pitchLimit,
+          sceneMenuNavigationPitchLimit(eye.projectionMatrix.elements, c.scale)
+        );
+    } else if (runtime.stereoView.active) {
+      const stereo = runtime.stereoView.stereo;
+      c.pitchLimit = Math.max(
+        sceneMenuNavigationPitchLimit(
+          stereo.cameraL.projectionMatrix.elements, c.scale
+        ),
+        sceneMenuNavigationPitchLimit(
+          stereo.cameraR.projectionMatrix.elements, c.scale
+        )
+      );
+    } else {
+      c.pitchLimit = sceneMenuNavigationPitchLimit(
+        activeCamera.projectionMatrix.elements, c.scale
+      );
+    }
     activeCamera.getWorldDirection(direction);
     const view = sceneMenuView(direction, s.yaw);
     if (!s.initialized && !open) {
       Object.assign(s, sceneMenuNavigationAnchor(view, c));
+      s.viewPitch = view.pitch;
       s.initialized = true;
     }
     const focused =
@@ -661,8 +693,9 @@ function MenuSurface({
     if (!open)
       Object.assign(
         s,
-        sceneMenuNavigationFollow(s, view, c, dt, Boolean(focused))
+        sceneMenuNavigationFollow(s, view, c, dt, Boolean(focused), s.viewPitch)
       );
+    s.viewPitch = view.pitch;
     if (group.current) {
       activeCamera.getWorldPosition(group.current.position);
       group.current.rotation.set(
