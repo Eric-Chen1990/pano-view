@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 5.1.0
+
+### Minor Changes
+
+- 6a5cb57: Add optional `hasAudio` on media and video playback snapshots. Library controls hide mute and volume only when an audio track is confirmed absent; unknown detection still shows them. Volume stays limited to 0–1, and source or track changes refresh the result.
+
+### Patch Changes
+
+- edba9bf: Fix VR tooltip spacing, unify spatial control groups, improve reticle contrast, and preserve open-dialog media playback on VR exit. Allow hosts to opt media out of automatic controls with data-pano-media-controls="none".
+
+  Keep automatic model controls visible independently of gaze moving between the model, text, scroll arrows and footer buttons.
+
 ## 5.0.0
 
 ### Major Changes
