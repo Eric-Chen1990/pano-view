@@ -62,6 +62,8 @@ export type PanoVideoPlaybackSnapshot = {
   ended: boolean;
   currentTime: number;
   duration: number;
+  /** Undefined when audio track presence is unknown. */
+  hasAudio?: boolean;
   volume: number;
   /** False when the element ignores `volume` (iOS Safari). Mute still works. */
   volumeAdjustable: boolean;

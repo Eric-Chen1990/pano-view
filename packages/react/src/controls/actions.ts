@@ -15,6 +15,7 @@ export type PanoMediaController = Pick<
     | "playing"
     | "currentTime"
     | "duration"
+    | "hasAudio"
     | "volume"
     | "volumeAdjustable"
     | "muted"
@@ -57,6 +58,7 @@ export function mediaActions(
 ): PanoControlAction[] {
   if (!controller) return [];
   const snapshot = () => controller.getSnapshot();
+  const safeVolumeSpeed = Number.isFinite(volumeSpeed) && volumeSpeed >= 0 ? volumeSpeed : 0.25;
   return [
     {
       id: snapshot().playing ? "pause" : "play",
@@ -87,25 +89,25 @@ export function mediaActions(
           )
         ),
     })),
-    ...(snapshot().volumeAdjustable ? [-1, 1] as const : []).map((direction) => ({
+    ...(snapshot().hasAudio !== false && snapshot().volumeAdjustable ? [-1, 1] as const : []).map((direction) => ({
       id: direction < 0 ? "vol-" : "vol+",
       label: direction < 0 ? "Volume down" : "Volume up",
       enabled: () =>
-        snapshot().volumeAdjustable &&
+        snapshot().hasAudio !== false && snapshot().volumeAdjustable &&
         (direction < 0 ? snapshot().volume > 0 : snapshot().volume < 1),
-      update: (dt: number) =>
+      update: (dt: number) => {
+        if (!Number.isFinite(dt) || dt <= 0 || snapshot().hasAudio === false || !snapshot().volumeAdjustable) return;
         controller.setVolume(
-          Math.max(
-            0,
-            Math.min(1, snapshot().volume + direction * dt * volumeSpeed)
-          )
-        ),
+          Math.max(0, Math.min(1, snapshot().volume + direction * dt * safeVolumeSpeed))
+        );
+      },
     })),
-    {
+    ...(snapshot().hasAudio === false ? [] : [{
       id: snapshot().muted ? "unmute" : "mute",
       label: snapshot().muted ? "Unmute" : "Mute",
-      activate: () => controller.setMuted(!snapshot().muted),
-    },
+      enabled: () => snapshot().hasAudio !== false,
+      activate: () => { if (snapshot().hasAudio !== false) controller.setMuted(!snapshot().muted); },
+    }]),
   ];
 }
 export function modelActions(

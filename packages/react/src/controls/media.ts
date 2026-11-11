@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { probeMediaHasAudio, subscribeMediaAudio } from "./media-audio";
 import { probeVolumeAdjustable } from "../video/format";
 import type { PanoMediaController } from "./actions";
 
@@ -31,6 +32,7 @@ export function usePanoMediaController(
           playing: media ? !media.paused && !media.ended : false,
           currentTime: media?.currentTime ?? 0,
           duration: media?.duration ?? 0,
+          hasAudio: media ? probeMediaHasAudio(media) : undefined,
           volume: media?.volume ?? 1,
           volumeAdjustable: adjustable.current,
           muted: media?.muted ?? true,
@@ -72,19 +74,17 @@ export function usePanoMediaController(
     adjustable.current = probeVolumeAdjustable(media);
     const notify = () => listeners.current.forEach((fn) => fn());
     const events = [
-      "loadedmetadata",
       "durationchange",
-      "timeupdate",
       "play",
       "pause",
       "ended",
       "volumechange",
       "error",
-      "emptied",
     ];
     events.forEach((event) => media.addEventListener(event, notify));
-    notify();
+    const unsubscribeAudio = subscribeMediaAudio(media, notify);
     return () => {
+      unsubscribeAudio();
       if (mediaControllers.get(media) === controller) mediaControllers.delete(media);
       events.forEach((event) => media.removeEventListener(event, notify));
     };

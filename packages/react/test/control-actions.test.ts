@@ -119,3 +119,36 @@ test("disabled and removed continuous targets stop and require another dwell", (
   state.tick(null, 0.02, 100);
   assert.equal(ends, 1);
 });
+
+test("media audio actions preserve legacy controllers and stop at track and volume boundaries", () => {
+  const snapshot = { ready: true, playing: false, currentTime: 0, duration: 10, volume: 0.5, volumeAdjustable: true, muted: false, hasAudio: undefined as boolean | undefined };
+  const controller: PanoMediaController = {
+    subscribe: () => () => {}, getSnapshot: () => snapshot,
+    play: async () => {}, pause: () => {}, seek: () => {},
+    setVolume: (value) => { assert.ok(Number.isFinite(value)); assert.ok(value >= 0 && value <= 1); snapshot.volume = value; },
+    setMuted: (value) => { snapshot.muted = value; },
+  };
+  const actions = mediaActions(controller);
+  assert.equal(actions.length, 6, "unknown and legacy snapshots retain audio actions");
+  const up = actions.find((a) => a.id === "vol+")!;
+  const down = actions.find((a) => a.id === "vol-")!;
+  for (let i = 0; i < 100; i++) up.update!(1);
+  assert.equal(snapshot.volume, 1);
+  assert.equal(up.enabled!(), false);
+  for (let i = 0; i < 100; i++) down.update!(1);
+  assert.equal(snapshot.volume, 0);
+  assert.equal(down.enabled!(), false);
+  for (const invalid of [NaN, Infinity, -Infinity]) up.update!(invalid);
+  assert.equal(snapshot.volume, 0);
+  snapshot.hasAudio = false;
+  assert.deepEqual(mediaActions(controller).map((a) => a.id), ["play", "rewind", "forward"]);
+  up.update!(1);
+  actions.find((a) => a.id === "mute")!.activate!();
+  assert.equal(snapshot.volume, 0);
+  assert.equal(snapshot.muted, false);
+  snapshot.hasAudio = true;
+  mediaActions(controller, 10, NaN).find((a) => a.id === "vol+")!.update!(1);
+  assert.equal(snapshot.volume, 0.25);
+  snapshot.volumeAdjustable = false;
+  assert.deepEqual(mediaActions(controller).map((a) => a.id), ["play", "rewind", "forward", "mute"]);
+});

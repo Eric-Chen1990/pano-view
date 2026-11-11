@@ -1,7 +1,8 @@
 import { resolveSurfaceModelAdapter } from "./model-controls";
 import { applySpatialAxes, axisValue, pointerInput, pointerStick, type PointerInput } from "../webvr/input";
 import { scrollEdges, scrollViewportBounds } from "./scroll-edges";
-import { probeVolumeAdjustable } from "../video/format";
+import { probeMediaHasAudio } from "../controls/media-audio";
+import { clampVolume, probeVolumeAdjustable } from "../video/format";
 import { CONTROL_GROUP_DEFAULTS, controlGroupLayout, allowsAutomaticMediaControls, shouldPauseSurfaceMedia } from "../controls/layout";
 import { mediaControllers } from "../controls/media";
 import { CONTROL_PATHS, findScrollTarget, scrollActions, mediaActions, modelActions } from "../controls/actions";
@@ -287,7 +288,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       if (!volumeCapabilities.has(media)) volumeCapabilities.set(media, probeVolumeAdjustable(media));
       controller = {
         subscribe: () => () => {},
-        getSnapshot: () => ({ ready: media.readyState >= 1, playing: !media.paused && !media.ended, currentTime: media.currentTime, duration: media.duration, volume: media.volume, volumeAdjustable: volumeCapabilities.get(media) ?? false, muted: media.muted }),
+        getSnapshot: () => ({ ready: media.readyState >= 1, playing: !media.paused && !media.ended, currentTime: media.currentTime, duration: media.duration, hasAudio: probeMediaHasAudio(media), volume: media.volume, volumeAdjustable: volumeCapabilities.get(media) ?? false, muted: media.muted }),
         play: async () => {
           try {
             await media.play();
@@ -301,7 +302,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         },
         pause: () => media.pause(),
         seek: (time) => { if (Number.isFinite(time) && Number.isFinite(media.duration)) media.currentTime = Math.max(0, Math.min(media.duration, time)); },
-        setVolume: (value) => { media.volume = value; },
+        setVolume: (value) => { if (Number.isFinite(value) && volumeCapabilities.get(media)) media.volume = clampVolume(value); },
         setMuted: (value) => { media.muted = value; },
       };
       controllers.current.set(media, controller);
