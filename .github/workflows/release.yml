@@ -7,6 +7,9 @@ on:
       - packages/react/package.json
       - packages/editor/package.json
       - packages/converter/package.json
+      # A version already on main can still be unpublished. Changing this
+      # workflow must be able to start that publication.
+      - .github/workflows/release.yml
   pull_request:
     paths:
       - .github/actions/setup-ffmpeg/**
