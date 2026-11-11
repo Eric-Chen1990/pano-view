@@ -1,3 +1,4 @@
+import { tooltipPadding, tooltipBaseline, tooltipLines } from "./tooltip-layout";
 import { tooltipWorldMatrix } from "./tooltip-transform";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -63,7 +64,9 @@ export function SpatialHotspotTooltip({
   }, [content.image]);
   const raster = useMemo(() => {
     const fontSize = Math.max(1, number(appearance.fontSize, 12));
-    const padding = Math.max(0, number(appearance.padding, 8));
+    const [pt, pr, pb, pl] = tooltipPadding(appearance.padding);
+    const padding = Math.max(pl, pr);
+    const letterSpacing = appearance.letterSpacing === "normal" ? 0 : number(appearance.letterSpacing ?? 0, 0);
     const leading = appearance.lineHeight;
     const lineHeight =
       typeof leading === "string" && leading.endsWith("px")
@@ -74,18 +77,8 @@ export function SpatialHotspotTooltip({
     const ctx = canvas.getContext("2d")!;
     const font = `${fontSize}px ${appearance.fontFamily}`;
     ctx.font = font;
-    const lines: string[] = [];
-    for (const paragraph of (content.text ?? "").split("\n")) {
-      let line = "";
-      for (const char of paragraph) {
-        if (line && ctx.measureText(line + char).width > 220 - padding * 2) {
-          lines.push(line);
-          line = "";
-        }
-        line += char;
-      }
-      if (line || content.text) lines.push(line);
-    }
+    const measure = (text: string) => (letterSpacing ? [...text].reduce((width, char) => width + ctx.measureText(char).width, 0) : ctx.measureText(text).width) + Math.max(0, [...text].length - 1) * letterSpacing;
+    const lines = tooltipLines(content.text ?? "", 220 - pl - pr, measure);
     const imageWidth = image
       ? Math.min(
           220 - padding * 2,
@@ -98,13 +91,13 @@ export function SpatialHotspotTooltip({
     const width = Math.ceil(
       Math.max(
         imageWidth,
-        ...lines.map((line) => ctx.measureText(line).width),
+        ...lines.map(measure),
         1
       ) +
-        padding * 2
+        pl + pr
     );
     const height = Math.ceil(
-      padding * 2 +
+      pt + pb +
         imageHeight +
         (image && lines.length ? padding : 0) +
         lines.length * lineHeight
@@ -130,17 +123,23 @@ export function SpatialHotspotTooltip({
     }
     ctx.save();
     ctx.clip();
-    let top = padding;
+    let top = pt;
     if (image) {
-      ctx.drawImage(image, padding, top, imageWidth, imageHeight);
+      ctx.drawImage(image, pl, top, imageWidth, imageHeight);
       top += imageHeight + padding;
     }
     ctx.font = font;
     ctx.fillStyle = appearance.color;
-    ctx.textBaseline = "top";
-    lines.forEach((line, i) =>
-      ctx.fillText(line, padding, top + i * lineHeight)
-    );
+    ctx.textBaseline = "alphabetic";
+    lines.forEach((line, i) => {
+      const metrics = ctx.measureText(line || "Mg");
+      const ascent = metrics.actualBoundingBoxAscent || fontSize * .8;
+      const descent = metrics.actualBoundingBoxDescent ?? fontSize * .2;
+      let x = pl;
+      const y = tooltipBaseline(top + i * lineHeight, lineHeight, ascent, descent);
+      if (!letterSpacing) ctx.fillText(line, x, y);
+      else for (const char of line) { ctx.fillText(char, x, y); x += ctx.measureText(char).width + letterSpacing; }
+    });
     ctx.restore();
     const texture = new CanvasTexture(canvas);
     texture.colorSpace = SRGBColorSpace;

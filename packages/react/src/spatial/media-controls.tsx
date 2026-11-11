@@ -1,6 +1,7 @@
 import { useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { AutomaticControlContext, explicitTargets, PanoMediaControls, subscribeExplicitTargets } from "../controls/components";
+import { allowsAutomaticMediaControls } from "../controls/layout";
 import { mediaControllers, usePanoMediaController } from "../controls/media";
 import type { PanoMediaController } from "../controls/actions";
 import { SpatialHostContext, type SpatialSurface } from "./host";
@@ -48,7 +49,7 @@ function SurfaceMediaControls({ surface }: { surface: SpatialSurface }) {
     const sync = () => {
       const videos = [...surface.element.querySelectorAll("video")];
       const automatic = videos.filter((video) => {
-        if (explicitTargets.has(mediaControllers.get(video) ?? video)) return false;
+        if (!allowsAutomaticMediaControls(video) || explicitTargets.has(mediaControllers.get(video) ?? video)) return false;
         return ![...host.controls].some(([node]) => node === video || node.contains(video));
       });
       let changed = false;

@@ -1,6 +1,8 @@
+import { resolveSurfaceModelAdapter } from "./model-controls";
 import { applySpatialAxes, axisValue, pointerInput, pointerStick, type PointerInput } from "../webvr/input";
 import { scrollEdges, scrollViewportBounds } from "./scroll-edges";
 import { probeVolumeAdjustable } from "../video/format";
+import { CONTROL_GROUP_DEFAULTS, controlGroupLayout, allowsAutomaticMediaControls, shouldPauseSurfaceMedia } from "../controls/layout";
 import { mediaControllers } from "../controls/media";
 import { CONTROL_PATHS, findScrollTarget, scrollActions, mediaActions, modelActions } from "../controls/actions";
 import { controlBindings, explicitTargets } from "../controls/components";
@@ -64,7 +66,8 @@ function makeCanvas() {
 /** Native rendering is capability gated; the DOM clone never owns application state. */
 async function capture(
   element: HTMLElement,
-  owner: HTMLElement
+  owner: HTMLElement,
+  footer = false
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -106,6 +109,7 @@ async function capture(
       transform: "none",
       position: "relative",
     });
+    if (footer) { clone.style.borderBottomLeftRadius = "0"; clone.style.borderBottomRightRadius = "0"; }
     clone.setAttribute("drawable", "");
     canvas.append(clone);
     owner.append(canvas);
@@ -206,6 +210,7 @@ async function capture(
     top: "0",
     transform: "none",
   });
+  if (footer) { clone.style.borderBottomLeftRadius = "0"; clone.style.borderBottomRightRadius = "0"; }
   owner.append(clone);
   originals.forEach((node, i) => {
     copies[i].scrollTop = node.scrollTop;
@@ -272,6 +277,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     edgeButtons: [] as Button[],
     target: surface.element,
     adapter: null as PanoSpatialControlAdapter | null,
+    modelAdapter: null as PanoSpatialControlAdapter | null,
     scrollTarget: null as HTMLElement | null,
     mediaTarget: null as HTMLMediaElement | null,
   });
@@ -309,6 +315,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     s.generation++;
     s.target = surface.element;
     s.adapter = null;
+    s.modelAdapter = null;
     s.dirty = true;
     s.image = null;
     s.mediaBlocked = false;
@@ -389,7 +396,8 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       videos.current.clear();
       controllers.current.clear();
       blockedMedia.current = new WeakSet();
-      surface.element
+      // Exiting VR preserves playback in the still-open screen dialog.
+      if (shouldPauseSurfaceMedia(surface.element.isConnected, host.surfaces.has(surface))) surface.element
         .querySelectorAll("video,audio")
         .forEach((m) => (m as HTMLMediaElement).pause());
     };
@@ -526,10 +534,13 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       host.input.release(target, id); s.dirty = true;
     }
     const ctx = canvas.getContext("2d")!;
+    const appearance = getComputedStyle(surface.element);
+    const token = (name: string, fallback: number) => { const value = parseFloat(appearance.getPropertyValue(`--pano-control-${name}`)); return Number.isFinite(value) ? value : fallback; };
+    const controlSize = token("size", CONTROL_GROUP_DEFAULTS.size), controlGap = token("gap", CONTROL_GROUP_DEFAULTS.gap), controlPadding = token("padding", CONTROL_GROUP_DEFAULTS.padding);
     const nextHeight = Math.max(
       surface.anchor ? 1 : 200,
       Math.min(BODY_HEIGHT, surface.element.offsetHeight) +
-        (s.buttons.length ? 32 + Math.ceil(s.buttons.length / 5) * 88 : 0)
+        (s.buttons.length ? controlGroupLayout(s.buttons.length, WIDTH, controlSize, controlGap, controlPadding).height : 0)
     );
     if (canvas.height !== nextHeight * RASTER_SCALE) {
       // WebGL texture storage is immutable: release it before changing dimensions.
@@ -568,7 +579,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       });
       owner.setAttribute("aria-hidden", "true");
       surface.element.closest("[data-pano-viewer]")?.append(owner);
-      capture(surface.element, owner)
+      capture(surface.element, owner, s.buttons.length > 0)
         .then((image) => {
           if (
             !s.disposed &&
@@ -591,7 +602,6 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           s.busy = false;
         });
     }
-    const appearance = getComputedStyle(surface.element);
     const radius = Math.max(0, parseFloat(appearance.borderTopLeftRadius) || 0);
     ctx.clearRect(0, 0, WIDTH, s.height);
     ctx.save();
@@ -745,25 +755,38 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     }
     s.edgeButtons = !host.input.hasStick && !surface.anchor && s.scrollTarget && !explicitTargets.has(s.scrollTarget)
       ? scrollEdges(s.scrollTarget, scrollViewportBounds(surface.element, s.scrollTarget, Math.min(BODY_HEIGHT, surface.element.offsetHeight)), () => { s.dirty = true; }) : [];
-    const adapter = s.adapter;
+    const adapter = resolveSurfaceModelAdapter(surface.element, host.controls, s.adapter, s.modelAdapter);
+    s.modelAdapter = adapter;
     if (adapter && !explicitTargets.has(adapter)) for (const action of modelActions(adapter)) {
       if ((host.input.canDrag && adapter.rotateBy && ["left", "right", "up", "down"].includes(action.id)) || (host.input.hasStick && adapter.zoomBy && ["in", "out"].includes(action.id))) continue;
       add(action.id, action.label, action.update, action.activate, action.enabled);
     }
-    if (media instanceof HTMLAudioElement && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
+    if (media instanceof HTMLAudioElement && allowsAutomaticMediaControls(media) && !adapter && !explicitTargets.has(mediaControllers.get(media) ?? media)) {
       for (const action of mediaActions(controllerFor(media))) add(action.id === "pause" ? "play" : action.id === "unmute" ? "mute" : action.id, action.label, action.update, action.activate, action.enabled);
     }
-    s.buttons = surface.anchor ? [] : buttons;
     if (surface.anchor) buttons.length = 0;
+    const layout = controlGroupLayout(buttons.length, WIDTH, controlSize, controlGap, controlPadding);
+    const bodyHeight = Math.min(BODY_HEIGHT, surface.element.offsetHeight);
+    buttons.forEach((button, i) => Object.assign(button, layout.buttons[i], { y: bodyHeight + layout.buttons[i]!.y }));
+    if (s.buttons.length !== buttons.length) s.dirty = true;
+    s.buttons = buttons;
+    if (buttons.length) {
+      ctx.fillStyle = "#161b22";
+      ctx.fillRect(0, bodyHeight, WIDTH, layout.height);
+    }
     for (const b of buttons) {
-      ctx.fillStyle = b.action.enabled?.() === false ? "#333a43" : appearance.getPropertyValue("--pano-control-background").trim() || "#39424e";
-      ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.fillStyle = "#fff";
+      ctx.save();
+      ctx.globalAlpha = b.action.enabled?.() === false ? .4 : 1;
+      ctx.fillStyle = appearance.getPropertyValue("--pano-control-background").trim() || "#39424e";
+      ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, token("radius", b.w / 2)); ctx.fill();
+      const border = /^(\d+(?:\.\d+)?)px\s+solid\s+(.+)$/.exec(appearance.getPropertyValue("--pano-control-border").trim() || "1px solid #68778a");
+      if (border) { ctx.strokeStyle = border[2]!; ctx.lineWidth = Number(border[1]); ctx.stroke(); }
+      if (host.action?.id === b.action.id) { ctx.strokeStyle = appearance.getPropertyValue("--pano-control-focus").trim() || "#ffb300"; ctx.lineWidth = 3; ctx.stroke(); }
       const id = String(b.action.id).replace("scroll-", "");
       const icon = id === "play" && media && !media.paused ? "pause" : id === "mute" && media?.muted ? "unmute" : id;
-      ctx.save(); ctx.translate(b.x + b.w / 2 - 16, b.y + b.h / 2 - 16); ctx.scale(32 / 24, 32 / 24);
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
-      ctx.stroke(new Path2D(CONTROL_PATHS[icon] ?? CONTROL_PATHS.reset)); ctx.restore();
+      ctx.save(); ctx.translate(b.x + b.w / 2 - 12, b.y + b.h / 2 - 12); ctx.scale(1, 1);
+      ctx.strokeStyle = appearance.getPropertyValue("--pano-control-color").trim() || "#baf5ff"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.stroke(new Path2D(CONTROL_PATHS[icon] ?? CONTROL_PATHS.reset)); ctx.restore(); ctx.restore();
     }
     for (const button of s.edgeButtons) {
       const focused = host.action?.id === button.action.id || [...contacts.current.values()].some(contact => contact.action?.id === button.action.id);

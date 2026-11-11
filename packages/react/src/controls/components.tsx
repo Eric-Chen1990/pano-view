@@ -25,6 +25,8 @@ import {
   type PanoMediaController,
 } from "./actions";
 
+import { CONTROL_GROUP_DEFAULTS } from "./layout";
+
 export const controlBindings = new WeakMap<HTMLElement, PanoControlAction>();
 export const explicitTargets = new WeakMap<object, number>();
 const targetListeners = new Set<() => void>();
@@ -117,6 +119,7 @@ export function PanoControlGroup({
     <div
       {...props}
       role="group"
+      style={{ gap: `var(--pano-control-gap, ${CONTROL_GROUP_DEFAULTS.gap}px)`, padding: `var(--pano-control-padding, ${CONTROL_GROUP_DEFAULTS.padding}px)`, ...props.style }}
       data-pano-control-group=""
       className={`pano-control-group ${props.className ?? ""}`}
     >

@@ -886,9 +886,10 @@
   background: var(--pano-scene-menu-background, rgba(16, 16, 16, 0.72));
 }
 
-.pano-control-group { display:flex; flex-wrap:wrap; justify-content:center; gap:var(--pano-control-gap,12px); padding:var(--pano-control-padding,12px); }
-.pano-control-button { display:grid; place-items:center; width:var(--pano-control-size,64px); height:var(--pano-control-size,64px); border:var(--pano-control-border,1px solid #68778a); border-radius:var(--pano-control-radius,12px); background:var(--pano-control-background,#39424e); color:var(--pano-control-color,#fff); cursor:pointer; }
-.pano-control-button svg { width:32px; height:32px; }
+.pano-control-group { display:flex; flex-wrap:wrap; justify-content:center; gap:var(--pano-control-gap,8px); padding:var(--pano-control-padding,8px); background:#161b22; border-radius:12px; }
+.pano-control-button { display:grid; place-items:center; width:var(--pano-control-size,48px); height:var(--pano-control-size,48px); border:var(--pano-control-border,1px solid #68778a); border-radius:var(--pano-control-radius,50%); background:var(--pano-control-background,#39424e); color:var(--pano-control-color,#baf5ff); cursor:pointer; }
+.pano-control-button svg { width:24px; height:24px; }
+.pano-control-button[data-pano-gaze-active] { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 .pano-control-button:disabled { opacity:.4; cursor:default; }
 .pano-control-button:focus-visible { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 .pano-media-controls { background:#161b22; gap:var(--pano-control-gap,8px); padding:var(--pano-control-padding,8px); }
