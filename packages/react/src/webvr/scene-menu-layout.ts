@@ -45,6 +45,169 @@ export function sceneMenuFollow(
   const blend = -Math.expm1(-Math.min(delta, 0.1) / 0.06);
   return { yaw: yaw + difference * blend, elapsed: 0 };
 }
+
+type SceneMenuPose = {
+  yaw: number;
+  pitch: number;
+  returning: boolean;
+  approachHold?: number;
+};
+type SceneMenuView = { yaw: number; pitch: number };
+type NavigationSettings = {
+  follow: boolean;
+  followPitch: boolean;
+  navigationPitch: number;
+  scale: number;
+  pitchLimit?: number;
+};
+
+function navigationOffset(settings: NavigationSettings) {
+  const requested = bounded(settings.navigationPitch, -25, -40, -15);
+  return settings.follow && settings.followPitch
+    ? Math.max(requested, bounded(settings.pitchLimit, -40, -40, -1))
+    : requested;
+}
+
+/** Leave the entire button target above the bottom 10% of the actual eye view. */
+export function sceneMenuNavigationPitchLimit(
+  projection: ArrayLike<number>,
+  scale: number
+) {
+  const verticalScale = projection[5]!;
+  const center = projection[9]!;
+  if (
+    !Number.isFinite(verticalScale) ||
+    verticalScale <= 0 ||
+    !Number.isFinite(center)
+  )
+    return -40;
+  const angle = (28 * bounded(scale, 1, 0.75, 1.25) * Math.PI) / 180;
+  const halfHeight = Math.atan((NAVIGATION_CONTROLS.center.h * angle) / 2048);
+  const available = Math.atan(Math.max(0, 0.8 - center) / verticalScale);
+  return -Math.max(1, ((available - halfHeight) * 180) / Math.PI);
+}
+
+export function sceneMenuView(
+  direction: { x: number; y: number; z: number },
+  fallbackYaw: number
+): SceneMenuView {
+  return {
+    yaw:
+      Math.hypot(direction.x, direction.z) < 1e-5
+        ? fallbackYaw
+        : (Math.atan2(direction.x, -direction.z) * 180) / Math.PI,
+    pitch:
+      (Math.asin(Math.max(-1, Math.min(1, direction.y))) * 180) / Math.PI,
+  };
+}
+
+export function sceneMenuNavigationAnchor(
+  view: SceneMenuView,
+  settings: NavigationSettings
+): SceneMenuPose {
+  const offset = navigationOffset(settings);
+  return {
+    yaw: view.yaw,
+    // Keep the offset in the head's pitch frame even when looking near the
+    // floor. A world-pitch clamp would push the toolbar above the gaze ray.
+    pitch:
+      settings.follow && settings.followPitch
+        ? bounded(view.pitch, 0, -90, 90) + offset
+        : offset,
+    returning: false,
+    approachHold: 0,
+  };
+}
+
+/** Test the view in the toolbar's local frame, including at steep head pitches. */
+export function sceneMenuNavigationNear(
+  pose: SceneMenuView,
+  view: SceneMenuView,
+  scale: number
+) {
+  const rad = Math.PI / 180;
+  const difference = (view.yaw - pose.yaw) * rad;
+  const pitch = pose.pitch * rad;
+  const viewPitch = view.pitch * rad;
+  const x = Math.sin(difference) * Math.cos(viewPitch);
+  const y =
+    Math.cos(pitch) * Math.sin(viewPitch) -
+    Math.sin(pitch) * Math.cos(viewPitch) * Math.cos(difference);
+  const forward =
+    Math.sin(pitch) * Math.sin(viewPitch) +
+    Math.cos(pitch) * Math.cos(viewPitch) * Math.cos(difference);
+  const angle = 28 * bounded(scale, 1, 0.75, 1.25);
+  const controls = NAVIGATION_CONTROLS;
+  // Pad the actual three-button bounds so a head-driven approach can settle
+  // before the exact gaze/ray hit starts the dwell timer.
+  const halfWidth = ((512 - controls.previous.x) * angle) / 1024 + 4;
+  const halfHeight =
+    Math.atan((controls.center.h * angle * rad) / 2048) / rad + 4;
+  return (
+    Math.abs(Math.atan2(x, forward) / rad) <= halfWidth &&
+    Math.abs(Math.atan2(y, Math.hypot(x, forward)) / rad) <= halfHeight
+  );
+}
+
+export function sceneMenuNavigationFollow(
+  pose: SceneMenuPose,
+  view: SceneMenuView,
+  settings: NavigationSettings,
+  delta: number,
+  paused: boolean,
+  previousPitch = view.pitch
+): SceneMenuPose {
+  const offset = navigationOffset(settings);
+  if (!settings.follow || !settings.followPitch) {
+    return {
+      yaw:
+        settings.follow
+          ? sceneMenuFollow(pose.yaw, view.yaw, 0, delta, paused).yaw
+          : pose.yaw,
+      pitch: offset,
+      returning: false,
+      approachHold: 0,
+    };
+  }
+  const relative = pose.pitch - view.pitch;
+  const approaching = (view.pitch - previousPitch) * relative > 0;
+  const near = sceneMenuNavigationNear(pose, view, settings.scale);
+  // Automatic recovery can cross the reticle. Only a head-driven approach or
+  // an existing aim lock may stop it; otherwise it would strand itself above
+  // the reticle forever. Gaze activation is disabled during that recovery.
+  if (paused || (near && (!pose.returning || approaching)))
+    return { yaw: pose.yaw, pitch: pose.pitch, returning: false, approachHold: 0 };
+  if (!Number.isFinite(delta) || delta <= 0) return pose;
+  // Head tracking can update more slowly than rendering. Preserve approach
+  // intent briefly across frames with the same head pose, but cancel it as
+  // soon as the user moves away.
+  const approachHold = approaching
+    ? 0.2
+    : Math.abs(view.pitch - previousPitch) > 1e-4
+      ? 0
+      : Math.max(0, (pose.approachHold ?? 0) - Math.min(delta, 0.1));
+  if (
+    approachHold > 0 &&
+    !pose.returning &&
+    relative >= offset - 15 &&
+    relative <= 10
+  )
+    return {
+      yaw: sceneMenuFollow(pose.yaw, view.yaw, 0, delta, false).yaw,
+      pitch: pose.pitch,
+      returning: false,
+      approachHold,
+    };
+  const target = bounded(view.pitch, 0, -90, 90) + offset;
+  const blend = -Math.expm1(-Math.min(delta, 0.1) / 0.2);
+  const pitch = pose.pitch + (target - pose.pitch) * blend;
+  return {
+    yaw: sceneMenuFollow(pose.yaw, view.yaw, 0, delta, false).yaw,
+    pitch: Math.abs(target - pitch) < 0.05 ? target : pitch,
+    returning: Math.abs(target - pitch) >= 0.05,
+    approachHold: 0,
+  };
+}
 export function wrapSceneTitle(
   text: string,
   maxWidth: number,
@@ -94,6 +257,8 @@ export function sceneMenuControlLayout(
     next: button(width / 2 + spacing),
   };
 }
+
+const NAVIGATION_CONTROLS = sceneMenuControlLayout(1024, 0, false, false);
 
 export function sceneMenuLayoutConfig(
   layout: SceneMenuLayout,

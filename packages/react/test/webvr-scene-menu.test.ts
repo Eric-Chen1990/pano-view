@@ -7,6 +7,11 @@ import {
   sceneMenuAtlasRects,
   sceneMenuPoint,
   sceneMenuFollow,
+  sceneMenuNavigationAnchor,
+  sceneMenuNavigationFollow,
+  sceneMenuNavigationNear,
+  sceneMenuNavigationPitchLimit,
+  sceneMenuView,
   sceneMenuNeighbor,
   sceneMenuPage,
   wrapSceneTitle,
@@ -18,6 +23,8 @@ import {
   MeshBasicMaterial,
   Raycaster,
   Vector3,
+  Euler,
+  PerspectiveCamera,
 } from "three";
 const items = Array.from({ length: 25 }, (_, i) => ({
   id: String(i),
@@ -182,6 +189,183 @@ test("follow is frame-rate independent and never overshoots across the yaw seam"
   assert.ok(Math.abs(followFor(30) - followFor(120)) < 1e-6);
   assert.ok(Math.abs(followFor(60) - 190) < 0.001);
   assert.equal(sceneMenuFollow(20, 100, 0, NaN, false).yaw, 20);
+});
+
+const navigationSettings = {
+  follow: true,
+  followPitch: true,
+  navigationPitch: -25,
+  scale: 1,
+};
+
+test("looking down then up keeps navigation below the view instead of stranding it", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  for (const pitch of [-65, -10, 30, -80, 0]) {
+    for (let i = 0; i < 180; i++)
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, navigationSettings, 1 / 60, false);
+    assert.ok(Math.abs(pose.pitch - pitch + 25) < 0.1,
+      `camera ${pitch}°: toolbar stranded at ${pose.pitch}°`);
+  }
+});
+
+test("stopping inside the old comfort band still recenters navigation below the view", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  for (let i = 0; i < 180; i++)
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false);
+  assert.ok(Math.abs(pose.pitch + 35) < 0.1, `toolbar stayed at ${pose.pitch}°`);
+});
+
+test("navigation fits complete targets inside narrow and shifted eye frustums", () => {
+  const controls = sceneMenuControlLayout(1024, 0, false, false);
+  for (const fov of [30, 50, 80]) {
+    for (const scale of [0.75, 1, 1.25]) {
+      for (const shift of [-100, 0, 100]) {
+        const camera = new PerspectiveCamera(fov, 0.7, 0.1, 10);
+        camera.setViewOffset(700, 1000, 0, shift, 700, 1000);
+        const settings = { ...navigationSettings, scale,
+          pitchLimit: sceneMenuNavigationPitchLimit(camera.projectionMatrix.elements, scale) };
+        const pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, settings);
+        assert.ok(pose.pitch >= -25 && pose.pitch < 0);
+        for (const button of [controls.previous, controls.center, controls.next]) {
+          for (const x of [button.x, button.x + button.w]) {
+            for (const y of [button.y, button.y + button.h]) {
+              const angle = 28 * scale * Math.PI / 180;
+              const theta = (x / 1024 - 0.5) * angle;
+              const point = new Vector3(Math.sin(theta) * 2,
+                (110 - y) * 2 * angle / 1024, -Math.cos(theta) * 2)
+                .applyEuler(new Euler(pose.pitch * Math.PI / 180, 0, 0, "YXZ"))
+                .project(camera);
+              assert.ok(point.y >= -0.81 && point.y < 1, `cropped target at ${fov}°: ${point.y}`);
+            }
+          }
+        }
+        assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, { ...settings, follow: false }).pitch, -25);
+      }
+    }
+  }
+});
+
+test("navigation anchors below the current view and preserves both legacy modes", () => {
+  const view = { yaw: 80, pitch: -30 };
+  assert.deepEqual(sceneMenuNavigationAnchor(view, navigationSettings), {
+    yaw: 80, pitch: -55, returning: false, approachHold: 0,
+  });
+  for (const settings of [
+    { ...navigationSettings, follow: false },
+    { ...navigationSettings, followPitch: false },
+  ]) {
+    const anchor = sceneMenuNavigationAnchor(view, settings);
+    assert.equal(anchor.pitch, -25);
+    const next = sceneMenuNavigationFollow(anchor, { yaw: 100, pitch: 40 }, settings, 0.016, false);
+    assert.equal(next.pitch, -25);
+    assert.equal(next.yaw > anchor.yaw, settings.follow);
+    assert.equal(sceneMenuNavigationFollow(anchor, view, settings, 0.016, true).yaw, 80);
+  }
+  assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: -90 }, navigationSettings).pitch, -115);
+  assert.equal(sceneMenuNavigationAnchor(view, { ...navigationSettings, navigationPitch: NaN }).pitch, -55);
+});
+
+test("vertical following holds a head-driven approach but converges after looking away or stopping", () => {
+  const anchor = { yaw: 0, pitch: -25, returning: false };
+  assert.equal(sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false, 0).pitch, -25);
+  const stopped = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -10 }, navigationSettings, 1 / 60, false, -10);
+  assert.ok(stopped.pitch < -25);
+  const upward = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: 35 }, navigationSettings, 1 / 60, false);
+  assert.ok(upward.pitch > -25 && upward.pitch < 10);
+  assert.equal(upward.returning, true);
+  const downward = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: -60 }, navigationSettings, 1 / 60, false);
+  assert.ok(downward.pitch < -25);
+  assert.equal(downward.returning, true);
+  let pose = upward;
+  for (let i = 0; i < 180; i++)
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: 35 }, navigationSettings, 1 / 60, false);
+  assert.equal(pose.pitch, 10);
+  assert.equal(pose.returning, false);
+});
+
+test("pitch recovery is frame-rate independent, bounded and rejects invalid deltas", () => {
+  const recover = (fps: number) => {
+    let pose = { yaw: 0, pitch: -25, returning: false };
+    for (let i = 0; i < fps; i++)
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: 35 }, navigationSettings, 1 / fps, false);
+    return pose.pitch;
+  };
+  assert.ok(Math.abs(recover(30) - recover(120)) < 1e-8);
+  const pose = { yaw: 0, pitch: -60, returning: true };
+  for (const delta of [NaN, Infinity, 0, -1])
+    assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, delta, false), pose);
+  const next = sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, 0.1, false);
+  assert.ok(next.pitch >= -115 && next.pitch < -60);
+});
+
+test("focus and head-driven aiming freeze both axes without locking automatic recovery", () => {
+  const pose = { yaw: 0, pitch: -25, returning: true };
+  assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 40, pitch: 40 }, navigationSettings, 0.1, true), { ...pose, returning: false, approachHold: 0 });
+  const near = { yaw: 5, pitch: -22 };
+  assert.equal(sceneMenuNavigationNear(pose, near, 1), true);
+  assert.deepEqual(sceneMenuNavigationFollow(pose, near, navigationSettings, 0.1, false, 0), { ...pose, returning: false, approachHold: 0 });
+  const above = { yaw: 0, pitch: 11, returning: false };
+  const crossing = sceneMenuNavigationFollow(above, { yaw: 0, pitch: 0 }, navigationSettings, 0.1, false);
+  assert.ok(crossing.pitch < 0, "recovery must pass the reticle instead of stranding the toolbar");
+  const recovering = sceneMenuNavigationFollow({ ...pose, pitch: -20 }, near, navigationSettings, 0.1, false);
+  assert.ok(recovering.pitch < -20, "automatic proximity must not acquire an aim lock");
+  assert.equal(sceneMenuNavigationNear(pose, { yaw: 180, pitch: -25 }, 1), false);
+});
+
+test("aim protection includes all three controls at steep pitches and each supported scale", () => {
+  const controls = sceneMenuControlLayout(1024, 0, false, false);
+  for (const pitch of [-75, -25, 60]) {
+    for (const scale of [0.75, 1, 1.25]) {
+      for (const button of [controls.previous, controls.center, controls.next]) {
+        const theta = ((button.x + button.w / 2) / 1024 - 0.5) * 28 * scale * Math.PI / 180;
+        const direction = new Vector3(Math.sin(theta), 0, -Math.cos(theta))
+          .applyEuler(new Euler(pitch * Math.PI / 180, -179 * Math.PI / 180, 0, "YXZ"));
+        assert.equal(sceneMenuNavigationNear({ yaw: 179, pitch }, sceneMenuView(direction, 179), scale), true);
+      }
+    }
+  }
+  assert.equal(sceneMenuView(new Vector3(0, 1, 0), 123).yaw, 123);
+});
+
+test("navigation can be approached slowly for gaze and resumes recovery after looking away", () => {
+  for (const navigationPitch of [-40, -25, -15]) {
+    const settings = { ...navigationSettings, navigationPitch };
+    let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, settings);
+    let previousPitch = 0;
+    for (let i = 0; i <= 120; i++) {
+      const pitch = navigationPitch * i / 120;
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, settings, 1 / 60, false, previousPitch);
+      previousPitch = pitch;
+      assert.equal(pose.pitch, navigationPitch, "the target must not escape a slow gaze approach");
+    }
+    const next = sceneMenuNavigationFollow(pose, { yaw: 30, pitch: 45 }, settings, 1 / 60, false);
+    assert.ok(next.yaw > pose.yaw);
+    assert.ok(next.pitch > pose.pitch);
+  }
+});
+
+test("gaze approach remains stable when head poses arrive slower than render frames", () => {
+  let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, navigationSettings);
+  let previousPitch = 0;
+  for (let frame = 0; frame <= 150; frame++) {
+    const pitch = -Math.floor(frame / 3) / 2;
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch }, navigationSettings, 1 / 60, false, previousPitch);
+    previousPitch = pitch;
+    assert.equal(pose.pitch, -25, "a render frame between head samples must not restart recovery");
+  }
+});
+
+test("view extraction uses heading and pitch without inheriting head roll", () => {
+  for (const pitch of [-75, -25, 60]) {
+    for (const roll of [-45, 0, 45]) {
+      const direction = new Vector3(0, 0, -1).applyEuler(
+        new Euler(pitch * Math.PI / 180, -70 * Math.PI / 180, roll * Math.PI / 180, "YXZ")
+      );
+      const view = sceneMenuView(direction, 0);
+      assert.ok(Math.abs(view.yaw - 70) < 1e-8);
+      assert.ok(Math.abs(view.pitch - pitch) < 1e-8);
+    }
+  }
 });
 
 test("layouts retain compact defaults and expand all scenes without shrinking cards", () => {
