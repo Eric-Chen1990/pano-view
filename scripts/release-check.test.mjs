@@ -20,6 +20,7 @@ test("converter releases, source and shared inputs require converter tests", () 
     "packages/converter/package.json", "shared/viewer-config.ts", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json", ".changeset/config.json",
     ".github/workflows/release.yml", ".github/workflows/converter.yml",
+    ".github/actions/setup-ffmpeg/action.yml",
     "scripts/release-check.mjs", "scripts/release-check.test.mjs",
   ]) {
     assert.equal(shouldTestConverter("push", [path]), true, path);

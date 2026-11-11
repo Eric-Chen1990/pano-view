@@ -28,6 +28,7 @@ export function shouldTestConverter(eventName, paths, hasConverterRelease = fals
   return paths.some((path) => !path.endsWith(".md") && (
     path.startsWith("packages/converter/") ||
     path.startsWith("shared/") ||
+    path.startsWith(".github/actions/setup-ffmpeg/") ||
     sharedFiles.has(path) ||
     /^scripts\/release-check.*\.mjs$/.test(path)
   ));

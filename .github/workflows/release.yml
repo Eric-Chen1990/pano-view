@@ -9,6 +9,7 @@ on:
       - packages/converter/package.json
   pull_request:
     paths:
+      - .github/actions/setup-ffmpeg/**
       - .github/workflows/release.yml
       - scripts/release-check*.mjs
   # Manual runs validate only. Re-run a failed main push to retry publication.
@@ -79,7 +80,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Require FFmpeg for converter tests
         if: steps.scope.outputs.converter == 'true'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        uses: ./.github/actions/setup-ffmpeg
       - run: pnpm typecheck
       - name: Test viewer and editor
         run: pnpm --filter @ericchen1990/pano-view test && pnpm --filter @ericchen1990/pano-editor test

@@ -1,0 +1,44 @@
+name: Setup FFmpeg on Linux
+description: Cache and verify a pinned static FFmpeg binary without Ubuntu package mirrors.
+runs:
+  using: composite
+  steps:
+    - name: Check runner architecture
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS/$RUNNER_ARCH" != 'Linux/X64' ]; then
+          echo 'This FFmpeg build requires a Linux X64 runner.' >&2
+          exit 1
+        fi
+
+    - name: Restore FFmpeg archive
+      id: cache
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ${{ runner.temp }}/pano-ffmpeg/ffmpeg-linux-x64.gz
+        key: ffmpeg-static-b6.1.1-linux-x64-bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
+
+    - name: Download FFmpeg archive
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        FFMPEG_DIR: ${{ runner.temp }}/pano-ffmpeg
+      run: |
+        mkdir -p "$FFMPEG_DIR"
+        curl --fail --location --retry 2 --connect-timeout 10 --max-time 60 --retry-max-time 120 \
+          https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz \
+          --output "$FFMPEG_DIR/ffmpeg-linux-x64.gz"
+
+    - name: Verify and install FFmpeg
+      shell: bash
+      env:
+        FFMPEG_DIR: ${{ runner.temp }}/pano-ffmpeg
+        FFMPEG_SHA256: bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa
+      run: |
+        # Check cached downloads too; never execute an unverified archive.
+        printf '%s  %s\n' "$FFMPEG_SHA256" "$FFMPEG_DIR/ffmpeg-linux-x64.gz" | sha256sum --check
+        gzip -dc "$FFMPEG_DIR/ffmpeg-linux-x64.gz" > "$FFMPEG_DIR/ffmpeg"
+        chmod +x "$FFMPEG_DIR/ffmpeg"
+        "$FFMPEG_DIR/ffmpeg" -hide_banner -filters 2>/dev/null | grep -E '[[:space:]]v360[[:space:]]'
+        "$FFMPEG_DIR/ffmpeg" -version
+        echo "FFMPEG_PATH=$FFMPEG_DIR/ffmpeg" >> "$GITHUB_ENV"

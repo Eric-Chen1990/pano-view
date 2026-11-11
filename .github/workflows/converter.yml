@@ -11,6 +11,7 @@ on:
       - "tsconfig.base.json"
       - ".changeset/config.json"
       - ".github/workflows/converter.yml"
+      - ".github/actions/setup-ffmpeg/**"
       - "!**/*.md"
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - "tsconfig.base.json"
       - ".changeset/config.json"
       - ".github/workflows/converter.yml"
+      - ".github/actions/setup-ffmpeg/**"
       - "!**/*.md"
 
 permissions:
@@ -55,7 +57,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install FFmpeg (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        uses: ./.github/actions/setup-ffmpeg
       - name: Install FFmpeg (macOS)
         if: runner.os == 'macOS'
         run: command -v ffmpeg || brew install ffmpeg
