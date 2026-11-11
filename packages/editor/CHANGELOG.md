@@ -1,5 +1,17 @@
 # @ericchen1990/pano-editor
 
+## 3.0.0
+
+### Minor Changes
+
+- Default `VideoHotspot` `muted` to `false`. Callers that need silent playback must pass `muted`. New editor video hotspots use the same default; hotspots that already store `muted` are unchanged.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @ericchen1990/pano-view@5.0.0
+
 ## 2.0.2
 
 ### Patch Changes
