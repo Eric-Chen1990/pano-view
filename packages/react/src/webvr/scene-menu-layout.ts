@@ -45,6 +45,122 @@ export function sceneMenuFollow(
   const blend = -Math.expm1(-Math.min(delta, 0.1) / 0.06);
   return { yaw: yaw + difference * blend, elapsed: 0 };
 }
+
+type SceneMenuPose = { yaw: number; pitch: number; returning: boolean };
+type SceneMenuView = { yaw: number; pitch: number };
+type NavigationSettings = {
+  follow: boolean;
+  followPitch: boolean;
+  navigationPitch: number;
+  scale: number;
+};
+
+export function sceneMenuView(
+  direction: { x: number; y: number; z: number },
+  fallbackYaw: number
+): SceneMenuView {
+  return {
+    yaw:
+      Math.hypot(direction.x, direction.z) < 1e-5
+        ? fallbackYaw
+        : (Math.atan2(direction.x, -direction.z) * 180) / Math.PI,
+    pitch:
+      (Math.asin(Math.max(-1, Math.min(1, direction.y))) * 180) / Math.PI,
+  };
+}
+
+export function sceneMenuNavigationAnchor(
+  view: SceneMenuView,
+  settings: NavigationSettings
+): SceneMenuPose {
+  const offset = bounded(settings.navigationPitch, -25, -40, -15);
+  return {
+    yaw: view.yaw,
+    pitch: bounded(
+      settings.follow && settings.followPitch ? view.pitch + offset : offset,
+      offset,
+      -75,
+      75
+    ),
+    returning: false,
+  };
+}
+
+/** Test the view in the toolbar's local frame, including at steep head pitches. */
+export function sceneMenuNavigationNear(
+  pose: SceneMenuView,
+  view: SceneMenuView,
+  scale: number
+) {
+  const rad = Math.PI / 180;
+  const difference = (view.yaw - pose.yaw) * rad;
+  const pitch = pose.pitch * rad;
+  const viewPitch = view.pitch * rad;
+  const x = Math.sin(difference) * Math.cos(viewPitch);
+  const y =
+    Math.cos(pitch) * Math.sin(viewPitch) -
+    Math.sin(pitch) * Math.cos(viewPitch) * Math.cos(difference);
+  const forward =
+    Math.sin(pitch) * Math.sin(viewPitch) +
+    Math.cos(pitch) * Math.cos(viewPitch) * Math.cos(difference);
+  const angle = 28 * bounded(scale, 1, 0.75, 1.25);
+  const controls = NAVIGATION_CONTROLS;
+  // Pad the actual three-button bounds by four degrees so aiming can settle
+  // before the exact gaze/ray hit starts the dwell timer.
+  const halfWidth = ((512 - controls.previous.x) * angle) / 1024 + 4;
+  const halfHeight =
+    Math.atan((controls.center.h * angle * rad) / 2048) / rad + 4;
+  return (
+    Math.abs(Math.atan2(x, forward) / rad) <= halfWidth &&
+    Math.abs(Math.atan2(y, Math.hypot(x, forward)) / rad) <= halfHeight
+  );
+}
+
+export function sceneMenuNavigationFollow(
+  pose: SceneMenuPose,
+  view: SceneMenuView,
+  settings: NavigationSettings,
+  delta: number,
+  paused: boolean
+): SceneMenuPose {
+  const offset = bounded(settings.navigationPitch, -25, -40, -15);
+  if (!settings.follow || !settings.followPitch) {
+    return {
+      yaw:
+        settings.follow
+          ? sceneMenuFollow(pose.yaw, view.yaw, 0, delta, paused).yaw
+          : pose.yaw,
+      pitch: offset,
+      returning: false,
+    };
+  }
+  if (paused || sceneMenuNavigationNear(pose, view, settings.scale))
+    return { yaw: pose.yaw, pitch: pose.pitch, returning: false };
+  if (!Number.isFinite(delta) || delta <= 0) return pose;
+  const relative = pose.pitch - view.pitch;
+  const returning = pose.returning || relative < offset - 15 || relative > 10;
+  const target = bounded(view.pitch + offset, offset, -75, 75);
+  const blend = -Math.expm1(-Math.min(delta, 0.1) / 0.2);
+  const pitch = returning
+    ? pose.pitch + (target - pose.pitch) * blend
+    : pose.pitch;
+  const next = {
+    yaw: sceneMenuFollow(pose.yaw, view.yaw, 0, delta, false).yaw,
+    pitch: returning && Math.abs(target - pitch) < 0.05 ? target : pitch,
+    returning: returning && Math.abs(target - pitch) >= 0.05,
+  };
+  // A slow frame must not carry the toolbar across the reticle between checks.
+  const crossesView =
+    (pose.pitch - view.pitch) * (next.pitch - view.pitch) < 0 &&
+    sceneMenuNavigationNear(
+      { yaw: next.yaw, pitch: view.pitch },
+      view,
+      settings.scale
+    );
+  if (crossesView || sceneMenuNavigationNear(next, view, settings.scale))
+    return { yaw: pose.yaw, pitch: pose.pitch, returning: false };
+  return next;
+}
 export function wrapSceneTitle(
   text: string,
   maxWidth: number,
@@ -94,6 +210,8 @@ export function sceneMenuControlLayout(
     next: button(width / 2 + spacing),
   };
 }
+
+const NAVIGATION_CONTROLS = sceneMenuControlLayout(1024, 0, false, false);
 
 export function sceneMenuLayoutConfig(
   layout: SceneMenuLayout,

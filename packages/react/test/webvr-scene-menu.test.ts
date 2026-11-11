@@ -7,6 +7,10 @@ import {
   sceneMenuAtlasRects,
   sceneMenuPoint,
   sceneMenuFollow,
+  sceneMenuNavigationAnchor,
+  sceneMenuNavigationFollow,
+  sceneMenuNavigationNear,
+  sceneMenuView,
   sceneMenuNeighbor,
   sceneMenuPage,
   wrapSceneTitle,
@@ -18,6 +22,7 @@ import {
   MeshBasicMaterial,
   Raycaster,
   Vector3,
+  Euler,
 } from "three";
 const items = Array.from({ length: 25 }, (_, i) => ({
   id: String(i),
@@ -182,6 +187,122 @@ test("follow is frame-rate independent and never overshoots across the yaw seam"
   assert.ok(Math.abs(followFor(30) - followFor(120)) < 1e-6);
   assert.ok(Math.abs(followFor(60) - 190) < 0.001);
   assert.equal(sceneMenuFollow(20, 100, 0, NaN, false).yaw, 20);
+});
+
+const navigationSettings = {
+  follow: true,
+  followPitch: true,
+  navigationPitch: -25,
+  scale: 1,
+};
+
+test("navigation anchors below the current view and preserves both legacy modes", () => {
+  const view = { yaw: 80, pitch: -30 };
+  assert.deepEqual(sceneMenuNavigationAnchor(view, navigationSettings), {
+    yaw: 80, pitch: -55, returning: false,
+  });
+  for (const settings of [
+    { ...navigationSettings, follow: false },
+    { ...navigationSettings, followPitch: false },
+  ]) {
+    const anchor = sceneMenuNavigationAnchor(view, settings);
+    assert.equal(anchor.pitch, -25);
+    const next = sceneMenuNavigationFollow(anchor, { yaw: 100, pitch: 40 }, settings, 0.016, false);
+    assert.equal(next.pitch, -25);
+    assert.equal(next.yaw > anchor.yaw, settings.follow);
+    assert.equal(sceneMenuNavigationFollow(anchor, view, settings, 0.016, true).yaw, 80);
+  }
+  assert.equal(sceneMenuNavigationAnchor({ yaw: 0, pitch: -90 }, navigationSettings).pitch, -75);
+  assert.equal(sceneMenuNavigationAnchor(view, { ...navigationSettings, navigationPitch: NaN }).pitch, -55);
+});
+
+test("vertical comfort zone holds small head movements and converges after either boundary", () => {
+  const anchor = { yaw: 0, pitch: -25, returning: false };
+  for (const pitch of [-30, -10, 0, 15]) {
+    assert.equal(sceneMenuNavigationFollow(anchor, { yaw: 0, pitch }, navigationSettings, 1 / 60, false).pitch, -25);
+  }
+  const upward = sceneMenuNavigationFollow(anchor, { yaw: 0, pitch: 35 }, navigationSettings, 1 / 60, false);
+  assert.ok(upward.pitch > -25 && upward.pitch < 10);
+  assert.equal(upward.returning, true);
+  // Look sideways while checking downward recovery so the reticle safety guard
+  // doesn't intentionally stop a toolbar that would pass through the gaze ray.
+  const downward = sceneMenuNavigationFollow(anchor, { yaw: 90, pitch: -60 }, navigationSettings, 1 / 60, false);
+  assert.ok(downward.pitch < -25);
+  assert.equal(downward.returning, true);
+  let pose = upward;
+  for (let i = 0; i < 180; i++)
+    pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: 35 }, navigationSettings, 1 / 60, false);
+  assert.equal(pose.pitch, 10);
+  assert.equal(pose.returning, false);
+});
+
+test("pitch recovery is frame-rate independent, bounded and rejects invalid deltas", () => {
+  const recover = (fps: number) => {
+    let pose = { yaw: 0, pitch: -25, returning: false };
+    for (let i = 0; i < fps; i++)
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: 35 }, navigationSettings, 1 / fps, false);
+    return pose.pitch;
+  };
+  assert.ok(Math.abs(recover(30) - recover(120)) < 1e-8);
+  const pose = { yaw: 0, pitch: -60, returning: true };
+  for (const delta of [NaN, Infinity, 0, -1])
+    assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, delta, false), pose);
+  const next = sceneMenuNavigationFollow(pose, { yaw: 90, pitch: -90 }, navigationSettings, 0.1, false);
+  assert.ok(next.pitch >= -75 && next.pitch < -60);
+});
+
+test("focus and near-reticle aiming freeze both axes, including slow-frame crossings", () => {
+  const pose = { yaw: 0, pitch: -25, returning: true };
+  assert.deepEqual(sceneMenuNavigationFollow(pose, { yaw: 40, pitch: 40 }, navigationSettings, 0.1, true), { ...pose, returning: false });
+  const near = { yaw: 5, pitch: -22 };
+  assert.equal(sceneMenuNavigationNear(pose, near, 1), true);
+  assert.deepEqual(sceneMenuNavigationFollow(pose, near, navigationSettings, 0.1, false), { ...pose, returning: false });
+  const above = { yaw: 0, pitch: 11, returning: false };
+  const stopped = sceneMenuNavigationFollow(above, { yaw: 0, pitch: 0 }, navigationSettings, 0.1, false);
+  assert.deepEqual(stopped, above, "do not sweep through the reticle on a slow frame");
+  assert.equal(sceneMenuNavigationNear(pose, { yaw: 180, pitch: -25 }, 1), false);
+});
+
+test("aim protection includes all three controls at steep pitches and each supported scale", () => {
+  const controls = sceneMenuControlLayout(1024, 0, false, false);
+  for (const pitch of [-75, -25, 60]) {
+    for (const scale of [0.75, 1, 1.25]) {
+      for (const button of [controls.previous, controls.center, controls.next]) {
+        const theta = ((button.x + button.w / 2) / 1024 - 0.5) * 28 * scale * Math.PI / 180;
+        const direction = new Vector3(Math.sin(theta), 0, -Math.cos(theta))
+          .applyEuler(new Euler(pitch * Math.PI / 180, -179 * Math.PI / 180, 0, "YXZ"));
+        assert.equal(sceneMenuNavigationNear({ yaw: 179, pitch }, sceneMenuView(direction, 179), scale), true);
+      }
+    }
+  }
+  assert.equal(sceneMenuView(new Vector3(0, 1, 0), 123).yaw, 123);
+});
+
+test("navigation can be approached slowly for gaze and resumes recovery after looking away", () => {
+  for (const navigationPitch of [-40, -25, -15]) {
+    const settings = { ...navigationSettings, navigationPitch };
+    let pose = sceneMenuNavigationAnchor({ yaw: 0, pitch: 0 }, settings);
+    for (let i = 0; i <= 120; i++) {
+      pose = sceneMenuNavigationFollow(pose, { yaw: 0, pitch: navigationPitch * i / 120 }, settings, 1 / 60, false);
+      assert.equal(pose.pitch, navigationPitch, "the target must not escape a slow gaze approach");
+    }
+    const next = sceneMenuNavigationFollow(pose, { yaw: 30, pitch: 45 }, settings, 1 / 60, false);
+    assert.ok(next.yaw > pose.yaw);
+    assert.ok(next.pitch > pose.pitch);
+  }
+});
+
+test("view extraction uses heading and pitch without inheriting head roll", () => {
+  for (const pitch of [-75, -25, 60]) {
+    for (const roll of [-45, 0, 45]) {
+      const direction = new Vector3(0, 0, -1).applyEuler(
+        new Euler(pitch * Math.PI / 180, -70 * Math.PI / 180, roll * Math.PI / 180, "YXZ")
+      );
+      const view = sceneMenuView(direction, 0);
+      assert.ok(Math.abs(view.yaw - 70) < 1e-8);
+      assert.ok(Math.abs(view.pitch - pitch) < 1e-8);
+    }
+  }
 });
 
 test("layouts retain compact defaults and expand all scenes without shrinking cards", () => {

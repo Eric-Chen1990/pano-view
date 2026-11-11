@@ -8,7 +8,7 @@ import { mediaControllers } from "../controls/media";
 import { CONTROL_PATHS, findScrollTarget, scrollActions, mediaActions, modelActions } from "../controls/actions";
 import { controlBindings, explicitTargets } from "../controls/components";
 import { panoPositionToVector3 } from "../hotspot/coordinates";
-import { supportsNativeHtmlCapture } from "./capture-support";
+import { supportsNativeHtmlCapture, squareCaptureFooter, fillCaptureFooter } from "./capture-support";
 import { spatialPanelScale, spatialUvToPoint } from "./layout";
 import { SPATIAL_UI_LAYER } from "./render-layer";
 import {
@@ -110,7 +110,7 @@ async function capture(
       transform: "none",
       position: "relative",
     });
-    if (footer) { clone.style.borderBottomLeftRadius = "0"; clone.style.borderBottomRightRadius = "0"; }
+    if (footer) squareCaptureFooter(clone.style);
     clone.setAttribute("drawable", "");
     canvas.append(clone);
     owner.append(canvas);
@@ -211,7 +211,7 @@ async function capture(
     top: "0",
     transform: "none",
   });
-  if (footer) { clone.style.borderBottomLeftRadius = "0"; clone.style.borderBottomRightRadius = "0"; }
+  if (footer) squareCaptureFooter(clone.style);
   owner.append(clone);
   originals.forEach((node, i) => {
     copies[i].scrollTop = node.scrollTop;
@@ -772,8 +772,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     if (s.buttons.length !== buttons.length) s.dirty = true;
     s.buttons = buttons;
     if (buttons.length) {
-      ctx.fillStyle = "#161b22";
-      ctx.fillRect(0, bodyHeight, WIDTH, layout.height);
+      fillCaptureFooter(ctx, WIDTH, bodyHeight, layout.height, radius, appearance.backgroundColor || "#161b22");
     }
     for (const b of buttons) {
       ctx.save();

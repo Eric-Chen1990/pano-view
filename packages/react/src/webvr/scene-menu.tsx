@@ -34,7 +34,9 @@ import {
   sceneMenuLayoutConfig,
   sceneMenuAtlasRects,
   sceneMenuPoint,
-  sceneMenuFollow,
+  sceneMenuNavigationAnchor,
+  sceneMenuNavigationFollow,
+  sceneMenuView,
   sceneMenuNeighbor,
   sceneMenuPage,
   wrapSceneTitle,
@@ -86,7 +88,11 @@ export type WebVRSceneMenuProps = {
   rows?: number;
   loop?: boolean;
   closeOnSelect?: boolean;
+  /** Follow the view while collapsed. Defaults to true. */
   follow?: boolean;
+  /** Include vertical comfort-zone following. Defaults to true; requires follow. */
+  followPitch?: boolean;
+  /** View-relative offset when following pitch, otherwise world pitch; defaults to -25°, range -40° to -15°. */
   navigationPitch?: number;
   distance?: number;
   scale?: number;
@@ -139,6 +145,7 @@ function MenuSurface({
   loop = true,
   closeOnSelect = true,
   follow = true,
+  followPitch = true,
   navigationPitch = -25,
   distance = 2,
   scale = 1,
@@ -167,7 +174,8 @@ function MenuSurface({
   const [portal, setPortal] = useState<Element | null>(null);
   const state = useRef({
     yaw: 0,
-    elapsed: 0,
+    pitch: 0,
+    returning: false,
     initialized: false,
     alpha: 0,
     closing: false,
@@ -178,6 +186,9 @@ function MenuSurface({
   });
   const group = useRef<Group>(null);
   const direction = useMemo(() => new Vector3(), []);
+  useEffect(() => {
+    if (!open) state.current.initialized = false;
+  }, [follow, followPitch, navigationPitch, open]);
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
@@ -475,8 +486,10 @@ function MenuSurface({
       () => {
         const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
         activeCamera.getWorldDirection(direction);
-        state.current.yaw =
-          (Math.atan2(direction.x, -direction.z) * 180) / Math.PI;
+        const view = sceneMenuView(direction, state.current.yaw);
+        state.current.yaw = view.yaw;
+        state.current.pitch = bounded(view.pitch, 0, -75, 75);
+        state.current.returning = false;
         state.current.alpha = 0;
         setPage(sceneMenuPage(items, activeId, capacity));
         setEpoch((v) => v + 1);
@@ -552,14 +565,18 @@ function MenuSurface({
     targets,
     duration,
     follow,
-    pitch: navigationPitch,
+    followPitch,
+    navigationPitch,
+    scale: menuScale,
     keyboardFocus,
   });
   current.current = {
     targets,
     duration,
     follow,
-    pitch: navigationPitch,
+    followPitch,
+    navigationPitch,
+    scale: menuScale,
     keyboardFocus,
   };
   useEffect(() => {
@@ -628,9 +645,9 @@ function MenuSurface({
       c = current.current;
     const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     activeCamera.getWorldDirection(direction);
-    const yaw = (Math.atan2(direction.x, -direction.z) * 180) / Math.PI;
-    if (!s.initialized) {
-      s.yaw = yaw;
+    const view = sceneMenuView(direction, s.yaw);
+    if (!s.initialized && !open) {
+      Object.assign(s, sceneMenuNavigationAnchor(view, c));
       s.initialized = true;
     }
     const focused =
@@ -641,15 +658,15 @@ function MenuSurface({
       targets.some((t) => t.id === spatial.action?.id)
         ? spatial.action.id
         : "");
-    if (!open && c.follow)
+    if (!open)
       Object.assign(
         s,
-        sceneMenuFollow(s.yaw, yaw, s.elapsed, dt, Boolean(focused))
+        sceneMenuNavigationFollow(s, view, c, dt, Boolean(focused))
       );
     if (group.current) {
       activeCamera.getWorldPosition(group.current.position);
       group.current.rotation.set(
-        open ? 0 : (bounded(c.pitch, -25, -40, -15) * Math.PI) / 180,
+        (s.pitch * Math.PI) / 180,
         (-s.yaw * Math.PI) / 180,
         0,
         "YXZ"
@@ -663,6 +680,7 @@ function MenuSurface({
     for (const surface of surfaces) surface.material.opacity = s.alpha;
     if (s.closing && s.alpha === 0) {
       s.closing = false;
+      s.initialized = false;
       setOpen(false);
       setEpoch((v) => v + 1);
     }

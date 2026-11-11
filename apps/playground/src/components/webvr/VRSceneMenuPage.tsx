@@ -50,6 +50,7 @@ const MENU_DEFAULTS = {
   loop: true,
   closeOnSelect: true,
   follow: true,
+  followPitch: true,
   navigationPitch: -25,
   distance: 2,
   scale: 1,
@@ -188,12 +189,13 @@ export function VRSceneMenuPage() {
           <details>
             <summary>Behavior</summary>
             <div className="flex flex-wrap gap-4 py-3">
-              {(["loop", "closeOnSelect", "follow", "showTitles", "showVisited"] as const).map(
+              {(["loop", "closeOnSelect", "follow", "followPitch", "showTitles", "showVisited"] as const).map(
                 (key) => (
                   <label key={key}>
                     <input
                       type="checkbox"
                       checked={settings[key]}
+                      disabled={key === "followPitch" && !settings.follow}
                       onChange={(e) =>
                         setSettings((value) => ({
                           ...value,
