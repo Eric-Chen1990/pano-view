@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.3.1
+
+### Patch Changes
+
+- ce4648c: Preserve a successfully captured spatial dialog when optional annotation layers fail, and retry the uninterrupted clone path when a yielding HTML capture is interrupted. One broken model marker can no longer blank the dialog or suppress the other annotations.
+
 ## 5.3.0
 
 ### Minor Changes
