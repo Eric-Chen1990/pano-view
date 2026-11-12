@@ -35,8 +35,9 @@ async function captureBody(
   owner: HTMLElement,
   footer = false,
   overlays: readonly HTMLElement[] = [],
+  yielding = true,
 ): Promise<HTMLCanvasElement> {
-  const checkpoint = createCaptureCheckpoint();
+  const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   const native = ctx as CanvasRenderingContext2D & {
@@ -209,6 +210,7 @@ async function captureBody(
 async function captureOverlay(
   element: HTMLElement,
   owner: HTMLElement,
+  yielding = true,
 ): Promise<SpatialCaptureOverlay | null> {
   const origin = element.getBoundingClientRect();
   // Hidden/occluded source annotations must never acquire a raster or hit area.
@@ -223,7 +225,7 @@ async function captureOverlay(
     originals.map((node) => node.getBoundingClientRect()),
   );
   if (!bounds) return null;
-  const checkpoint = createCaptureCheckpoint();
+  const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
   const clone = element.cloneNode(true) as HTMLElement;
   const copies = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
   for (const [index, node] of originals.entries()) {
@@ -272,25 +274,43 @@ async function captureOverlay(
   }
 }
 
-/** DOM annotations are composited after live canvases, preserving their source occlusion. */
+/** Optional annotation failures must never discard the successfully captured dialog. */
 export async function captureSpatialSurface(
   element: HTMLElement,
   owner: HTMLElement,
   footer: boolean,
   overlays: readonly HTMLElement[],
+  captures = { body: captureBody, overlays: captureSpatialOverlays },
 ) {
-  const image = await captureBody(element, owner, footer, overlays);
-  return { image, overlays: await captureSpatialOverlays(overlays, owner) };
+  let image: HTMLCanvasElement;
+  try {
+    image = await captures.body(element, owner, footer, overlays);
+  } catch {
+    // Retry the original uninterrupted clone path before showing a content failure.
+    image = await captures.body(element, owner, footer, overlays, false);
+  }
+  const annotations = await captures.overlays(overlays, owner).catch(() => []);
+  return { image, overlays: annotations };
 }
 
 export async function captureSpatialOverlays(
   overlays: readonly HTMLElement[],
   owner: HTMLElement,
+  render = captureOverlay,
 ) {
   const captured: SpatialCaptureOverlay[] = [];
   for (const overlay of overlays) {
-    const frame = await captureOverlay(overlay, owner);
-    if (frame) captured.push(frame);
+    try {
+      let frame: SpatialCaptureOverlay | null;
+      try {
+        frame = await render(overlay, owner);
+      } catch {
+        frame = await render(overlay, owner, false);
+      }
+      if (frame) captured.push(frame);
+    } catch {
+      // A failed optional layer cannot blank the dialog or the other annotations.
+    }
   }
   return captured;
 }
