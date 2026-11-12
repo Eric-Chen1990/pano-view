@@ -15,6 +15,72 @@ const right = new Vector3();
 const scale = new Vector3();
 const rotation = new Quaternion();
 const basis = new Matrix4();
+const cameraUp = new Vector3();
+
+function setSphereTangentBasis(worldPosition: Vector3) {
+  const radiusSq = worldPosition.lengthSq();
+  if (radiusSq < 1e-12) {
+    right.set(1, 0, 0);
+    up.set(0, 1, 0);
+    return;
+  }
+  normal.copy(worldPosition).multiplyScalar(1 / Math.sqrt(radiusSq));
+  up.set(0, 1, 0).addScaledVector(normal, -normal.y);
+  if (up.lengthSq() < 1e-8) {
+    up.set(0, 0, 1).addScaledVector(normal, -normal.z);
+  }
+  up.normalize();
+  // Match surface tooltip handedness: right = radial × up.
+  right.crossVectors(normal, up).normalize();
+}
+
+/**
+ * Plane +Z points at the camera. Camera up projected onto that plane keeps the
+ * card upright when the gaze is centered; falls back to world up near poles.
+ * Avoid Object3D.lookAt: it aims -Z and would flip the plane away from the viewer.
+ */
+export function tooltipFacingCameraQuaternion(
+  target: Quaternion,
+  worldPosition: Vector3,
+  camera: Camera,
+): Quaternion {
+  camera.getWorldPosition(normal);
+  normal.sub(worldPosition);
+  if (normal.lengthSq() < 1e-12) {
+    camera.getWorldDirection(normal).negate();
+  } else {
+    normal.normalize();
+  }
+  camera.getWorldQuaternion(rotation);
+  cameraUp.set(0, 1, 0).applyQuaternion(rotation);
+  up.copy(cameraUp).addScaledVector(normal, -cameraUp.dot(normal));
+  if (up.lengthSq() < 1e-8) {
+    up.set(0, 1, 0).addScaledVector(normal, -normal.y);
+    if (up.lengthSq() < 1e-8) {
+      up.set(0, 0, 1).addScaledVector(normal, -normal.z);
+    }
+  }
+  up.normalize();
+  right.crossVectors(up, normal).normalize();
+  return target.setFromRotationMatrix(basis.makeBasis(right, up, normal));
+}
+
+/**
+ * Screen-pixel placement offset in a stable sphere-tangent basis so head
+ * rotation does not orbit the tooltip around the hotspot.
+ */
+export function tooltipTangentOffset(
+  target: Vector3,
+  worldPosition: Vector3,
+  offsetX: number,
+  offsetY: number,
+): Vector3 {
+  setSphereTangentBasis(worldPosition);
+  return target
+    .copy(right)
+    .multiplyScalar(offsetX)
+    .addScaledVector(up, offsetY);
+}
 
 /** A tooltip owns its world transform; hotspot aspect ratio and rotation never leak in. */
 export function tooltipWorldMatrix(

@@ -41,9 +41,11 @@ function surfaceAnchorsAlong(
 function Model({
   view,
   frames,
+  markers,
 }: {
   view: RefObject<{ yaw: number; pitch: number; scale: number }>;
   frames: Set<() => void>;
+  markers: RefObject<Array<HTMLButtonElement | null>>;
 }) {
   const model = useRef<Group>(null);
   const [selectedPin, setSelectedPin] = useState<number | null>(null);
@@ -74,6 +76,9 @@ function Model({
       {anchors.map((position, index) => (
         <Html key={index} position={position} center zIndexRange={[9, 0]}>
           <button
+            ref={(node) => {
+              markers.current[index] = node;
+            }}
             type="button"
             className={markerButtonClassName}
             aria-label={`Model marker ${index + 1}`}
@@ -98,6 +103,7 @@ export function HostModelExample() {
   const drag = useRef<{ x: number; y: number } | null>(null);
   const view = useRef({ yaw: 0, pitch: 0, scale: 1 });
   const frames = useMemo(() => new Set<() => void>(), []);
+  const markers = useRef<Array<HTMLButtonElement | null>>([]);
   const adapter = useMemo<PanoSpatialControlAdapter>(
     () => ({
       rotateBy(yaw, pitch) {
@@ -132,6 +138,13 @@ export function HostModelExample() {
         return () => {
           frames.delete(fn);
         };
+      },
+      // VR redraws the live canvas over the dialog snapshot. These roots are
+      // captured on their own and composited afterwards, so the model cannot cover them.
+      getOverlays() {
+        return markers.current.filter(
+          (node): node is HTMLButtonElement => node !== null,
+        );
       },
     }),
     [frames],
@@ -197,7 +210,7 @@ export function HostModelExample() {
         camera={{ position: [0, 0, 3] }}
         gl={{ preserveDrawingBuffer: true }}
       >
-        <Model view={view} frames={frames} />
+        <Model view={view} frames={frames} markers={markers} />
       </Canvas>
     </div>
   );

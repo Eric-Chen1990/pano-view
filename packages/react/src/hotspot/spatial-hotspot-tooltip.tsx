@@ -1,12 +1,15 @@
 import { tooltipPadding, tooltipBaseline, tooltipLines } from "./tooltip-layout";
-import { tooltipWorldMatrix } from "./tooltip-transform";
+import {
+  tooltipFacingCameraQuaternion,
+  tooltipTangentOffset,
+  tooltipWorldMatrix,
+} from "./tooltip-transform";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   CanvasTexture,
   LinearFilter,
   SRGBColorSpace,
-  Sprite,
   Mesh,
   Matrix4,
   Quaternion,
@@ -25,7 +28,7 @@ function number(value: string | number, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/** A real scene sprite: both eyes, depth ordering and the final lens mask apply. */
+/** Spatial plane: both eyes, depth ordering, and the final lens mask apply. */
 export function SpatialHotspotTooltip({
   content,
   mode,
@@ -43,7 +46,6 @@ export function SpatialHotspotTooltip({
   placement: HotspotTooltipPlacement;
   offset: number;
 }) {
-  const sprite = useRef<Sprite>(null);
   const mesh = useRef<Mesh>(null);
   const { camera, gl, size } = useThree();
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -153,6 +155,7 @@ export function SpatialHotspotTooltip({
       world: new Matrix4(),
       local: new Matrix4(),
       point: new Vector3(),
+      depth: new Vector3(),
       offset: new Vector3(),
       rotation: new Quaternion(),
       scale: new Vector3(),
@@ -160,7 +163,7 @@ export function SpatialHotspotTooltip({
     [],
   );
   useFrame(() => {
-    const node = mode === "surface" ? mesh.current : sprite.current;
+    const node = mesh.current;
     if (!node?.parent) return;
     const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
     tooltipWorldMatrix(
@@ -173,12 +176,13 @@ export function SpatialHotspotTooltip({
       referenceFov,
     );
     const unit = scratch.scale.setFromMatrixScale(scratch.world).x;
-    const depth = -scratch.point
-      .setFromMatrixPosition(scratch.world)
-      .applyMatrix4(camera.matrixWorldInverse).z;
+    scratch.point.setFromMatrixPosition(scratch.world);
+    const depth = -scratch.depth
+      .copy(scratch.point)
+      .applyMatrix4(view.matrixWorldInverse).z;
     const pixel =
       (2 * Math.max(0, depth)) /
-      (Math.max(1, size.height) * camera.projectionMatrix.elements[5]!);
+      (Math.max(1, size.height) * view.projectionMatrix.elements[5]!);
     const x =
       placement === "left"
         ? (-raster.width * unit) / 2 - offset * pixel
@@ -191,10 +195,8 @@ export function SpatialHotspotTooltip({
         : placement === "bottom"
           ? (-raster.height * unit) / 2 - offset * pixel
           : 0;
-    scratch.world.decompose(scratch.point, scratch.rotation, scratch.scale);
-    scratch.point.add(
-      scratch.offset.set(x, y, 0).applyQuaternion(scratch.rotation),
-    );
+    scratch.point.add(tooltipTangentOffset(scratch.offset, scratch.point, x, y));
+    tooltipFacingCameraQuaternion(scratch.rotation, scratch.point, view);
     scratch.world.compose(
       scratch.point,
       scratch.rotation,
@@ -209,28 +211,16 @@ export function SpatialHotspotTooltip({
     node.matrixWorldNeedsUpdate = true;
   });
 
-  if (mode === "surface")
-    return (
-      <mesh ref={mesh} renderOrder={1000} raycast={() => {}}>
-        <planeGeometry />
-        <meshBasicMaterial
-          map={raster.texture}
-          transparent
-          depthTest={false}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
-    );
   return (
-    <sprite ref={sprite} renderOrder={1000} raycast={() => {}}>
-      <spriteMaterial
+    <mesh ref={mesh} renderOrder={1000} raycast={() => {}}>
+      <planeGeometry />
+      <meshBasicMaterial
         map={raster.texture}
         transparent
         depthTest={false}
         depthWrite={false}
         toneMapped={false}
       />
-    </sprite>
+    </mesh>
   );
 }
