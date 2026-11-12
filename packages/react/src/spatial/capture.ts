@@ -17,6 +17,8 @@ export type SpatialCaptureOverlay = {
   height: number;
 };
 
+export type ResolveSpatialOverlays = () => readonly HTMLElement[];
+
 function hideOverlays(
   originals: HTMLElement[],
   copies: HTMLElement[],
@@ -34,7 +36,7 @@ async function captureBody(
   element: HTMLElement,
   owner: HTMLElement,
   footer = false,
-  overlays: readonly HTMLElement[] = [],
+  resolveOverlays: ResolveSpatialOverlays = () => [],
   yielding = true,
 ): Promise<HTMLCanvasElement> {
   const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
@@ -56,6 +58,8 @@ async function captureBody(
     canvas.width = WIDTH;
     canvas.height = BODY_HEIGHT;
     const clone = element.cloneNode(true) as HTMLElement;
+    // Resolve after clone so the hide list matches nodes present in this snapshot.
+    const overlays = resolveOverlays();
     const originals = [element, ...element.querySelectorAll<HTMLElement>("*")];
     const copies = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
     for (const [i, node] of originals.entries()) {
@@ -127,6 +131,8 @@ async function captureBody(
   const { domToCanvas } = await import("modern-screenshot");
   // Snapshot a layout clone with media placeholders, avoiding duplicate video decoders.
   const clone = element.cloneNode(true) as HTMLElement;
+  // Resolve after the async import + clone so late-mounted markers are hidden.
+  const overlays = resolveOverlays();
   const originals = [element, ...element.querySelectorAll<HTMLElement>("*")];
   const copies = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
   for (const [i, node] of originals.entries()) {
@@ -279,17 +285,20 @@ export async function captureSpatialSurface(
   element: HTMLElement,
   owner: HTMLElement,
   footer: boolean,
-  overlays: readonly HTMLElement[],
+  resolveOverlays: ResolveSpatialOverlays,
   captures = { body: captureBody, overlays: captureSpatialOverlays },
 ) {
   let image: HTMLCanvasElement;
   try {
-    image = await captures.body(element, owner, footer, overlays);
+    image = await captures.body(element, owner, footer, resolveOverlays);
   } catch {
     // Retry the original uninterrupted clone path before showing a content failure.
-    image = await captures.body(element, owner, footer, overlays, false);
+    image = await captures.body(element, owner, footer, resolveOverlays, false);
   }
-  const annotations = await captures.overlays(overlays, owner).catch(() => []);
+  // Re-resolve after the body snapshot so late-mounted markers still get a foreground layer.
+  const annotations = await captures
+    .overlays(resolveOverlays(), owner)
+    .catch(() => []);
   return { image, overlays: annotations };
 }
 
