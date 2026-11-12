@@ -11,26 +11,38 @@ const owner = {} as HTMLElement;
 const image = {} as HTMLCanvasElement;
 
 test("an annotation failure preserves the successfully captured dialog", async () => {
-  const result = await captureSpatialSurface(element, owner, true, [element], {
-    body: async () => image,
-    overlays: async () => {
-      throw new Error("annotation SVG decode failed");
+  const result = await captureSpatialSurface(
+    element,
+    owner,
+    true,
+    () => [element],
+    {
+      body: async () => image,
+      overlays: async () => {
+        throw new Error("annotation SVG decode failed");
+      },
     },
-  });
+  );
   assert.equal(result.image, image);
   assert.deepEqual(result.overlays, []);
 });
 
 test("a failed sliced dialog capture retries the original clone path", async () => {
   const attempts: boolean[] = [];
-  const result = await captureSpatialSurface(element, owner, false, [], {
-    body: async (_element, _owner, _footer, _overlays, yielding = true) => {
-      attempts.push(yielding);
-      if (yielding) throw new Error("interrupted capture");
-      return image;
+  const result = await captureSpatialSurface(
+    element,
+    owner,
+    false,
+    () => [],
+    {
+      body: async (_element, _owner, _footer, _resolveOverlays, yielding = true) => {
+        attempts.push(yielding);
+        if (yielding) throw new Error("interrupted capture");
+        return image;
+      },
+      overlays: async () => [],
     },
-    overlays: async () => [],
-  });
+  );
   assert.equal(result.image, image);
   assert.deepEqual(attempts, [true, false]);
 });
@@ -59,4 +71,41 @@ test("one broken annotation does not suppress other model markers", async () => 
   );
   assert.deepEqual(result, [frame]);
   assert.deepEqual(attempts, [true, false]);
+});
+
+test("overlay capture re-resolves after the body capture completes", async () => {
+  const early = {} as HTMLElement;
+  const late = {} as HTMLElement;
+  let bodyDone = false;
+  const resolveOverlays = () => (bodyDone ? [early, late] : [early]);
+  const captured: HTMLElement[] = [];
+
+  const result = await captureSpatialSurface(
+    element,
+    owner,
+    false,
+    resolveOverlays,
+    {
+      body: async (_element, _owner, _footer, resolve) => {
+        assert.deepEqual([...resolve()], [early]);
+        bodyDone = true;
+        return image;
+      },
+      overlays: async (overlays) => {
+        captured.push(...overlays);
+        return overlays.map((node) => ({
+          element: node,
+          image,
+          offsetX: 0,
+          offsetY: 0,
+          width: 36,
+          height: 36,
+        }));
+      },
+    },
+  );
+
+  assert.equal(result.image, image);
+  assert.deepEqual(captured, [early, late]);
+  assert.equal(result.overlays.length, 2);
 });

@@ -666,15 +666,14 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       });
       owner.setAttribute("aria-hidden", "true");
       surface.element.closest("[data-pano-viewer]")?.append(owner);
-      const overlays = getOverlays();
       const capture = bodyChanged
         ? captureSpatialSurface(
             surface.element,
             owner,
             s.buttons.length > 0,
-            overlays,
+            getOverlays,
           )
-        : captureSpatialOverlays(overlays, owner).then((overlays) => ({
+        : captureSpatialOverlays(getOverlays(), owner).then((overlays) => ({
             image: s.image!,
             overlays,
           }));
