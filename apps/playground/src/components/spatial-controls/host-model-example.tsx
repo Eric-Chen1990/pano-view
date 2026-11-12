@@ -5,8 +5,38 @@ import {
   usePanoSpatialControls,
   type PanoSpatialControlAdapter,
 } from "@ericchen1990/pano-view";
-import type { Group } from "three";
-import { segmentedButtonClassName } from "../../ui";
+import { TorusKnotGeometry, Vector3, type Group } from "three";
+
+const TORUS_KNOT_ARGS = [0.7, 0.22, 96, 16] as const;
+const MARKER_DIRECTIONS = [
+  new Vector3(-0.7, 0.7, 0.9),
+  new Vector3(0.7, 0.7, 0.9),
+] as const;
+
+const markerButtonClassName =
+  "inline-flex size-8 shrink-0 aspect-square items-center justify-center rounded-full border border-[#3e6c73] bg-canvas! p-0 text-[0.72rem] font-medium leading-none text-[#f5fbfc] transition hover:border-[#75cbd3] aria-pressed:border-brand aria-pressed:bg-brand! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+/** Furthest mesh vertex along each marker direction, in local space. */
+function surfaceAnchorsAlong(
+  directions: readonly Vector3[],
+  geometry: TorusKnotGeometry,
+): Array<[number, number, number]> {
+  const position = geometry.getAttribute("position");
+  const vertex = new Vector3();
+  return directions.map((direction) => {
+    let best = Number.NEGATIVE_INFINITY;
+    const point = new Vector3();
+    for (let i = 0; i < position.count; i++) {
+      vertex.fromBufferAttribute(position, i);
+      const score = vertex.dot(direction);
+      if (score > best) {
+        best = score;
+        point.copy(vertex);
+      }
+    }
+    return [point.x, point.y, point.z] as [number, number, number];
+  });
+}
 
 function Model({
   view,
@@ -17,10 +47,17 @@ function Model({
 }) {
   const model = useRef<Group>(null);
   const [selectedPin, setSelectedPin] = useState<number | null>(null);
+  const anchors = useMemo(() => {
+    const geometry = new TorusKnotGeometry(...TORUS_KNOT_ARGS);
+    const points = surfaceAnchorsAlong(MARKER_DIRECTIONS, geometry);
+    geometry.dispose();
+    return points;
+  }, []);
   useFrame(() => {
     if (model.current) {
+      // Positive pitch is "up" for drag, keys and VR; Three.js +X tilts the opposite way.
       model.current.rotation.set(
-        (view.current.pitch * Math.PI) / 180,
+        (-view.current.pitch * Math.PI) / 180,
         (view.current.yaw * Math.PI) / 180,
         0,
       );
@@ -31,14 +68,14 @@ function Model({
   return (
     <group ref={model}>
       <mesh>
-        <torusKnotGeometry args={[0.7, 0.22, 96, 16]} />
+        <torusKnotGeometry args={[...TORUS_KNOT_ARGS]} />
         <meshNormalMaterial />
       </mesh>
-      {([-0.7, 0.7] as const).map((x, index) => (
-        <Html key={x} position={[x, 0.7, 0.9]} center zIndexRange={[9, 0]}>
+      {anchors.map((position, index) => (
+        <Html key={index} position={position} center zIndexRange={[9, 0]}>
           <button
             type="button"
-            className={`${segmentedButtonClassName} rounded-full bg-canvas! aria-pressed:bg-brand! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}
+            className={markerButtonClassName}
             aria-label={`Model marker ${index + 1}`}
             aria-pressed={selectedPin === index}
             onPointerDown={(event) => event.stopPropagation()}
