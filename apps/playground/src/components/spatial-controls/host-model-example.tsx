@@ -1,10 +1,12 @@
+import { Html } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   usePanoSpatialControls,
   type PanoSpatialControlAdapter,
 } from "@ericchen1990/pano-view";
-import type { Mesh } from "three";
+import type { Group } from "three";
+import { segmentedButtonClassName } from "../../ui";
 
 function Model({
   view,
@@ -13,23 +15,43 @@ function Model({
   view: RefObject<{ yaw: number; pitch: number; scale: number }>;
   frames: Set<() => void>;
 }) {
-  const mesh = useRef<Mesh>(null);
+  const model = useRef<Group>(null);
+  const [selectedPin, setSelectedPin] = useState<number | null>(null);
   useFrame(() => {
-    if (mesh.current) {
-      mesh.current.rotation.set(
+    if (model.current) {
+      model.current.rotation.set(
         (view.current.pitch * Math.PI) / 180,
         (view.current.yaw * Math.PI) / 180,
         0,
       );
-      mesh.current.scale.setScalar(view.current.scale);
+      model.current.scale.setScalar(view.current.scale);
     }
     frames.forEach((fn) => fn());
   });
   return (
-    <mesh ref={mesh}>
-      <torusKnotGeometry args={[0.7, 0.22, 96, 16]} />
-      <meshNormalMaterial />
-    </mesh>
+    <group ref={model}>
+      <mesh>
+        <torusKnotGeometry args={[0.7, 0.22, 96, 16]} />
+        <meshNormalMaterial />
+      </mesh>
+      {([-0.7, 0.7] as const).map((x, index) => (
+        <Html key={x} position={[x, 0.7, 0.9]} center zIndexRange={[9, 0]}>
+          <button
+            type="button"
+            className={`${segmentedButtonClassName} rounded-full bg-canvas! aria-pressed:bg-brand! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}
+            aria-label={`Model marker ${index + 1}`}
+            aria-pressed={selectedPin === index}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedPin(index);
+            }}
+          >
+            {index + 1}
+          </button>
+        </Html>
+      ))}
+    </group>
   );
 }
 

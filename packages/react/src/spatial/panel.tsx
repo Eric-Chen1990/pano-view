@@ -8,7 +8,13 @@ import { mediaControllers } from "../controls/media";
 import { CONTROL_PATHS, findScrollTarget, scrollActions, mediaActions, modelActions } from "../controls/actions";
 import { controlBindings, explicitTargets } from "../controls/components";
 import { panoPositionToVector3 } from "../hotspot/coordinates";
-import { supportsNativeHtmlCapture, squareCaptureFooter, fillCaptureFooter } from "./capture-support";
+import {
+  supportsNativeHtmlCapture,
+  squareCaptureFooter,
+  fillCaptureFooter,
+  commitSpatialCapture,
+  failSpatialCapture,
+} from "./capture-support";
 import { spatialPanelScale, spatialUvToPoint } from "./layout";
 import { SPATIAL_UI_LAYER } from "./render-layer";
 import {
@@ -582,19 +588,12 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       surface.element.closest("[data-pano-viewer]")?.append(owner);
       capture(surface.element, owner, s.buttons.length > 0)
         .then((image) => {
-          if (
-            !s.disposed &&
-            generation === s.generation &&
-            revision === s.revision
-          ) {
-            s.image = image;
-            s.failed = false;
+          if (commitSpatialCapture(s, generation, revision, image)) {
             surface.element.dataset.panoSpatialState = "ready";
-          } else if (!s.disposed) s.dirty = true;
+          }
         })
         .catch(() => {
-          if (generation === s.generation) {
-            s.failed = true;
+          if (failSpatialCapture(s, generation)) {
             surface.element.dataset.panoSpatialState = "error";
           }
         })
