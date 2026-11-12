@@ -1,6 +1,7 @@
 import { createReticleRing } from "./reticle-geometry";
 import { dispatchGazeHotspotClick, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
+import { controlBindings } from "../controls/components";
 import { SpatialHostContext, type SpatialSurface } from "../spatial/host";
 import { canRunSpatialGaze, createGazeActionState } from "../spatial/gaze-action";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -187,7 +188,9 @@ export function WebVRReticle({
       const previous = spatial.action?.id;
       if (previous !== spatialTarget?.id) {
         if (previous instanceof HTMLElement) delete previous.dataset.panoGazeActive;
-        if (spatialTarget?.id instanceof HTMLElement) spatialTarget.id.dataset.panoGazeActive = "";
+        // Only bound controls style this attribute. Plain host buttons use the reticle
+        // for dwell feedback and must not invalidate the entire DOM capture on hover.
+        if (spatialTarget?.id instanceof HTMLElement && controlBindings.has(spatialTarget.id)) spatialTarget.id.dataset.panoGazeActive = "";
       }
       spatial.action = spatialTarget;
     }

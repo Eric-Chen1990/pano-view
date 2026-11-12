@@ -621,7 +621,7 @@ export function DialogHelp() {
 
 第三方弹窗可使用主入口的 `usePanoDialogSurface({ open, onOpenChange })`，将 `contentRef` 连接到内容节点，使用返回的 `portalContainer`、`visibleRect` 和 `presentation`。将返回的 `onInteractOutside` 传给弹窗内容：空间模式和操作 viewer 外的宿主控件（包括进入 VR）时会阻止自动关闭，普通模式仍支持 viewer 内的遮罩点击关闭。空间模式将内容放到 viewer 内的离屏测量区域（保留 DOM 实例），不要对内容调用 `display:none` 或将 portal 移到 `body`。保留可凝视点击的关闭按钮。完整接入参见 Playground 的第三方弹窗示例。
 
-宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。
+宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。 对于 DOM 模型标记，`getOverlays()` 可以返回标记根元素：空间渲染器单独捕获透明标记层，并在实时 Canvas 之后合成。源 DOM 的可见性和遮挡状态同时约束显示与凝视命中。标题或气泡应包含在对应标记根元素内，以保留溢出内容。
 
 VR 中，视线移到弹窗外时可凝视场景热点。短暂经过热点或看向空白处会保持弹窗；在热点上完成现有 `cursorDwellMs` 后，先从上到下关闭当前弹窗栈，再触发一次目标热点操作，新操作打开的弹窗会保留，并按当前凝视方向重新定位。即使宿主复用同一个弹窗组件，也会先完成旧弹窗的关闭再执行目标操作。凝视弹窗内容时，弹窗优先于其后的热点。仅进入或退出 VR 不会关闭已打开的弹窗。
 

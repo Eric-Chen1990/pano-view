@@ -12,10 +12,21 @@ export type PanoSpatialControlAdapter = {
   canExecute?: (action: string) => boolean;
   /** Canvas frames must be copied after the host renderer finishes rendering. */
   subscribeFrame?: (invalidate: () => void) => () => void;
+  /** DOM annotations drawn above a host canvas; source visibility controls gaze hit testing. */
+  getOverlays?: () => readonly HTMLElement[];
   /** A texture must belong to this viewer's WebGL context. */
   texture?: Texture;
 };
-export type SpatialSurface = { element: HTMLElement; close: () => void; scrollTarget?: () => HTMLElement | null; anchor?: { position?: { yaw: number; pitch: number }; width: number; distance: number } };
+export type SpatialSurface = {
+  element: HTMLElement;
+  close: () => void;
+  scrollTarget?: () => HTMLElement | null;
+  anchor?: {
+    position?: { yaw: number; pitch: number };
+    width: number;
+    distance: number;
+  };
+};
 export function createSpatialHost() {
   const listeners = new Set<() => void>();
   const host = {

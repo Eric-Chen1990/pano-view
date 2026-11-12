@@ -80,3 +80,47 @@ export function failSpatialCapture(
   state.failed = true;
   return true;
 }
+
+/** Bound each cloning slice so panorama rendering and input can run between slices. */
+export function createCaptureCheckpoint(
+  now: () => number = () => performance.now(),
+  pause: () => Promise<void> = () =>
+    new Promise((resolve) => {
+      // Align cloning slices with display frames; the timeout also serves hidden XR companions.
+      let frame = 0;
+      const timer = setTimeout(() => {
+        cancelAnimationFrame(frame);
+        resolve();
+      }, 20);
+      frame = requestAnimationFrame(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    }),
+) {
+  let started = now();
+  return async () => {
+    if (now() - started < 4) return;
+    await pause();
+    started = now();
+  };
+}
+
+type CaptureRect = Pick<DOMRect, "left" | "top" | "width" | "height">;
+
+/** Include visible overflow such as marker titles, arrows and shadows. */
+export function captureOverlayBounds(
+  rectangles: readonly CaptureRect[],
+): CaptureRect | null {
+  const visible = rectangles.filter(
+    (rect) => rect.width > 0 && rect.height > 0,
+  );
+  if (!visible.length) return null;
+  const left = Math.floor(Math.min(...visible.map((rect) => rect.left))) - 8;
+  const top = Math.floor(Math.min(...visible.map((rect) => rect.top))) - 8;
+  const right =
+    Math.ceil(Math.max(...visible.map((rect) => rect.left + rect.width))) + 8;
+  const bottom =
+    Math.ceil(Math.max(...visible.map((rect) => rect.top + rect.height))) + 8;
+  return { left, top, width: right - left, height: bottom - top };
+}

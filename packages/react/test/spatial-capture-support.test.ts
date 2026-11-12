@@ -6,6 +6,8 @@ import {
   fillCaptureFooter,
   commitSpatialCapture,
   failSpatialCapture,
+  createCaptureCheckpoint,
+  captureOverlayBounds,
 } from "../src/spatial/capture-support";
 
 test("old drawElementImage implementations cannot select the native capture path", () => {
@@ -139,4 +141,52 @@ test("a reopened panel accepts its own result while rejecting its previous lifec
   assert.equal(commitSpatialCapture(state, 1, 0, "old"), false);
   assert.equal(failSpatialCapture(state, 1), false);
   assert.deepEqual(state, before);
+});
+
+test("capture cloning yields its time slice and resumes with a fresh budget", async () => {
+  let time = 0;
+  let pauses = 0;
+  let resume: (() => void) | undefined;
+  const checkpoint = createCaptureCheckpoint(
+    () => time,
+    () => {
+      pauses++;
+      return new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+    },
+  );
+  time = 3;
+  await checkpoint();
+  assert.equal(pauses, 0);
+  time = 5;
+  let continued = false;
+  const pending = checkpoint().then(() => {
+    continued = true;
+  });
+  await Promise.resolve();
+  assert.equal(pauses, 1);
+  assert.equal(continued, false);
+  // Rendering/input time is outside the next cloning slice.
+  time = 30;
+  resume!();
+  await pending;
+  time = 33;
+  await checkpoint();
+  assert.equal(pauses, 1);
+});
+
+test("annotation snapshots include floating titles and ignore occluded zero-area nodes", () => {
+  assert.deepEqual(
+    captureOverlayBounds([
+      { left: -100, top: 50, width: 36, height: 36 },
+      { left: -140, top: 10, width: 116, height: 30 },
+      { left: 0, top: 0, width: 0, height: 0 },
+    ]),
+    { left: -148, top: 2, width: 132, height: 92 },
+  );
+  assert.equal(
+    captureOverlayBounds([{ left: 0, top: 0, width: 0, height: 0 }]),
+    null,
+  );
 });
