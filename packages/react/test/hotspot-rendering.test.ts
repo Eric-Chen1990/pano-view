@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Matrix4, Object3D, PerspectiveCamera, Vector3 } from "three";
+import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import {
   hotspotScaleMode,
   tooltipScaleMode,
 } from "../../../shared/hotspot-rendering";
-import { tooltipWorldMatrix, tooltipScreenMatrix } from "../src/hotspot/tooltip-transform";
+import {
+  tooltipFacingCameraQuaternion,
+  tooltipScreenMatrix,
+  tooltipTangentOffset,
+  tooltipWorldMatrix,
+} from "../src/hotspot/tooltip-transform";
 import { parsePanoProject } from "../src/data";
 
 test("surface scaling is mandatory; floating defaults and tooltip overrides resolve independently", () => {
@@ -136,4 +141,36 @@ test("CSS tooltip projection remains invertible and preserves pixel offsets", ()
   assert.ok(Math.abs(origin.y - 238) < 1e-8);
   assert.ok(Math.abs(pixel.x - origin.x - 1) < 1e-8);
   assert.ok(Math.abs(pixel.y - origin.y - 1) < 1e-8);
+});
+
+test("VR tooltip faces the camera when the head is off-center", () => {
+  const camera = new PerspectiveCamera(75, 1, 0.01, 2000);
+  camera.position.set(5, 0.5, 2);
+  const card = new Vector3(3, 4, -10);
+  camera.lookAt(card);
+  camera.updateMatrixWorld();
+  const rotation = tooltipFacingCameraQuaternion(new Quaternion(), card, camera);
+  const basis = new Matrix4().makeRotationFromQuaternion(rotation);
+  const towardCamera = new Vector3(0, 0, 1).transformDirection(basis);
+  const expected = camera.position.clone().sub(card).normalize();
+  assert.ok(towardCamera.dot(expected) > 0.999999);
+  // Sphere-inward would be -radial; a displaced head must not keep that normal.
+  assert.ok(towardCamera.dot(card.clone().normalize().negate()) < 0.98);
+  const cardUp = new Vector3(0, 1, 0).transformDirection(basis);
+  const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  assert.ok(cardUp.dot(cameraUp) > 0.999);
+});
+
+test("VR tooltip tangent offset stays fixed when the camera only rotates", () => {
+  const card = new Vector3(5, 1, -8);
+  const offsetA = tooltipTangentOffset(new Vector3(), card, 12, 24);
+  const camera = new PerspectiveCamera(75, 1, 0.01, 2000);
+  camera.position.set(0.3, -0.1, 0.05);
+  camera.rotation.set(0.2, 0.8, 0.05);
+  camera.updateMatrixWorld();
+  const offsetB = tooltipTangentOffset(new Vector3(), card, 12, 24);
+  assert.ok(offsetA.distanceTo(offsetB) < 1e-12);
+  const rotated = tooltipFacingCameraQuaternion(new Quaternion(), card, camera);
+  const facing = new Vector3(0, 0, 1).applyQuaternion(rotated);
+  assert.ok(facing.dot(camera.position.clone().sub(card).normalize()) > 0.999999);
 });
