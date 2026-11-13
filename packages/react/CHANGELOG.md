@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.4.1
+
+### Patch Changes
+
+- Select a scene menu thumbnail on release unless the strip actually scrolls. A short press switches to the pressed scene, and a drag past the movement threshold only scrolls.
+
 ## 5.4.0
 
 ### Minor Changes
