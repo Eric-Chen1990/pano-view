@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.4.0
+
+### Minor Changes
+
+- Expose getIframeSupport on viewer handles and usePanoViewer to distinguish native iframe rendering from limited same-origin spatial snapshots and unsupported cross-origin spatial content.
+
 ## 5.3.4
 
 ### Patch Changes

@@ -2775,3 +2775,7 @@ viewLimits: {
 平面墙与环绕画廊使用有界分块图集。全部模式保留卡片尺寸并扩展墙面；大列表可能需要更多转头浏览。三种布局打开时均以当前视线的水平和垂直方向为中心（俯仰角限制在 ±75°，不跟随头部侧倾），展开后不跟随转头，但随用户平移。新布局的关闭和翻页按钮始终位于正前方独立控制区。`/vr-scene-menu` 支持切换布局、全部／分页和环绕角度；列数留空使用自动值。
 
 VR 场景标题默认不带背景，并带有轻微黑色文字阴影。菜单纹理以 2 倍分辨率绘制，使用 mipmap 与各向异性过滤；布局和命中区域保持不变。
+
+### iframe 渲染能力
+
+`viewer.getIframeSupport()`（也通过 `usePanoViewer()` 暴露）返回稳定快照，模式变化通过 `subscribeVR` 订阅。普通模式和元素全屏返回 `{ sameOrigin: "native", crossOrigin: "native" }`；当前 WebXR、MobileVR 和模拟 VR 的空间面板返回 `{ sameOrigin: "limited", crossOrigin: "unsupported" }`。`limited` 仅表示同源截图和基础交互，不保证表单、键盘或动态内容。`native` 表示使用浏览器原生渲染，不保证目标网页允许嵌入；CSP、sandbox、重定向和响应头仍然适用。本方法不加载或检测具体 URL。

@@ -1,3 +1,4 @@
+import { NATIVE_IFRAME_SUPPORT } from "./types";
 import { useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import type { PanoViewerHandle } from "./types";
@@ -49,6 +50,8 @@ function createPanoViewerHandle(
     isVREnabled: () => ref.current?.isVREnabled() ?? false,
     getVRMode: () => ref.current?.getVRMode() ?? null,
     getVRState: () => ref.current?.getVRState() ?? EMPTY_WEBVR_STATE,
+    getIframeSupport: () =>
+      ref.current?.getIframeSupport() ?? NATIVE_IFRAME_SUPPORT,
     subscribeVR: (onStoreChange) => {
       // The imperative handle may attach one frame after useSyncExternalStore
       // first subscribes. Retry briefly so host buttons stay reactive.

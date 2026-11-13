@@ -1,3 +1,4 @@
+import { getWebVRIframeSupport } from "./webvr/host";
 import { SpatialHostContext, createSpatialHost } from "./spatial/host";
 import { SpatialPanels } from "./spatial/panel";
 import { SpatialMediaControls } from "./spatial/media-controls";
@@ -796,6 +797,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         isVREnabled: () => webVRHost.snapshot.mode !== null,
         getVRMode: () => webVRHost.snapshot.mode,
         getVRState: () => webVRHost.state,
+        getIframeSupport: () => getWebVRIframeSupport(webVRHost),
         subscribeVR: (onStoreChange) =>
           subscribeWebVRHost(webVRHost, onStoreChange),
         requestVRPermission: () =>
