@@ -151,6 +151,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     overlayDirty: true,
     overlayRevision: 0,
     busy: false,
+    capture: null as { controller: AbortController; owner: HTMLElement } | null,
     disposed: false,
     generation: 0,
     revision: 0,
@@ -228,6 +229,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
   useEffect(() => {
     const s = state.current;
     s.disposed = false;
+    s.busy = false;
     s.generation++;
     s.target = surface.element;
     s.adapter = null;
@@ -383,6 +385,12 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       window.removeEventListener("blur", releasePointer);
       s.disposed = true;
       s.generation++;
+      s.capture?.controller.abort();
+      s.capture?.owner.remove();
+      s.capture = null;
+      s.busy = false;
+      s.image = null;
+      s.overlays = [];
       host.suppressGazeUntil = 0;
       observer.disconnect();
       resize.disconnect();
@@ -665,6 +673,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         top: "0",
       });
       owner.setAttribute("aria-hidden", "true");
+      owner.dataset.panoSpatialCapture = "";
+      const task = { controller: new AbortController(), owner };
+      s.capture = task;
+      const { signal } = task.controller;
       surface.element.closest("[data-pano-viewer]")?.append(owner);
       const capture = bodyChanged
         ? captureSpatialSurface(
@@ -672,11 +684,15 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
             owner,
             s.buttons.length > 0,
             getOverlays,
+            undefined,
+            signal,
           )
-        : captureSpatialOverlays(getOverlays(), owner).then((overlays) => ({
-            image: s.image!,
-            overlays,
-          }));
+        : captureSpatialOverlays(getOverlays(), owner, undefined, signal).then(
+            (overlays) => ({
+              image: s.image!,
+              overlays,
+            }),
+          );
       capture
         .then(({ image, overlays }) => {
           if (s.disposed || generation !== s.generation) return;
@@ -696,7 +712,11 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
         })
         .finally(() => {
           owner.remove();
-          s.busy = false;
+          // An obsolete task must not unlock the next lifecycle's capture.
+          if (s.capture === task) {
+            s.capture = null;
+            s.busy = false;
+          }
         });
     }
     const radius = Math.max(0, parseFloat(appearance.borderTopLeftRadius) || 0);
