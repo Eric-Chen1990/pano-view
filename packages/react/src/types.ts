@@ -4,6 +4,21 @@ import type { HotspotPosition } from "./hotspot/types";
 import type { PanoVideoController } from "./video/types";
 import type { WebVRMode, WebVRState } from "./webvr/types";
 
+/** Rendering capability only; target pages may still reject embedding. */
+export type PanoIframeSupport = Readonly<{
+  sameOrigin: "native" | "limited";
+  crossOrigin: "native" | "unsupported";
+}>;
+
+export const NATIVE_IFRAME_SUPPORT: PanoIframeSupport = Object.freeze({
+  sameOrigin: "native",
+  crossOrigin: "native",
+});
+export const SPATIAL_IFRAME_SUPPORT: PanoIframeSupport = Object.freeze({
+  sameOrigin: "limited",
+  crossOrigin: "unsupported",
+});
+
 export type PanoViewerState = {
   /** Horizontal look angle in degrees. Positive values look right. */
   yaw: number;
@@ -95,6 +110,8 @@ export type PanoViewerHandle = {
   isVREnabled: () => boolean;
   getVRMode: () => WebVRMode | null;
   getVRState: () => WebVRState;
+  /** Subscribe with subscribeVR. Limited means snapshot rendering, not full browser interaction. */
+  getIframeSupport: () => PanoIframeSupport;
   subscribeVR: (onStoreChange: () => void) => () => void;
   requestVRPermission: () => Promise<boolean>;
 

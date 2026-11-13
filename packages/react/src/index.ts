@@ -1,3 +1,4 @@
+export type { PanoIframeSupport } from "./types";
 export { PanoViewer } from "./pano-viewer";
 export {
   PanoOverlay,

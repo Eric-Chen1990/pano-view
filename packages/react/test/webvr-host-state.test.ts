@@ -4,6 +4,8 @@ import {
   createWebVRHost,
   EMPTY_WEBVR_STATE,
   getWebVRState,
+  getWebVRIframeSupport,
+  subscribeWebVRHost,
   updateWebVRHost,
 } from "../src/webvr/host";
 
@@ -51,4 +53,29 @@ test("updateWebVRHost replaces state when mode changes", () => {
     enabled: false,
     mode: null,
   });
+});
+
+test("iframe support follows spatial presentation, stays stable and notifies through subscribeVR", () => {
+  const host = createWebVRHost();
+  const native = getWebVRIframeSupport(host);
+  assert.deepEqual(native, { sameOrigin: "native", crossOrigin: "native" });
+  let notifications = 0;
+  const unsubscribe = subscribeWebVRHost(host, () => notifications++);
+  let spatial;
+  for (const mode of ["webxr", "mobilevr", "fake"] as const) {
+    updateWebVRHost(host, { mode });
+    const support = getWebVRIframeSupport(host);
+    assert.deepEqual(support, {
+      sameOrigin: "limited",
+      crossOrigin: "unsupported",
+    });
+    spatial ??= support;
+    assert.equal(support, spatial);
+    updateWebVRHost(host, { setupOpen: true });
+    assert.equal(getWebVRIframeSupport(host), support);
+    updateWebVRHost(host, { mode: null });
+    assert.equal(getWebVRIframeSupport(host), native);
+  }
+  assert.equal(notifications, 9);
+  unsubscribe();
 });

@@ -1,3 +1,4 @@
+import { NATIVE_IFRAME_SUPPORT, SPATIAL_IFRAME_SUPPORT } from "../types";
 import { DEFAULT_WEBVR_SETTINGS } from "./profiles";
 import type { XRStore } from "@react-three/xr";
 import { createContext } from "react";
@@ -103,9 +104,13 @@ export function updateWebVRHost(
 
   if (
     previous.available !== next.available ||
-    previous.mode !== next.mode || previous.input !== next.input
+    previous.mode !== next.mode ||
+    previous.input !== next.input
   ) {
-    host.state = Object.freeze({ ...createWebVRState(next.available, next.mode), ...(next.input ? { input: next.input } : {}) });
+    host.state = Object.freeze({
+      ...createWebVRState(next.available, next.mode),
+      ...(next.input ? { input: next.input } : {}),
+    });
   }
 
   for (const listener of host.listeners) {
@@ -125,4 +130,11 @@ export function subscribeWebVRHost(
   return () => {
     host.listeners.delete(listener);
   };
+}
+
+/** All current VR modes use spatial snapshot panels, with DOM overlays disabled. */
+export function getWebVRIframeSupport(host: WebVRHost) {
+  return host.snapshot.mode === null
+    ? NATIVE_IFRAME_SUPPORT
+    : SPATIAL_IFRAME_SUPPORT;
 }
