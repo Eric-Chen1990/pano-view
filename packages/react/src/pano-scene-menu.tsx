@@ -118,7 +118,8 @@ export type PanoSceneMenuProps = {
   toggle?: PanoOverlayToggle;
 };
 
-const SCENE_MENU_DRAG_THRESHOLD_PX = 6;
+/** Scroll-axis travel that turns a press into a drag. Below this, release selects. */
+const SCENE_MENU_DRAG_THRESHOLD_PX = 10;
 
 export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: Required<PanoSceneMenuAppearance> =
   {
@@ -283,8 +284,10 @@ export function PanoSceneMenu({
     startOffset: number;
     samples: PointerSample[];
     moved: boolean;
-    suppressClick: boolean;
+    pressItemId: string | null;
   } | null>(null);
+  const suppressClickRef = useRef(false);
+  const suppressClickTimerRef = useRef(0);
   const animRef = useRef<{
     raf: number | null;
     lastTime: number;
@@ -294,6 +297,14 @@ export function PanoSceneMenu({
   const maxOffset = Math.max(0, contentSize - viewportSize);
 
   offsetRef.current = offset;
+
+  const applyOffset = (value: number | ((previous: number) => number)) => {
+    const next = typeof value === "function" ? value(offsetRef.current) : value;
+    // Publish before the next render so a pointerup in this same turn does not
+    // restart inertia from the pre-drag offset and discard the gesture.
+    offsetRef.current = next;
+    setOffset(next);
+  };
 
   const activeIndex = useMemo(() => {
     if (activeId == null) {
@@ -323,11 +334,11 @@ export function PanoSceneMenu({
         dragMotion.bounce && (current < 0 || current > maxOffset);
       const nextVelocity = dragMotion.inertia ? velocity : 0;
       if (!needsSpring && Math.abs(nextVelocity) < 1) {
-        setOffset(clampOffset(current));
+        applyOffset(clampOffset(current));
         return;
       }
       if (!dragMotion.inertia && !dragMotion.bounce) {
-        setOffset(clampOffset(current));
+        applyOffset(clampOffset(current));
         return;
       }
       const anim = {
@@ -353,9 +364,9 @@ export function PanoSceneMenu({
         );
         anim.position = next.position;
         anim.velocity = next.velocity;
-        setOffset(next.position);
+        applyOffset(next.position);
         if (next.settled) {
-          setOffset(clampOffset(next.position));
+          applyOffset(clampOffset(next.position));
           animRef.current = null;
           return;
         }
@@ -372,7 +383,13 @@ export function PanoSceneMenu({
     ],
   );
 
-  useEffect(() => () => cancelScrollAnimation(), [cancelScrollAnimation]);
+  useEffect(
+    () => () => {
+      cancelScrollAnimation();
+      window.clearTimeout(suppressClickTimerRef.current);
+    },
+    [cancelScrollAnimation],
+  );
 
   useLayoutEffect(() => {
     if (!customDrag || !expanded) return;
@@ -400,7 +417,7 @@ export function PanoSceneMenu({
     if (!customDrag) return;
     // Do not fight an active drag or coast/spring animation.
     if (dragRef.current || animRef.current) return;
-    setOffset((previous) => Math.min(maxOffset, Math.max(0, previous)));
+    applyOffset((previous) => Math.min(maxOffset, Math.max(0, previous)));
   }, [customDrag, maxOffset]);
 
   useEffect(() => {
@@ -429,7 +446,7 @@ export function PanoSceneMenu({
       if (itemStart < next) next = itemStart;
       else if (itemEnd > next + listRect.width) next = itemEnd - listRect.width;
       cancelScrollAnimation();
-      setOffset(clampOffset(next));
+      applyOffset(clampOffset(next));
       return;
     }
     const itemStart = itemRect.top - listRect.top + offsetRef.current;
@@ -438,7 +455,7 @@ export function PanoSceneMenu({
     if (itemStart < next) next = itemStart;
     else if (itemEnd > next + listRect.height) next = itemEnd - listRect.height;
     cancelScrollAnimation();
-    setOffset(clampOffset(next));
+    applyOffset(clampOffset(next));
   }, [
     activeId,
     cancelScrollAnimation,
@@ -593,7 +610,7 @@ export function PanoSceneMenu({
       event.preventDefault();
       event.stopPropagation();
       cancelScrollAnimation();
-      setOffset((previous) => clampOffset(previous + event.deltaY));
+      applyOffset((previous) => clampOffset(previous + event.deltaY));
       return;
     }
     if (maxOffset <= 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
@@ -602,17 +619,26 @@ export function PanoSceneMenu({
     event.preventDefault();
     event.stopPropagation();
     cancelScrollAnimation();
-    setOffset((previous) => clampOffset(previous + event.deltaX));
+    applyOffset((previous) => clampOffset(previous + event.deltaX));
   };
 
   const axisPoint = (event: { clientX: number; clientY: number }) =>
     horizontal ? event.clientX : event.clientY;
 
-  const endSuppressClickRef = useRef(false);
+  const armClickSuppression = () => {
+    // The trailing click is dispatched in this task, after pointerup. A
+    // microtask can run before that click and drop the guard too early.
+    suppressClickRef.current = true;
+    window.clearTimeout(suppressClickTimerRef.current);
+    suppressClickTimerRef.current = window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
 
   const beginListDrag = (
     event: ReactPointerEvent<Element>,
     captureTarget: HTMLElement,
+    pressItemId: string | null,
   ) => {
     if (!customDrag || event.button !== 0) return;
     cancelScrollAnimation();
@@ -624,7 +650,7 @@ export function PanoSceneMenu({
       startOffset: offsetRef.current,
       samples: [{ t: now, position: offsetRef.current }],
       moved: false,
-      suppressClick: false,
+      pressItemId,
     };
     try {
       captureTarget.setPointerCapture(event.pointerId);
@@ -638,16 +664,22 @@ export function PanoSceneMenu({
     if (!drag || drag.pointerId !== event.pointerId) return;
     const point = axisPoint(event);
     const delta = point - drag.origin;
-    if (!drag.moved && Math.abs(delta) >= SCENE_MENU_DRAG_THRESHOLD_PX) {
+    // A strip that already fits has nothing to scroll. Keep the press a tap
+    // so edge bounce cannot swallow the scene change.
+    if (
+      !drag.moved &&
+      maxOffset > 0 &&
+      Math.abs(delta) >= SCENE_MENU_DRAG_THRESHOLD_PX
+    ) {
       drag.moved = true;
-      drag.suppressClick = true;
+      armClickSuppression();
     }
     if (!drag.moved) return;
     // Content follows the finger: drag right/down decreases offset.
     const raw = drag.startOffset - delta;
     const now = performance.now();
     drag.samples = pushSample(drag.samples, { t: now, position: raw });
-    setOffset(
+    applyOffset(
       constrainDragPosition(
         raw,
         0,
@@ -664,7 +696,8 @@ export function PanoSceneMenu({
   ) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const suppress = drag.suppressClick;
+    const moved = drag.moved;
+    const pressItemId = drag.pressItemId;
     dragRef.current = null;
     try {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -673,25 +706,42 @@ export function PanoSceneMenu({
     } catch {
       // Ignore release failures for synthetic pointers.
     }
-    if (suppress) {
-      endSuppressClickRef.current = true;
-      queueMicrotask(() => {
-        endSuppressClickRef.current = false;
-      });
-    }
-    if (!drag.moved) return;
+    const travel = Math.abs(offsetRef.current - drag.startOffset);
+    const dragged = moved && travel >= SCENE_MENU_DRAG_THRESHOLD_PX;
     if (event.type === "pointercancel") {
-      setOffset(clampOffset(offsetRef.current));
+      if (moved) {
+        armClickSuppression();
+        applyOffset(clampOffset(drag.startOffset));
+      }
       return;
     }
-    startScrollAnimation(velocityFromSamples(drag.samples));
+    if (dragged) {
+      armClickSuppression();
+      startScrollAnimation(velocityFromSamples(drag.samples));
+      return;
+    }
+    if (moved) {
+      applyOffset(clampOffset(drag.startOffset));
+    }
+    if (!pressItemId) return;
+    // Capture retargets pointerup to the list, so the button click often
+    // never reaches the thumbnail. Select the pressed item on release.
+    armClickSuppression();
+    onSelect?.(pressItemId);
+    // Keep the pressed thumbnail in the tab sequence without the keyboard ring.
+    // Script focus otherwise matches :focus-visible and stacks a square outline
+    // on the rounded selection border until the next click elsewhere.
+    itemRefs.current.get(pressItemId)?.focus({
+      preventScroll: true,
+      focusVisible: false,
+    } as FocusOptions);
   };
 
   const onItemClick = (
     event: ReactMouseEvent<HTMLButtonElement>,
     id: string,
   ) => {
-    if (endSuppressClickRef.current) {
+    if (suppressClickRef.current) {
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -752,7 +802,7 @@ export function PanoSceneMenu({
           }
           onPointerDown={
             customDrag
-              ? (event) => beginListDrag(event, event.currentTarget)
+              ? (event) => beginListDrag(event, event.currentTarget, null)
               : undefined
           }
           onPointerMove={customDrag ? onListPointerMove : undefined}
@@ -779,11 +829,22 @@ export function PanoSceneMenu({
                   data-visited={visited ? "true" : undefined}
                   key={item.id}
                   onClick={(event) => onItemClick(event, item.id)}
+                  onMouseDown={
+                    customDrag
+                      ? (event) => {
+                          if (event.button === 0) {
+                            // Focus would scroll the untransformed layout box
+                            // and slide the thumbnail out from under the pointer.
+                            event.preventDefault();
+                          }
+                        }
+                      : undefined
+                  }
                   onPointerDown={(event) => {
                     event.stopPropagation();
                     const list = listRef.current;
                     if (customDrag && list) {
-                      beginListDrag(event, list);
+                      beginListDrag(event, list, item.id);
                     }
                   }}
                   ref={(node) => {

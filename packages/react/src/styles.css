@@ -784,7 +784,13 @@
   width: var(--pano-scene-menu-item-width, 128px);
 }
 
-.pano-scene-menu-item:focus-visible,
+.pano-scene-menu-item:focus,
+.pano-scene-menu-item:focus-visible {
+  /* The rounded thumb border is the focus indicator. A second outline sits
+     outside that radius and reads as a broken double frame. */
+  outline: none;
+}
+
 .pano-scene-menu-control:focus-visible {
   outline: 2px solid var(--pano-scene-menu-selection-color, #ffffff);
   outline-offset: 2px;
