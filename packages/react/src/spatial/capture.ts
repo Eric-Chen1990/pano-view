@@ -1,5 +1,4 @@
 import {
-  supportsNativeHtmlCapture,
   squareCaptureFooter,
   createCaptureCheckpoint,
   captureOverlayBounds,
@@ -31,104 +30,29 @@ function hideOverlays(
   }
 }
 
-/** Native rendering is capability gated; the DOM clone never owns application state. */
+/** Stop between cloning slices, including when an uninterrupted retry is used. */
+function captureCheckpoint(yielding: boolean, signal?: AbortSignal) {
+  const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
+  return async () => {
+    signal?.throwIfAborted();
+    await checkpoint();
+    signal?.throwIfAborted();
+  };
+}
+
+/** Use the compatible renderer: native HTML-in-Canvas can crash the browser process. */
 async function captureBody(
   element: HTMLElement,
   owner: HTMLElement,
   footer = false,
   resolveOverlays: ResolveSpatialOverlays = () => [],
   yielding = true,
+  signal?: AbortSignal,
 ): Promise<HTMLCanvasElement> {
-  const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const native = ctx as CanvasRenderingContext2D & {
-    drawElementImage?: (node: HTMLElement, x: number, y: number) => void;
-  };
-  canvas.setAttribute("content", "drawable");
-  if (
-    supportsNativeHtmlCapture(
-      canvas as HTMLCanvasElement & {
-        content?: string;
-        requestPaint?: unknown;
-      },
-      native,
-    )
-  ) {
-    canvas.width = WIDTH;
-    canvas.height = BODY_HEIGHT;
-    const clone = element.cloneNode(true) as HTMLElement;
-    // Resolve after clone so the hide list matches nodes present in this snapshot.
-    const overlays = resolveOverlays();
-    const originals = [element, ...element.querySelectorAll<HTMLElement>("*")];
-    const copies = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
-    for (const [i, node] of originals.entries()) {
-      const copy = copies[i];
-      const css = getComputedStyle(node);
-      for (const key of css)
-        copy.style.setProperty(key, css.getPropertyValue(key));
-      if (node.matches("video,canvas,audio")) {
-        const box = document.createElement("div");
-        box.style.cssText = copy.style.cssText;
-        const rect = node.getBoundingClientRect();
-        box.style.width = `${rect.width}px`;
-        box.style.height = `${rect.height}px`;
-        copy.replaceWith(box);
-      }
-      await checkpoint();
-    }
-    hideOverlays(originals, copies, overlays);
-    Object.assign(clone.style, {
-      left: "0",
-      top: "0",
-      transform: "none",
-      position: "relative",
-    });
-    if (footer) squareCaptureFooter(clone.style);
-    clone.setAttribute("drawable", "");
-    canvas.append(clone);
-    owner.append(canvas);
-    originals.forEach((node, i) => {
-      copies[i].scrollTop = node.scrollTop;
-      copies[i].scrollLeft = node.scrollLeft;
-    });
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(
-          () => reject(new Error("HTML paint timed out")),
-          1500,
-        );
-        canvas.addEventListener(
-          "paint",
-          () => {
-            clearTimeout(timer);
-            try {
-              originals.forEach((node, i) => {
-                copies[i].scrollTop = node.scrollTop;
-                copies[i].scrollLeft = node.scrollLeft;
-              });
-              native.drawElementImage!(clone, 0, 0);
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          },
-          { once: true },
-        );
-        (
-          canvas as HTMLCanvasElement & { requestPaint: () => void }
-        ).requestPaint();
-      });
-      if (!native.getImageData(20, 20, 1, 1).data[3])
-        throw new Error("Native HTML capture produced an empty frame");
-      return canvas;
-    } catch {
-      /* Fall through to the compatible renderer. */
-    } finally {
-      canvas.remove();
-    }
-  }
+  signal?.throwIfAborted();
+  const checkpoint = captureCheckpoint(yielding, signal);
   const { domToCanvas } = await import("modern-screenshot");
+  signal?.throwIfAborted();
   // Snapshot a layout clone with media placeholders, avoiding duplicate video decoders.
   const clone = element.cloneNode(true) as HTMLElement;
   // Resolve after the async import + clone so late-mounted markers are hidden.
@@ -173,6 +97,7 @@ async function captureBody(
           box.append(body);
         }
       } catch {
+        signal?.throwIfAborted();
         /* Cross-origin frames use the visible fallback message. */
       }
       copy.replaceWith(box);
@@ -200,7 +125,7 @@ async function captureBody(
     copies[i].scrollLeft = node.scrollLeft;
   });
   try {
-    return await domToCanvas(clone, {
+    const image = await domToCanvas(clone, {
       width: WIDTH,
       height: Math.min(BODY_HEIGHT, element.offsetHeight),
       scale: 2,
@@ -208,6 +133,8 @@ async function captureBody(
       onCloneEachNode: checkpoint,
       timeout: 3000,
     });
+    signal?.throwIfAborted();
+    return image;
   } finally {
     clone.remove();
   }
@@ -217,7 +144,9 @@ async function captureOverlay(
   element: HTMLElement,
   owner: HTMLElement,
   yielding = true,
+  signal?: AbortSignal,
 ): Promise<SpatialCaptureOverlay | null> {
+  signal?.throwIfAborted();
   const origin = element.getBoundingClientRect();
   // Hidden/occluded source annotations must never acquire a raster or hit area.
   if (
@@ -231,7 +160,7 @@ async function captureOverlay(
     originals.map((node) => node.getBoundingClientRect()),
   );
   if (!bounds) return null;
-  const checkpoint = yielding ? createCaptureCheckpoint() : async () => {};
+  const checkpoint = captureCheckpoint(yielding, signal);
   const clone = element.cloneNode(true) as HTMLElement;
   const copies = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
   for (const [index, node] of originals.entries()) {
@@ -260,6 +189,7 @@ async function captureOverlay(
   owner.append(frame);
   try {
     const { domToCanvas } = await import("modern-screenshot");
+    signal?.throwIfAborted();
     const image = await domToCanvas(frame, {
       width: bounds.width,
       height: bounds.height,
@@ -267,6 +197,7 @@ async function captureOverlay(
       onCloneEachNode: checkpoint,
       timeout: 3000,
     });
+    signal?.throwIfAborted();
     return {
       element,
       image,
@@ -287,18 +218,40 @@ export async function captureSpatialSurface(
   footer: boolean,
   resolveOverlays: ResolveSpatialOverlays,
   captures = { body: captureBody, overlays: captureSpatialOverlays },
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   let image: HTMLCanvasElement;
   try {
-    image = await captures.body(element, owner, footer, resolveOverlays);
+    image = await captures.body(
+      element,
+      owner,
+      footer,
+      resolveOverlays,
+      true,
+      signal,
+    );
   } catch {
+    signal?.throwIfAborted();
     // Retry the original uninterrupted clone path before showing a content failure.
-    image = await captures.body(element, owner, footer, resolveOverlays, false);
+    image = await captures.body(
+      element,
+      owner,
+      footer,
+      resolveOverlays,
+      false,
+      signal,
+    );
   }
+  signal?.throwIfAborted();
   // Re-resolve after the body snapshot so late-mounted markers still get a foreground layer.
   const annotations = await captures
-    .overlays(resolveOverlays(), owner)
-    .catch(() => []);
+    .overlays(resolveOverlays(), owner, undefined, signal)
+    .catch(() => {
+      signal?.throwIfAborted();
+      return [];
+    });
+  signal?.throwIfAborted();
   return { image, overlays: annotations };
 }
 
@@ -306,18 +259,24 @@ export async function captureSpatialOverlays(
   overlays: readonly HTMLElement[],
   owner: HTMLElement,
   render = captureOverlay,
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   const captured: SpatialCaptureOverlay[] = [];
   for (const overlay of overlays) {
+    signal?.throwIfAborted();
     try {
       let frame: SpatialCaptureOverlay | null;
       try {
-        frame = await render(overlay, owner);
+        frame = await render(overlay, owner, true, signal);
       } catch {
-        frame = await render(overlay, owner, false);
+        signal?.throwIfAborted();
+        frame = await render(overlay, owner, false, signal);
       }
+      signal?.throwIfAborted();
       if (frame) captured.push(frame);
     } catch {
+      signal?.throwIfAborted();
       // A failed optional layer cannot blank the dialog or the other annotations.
     }
   }

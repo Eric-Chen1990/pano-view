@@ -29,20 +29,20 @@ test("an annotation failure preserves the successfully captured dialog", async (
 
 test("a failed sliced dialog capture retries the original clone path", async () => {
   const attempts: boolean[] = [];
-  const result = await captureSpatialSurface(
-    element,
-    owner,
-    false,
-    () => [],
-    {
-      body: async (_element, _owner, _footer, _resolveOverlays, yielding = true) => {
-        attempts.push(yielding);
-        if (yielding) throw new Error("interrupted capture");
-        return image;
-      },
-      overlays: async () => [],
+  const result = await captureSpatialSurface(element, owner, false, () => [], {
+    body: async (
+      _element,
+      _owner,
+      _footer,
+      _resolveOverlays,
+      yielding = true,
+    ) => {
+      attempts.push(yielding);
+      if (yielding) throw new Error("interrupted capture");
+      return image;
     },
-  );
+    overlays: async () => [],
+  });
   assert.equal(result.image, image);
   assert.deepEqual(attempts, [true, false]);
 });
@@ -108,4 +108,99 @@ test("overlay capture re-resolves after the body capture completes", async () =>
   assert.equal(result.image, image);
   assert.deepEqual(captured, [early, late]);
   assert.equal(result.overlays.length, 2);
+});
+
+test("a cancelled surface does not start or retry body capture", async () => {
+  const controller = new AbortController();
+  let attempts = 0;
+  const captures = {
+    body: async () => {
+      attempts++;
+      controller.abort();
+      throw new Error("interrupted clone");
+    },
+    overlays: async () => [],
+  };
+  await assert.rejects(
+    captureSpatialSurface(
+      element,
+      owner,
+      false,
+      () => [],
+      captures,
+      controller.signal,
+    ),
+    { name: "AbortError" },
+  );
+  assert.equal(attempts, 1);
+  await assert.rejects(
+    captureSpatialSurface(
+      element,
+      owner,
+      false,
+      () => [],
+      captures,
+      controller.signal,
+    ),
+    { name: "AbortError" },
+  );
+  assert.equal(attempts, 1);
+});
+
+test("closing during overlay capture prevents retries and subsequent annotations", async () => {
+  const controller = new AbortController();
+  let attempts = 0;
+  await assert.rejects(
+    captureSpatialOverlays(
+      [element, element],
+      owner,
+      async () => {
+        attempts++;
+        controller.abort();
+        throw new Error("closed while decoding");
+      },
+      controller.signal,
+    ),
+    { name: "AbortError" },
+  );
+  assert.equal(attempts, 1);
+});
+
+test("a late result from a closed surface is discarded while a reopened surface completes", async () => {
+  const controller = new AbortController();
+  let complete!: (value: HTMLCanvasElement) => void;
+  let annotations = 0;
+  const old = captureSpatialSurface(
+    element,
+    owner,
+    false,
+    () => [],
+    {
+      body: () =>
+        new Promise<HTMLCanvasElement>((resolve) => {
+          complete = resolve;
+        }),
+      overlays: async () => {
+        annotations++;
+        return [];
+      },
+    },
+    controller.signal,
+  );
+  controller.abort();
+  const reopened = await captureSpatialSurface(
+    element,
+    owner,
+    false,
+    () => [],
+    {
+      body: async () => image,
+      overlays: async () => [],
+    },
+    new AbortController().signal,
+  );
+  complete(image);
+  await assert.rejects(old, { name: "AbortError" });
+  assert.equal(annotations, 0);
+  assert.equal(reopened.image, image);
 });

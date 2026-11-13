@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.3.4
+
+### Patch Changes
+
+- Always snapshot spatial dialogs with the compatible renderer. The experimental HTML-in-Canvas path can crash the browser process. Abort an in-flight capture when its panel closes or is replaced, so a finished obsolete task cannot unlock the next panel's capture.
+
 ## 5.3.3
 
 ### Patch Changes
