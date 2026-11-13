@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.4.2
+
+### Patch Changes
+
+- Keep a scene menu thumbnail's selection border as one rounded frame after a pointer press. Pointer focus no longer stacks a square outline on that border.
+
 ## 5.4.1
 
 ### Patch Changes

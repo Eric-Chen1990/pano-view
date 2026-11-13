@@ -728,7 +728,13 @@ export function PanoSceneMenu({
     // never reaches the thumbnail. Select the pressed item on release.
     armClickSuppression();
     onSelect?.(pressItemId);
-    itemRefs.current.get(pressItemId)?.focus({ preventScroll: true });
+    // Keep the pressed thumbnail in the tab sequence without the keyboard ring.
+    // Script focus otherwise matches :focus-visible and stacks a square outline
+    // on the rounded selection border until the next click elsewhere.
+    itemRefs.current.get(pressItemId)?.focus({
+      preventScroll: true,
+      focusVisible: false,
+    } as FocusOptions);
   };
 
   const onItemClick = (
