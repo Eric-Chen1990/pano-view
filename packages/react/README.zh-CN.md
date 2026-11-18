@@ -1210,6 +1210,7 @@ export function VideoExample() {
 - `src` — 单个视频文件或 HLS 清单；与 `variants` 二选一。
 - `poster` — 封面图。多档时也可写在各 `variants[].poster`。
 - `variants` / `defaultVariantId` — 多分辨率列表；找不到 `defaultVariantId` 时回退到第一项。切换档位保留当前时间与播放/暂停状态。
+- `fallbackVariantId` — 可选。在活动源因解码、格式支持或纹理尺寸错误无法继续时，尝试指定变体一次，并恢复可用的播放进度和播放状态。
 - `tracks` — WebVTT 字幕轨。每项可含 `src`、`srcLang`、`label`、`default`、`id`（省略时用 `srcLang`）、`kind`（`"subtitles"` 或 `"captions"`，默认 `"subtitles"`）。
 - `captions` — `true` / 省略显示默认字幕层；`false` 隐藏叠加层与语言菜单；对象与默认外观合并。默认外观：`color` `#ffffff`，`background` `rgba(0, 0, 0, 0.55)`，`fontSize` `16`，`fontFamily` Inter / system-ui，`fontWeight` `500`，`textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`，`padding` `"6px 10px"`，`borderRadius` `6`，`maxWidth` `"72%"`，`bottom` `72`，`lineHeight` `1.35`。
 - `controls` — `true` / 省略挂载默认播放栏；`false` 隐藏；对象重设默认实例外观。外观字段：`background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）、`padding`（`"8px 10px"`）。也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件替换默认条（同样接收 `appearance`）。

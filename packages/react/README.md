@@ -1282,6 +1282,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `src` — video file or HLS playlist; mutually exclusive with `variants`.
 - `poster` — cover image. Variants may also set `variants[].poster`.
 - `variants` / `defaultVariantId` — multi-quality list; missing `defaultVariantId` falls back to the first item. Switching keeps current time and play/pause.
+- `fallbackVariantId` — optionally try this variant once when the active source fails with a decoding, format support, or texture size error. Restores playback position and state where possible.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
 - `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
