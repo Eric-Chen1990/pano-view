@@ -21,6 +21,11 @@ import {
   PanoVideoHostContext,
   useClaimPanoVideoControls,
 } from "./host";
+import {
+  hlsQualityMenuItems,
+  videoQualityButtonLabel,
+  videoQualitySwitchStatus,
+} from "./quality-label";
 import type {
   PanoVideoController,
   PanoVideoControlsAppearance,
@@ -814,13 +819,13 @@ export function PanoVideoControlsHud({
   const explicitVariants = snapshot.variants.length > 1;
   const canSwitchVariant = explicitVariants || (hlsQuality?.levels.length ?? 0) > 1 ||
     Boolean(hlsQuality && typeof hlsQuality.selectedLevel === "number");
-  const resolution = hlsQuality?.resolution;
-  const qualityLabel = explicitVariants
-    ? snapshot.variants.find((variant) => variant.id === snapshot.variantId)?.label ?? "Quality"
-    : hlsQuality?.selectedLevel === "auto"
-      ? resolution ? `Auto · ${resolution.height}p` : "Auto"
-      : resolution ? `${resolution.height}p` : "Quality";
-  const switchLabel = qualitySwitch?.state === "awaiting-gesture" ? "Tap to switch" : "Switching…";
+  const qualityLabel = videoQualityButtonLabel({
+    variantId: snapshot.variantId,
+    variants: snapshot.variants,
+    hlsQuality,
+    qualitySwitch,
+  });
+  const switchLabel = qualitySwitch ? videoQualitySwitchStatus(qualitySwitch.state) : undefined;
   const showCaptionsMenu = snapshot.captionsEnabled && snapshot.tracks.length > 0;
 
   const closeMenu = () => {
@@ -867,37 +872,30 @@ export function PanoVideoControlsHud({
     case "variant": {
       const pendingTarget = qualitySwitch?.target;
       const pendingVariant = pendingTarget && "variantId" in pendingTarget ? pendingTarget.variantId : undefined;
-      const pendingLevel = pendingTarget && "level" in pendingTarget ? pendingTarget.level : undefined;
       const items: ChromeMenuItem[] = explicitVariants
         ? snapshot.variants.map((variant) => ({
             id: variant.id,
-            label: pendingVariant === variant.id ? `${variant.label} · ${switchLabel}` : variant.label,
-            active: snapshot.variantId === variant.id,
+            label: pendingVariant === variant.id && switchLabel
+              ? `${variant.label} · ${switchLabel}`
+              : variant.label,
+            active: (pendingVariant ?? snapshot.variantId) === variant.id,
             onSelect: () => {
               controller.setVariantId(variant.id);
               closeMenu();
             },
           }))
-        : (["auto", ...(hlsQuality?.levels ?? [])] as const).map((option) => {
-            const level = option === "auto" ? option : option.index;
-            let label = option === "auto" ? "Auto"
-              : option.width && option.height ? `${option.width} × ${option.height}`
-              : `${Math.round(option.bitrate / 1000)} kbps`;
-            if (option !== "auto" && option.width && option.height && hlsQuality?.levels.some(
-              (other) => other.index !== option.index && other.width === option.width && other.height === option.height,
-            )) {
-              label += ` · ${Math.round(option.bitrate / 1000)} kbps`;
-            }
-            return {
-              id: String(level),
-              label: pendingLevel === level ? `${label} · ${switchLabel}` : label,
-              active: hlsQuality?.selectedLevel === level,
-              onSelect: () => {
-                controller.setHlsLevel?.(level);
-                closeMenu();
-              },
-            };
-          });
+        : hlsQualityMenuItems(
+            hlsQuality ?? { levels: [], selectedLevel: "auto", activeLevel: null },
+            qualitySwitch,
+          ).map((item) => ({
+            id: item.id,
+            label: item.label,
+            active: item.active,
+            onSelect: () => {
+              controller.setHlsLevel?.(item.id === "auto" ? "auto" : Number(item.id));
+              closeMenu();
+            },
+          }));
       menuNode = (
         <ChromeMenu
           appearance={resolved}
@@ -949,7 +947,7 @@ export function PanoVideoControlsHud({
               ? [
                   {
                     id: "variant",
-                    label: qualitySwitch ? `Quality · ${switchLabel}` : `Quality · ${qualityLabel}`,
+                    label: `Quality · ${qualityLabel}`,
                     active: false,
                     onSelect: () => {
                       setMenu("variant");
@@ -1022,13 +1020,13 @@ export function PanoVideoControlsHud({
       {!compact && menu === "variant" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
-        label={qualitySwitch ? `Resolution, ${switchLabel}` : "Resolution"}
+        label={switchLabel ? `Resolution, ${qualityLabel}` : "Resolution"}
         onClick={() => {
           toggleMenu("variant");
         }}
       >
         <span className="pano-video-chrome-label" id={`${barId}-variant-btn`}>
-          {qualitySwitch ? `${qualityLabel} · ${switchLabel}` : qualityLabel}
+          {qualityLabel}
         </span>
       </ChromeButton>
     </div>
