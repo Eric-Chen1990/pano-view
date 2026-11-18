@@ -1279,7 +1279,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 
 ### Props
 
-- `src` — single-file shortcut; mutually exclusive with `variants`.
+- `src` — video file or HLS playlist; mutually exclusive with `variants`.
 - `poster` — cover image. Variants may also set `variants[].poster`.
 - `variants` / `defaultVariantId` — multi-quality list; missing `defaultVariantId` falls back to the first item. Switching keeps current time and play/pause.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
@@ -1292,7 +1292,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `autoPlay` — default `false`. When `true`, counts as media-activation intent.
 - `playsInline` — default `true`.
 - `preload` — `"none"` | `"metadata"` | `"auto"`, default `"metadata"`.
-- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; omit to leave unset.
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; native HLS defaults to anonymous.
 - `playbackRates` — speed menu list, default `[0.5, 1, 1.25, 1.5, 2]`.
 - `visible` — default `true`; `false` preloads without drawing.
 - `onLoad` — when the video becomes playable.
@@ -1300,6 +1300,20 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`.
 - `onEnded` — when playback reaches the end without looping.
 - `onVariantChange` / `onTrackChange` — current variant id, or current track id (`null` when none).
+
+### HLS playback
+
+Pass a multivariant HLS playlist to enable the quality menu and automatic bitrate selection.
+
+```tsx
+<PanoVideo src="/360/tour/master.m3u8" crossOrigin="anonymous" />
+```
+
+PanoVideo loads hls.js on demand where supported and uses native HLS otherwise. Both paths display the resolution reported by the video while in Auto. An HLS URL without a `.m3u8` extension can use `type: "application/vnd.apple.mpegurl"` in `variants[].sources`. Cross-origin playlists, segments, and keys need CORS headers. Native HLS uses anonymous CORS by default.
+
+Both engines support audio inside the video segments, separate audio declared by `EXT-X-MEDIA:TYPE=AUDIO`, and silent video. Associate independent audio and video URLs in a multivariant playlist. For native manual selection of variants with separate audio or other master-level dependencies, supply independently playable single-variant master URLs via `variants`. Include the original multivariant playlist as an explicit Auto variant when offering both choices through `variants`.
+
+For native manual switches, use aligned on-demand renditions. The current video keeps playing while the requested rendition buffers. A browser may require a second tap for audible playback, and an unready rendition can time out. Custom controls can read `getSnapshot().hlsQuality` and `qualitySwitch`, call `setHlsLevel?.(index)` to lock a discovered quality, or call `setHlsLevel?.("auto")` to resume adaptation. Use `setVariantId` for explicitly configured variants.
 
 ## Tile
 

@@ -1207,7 +1207,7 @@ export function VideoExample() {
 
 ### 属性
 
-- `src` — 单文件快捷方式；与 `variants` 二选一。
+- `src` — 单个视频文件或 HLS 清单；与 `variants` 二选一。
 - `poster` — 封面图。多档时也可写在各 `variants[].poster`。
 - `variants` / `defaultVariantId` — 多分辨率列表；找不到 `defaultVariantId` 时回退到第一项。切换档位保留当前时间与播放/暂停状态。
 - `tracks` — WebVTT 字幕轨。每项可含 `src`、`srcLang`、`label`、`default`、`id`（省略时用 `srcLang`）、`kind`（`"subtitles"` 或 `"captions"`，默认 `"subtitles"`）。
@@ -1220,7 +1220,7 @@ export function VideoExample() {
 - `autoPlay` — 默认 `false`。为 `true` 时会作为媒体激活的触发条件。
 - `playsInline` — 默认 `true`。
 - `preload` — `"none"` | `"metadata"` | `"auto"`，默认 `"metadata"`。
-- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`；省略则不设。
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`；原生 HLS 默认匿名。
 - `playbackRates` — 倍速菜单列表，默认 `[0.5, 1, 1.25, 1.5, 2]`。
 - `visible` — 默认 `true`；`false` 时预加载但不绘制。
 - `onLoad` — 视频可播放时。
@@ -1228,6 +1228,20 @@ export function VideoExample() {
 - `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`。
 - `onEnded` — 播放到结尾（未循环时）。
 - `onVariantChange` / `onTrackChange` — 当前档位 id，或当前字幕轨 id（无轨时为 `null`）。
+
+### HLS 播放
+
+传入多档 HLS 主清单，即可启用自动清晰度和手动选档。
+
+```tsx
+<PanoVideo src="/360/tour/master.m3u8" crossOrigin="anonymous" />
+```
+
+`PanoVideo` 在支持的浏览器中按需加载 hls.js，其余支持 HLS 的浏览器走原生播放。自动模式显示视频实际报告的分辨率。URL 无 `.m3u8` 后缀时，可在 `variants[].sources` 里指定 `type: "application/vnd.apple.mpegurl"`。跨域清单、分片、密钥需要 CORS 响应头。原生 HLS 默认使用匿名 CORS。
+
+支持分片内嵌音轨、由 `EXT-X-MEDIA:TYPE=AUDIO` 关联的独立音轨和无音轨视频。独立的音视频地址由宿主在主清单内配对。原生模式下，依赖独立音轨等主清单信息的档位可通过 `variants` 传入各档完整可播的单档主清单。需要同时提供自动选档时，将原始多档主清单作为一个「自动」档位。
+
+原生手动切换适用于时间轴对齐的点播档位。目标档缓冲期间继续播放当前档。有声交接可能需要再次点击，目标档超时则保留当前档。自定义控件可读 `getSnapshot().hlsQuality` 和 `qualitySwitch`，调用 `setHlsLevel?.(index)` 锁定发现的档位，或调用 `setHlsLevel?.("auto")` 返回自动。显式配置的档位仍使用 `setVariantId`。
 
 ## Tile
 
