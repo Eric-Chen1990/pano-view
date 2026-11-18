@@ -1,3 +1,4 @@
+import { aimComparePointer, CompareHostContext, type PanoCompareSide } from "../compare/view";
 import { pointerInput, pointerStick } from "../webvr/input";
 import { dispatchGazeHotspotClick } from "../webvr/gaze-target";
 import { hotspotScaleMode, tooltipScaleMode as resolveTooltipScaleMode } from "../../../../shared/hotspot-rendering";
@@ -128,6 +129,7 @@ type DragState = {
   pointerId: number;
   startPosition: HotspotPosition;
   pointerOrigin: HotspotPosition;
+  paneSide?: PanoCompareSide;
   lastPosition: HotspotPosition;
   releaseInteractionLock: () => void;
   moved: boolean;
@@ -248,30 +250,6 @@ function aimDragRaycaster(
   camera.updateMatrixWorld();
   DRAG_RAYCASTER.setFromCamera(DRAG_POINTER, camera);
   return true;
-}
-
-function pointerToPanoPosition(
-  event: { clientX: number; clientY: number },
-  element: HTMLElement,
-  camera: Camera,
-): HotspotPosition | null {
-  if (!aimDragRaycaster(event, element, camera)) {
-    return null;
-  }
-  return vector3ToPanoPosition(DRAG_RAYCASTER.ray.direction);
-}
-
-function pointerHitsHotspot(
-  event: { clientX: number; clientY: number },
-  element: HTMLElement,
-  camera: Camera,
-  group: Object3D | null,
-): boolean {
-  if (!group || !aimDragRaycaster(event, element, camera)) {
-    return false;
-  }
-  group.updateMatrixWorld(true);
-  return DRAG_RAYCASTER.intersectObject(group, true).length > 0;
 }
 
 function isTooltipOpen(
@@ -602,6 +580,13 @@ export function HotspotAnchor({
   const eventBus = useContext(PanoEventBusContext);
   const cursorApi = usePanoCursor();
   const { camera, gl, size } = useThree();
+  const compareHost = useContext(CompareHostContext);
+  const aimPointer = (event: { clientX: number; clientY: number }, side?: PanoCompareSide) => {
+    const pane = aimComparePointer(compareHost, event, gl.domElement, camera, size, gl.getPixelRatio(), DRAG_POINTER, side);
+    if (!pane) return { valid: aimDragRaycaster(event, gl.domElement, camera) };
+    DRAG_RAYCASTER.setFromCamera(DRAG_POINTER, pane.camera);
+    return { valid: true, side: pane.side };
+  };
   const groupRef = useRef<Object3D>(null);
   const selectionFrameRef = useRef<Object3D>(null);
   const tooltipAnchorRef = useRef<Object3D>(null);
@@ -808,6 +793,7 @@ export function HotspotAnchor({
   ]);
 
   useFrame((state) => {
+    const pane = compareHost?.getPane(state.camera, state.size, gl.getPixelRatio(), "before");
     const group = groupRef.current;
     if (!group) {
       return;
@@ -829,7 +815,7 @@ export function HotspotAnchor({
       selectionFrameRef.current,
       group,
       state.camera,
-      state.size.height,
+      pane?.rect.height ?? state.size.height,
     );
     if (tooltipOpen && tooltipAnchorRef.current) {
       updateTooltipAnchor(
@@ -837,8 +823,8 @@ export function HotspotAnchor({
         group,
         tooltipPlacement,
         useAngularScale,
-        state.camera,
-        state.size,
+        pane?.camera ?? state.camera,
+        pane?.rect ?? state.size,
         Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
@@ -850,14 +836,13 @@ export function HotspotAnchor({
   };
 
   const dragPosition = (dragState: DragState, event: DragPointerLike) => {
-    const pointerPosition = pointerToPanoPosition(event, gl.domElement, camera);
-    if (!pointerPosition) {
+    if (!aimPointer(event, dragState.paneSide).valid) {
       return dragState.lastPosition;
     }
     return translateHotspotPosition(
       dragState.startPosition,
       dragState.pointerOrigin,
-      pointerPosition,
+      vector3ToPanoPosition(DRAG_RAYCASTER.ray.direction),
     );
   };
 
@@ -900,12 +885,10 @@ export function HotspotAnchor({
     if (!emitDragEnd) {
       return;
     }
-    const overHotspot = pointerHitsHotspot(
-      nativeEvent,
-      gl.domElement,
-      camera,
-      groupRef.current,
-    );
+    const group = groupRef.current;
+    group?.updateMatrixWorld(true);
+    const overHotspot = !!group && aimPointer(nativeEvent).valid &&
+      DRAG_RAYCASTER.intersectObject(group, true).length > 0;
     eventHovered.current = overHotspot;
     setHovered(overHotspot);
     if (moved && typeof window !== "undefined") {
@@ -981,9 +964,8 @@ export function HotspotAnchor({
         stopPointerEvent(event);
         const releaseInteractionLock =
           controlsRef?.current?.acquireInteractionLock() ?? (() => undefined);
-        const pointerOrigin =
-          pointerToPanoPosition(native, gl.domElement, camera) ??
-          vector3ToPanoPosition(event.ray.direction);
+        const pointer = aimPointer(native);
+        const pointerOrigin = vector3ToPanoPosition(pointer.valid ? DRAG_RAYCASTER.ray.direction : event.ray.direction);
         const startPosition = { ...normalizedPosition };
         const tracksOutsideMesh = typeof window !== "undefined";
         const stopTracking = tracksOutsideMesh
@@ -999,6 +981,7 @@ export function HotspotAnchor({
           pointerId,
           startPosition,
           pointerOrigin,
+          paneSide: pointer.side,
           lastPosition: startPosition,
           releaseInteractionLock,
           moved: false,

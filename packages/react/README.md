@@ -16,6 +16,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
 - [Examples](#examples)
+- [PlanarTileViewer](#planartileviewer)
 - [Exported components](#exported-components)
 - [PanoViewer](#panoviewer)
 - [DOM overlays and dialogs](#dom-overlays-and-dialogs)
@@ -23,6 +24,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
 - [Scenes](#scenes)
+- [PanoCompare](#panocompare)
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [AutoRotate](#autorotate)
@@ -496,7 +498,7 @@ Hotspot mapping covers images, SVG image URLs, audio source arrays, video poster
 
 `PanoDataError` exposes stable codes: `INVALID_OPTIONS`, `FETCH_FAILED`, `HTTP_ERROR`, `INVALID_JSON`, `INVALID_CONFIG`, `UNSUPPORTED_SCHEMA_VERSION`, `UNSUPPORTED_PROJECTION`, `INVALID_PROJECT`, `INVALID_REFERENCE`, `ABORTED`. HTTP errors carry `status`; project errors include `sceneId` and `field` where available. Successful loading means metadata is ready, not that textures have loaded; use `onSceneReady` for render readiness.
 
-See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example. `/map` shows the floor-plan overlay on that tour.
+See the `/project` playground route and its [sample project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json) for a complete static example. `/map` shows the floor-plan overlay on that tour.
 
 ## krpano-compatible tile output
 
@@ -686,6 +688,102 @@ export function Tour() {
 ~~~
 
 Presets and hotspot rendering are in [Scenes](#scenes).
+
+## PlanarTileViewer
+
+Use `PlanarTileViewer` to pan and zoom one flat image. Generate the tiles once
+with the converter and serve the complete output directory over HTTP.
+
+```sh
+pano-convert scan.png --projection planar -o ./public/scan
+```
+
+```tsx
+import { PlanarTileViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileViewer
+  manifestUrl="/scan/manifest.json"
+  alt="A scanned architectural drawing"
+  maxScale={3}
+  dragMotion={{ bounce: false }}
+  style={{ height: 480 }}
+/>;
+```
+
+Give the component a height through `style`, `className`, or its parent.
+The viewer accepts the converter's default Deep Zoom and custom planar
+`manifest.json` layouts with zero tile overlap. Keep asset paths relative to the
+manifest. For a cross-origin CDN, enable CORS for the manifest, thumbnail, and tiles.
+
+Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
+buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
+to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
+progressive loading and requests detail tiles for the current viewport.
+Scales use the fitted image as `1×`.
+
+| Prop | Default | Behavior |
+| --- | --- | --- |
+| `maxScale` | Automatic | The automatic upper limit uses the highest tile resolution and effective screen pixel density, with at least `2×` zoom. An explicit limit applies to all inputs, including pinch and momentum. Set `1` for fit-only viewing. |
+| `initialScale` | `1` | Centered zoom when a source first opens, clamped from `1` to the maximum. Fit always returns to `1×`. |
+| `dragMotion` | `{ inertia: true, bounce: true }` | Disable either effect independently. `{ bounce: false }` clamps the image at the edges while retaining inertia. Pass `false` to disable both. |
+| `showZoomControls` | `true` | Shows the zoom and Fit buttons. Wheel, touch, and keyboard controls remain available when the buttons are hidden. |
+
+Finite `maxScale` values below `1` are clamped to `1`. A non-finite
+`maxScale` uses the automatic limit. Wheel and button zoom ease toward the
+target. The system's reduced-motion preference disables animated movement.
+
+### PlanarTileCompare
+
+Use the same planar manifests to compare one or more image pairs in a standalone viewer.
+
+```tsx
+import { PlanarTileCompare } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileCompare
+  scenes={[{
+    id: "scan",
+    title: "Restoration",
+    before: { manifestUrl: "/original/manifest.json", alt: "Original scan" },
+    after: { manifestUrl: "/restored/manifest.json", alt: "Restored scan" },
+  }]}
+  style={{ height: 480 }}
+/>;
+```
+
+Pan and zoom from either side. The default `presentation="wipe"` uses a draggable
+divider. Use `"split-view"` for two equal panes that each fit the whole image
+at `1×`. Both presentations support `layout="left-right"` (default) and
+`"top-bottom"`. Use `split` and `onSplitChange` to control the wipe from 0 to 1,
+or set its starting position with `defaultSplit` (default `0.5`).
+In either presentation, `dividerColor` accepts a CSS color and `dividerWidth`
+sets the visible thickness in CSS pixels. The defaults are white and `2`;
+non-positive or non-finite widths use the default.
+
+Each image retains its aspect ratio. For pixel-aligned wipes, prepare images
+with the same aspect ratio and register their contents before generating tiles.
+`minScale` controls the minimum zoom for both images. Omit it to keep the
+default `1×` floor with pinch bounce. A finite value is raised to at least `1`
+and enforced during pinch and inertia. A non-finite value behaves like omission.
+Automatic zoom uses the lower of the two resolution-based limits, raised to
+the minimum if needed. An explicit `maxScale` takes precedence if it falls
+below `minScale`. With equal limits, the zoom is fixed and panning remains available.
+
+`initialScale` defaults to `1` and is clamped to the range on first open. Pair
+switches carry the current view forward within the range. The Fit button and
+the `Home` and `0` keys center the images at their minimum scale. The button
+reads Reset view when that scale is greater than `1×`. `dragMotion` and
+`showZoomControls` work as with `PlanarTileViewer`.
+
+Use unique scene IDs. Set `defaultActiveSceneId` to start at a different pair,
+or control selection with `activeSceneId` and `onActiveSceneIdChange`. Set
+`showScenePicker={false}` to hide the picker. The visible pair stays on screen
+until both incoming images can be drawn. `onSceneReady(id)` reports when the
+pair first appears, and `onSceneError({ sceneId, side, error })` reports a load
+failure. The viewer offers a retry for the requested pair.
+
+[Open the Playground flat image comparison](https://pano-view-playground.vercel.app/planar-compare).
 
 ## Exported components
 
@@ -1446,6 +1544,36 @@ a single non-stereo cube panorama.
 - `onLevelChange` — current cube level, **1-based** (`SphereTile` logical levels are 0-based).
 
 Inside `Scenes` with `type: "tile"`, the shared texture cache overrides per-scene `maxTextureMemoryMb`, `maxConcurrentLoads`, and `retryCount` (the shared provider fixes retry at `1`). Visibility, `loadMode`, and the callbacks above are owned by `Scenes` and should not be set on the scene object.
+
+## PanoCompare
+
+Use `PanoCompare` as the panorama source inside `PanoViewer`. Each entry pairs two `sphere`, `tile`, or `sphereTile` source definitions. Give the pair a stable, unique `id`.
+
+```tsx
+<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
+  <PanoCompare
+    scenes={[{ id: "room", before: originalRoom, after: renovatedRoom }]}
+    presentation="split-view"
+    layout="left-right"
+    dividerColor="#38bdf8"
+    dividerWidth={4}
+  />
+</PanoViewer>
+```
+
+`presentation="wipe"` is the default. Both images use the full viewer projection, and the draggable divider reveals part of each image. `"split-view"` gives each image a complete, centered view in an equal pane. Both presentations support `"left-right"` (default) and `"top-bottom"`. Use `split` with `onSplitChange` to control the wipe from 0 to 1, or use `defaultSplit` to set its initial value (default 0.5). Switching to split view moves the two camera centers outward. Switching back brings them together. Layout changes crossfade. Both transitions respect the system’s reduced-motion preference.
+
+Use `activeSceneId`, `defaultActiveSceneId`, and `onActiveSceneIdChange` as with `Scenes`. Pair IDs work with the viewer's scene navigation and `PanoSceneMenu`. A pair stays visible until both incoming sources can be displayed. Tiled sources use their previews for this handoff. `onSceneReady(id)` fires when the pair takes over. `onSceneError({ sceneId, side, error })` reports a load failure that prevents the switch. The current view carries forward, with any fields supplied by the new pair's `initialView` applied on arrival.
+
+Set the shared zoom range with `viewLimits.fov` on the containing `PanoViewer`.
+It sets the vertical field of view in degrees. Smaller angles zoom in further.
+`dividerColor` and `dividerWidth` customize the line in both presentations.
+They default to white and `2` CSS pixels. Non-positive or non-finite widths
+use the default.
+
+`renderHotspots(scene)` mounts one set of hotspots, projected into both panes in split view. Viewer overlays, dialogs, and hotspot actions are shared. An embedded iframe has a separate document in each pane. When the viewer enters WebVR, the active pair's `before` source fills the view. Exiting restores the comparison.
+
+[Open the Playground comparison example](https://pano-view-playground.vercel.app/compare).
 
 ## Scenes
 

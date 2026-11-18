@@ -11,6 +11,11 @@ export const PAGE_META = {
     description:
       "Start with a single React panorama. Compare Sphere images and Tile cube sources, resource paths, previews and loading diagnostics.",
   },
+  "/planar-image": {
+    title: "Tiled Flat Image Demo | Pano View",
+    description:
+      "Pan and zoom a high-resolution flat image. The React viewer loads visible image tiles as you zoom into the floor plan.",
+  },
   "/controls": {
     title: "Panorama View Controls Demo | Pano View",
     description:
@@ -45,6 +50,14 @@ export const PAGE_META = {
     title: "Static 360° Tour Demo | Pano View",
     description:
       "Explore a React panorama tour built from static JSON, with linked scenes, interactive hotspots, view actions, and reusable popup content.",
+  },
+  "/compare": {
+    title: "Panorama Comparison Demo | Pano View",
+    description: "Compare synchronized 360° panoramas with a draggable wipe or two complete views, arranged side by side or stacked.",
+  },
+  "/planar-compare": {
+    title: "Flat Image Comparison Demo | Pano View",
+    description: "Compare multiresolution flat images with synchronized pan and zoom, a draggable wipe, or equal panes.",
   },
   "/scene-transitions": {
     title: "Panorama Scene Transitions Demo | Pano View",

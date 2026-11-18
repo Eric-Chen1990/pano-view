@@ -3,7 +3,9 @@ import { SpatialHostContext, createSpatialHost } from "./spatial/host";
 import { SpatialPanels } from "./spatial/panel";
 import { SpatialMediaControls } from "./spatial/media-controls";
 import { parseViewLimits, type PanoViewLimits } from "./view-limits";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, events as createPointerEvents, type RootStore } from "@react-three/fiber";
+import { CompareChrome } from "./compare/chrome";
+import { aimComparePointer, CompareHostContext, createCompareHost } from "./compare/view";
 import { createXRStore, XR } from "@react-three/xr";
 import {
   forwardRef,
@@ -356,6 +358,21 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     );
     const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
+    const compareHost = useMemo(createCompareHost, []);
+    const pointerEvents = useCallback((store: RootStore) => {
+      const events = createPointerEvents(store);
+      return {
+        ...events,
+        compute(event, state, previous) {
+          const pane = aimComparePointer(
+            compareHost, event, state.gl.domElement, state.camera,
+            state.size, state.gl.getPixelRatio(), state.pointer,
+          );
+          if (pane) state.raycaster.setFromCamera(state.pointer, pane.camera);
+          else events.compute?.(event, state, previous);
+        },
+      } satisfies typeof events;
+    }, [compareHost]);
     const bgmHost = useMemo(() => createBackgroundAudioHost(), []);
     const mediaActivationHost = useMemo(() => createPanoMediaActivationHost(), []);
     const mediaActivationOptions = useMemo<PanoMediaActivationOptions | null>(
@@ -879,6 +896,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         <div data-pano-background="" inert={modalOpen} style={{ position: "absolute", inset: 0 }}>
         <Canvas
           aria-label={`${ariaLabel} canvas`}
+          className="pano-render-surface"
+          events={pointerEvents}
           // Container-only resizes also use react-use-measure's scroll debounce.
           resize={{ debounce: 0 }}
           camera={{
@@ -927,6 +946,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   <ScenesHostContext.Provider value={scenesHost}>
                   <BackgroundAudioHostContext.Provider value={bgmHost}>
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
+                  <CompareHostContext.Provider value={compareHost}>
                   <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={setControlsRuntime}
@@ -967,6 +987,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                       userControlsEnabled={userControlsEnabled}
                     />
                   </ControlClaimsContext.Provider>
+                  </CompareHostContext.Provider>
                   </PanoMediaActivationHostContext.Provider>
                   </BackgroundAudioHostContext.Provider>
                   </ScenesHostContext.Provider>
@@ -990,6 +1011,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           ref={setOverlayNode}
         >
           <div hidden={vrActive} inert={vrActive}>
+          <CompareChrome host={compareHost} />
           <PanoVideoChromeBridge
             fullscreen={contextMenuActions}
             host={videoHost}

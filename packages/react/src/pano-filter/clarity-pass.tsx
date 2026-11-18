@@ -70,6 +70,7 @@ export function PanoClarityPass({ views }: { views: Map<Camera, PanoClarityView>
     const buffers: PanoClarityView[] = [];
     const viewport = new Vector4();
     const logicalViewport = new Vector4();
+    const logicalScissor = new Vector4();
     const clearColor = new Color();
     const previous = scene.onBeforeRender;
 
@@ -126,7 +127,10 @@ export function PanoClarityPass({ views }: { views: Map<Camera, PanoClarityView>
       const savedXR = renderer.xr.enabled;
       renderer.getClearColor(clearColor);
       renderer.getCurrentViewport(viewport);
-      if (!savedTarget) renderer.getViewport(logicalViewport);
+      if (!savedTarget) {
+        renderer.getViewport(logicalViewport);
+        renderer.getScissor(logicalScissor);
+      }
       try {
         renderer.xr.enabled = false;
         renderer.autoClear = false;
@@ -169,7 +173,10 @@ export function PanoClarityPass({ views }: { views: Map<Camera, PanoClarityView>
         renderer.setRenderTarget(savedTarget, savedFace, savedMipLevel);
         // setRenderTarget(null) floors fractional DPR coordinates, while
         // setViewport rounds them. Restore the caller's screen viewport.
-        if (!savedTarget) renderer.setViewport(logicalViewport);
+        if (!savedTarget) {
+          renderer.setViewport(logicalViewport);
+          if (renderer.getScissorTest()) renderer.setScissor(logicalScissor);
+        }
         renderer.setClearColor(clearColor, savedAlpha);
         renderer.autoClear = savedAutoClear;
         renderer.xr.enabled = savedXR;

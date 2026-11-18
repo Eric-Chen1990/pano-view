@@ -1,5 +1,11 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "rewrites": [
+    {
+      "source": "/:asset(fixtures/(?!hotspots/embed(?:\\.html)?(?:/|$)).+|apple-touch-icon\\.png|favicon\\.ico|logo\\.png|og-image\\.jpg)",
+      "destination": "https://p0dpauoba3zzud4x.public.blob.vercel-storage.com/pano-view/playground/v1/:asset"
+    },
+    { "source": "/(.*)", "destination": "/" }
+  ]
 }

@@ -953,3 +953,331 @@
 .pano-scroll-controls [data-scroll-direction="right"] { width:44px; top:50%; transform:translateY(-50%); }
 .pano-scroll-controls [data-scroll-direction="left"] { left:6px; }
 .pano-scroll-controls [data-scroll-direction="right"] { right:6px; }
+
+.pano-planar-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: #101217;
+  color: #fff;
+}
+
+.pano-planar-viewport {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.pano-planar-viewport[data-dragging] {
+  cursor: grabbing;
+}
+
+.pano-planar-viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pano-planar-controls,
+.pano-planar-status {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #171a20;
+  color: #fff;
+  font: 500 14px/1.25 system-ui, sans-serif;
+}
+
+.pano-planar-controls {
+  right: 12px;
+  bottom: 12px;
+}
+
+.pano-planar-status {
+  top: 12px;
+  left: 12px;
+  padding: 8px 12px;
+}
+
+.pano-planar-controls button,
+.pano-planar-status button {
+  appearance: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pano-planar-controls button:hover,
+.pano-planar-status button:hover {
+  background: #363d49;
+}
+
+.pano-planar-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pano-planar-controls button:focus-visible,
+.pano-planar-status button:focus-visible,
+.pano-planar-viewport:focus-visible canvas {
+  outline: 2px solid #8bc6ff;
+  outline-offset: -3px;
+}
+
+.pano-planar-pair[data-staging] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pano-planar-pair canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pano-planar-pair:focus-visible {
+  outline: none;
+}
+
+.pano-planar-pair:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #8bc6ff;
+  pointer-events: none;
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="before"] {
+  clip-path: inset(0 calc(100% - var(--pano-compare-split, 50%)) 0 0);
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="after"] {
+  clip-path: inset(0 0 0 var(--pano-compare-split, 50%));
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="before"] {
+  clip-path: inset(0 0 calc(100% - var(--pano-compare-split, 50%)) 0);
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="after"] {
+  clip-path: inset(var(--pano-compare-split, 50%) 0 0 0);
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="left-right"] .pano-planar-pair canvas {
+  width: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="left-right"] canvas[data-side="after"] {
+  left: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="top-bottom"] .pano-planar-pair canvas {
+  height: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="top-bottom"] canvas[data-side="after"] {
+  top: 50%;
+}
+
+[data-planar-presentation] .pano-compare-chrome {
+  z-index: 1;
+}
+
+[data-planar-presentation] .pano-planar-controls,
+[data-planar-presentation] .pano-planar-status,
+.pano-planar-scene-picker {
+  z-index: 2;
+}
+
+.pano-planar-scene-picker {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+}
+
+.pano-planar-scene-picker select {
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid #535963;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #171a20;
+  color: #fff;
+  font: 500 14px/1.25 system-ui, sans-serif;
+}
+
+.pano-planar-scene-picker select:focus-visible {
+  outline: 2px solid #8bc6ff;
+  outline-offset: 2px;
+}
+
+.pano-planar-scene-picker + .pano-planar-status {
+  top: 64px;
+}
+
+/* In wipe mode, projected tooltips live inside the Fiber canvas wrapper.
+   Keep their local z-index below the comparison chrome. */
+[data-pano-background]:has(.pano-compare-chrome) > .pano-render-surface {
+  isolation: isolate;
+}
+
+.pano-compare-chrome,
+.pano-compare-html {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pano-compare-html {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-html[data-side="before"] {
+  right: calc(100% - var(--pano-compare-motion-divider, 50%));
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-html[data-side="after"] {
+  left: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-html[data-side="before"] {
+  bottom: calc(100% - var(--pano-compare-motion-divider, 50%));
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-html[data-side="after"] {
+  top: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-divider-track {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  --pano-compare-divider-position: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-divider-track[data-presentation="wipe"] {
+  --pano-compare-divider-position: var(--pano-compare-motion-divider, var(--pano-compare-split, 50%));
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-divider-track {
+  transform: translateX(var(--pano-compare-divider-position));
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-track {
+  transform: translateY(var(--pano-compare-divider-position));
+}
+
+.pano-compare-divider {
+  position: absolute;
+  --pano-compare-divider-hit-size: 2px;
+}
+
+.pano-compare-divider::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: var(--pano-compare-divider-width, 2px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  background-color: var(--pano-compare-divider-color, white);
+  box-shadow: 0 0 2px #000b;
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-divider {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--pano-compare-divider-hit-size);
+  transform: translateX(-50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--pano-compare-divider-hit-size);
+  transform: translateY(-50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider::before {
+  inset: 50% 0 auto;
+  width: auto;
+  height: var(--pano-compare-divider-width, 2px);
+  transform: translateY(-50%);
+}
+
+.pano-compare-divider-draggable {
+  --pano-compare-divider-hit-size: 16px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  cursor: ew-resize;
+}
+
+@media (pointer: coarse) {
+  .pano-compare-divider-draggable {
+    --pano-compare-divider-hit-size: 44px;
+  }
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-draggable {
+  cursor: ns-resize;
+}
+
+.pano-compare-divider-draggable:has(input:focus-visible)::before {
+  outline: 2px solid #1264d1;
+}
+
+.pano-compare-divider-draggable input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The visible divider replaces the native thumb. Keep the range focusable
+   without repositioning a hidden thumb on each drag frame. */
+.pano-compare-divider-draggable input::-webkit-slider-thumb {
+  display: none;
+}
+
+.pano-compare-divider-draggable input::-moz-range-thumb {
+  display: none;
+}
+
+.pano-compare-transition,
+.pano-compare-transition canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pano-compare-transition {
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pano-compare-transition {
+    display: none;
+  }
+}

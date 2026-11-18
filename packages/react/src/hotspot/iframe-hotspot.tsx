@@ -1,6 +1,8 @@
 import { Html } from "@react-three/drei";
 import type { IframeHTMLAttributes } from "react";
 import { DoubleSide } from "three";
+import { useCompareSplitView } from "../compare/view";
+import { PanoHtml } from "../webvr/stereo-html";
 import { HotspotAnchor } from "./hotspot-anchor";
 import {
   acceptsHotspotPointerEvents,
@@ -92,6 +94,28 @@ export function IframeHotspot({
     pointerEvents,
   );
 
+  const splitView = useCompareSplitView();
+  const contentPointerEvents = acceptsPointer && pointerPolicy === "content" ? "auto" : "none";
+  const style = {
+    background: background ?? "transparent",
+    height: cssHeight,
+    opacity: clampOpacity(opacity),
+    overflow: "hidden",
+    width: cssWidth,
+  } as const;
+  const iframe = (
+    <iframe
+      allow={allow}
+      className="pano-iframe-hotspot"
+      loading={loading}
+      onError={(event) => onError?.(event.nativeEvent)}
+      onLoad={() => onLoad?.()}
+      referrerPolicy={referrerPolicy}
+      sandbox={sandbox}
+      src={src}
+      title={iframeTitle}
+    />
+  );
   return (
     <HotspotAnchor
       {...anchorProps}
@@ -112,34 +136,17 @@ export function IframeHotspot({
           transparent
         />
       </mesh>
-      <Html
-        distanceFactor={CSS3D_DISTANCE_FACTOR}
-        pointerEvents={
-          acceptsPointer && pointerPolicy === "content" ? "auto" : "none"
-        }
-        scale={[1 / cssWidth, 1 / cssHeight, 1]}
-        style={{
-          background: background ?? "transparent",
-          height: cssHeight,
-          opacity: clampOpacity(opacity),
-          overflow: "hidden",
-          width: cssWidth,
-        }}
-        transform
-        zIndexRange={[10, 0]}
-      >
-        <iframe
-          allow={allow}
-          className="pano-iframe-hotspot"
-          loading={loading}
-          onError={(event) => onError?.(event.nativeEvent)}
-          onLoad={onLoad}
-          referrerPolicy={referrerPolicy}
-          sandbox={sandbox}
-          src={src}
-          title={iframeTitle}
-        />
-      </Html>
+      {splitView ? (
+        <PanoHtml worldSize={[cssWidth, cssHeight]} pointerEvents={contentPointerEvents}
+          style={style} zIndexRange={[10, 0]}>
+          {iframe}
+        </PanoHtml>
+      ) : (
+        <Html distanceFactor={CSS3D_DISTANCE_FACTOR} pointerEvents={contentPointerEvents}
+          scale={[1 / cssWidth, 1 / cssHeight, 1]} style={style} transform zIndexRange={[10, 0]}>
+          {iframe}
+        </Html>
+      )}
     </HotspotAnchor>
   );
 }

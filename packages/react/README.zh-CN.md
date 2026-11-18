@@ -16,6 +16,7 @@
 - [兼容 krpano 的瓦片输出](#兼容-krpano-的瓦片输出)
 - [安装](#安装)
 - [示例](#示例)
+- [PlanarTileViewer](#planartileviewer)
 - [导出组件](#导出组件)
 - [PanoViewer](#panoviewer)
 - [DOM Overlay 与弹窗](#dom-overlay-与弹窗)
@@ -23,6 +24,7 @@
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
 - [Scenes](#scenes)
+- [PanoCompare](#panocompare)
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [AutoRotate](#autorotate)
@@ -492,7 +494,7 @@ const project = await loadPanoProject("/tour/project.json", {
 
 `PanoDataError` 提供稳定 `code`：`INVALID_OPTIONS`、`FETCH_FAILED`、`HTTP_ERROR`、`INVALID_JSON`、`INVALID_CONFIG`、`UNSUPPORTED_SCHEMA_VERSION`、`UNSUPPORTED_PROJECTION`、`INVALID_PROJECT`、`INVALID_REFERENCE`、`ABORTED`；HTTP 错误带 `status`，项目错误尽可能带 `sceneId` 和 `field`。加载成功仅代表配置就绪，纹理就绪仍由 `onSceneReady` 等回调表示。
 
-完整静态示例见 playground 的 `/project` 页面和 `public/fixtures/projects/tour/project.json`。`/map` 在该漫游上展示平面图 overlay。
+完整静态示例见 playground 的 `/project` 页面和[示例 project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json)。`/map` 在该漫游上展示平面图 overlay。
 
 ## 兼容 krpano 的瓦片输出
 
@@ -659,6 +661,92 @@ export function Tour() {
 ~~~
 
 过渡预设与热点渲染见 [Scenes](#scenes)。
+
+## PlanarTileViewer
+
+使用 `PlanarTileViewer` 浏览单张平面图片。先用转换器生成瓦片，再通过
+HTTP 提供完整输出目录。
+
+```sh
+pano-convert scan.png --projection planar -o ./public/scan
+```
+
+```tsx
+import { PlanarTileViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileViewer
+  manifestUrl="/scan/manifest.json"
+  alt="扫描的建筑图纸"
+  maxScale={3}
+  dragMotion={{ bounce: false }}
+  style={{ height: 480 }}
+/>;
+```
+
+通过 `style`、`className` 或父容器指定高度。组件接受转换器生成的
+默认 Deep Zoom 和自定义平面 `manifest.json`，瓦片须无重叠。部署时保留
+清单与资源的相对路径。使用跨域 CDN 时，清单、缩略图和瓦片均需允许 CORS。
+
+用鼠标或单指拖拽平移，通过滚轮、双指捏合或按钮缩放。图片获得焦点时，
+可用方向键平移、`+` 或 `-` 缩放，按 `Home` 或 `0` 恢复全图。
+加载期间显示缩略图，高清瓦片按当前视口请求。
+以适应容器的全图为 `1×`，缩放倍率都相对于这个尺寸。
+
+| 属性 | 默认值 | 行为 |
+| --- | --- | --- |
+| `maxScale` | 自动 | 根据最高层瓦片的分辨率和有效屏幕像素密度计算上限，至少可放大到 `2×`。显式上限适用于所有输入，包括捏合和惯性。设为 `1` 时只允许全图倍率。 |
+| `initialScale` | `1` | 图片打开时居中使用的倍率，限制在 `1` 到上限之间。恢复全图始终回到 `1×`。 |
+| `dragMotion` | `{ inertia: true, bounce: true }` | 可分别关闭惯性和回弹。`{ bounce: false }` 让图片在边界处直接停住，同时保留惯性。传 `false` 可关闭两种效果。 |
+| `showZoomControls` | `true` | 显示缩放和恢复全图按钮。隐藏按钮后仍可用滚轮、触控和键盘操作。 |
+
+小于 `1` 的有限 `maxScale` 会按 `1` 处理，非有限值使用自动上限。滚轮
+和按钮缩放使用平滑过渡。开启系统的减少动态效果后，查看器会直接响应。
+
+### PlanarTileCompare
+
+使用现有平面瓦片清单，在独立查看器中对比一组或多组图片。
+
+```tsx
+import { PlanarTileCompare } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileCompare
+  scenes={[{
+    id: "scan",
+    title: "修复对比",
+    before: { manifestUrl: "/original/manifest.json", alt: "修复前扫描图" },
+    after: { manifestUrl: "/restored/manifest.json", alt: "修复后扫描图" },
+  }]}
+  style={{ height: 480 }}
+/>;
+```
+
+从任意一侧平移或缩放，两张图都会跟随。默认 `presentation="wipe"`，
+可拖动分割线。用 `"split-view"` 可以把图片放进两个等分区域，在 `1×`
+时各显示整图。两种模式都支持 `layout="left-right"`（默认）和
+`"top-bottom"`。用 `split` 和 `onSplitChange` 控制 0 到 1 之间的擦拭位置，
+或用 `defaultSplit` 设置起点（默认 `0.5`）。
+两种模式都可通过 `dividerColor` 设置分隔线的 CSS 颜色，通过 `dividerWidth`
+设置以 CSS 像素计的粗度。默认是白色、`2px`。非正数或非有限线宽使用默认值。
+
+两张图各自保留宽高比。需要擦拭时逐像素对应，请在生成瓦片前让两张图的宽高比一致，
+并对齐图像内容。`minScale` 设置两侧共用的最小倍率。省略时沿用 `1×` 下限和捏合回弹。
+有限值至少按 `1` 处理，并在捏合和惯性阶段生效。非有限值按省略处理。
+自动上限取两侧计算值中的较小值，必要时抬高至最小倍率。显式 `maxScale` 低于
+`minScale` 时以上限为准。上下限相等时倍率固定，仍可平移。
+
+`initialScale` 默认是 `1`，首次打开时限制在有效范围内。切换图片组时，在范围内保留当前视图。
+适配按钮和 `Home`、`0` 键会回到最小倍率并居中。最小倍率高于 `1×` 时，按钮显示
+`Reset view`。`dragMotion` 和 `showZoomControls` 的用法与 `PlanarTileViewer` 相同。
+
+每组使用唯一的 ID。用 `defaultActiveSceneId` 设置默认组，或用
+`activeSceneId` 和 `onActiveSceneIdChange` 控制选择。设置
+`showScenePicker={false}` 可隐藏组件内的选择器。新组两张图都可绘制后才切换，
+由 `onSceneReady(id)` 通知显示成功。加载失败时触发
+`onSceneError({ sceneId, side, error })`，并提供重试。
+
+[打开 Playground 平面图片对比示例](https://pano-view-playground.vercel.app/planar-compare)。
 
 ## 导出组件
 
@@ -1358,6 +1446,34 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 - `onLevelChange` — 当前立方体层级，**从 1 起计**（`SphereTile` 的逻辑层级从 0 起，不要混用）。
 
 放进 `Scenes` 的 `type: "tile"` 场景后，共享纹理缓存会覆盖场景上的 `maxTextureMemoryMb`、`maxConcurrentLoads`、`retryCount`（共享提供者将 retry 写为 `1`）。可见性、`loadMode` 与上述回调由 `Scenes` 接管，不要写在场景对象上。
+
+## PanoCompare
+
+在 `PanoViewer` 中使用 `PanoCompare` 作为全景来源。每组由两份 `sphere`、`tile` 或 `sphereTile` 来源配置组成，并使用唯一且稳定的 `id`。
+
+```tsx
+<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
+  <PanoCompare
+    scenes={[{ id: "room", before: originalRoom, after: renovatedRoom }]}
+    presentation="split-view"
+    layout="left-right"
+    dividerColor="#38bdf8"
+    dividerWidth={4}
+  />
+</PanoViewer>
+```
+
+`presentation="wipe"` 默认使用整窗投影，拖动分隔线露出两张图各自的一部分。`"split-view"` 将窗口等分，两格各自居中并完整取景。两种显示方式都支持 `"left-right"`（默认）和 `"top-bottom"`。用 `split` 与 `onSplitChange` 受控更新擦拭比例，或通过 `defaultSplit` 设置初始值。范围为 0 到 1，默认 0.5。切到完整双画面时，两侧的取景中心向外分开；切回擦拭时再向中间合拢。切换摆放方向时会短暂淡入淡出。两种过渡都遵循系统的减少动态效果偏好。
+
+`activeSceneId`、`defaultActiveSceneId` 和 `onActiveSceneIdChange` 沿用 `Scenes` 约定。每组的 ID 可用于查看器场景切换方法和 `PanoSceneMenu`。当前组保留到下一组两侧都可显示时，瓦片来源使用预览完成交接。`onSceneReady(id)` 在新组显示时触发，`onSceneError({ sceneId, side, error })` 报告导致切换失败的来源。切组默认保留当前视角，新组的 `initialView` 可覆盖指定字段。
+
+在外层 `PanoViewer` 上通过 `viewLimits.fov` 设置两侧共用的垂直视角范围。单位为度，
+角度越小画面越近。两种模式都支持 `dividerColor` 和 `dividerWidth`，默认白色、
+`2px`。非正数或非有限线宽使用默认值。
+
+`renderHotspots(scene)` 挂载一套共享热点，在完整双画面的两格各投影一次。操作、浮层和弹窗共用。内嵌 iframe 在两格各有独立文档。进入 WebVR 时整窗显示当前组的 `before` 来源，退出后恢复对比。
+
+[打开 Playground 对比示例](https://pano-view-playground.vercel.app/compare)。
 
 ## Scenes
 
