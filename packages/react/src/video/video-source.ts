@@ -98,7 +98,10 @@ export function loadVideoSources(
         elements.push(element);
       }
       const last = elements[elements.length - 1]!;
-      const onError = () => fail(video.error ?? new Error("Unable to load panorama video."), end);
+      const onError = () => fail(
+        video.error ?? new DOMException("Unable to load panorama video.", "NotSupportedError"),
+        end,
+      );
       // Native source selection handles all the file formats in this group.
       last.addEventListener("error", onError);
       video.addEventListener("error", onError);
@@ -160,7 +163,7 @@ export function loadVideoSources(
 
     if (!Hls?.isSupported()) {
       if (canPlayNative) loadNative();
-      else fail(new Error("HLS playback is unavailable in this browser."), offset + 1);
+      else fail(new DOMException("HLS playback is unavailable in this browser.", "NotSupportedError"), offset + 1);
       return;
     }
 
@@ -248,6 +251,7 @@ export function loadVideoSources(
       }
     },
     dispose() {
+      if (request.signal.aborted) return;
       request.abort();
       cleanup();
     },

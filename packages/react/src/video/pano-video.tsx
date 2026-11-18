@@ -1,5 +1,5 @@
 import { probeMediaHasAudio, subscribeMediaAudio } from "../controls/media-audio";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   useCallback,
   useContext,
@@ -14,6 +14,7 @@ import {
   LinearFilter,
   LinearMipmapLinearFilter,
   MathUtils,
+  type Mesh,
   RepeatWrapping,
   SRGBColorSpace,
   Texture,
@@ -28,6 +29,11 @@ import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { applyInlineVideoPlayback, mountTextureVideo } from "./inline-playback";
 import { prepareNativeHlsSwitch } from "./native-hls-switch";
 import { isHlsSource, loadVideoSources, resetVideoSource } from "./video-source";
+import {
+  canRecoverWithVideoVariant,
+  exceedsVideoTextureLimit,
+  VideoTextureSizeError,
+} from "./video-playback-protection";
 import {
   DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE,
   PanoVideoCaptions,
@@ -65,6 +71,8 @@ export type PanoVideoProps = {
   poster?: string;
   variants?: readonly PanoVideoVariant[];
   defaultVariantId?: string;
+  /** Variant to try once when the active source cannot be decoded or rendered. */
+  fallbackVariantId?: string;
   tracks?: readonly PanoVideoTrack[];
   /**
    * Caption overlay. `true` / omit uses the default appearance; `false`
@@ -112,6 +120,8 @@ type PendingQualitySwitch = {
   state: PanoVideoQualitySwitch["state"];
   transition: ReturnType<typeof prepareNativeHlsSwitch>;
 };
+
+type PlaybackResume = { time: number; playing: boolean; rate: number };
 
 type Store = {
   snapshot: PanoVideoPlaybackSnapshot;
@@ -278,6 +288,7 @@ export function PanoVideo({
   poster,
   variants: variantsProp,
   defaultVariantId,
+  fallbackVariantId,
   tracks: tracksProp,
   captions = true,
   controls = true,
@@ -307,6 +318,9 @@ export function PanoVideo({
     () => resolvePanoVideoVariants({ poster, src, variants: variantsProp }),
     [poster, src, variantsProp],
   );
+  const fallbackVariant = useRef<PanoVideoVariant | undefined>(undefined);
+  fallbackVariant.current = variants.find(({ id, sources }) =>
+    id === fallbackVariantId && sources.some(({ src }) => src.trim().length > 0));
   const tracks = tracksProp ?? EMPTY_TRACKS;
   const captionsEnabled = captions !== false;
   const captionAppearance = useMemo(
@@ -316,9 +330,10 @@ export function PanoVideo({
       ),
     [captions],
   );
-  const [variantId, setVariantId] = useState(() =>
-    resolvePanoVideoVariantId(variants, defaultVariantId),
-  );
+  const [selection, setSelection] = useState(() => ({
+    id: resolvePanoVideoVariantId(variants, defaultVariantId),
+    revision: 0,
+  }));
   const [trackId, setTrackId] = useState<string | null>(() =>
     captionsEnabled ? defaultPanoVideoTrackId(tracks) : null,
   );
@@ -378,18 +393,23 @@ export function PanoVideo({
   const initialSourceVideoRef = useRef<HTMLVideoElement | null>(null);
   const pendingSwitch = useRef<PendingQualitySwitch | null>(null);
   const nativeVariantId = useRef<string | null>(null);
-  const resume = useRef<{ time: number; playing: boolean; rate: number } | null>(null);
+  const resume = useRef<PlaybackResume | null>(null);
   const playAfterLoad = useRef(false);
+  const sourceFailure = useRef<((error: unknown) => void) | null>(null);
+  const failedSource = useRef(false);
+  const fallbackAttempted = useRef(false);
+  const meshRef = useRef<Mesh>(null);
+  const maxTextureSize = gl.capabilities.maxTextureSize;
   const [textureRevision, setTextureRevision] = useState(0);
   const videoTexture = useMemo(() => {
-    if (!video) return null;
+    if (!video || !ready) return null;
     const texture = new VideoTexture(video);
     applyEquirectangularLayout(texture, gl.capabilities.getMaxAnisotropy());
     texture.magFilter = LinearFilter;
     texture.minFilter = LinearFilter;
     texture.generateMipmaps = false;
     return texture;
-  }, [gl, video, textureRevision]);
+  }, [gl, ready, video, textureRevision]);
   useEffect(() => () => videoTexture?.dispose(), [videoTexture]);
 
   useLayoutEffect(() => {
@@ -404,11 +424,12 @@ export function PanoVideo({
     video.querySelectorAll("track").forEach((node) => node.remove());
   }, [video]);
 
-  const resolvedVariantId = resolvePanoVideoVariantId(variants, variantId);
+  const resolvedVariantId = resolvePanoVideoVariantId(variants, selection.id);
   const activeVariant = variants.find((variant) => variant.id === resolvedVariantId);
   const videoInteractionsEnabled = visible && activeVariant?.sources.some(({ src }) => src.trim().length > 0) === true;
   const mediaKey = activeVariant ? JSON.stringify([
     activeVariant.id,
+    selection.revision,
     activeVariant.sources,
     tracks.map(({ id, src, srcLang, kind, label }) => [id, src, srcLang, kind, label]),
     crossOrigin,
@@ -439,7 +460,7 @@ export function PanoVideo({
       const pending = pendingSwitch.current;
       const next: PanoVideoPlaybackSnapshot = {
         ...store.snapshot,
-        ready,
+        ready: ready && !failedSource.current,
         playing: playbackState === "playing",
         blocked: blockedRef.current,
         ended: playbackState === "ended",
@@ -492,6 +513,18 @@ export function PanoVideo({
     pending.video.remove();
     emitSnapshotRef.current();
   }, []);
+
+  useFrame(() => {
+    const mesh = meshRef.current;
+    const current = videoRef.current;
+    if (!mesh) return;
+    // A new HLS frame can reach Three.js before the browser dispatches resize.
+    const oversized = ready && current && exceedsVideoTextureLimit(current, maxTextureSize);
+    mesh.visible = visible && !(ready && failedSource.current) && !oversized;
+    if (oversized && !failedSource.current) {
+      sourceFailure.current?.(new VideoTextureSizeError(current, maxTextureSize));
+    }
+  }, -1);
 
   const controller = useMemo<PanoVideoController>(
     () => ({
@@ -586,6 +619,7 @@ export function PanoVideo({
     if (!video) return;
     nativeVariantId.current = null;
     blockedRef.current = false;
+    failedSource.current = false;
     setReady(false);
     if (!activeVariant || !mediaKey) {
       resetVideoSource(video);
@@ -596,24 +630,64 @@ export function PanoVideo({
     resume.current = null;
     playAfterLoad.current = saved?.playing ?? autoPlayRef.current;
     let loaded = false;
+    let restoredPosition = false;
+    let restoredRate = false;
     initialSourceVideoRef.current = video;
     video.crossOrigin = crossOrigin ?? (activeVariant.sources.some(isHlsSource) ? "anonymous" : null);
     replaceTextTracks(video, tracks);
     emitSnapshotRef.current({ ready: false, captionText: "" });
+    const capturePlayback = (current: HTMLVideoElement): PlaybackResume => ({
+      time: restoredPosition || loaded ? current.currentTime : saved?.time ?? current.currentTime,
+      playing: (loaded && !failedSource.current ? !current.paused : playAfterLoad.current) && !current.ended,
+      rate: restoredRate || loaded ? current.playbackRate : saved?.rate ?? current.playbackRate,
+    });
+    const fail = (error: unknown) => {
+      if (sourceFailure.current !== fail || failedSource.current) return;
+      const current = videoRef.current!;
+      const selected = nativeVariantId.current ?? activeVariant.id;
+      const fallback = fallbackVariant.current;
+      const shouldRecover = canRecoverWithVideoVariant(error) &&
+        !fallbackAttempted.current && fallback && fallback.id !== selected;
+      failedSource.current = true;
+      resume.current = capturePlayback(current);
+      cancelSwitch();
+      sourceRef.current?.dispose();
+      sourceRef.current = null;
+      resetVideoSource(current);
+      setReady(false);
+      emitSnapshotRef.current({ ready: false, captionText: "" });
+      if (shouldRecover) {
+        fallbackAttempted.current = true;
+        setSelection(({ revision }) => ({ id: fallback.id, revision: revision + 1 }));
+        onVariantChangeRef.current?.(fallback.id);
+      } else {
+        onErrorRef.current?.({ source: "video", error });
+      }
+    };
+    sourceFailure.current = fail;
+    const validateFrame = () => {
+      if (failedSource.current || videoRef.current !== video) return false;
+      if (!exceedsVideoTextureLimit(video, maxTextureSize)) return true;
+      fail(new VideoTextureSizeError(video, maxTextureSize));
+      return false;
+    };
     const handleLoadedMetadata = () => {
+      if (!validateFrame()) return;
       if (saved && saved.time > 0 && Number.isFinite(video.duration)) {
         video.currentTime = Math.min(saved.time, video.duration);
+        restoredPosition = true;
       }
       if (saved) {
         try {
           video.playbackRate = saved.rate;
+          restoredRate = true;
         } catch {
           // Some browsers reject rates outside a narrow range.
         }
       }
     };
     const handleLoadedData = () => {
-      if (loaded || videoRef.current !== video || video.readyState < video.HAVE_CURRENT_DATA || !video.videoWidth) return;
+      if (loaded || video.readyState < video.HAVE_CURRENT_DATA || !video.videoWidth || !validateFrame()) return;
       loaded = true;
       // Browsers can stop delivering callbacks registered on the previous
       // source. Bind a fresh VideoTexture to the first frame of this source.
@@ -631,7 +705,9 @@ export function PanoVideo({
       startImmediately: video.preload !== "none" || playAfterLoad.current,
       hasLoaded: () => loaded,
       onError: (error) => {
-        if (videoRef.current === video) onErrorRef.current?.({ source: "video", error });
+        if (videoRef.current === video) queueMicrotask(() => {
+          if (videoRef.current === video) fail(error);
+        });
       },
       onChange: () => emitSnapshotRef.current(),
     });
@@ -640,20 +716,17 @@ export function PanoVideo({
 
     return () => {
       const current = videoRef.current!;
-      resume.current = {
-        time: current.currentTime,
-        playing: loaded ? !current.paused && !current.ended : playAfterLoad.current,
-        rate: current.playbackRate,
-      };
+      resume.current ??= capturePlayback(current);
       cancelSwitch();
+      sourceFailure.current = null;
       sourceRef.current = null;
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("canplay", handleLoadedData);
       source.dispose();
-      resetVideoSource(current);
+      if (!failedSource.current) resetVideoSource(current);
     };
-  }, [mediaKey, cancelSwitch]);
+  }, [mediaKey, cancelSwitch, maxTextureSize]);
 
   useLayoutEffect(() => {
     if (!video) return;
@@ -672,6 +745,9 @@ export function PanoVideo({
       replaceTextTracks(next, tracks);
       mountTextureVideo(next, gl.domElement);
       const transition = prepareNativeHlsSwitch(current, next, {
+        validateFrame: () => exceedsVideoTextureLimit(next, maxTextureSize)
+          ? new VideoTextureSizeError(next, maxTextureSize)
+          : undefined,
         commit: () => {
           pendingSwitch.current = null;
           current.pause();
@@ -708,13 +784,20 @@ export function PanoVideo({
     actionsRef.current = {
       play: async () => {
         const video = videoRef.current!;
+        if (failedSource.current) {
+          if (resume.current) resume.current.playing = true;
+          fallbackAttempted.current = false;
+          const id = nativeVariantId.current ?? resolvedVariantId;
+          setSelection(({ revision }) => ({ id, revision: revision + 1 }));
+          return;
+        }
         playAfterLoad.current = true;
         sourceRef.current?.start();
         blockedRef.current = false;
         try {
           await video.play();
         } catch (error) {
-          if (videoRef.current !== video || (error instanceof DOMException && error.name === "AbortError")) return;
+          if (videoRef.current !== video || failedSource.current || (error instanceof DOMException && error.name === "AbortError")) return;
           if (isAutoplayPolicyError(error)) {
             blockedRef.current = true;
             onPlaybackStateChangeRef.current?.("blocked");
@@ -780,18 +863,18 @@ export function PanoVideo({
         if (!requested) return;
         const current = videoRef.current!;
         const selected = nativeVariantId.current ?? resolvedVariantId;
-        if (selected === id) {
+        if (selected === id && !failedSource.current) {
           cancelSwitch();
           return;
         }
+        fallbackAttempted.current = false;
         const first = requested.sources[0];
         if (sourceRef.current?.native && current.readyState > 0 && first && isHlsSource(first)) {
           startNativeSwitch(current, first.src, { variantId: id });
           return;
         }
         cancelSwitch();
-        nativeVariantId.current = null;
-        setVariantId(id);
+        setSelection(({ revision }) => ({ id, revision: revision + 1 }));
         onVariantChangeRef.current?.(id);
       },
       setHlsLevel: (level) => {
@@ -827,7 +910,7 @@ export function PanoVideo({
         emitSnapshot();
       },
     };
-  }, [cancelSwitch, emitSnapshot, gl, resolvedVariantId, tracks, variants, video]);
+  }, [cancelSwitch, emitSnapshot, gl, maxTextureSize, resolvedVariantId, tracks, variants, video]);
 
   useLayoutEffect(() => {
     const video = videoRef.current;
@@ -873,7 +956,11 @@ export function PanoVideo({
     let width = video.videoWidth;
     let height = video.videoHeight;
     const handleResize = () => {
-      if (!video.videoWidth || !video.videoHeight) return;
+      if (videoRef.current !== video || failedSource.current || !video.videoWidth || !video.videoHeight) return;
+      if (exceedsVideoTextureLimit(video, maxTextureSize)) {
+        sourceFailure.current?.(new VideoTextureSizeError(video, maxTextureSize));
+        return;
+      }
       if (width && height && (width !== video.videoWidth || height !== video.videoHeight)) {
         setTextureRevision((revision) => revision + 1);
       }
@@ -883,7 +970,7 @@ export function PanoVideo({
     };
     const handleSwitchedSourceError = () => {
       if (videoRef.current === video && video !== initialSourceVideoRef.current) {
-        onErrorRef.current?.({ source: "video", error: video.error ?? new Error("Unable to play the switched HLS source.") });
+        sourceFailure.current?.(video.error ?? new Error("Unable to play the switched HLS source."));
       }
     };
     video.addEventListener("loadeddata", handleResize);
@@ -910,7 +997,7 @@ export function PanoVideo({
       video.removeEventListener("volumechange", handleVolume);
       video.removeEventListener("ratechange", handleVolume);
     };
-  }, [emitSnapshot, video]);
+  }, [emitSnapshot, maxTextureSize, video]);
 
   useEffect(() => {
     if (!video) return;
@@ -966,6 +1053,7 @@ export function PanoVideo({
     <>
       {activeTexture ? (
         <mesh
+          ref={meshRef}
           rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]}
           visible={visible}
         >

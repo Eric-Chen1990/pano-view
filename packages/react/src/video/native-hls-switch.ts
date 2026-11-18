@@ -21,6 +21,7 @@ export function prepareNativeHlsSwitch(
     commit: () => void;
     awaitingGesture: () => void;
     fail: (error: unknown) => void;
+    validateFrame?: () => Error | undefined;
   },
 ) {
   let running = true;
@@ -80,6 +81,11 @@ export function prepareNativeHlsSwitch(
 
     const finish = () => {
       if (!running) return;
+      const frameError = callbacks.validateFrame?.();
+      if (frameError) {
+        fail(frameError);
+        return;
+      }
       restoreAudio = undefined;
       stop();
       callbacks.commit();
@@ -133,6 +139,11 @@ export function prepareNativeHlsSwitch(
   const sync = (now: number) => {
     if (!running) return;
     animationFrame = requestAnimationFrame(sync);
+    const frameError = callbacks.validateFrame?.();
+    if (frameError) {
+      fail(frameError);
+      return;
+    }
     if (committing || playingCandidate || current.seeking || next.readyState < next.HAVE_METADATA) return;
     const playing = !current.paused;
     const drift = current.currentTime - next.currentTime;

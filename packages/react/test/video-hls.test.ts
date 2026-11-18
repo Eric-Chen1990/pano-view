@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { M3U8Parser } from "hls.js/dist/hls.mjs";
 import { isHlsSource, loadVideoSources, nativeHlsLevels } from "../src/video/video-source";
+import {
+  canRecoverWithVideoVariant,
+  exceedsVideoTextureLimit,
+  VideoTextureSizeError,
+} from "../src/video/video-playback-protection";
 
 const url = "https://media.example.test/tour/master.m3u8";
 const master = `#EXTM3U
@@ -129,6 +134,47 @@ test("a paused native handoff waits for a decoded frame at the requested positio
   assert.ok(next.paused);
   assert.equal(commit.mock.callCount(), 1);
   assert.equal(fail.mock.callCount(), 0);
+});
+
+test("an oversized native HLS candidate fails before replacing the current video", async (t) => {
+  const { prepareNativeHlsSwitch } = await import("../src/video/native-hls-switch");
+  const frame = mockAnimationFrame(t);
+  const current = new SwitchVideo();
+  current.paused = false;
+  const next = new SwitchVideo();
+  next.paused = false;
+  next.readyState = 4;
+  next.videoWidth = 7680;
+  const commit = t.mock.fn();
+  const fail = t.mock.fn();
+  prepareNativeHlsSwitch(current.asMedia(), next.asMedia(), {
+    commit,
+    fail,
+    awaitingGesture() {},
+    validateFrame: () => exceedsVideoTextureLimit(next.asMedia(), 4096)
+      ? new VideoTextureSizeError(next.asMedia(), 4096)
+      : undefined,
+  });
+
+  frame(16);
+  frame(32);
+  assert.equal(commit.mock.callCount(), 0);
+  assert.equal(fail.mock.callCount(), 1);
+  assert.ok(fail.mock.calls[0]?.arguments[0] instanceof VideoTextureSizeError);
+  assert.equal(current.paused, false);
+  assert.equal(current.muted, false);
+});
+
+test("guards either texture dimension and only recovers from media capability errors", () => {
+  assert.equal(exceedsVideoTextureLimit({ videoWidth: 4096, videoHeight: 2048 }, 4096), false);
+  assert.equal(exceedsVideoTextureLimit({ videoWidth: 2048, videoHeight: 4097 }, 4096), true);
+  assert.equal(exceedsVideoTextureLimit({ videoWidth: 0, videoHeight: 0 }, 4096), false);
+  assert.equal(canRecoverWithVideoVariant({ code: 3 }), true);
+  assert.equal(canRecoverWithVideoVariant({ code: 4 }), true);
+  assert.equal(canRecoverWithVideoVariant({ code: 2 }), false);
+  assert.equal(canRecoverWithVideoVariant({ type: "mediaError", fatal: true }), true);
+  assert.equal(canRecoverWithVideoVariant({ type: "mediaError", fatal: false }), false);
+  assert.equal(canRecoverWithVideoVariant(new DOMException("Gesture required", "NotAllowedError")), false);
 });
 
 test("an audible native handoff restores current audio when a gesture is required", async (t) => {

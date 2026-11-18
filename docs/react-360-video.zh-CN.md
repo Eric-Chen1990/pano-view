@@ -54,6 +54,36 @@ export function TourVideo() {
 在 `onActivate` 中同步调用播放方法，避免在调用前等待其他异步任务，以保留用户手势上下文。
 使用受控 `BackgroundAudio` 时，由宿主在该回调中更新 `playing` 状态。播放仍受[浏览器自动播放策略](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay)约束。
 
+## 让移动端在受限画质范围内自动选档
+
+为同一段 2:1 点播视频生成两份 HLS 主清单。桌面使用完整清单，移动清单复用低档分片。可以从 30 fps 的 `1280×640`、`1920×960` 和 `2560×1280` 开始测试，按目标设备的首帧、掉帧和发热表现调整。原生 HLS 和 hls.js 都在收到的清单范围内自动选档。各档对齐时间轴和关键帧，准确声明分辨率、编码、帧率和码率。独立音轨的声明应保留在每份引用它的主清单里。
+
+由宿主在首次加载前确定 `mobileProfile`。在自动档附上低分辨率 H.264 + AAC MP4，并把完整可播的单档主清单作为手选项。
+
+~~~tsx
+<PanoVideo
+  defaultVariantId="auto"
+  fallbackVariantId={mobileProfile ? "auto" : undefined}
+  poster="/tour/poster.jpg"
+  variants={[
+    {
+      id: "auto",
+      label: "自动",
+      sources: [
+        { src: mobileProfile ? "/tour/mobile.m3u8" : "/tour/full.m3u8" },
+        { src: "/tour/1280x640.mp4", type: "video/mp4" },
+      ],
+    },
+    { id: "4k", label: "4K", sources: [{ src: "/tour/4k.m3u8" }] },
+    { id: "8k", label: "8K", sources: [{ src: "/tour/8k.m3u8" }] },
+  ]}
+/>
+~~~
+
+已激活的源遇到解码、格式支持或纹理尺寸错误时，播放器尝试回退一次，并保留可恢复的进度和播放意图。原生 HLS 候选档准备失败时继续播放当前源。手选高档持续掉帧时，观众可切回自动档。
+
+在 Playground 的 `/video` 选择 **Mobile HLS**，用画质菜单对比 **4K** 与 **Auto**。移动自动档和 **Full HLS ladder** 共用在线流的分片，移动自动档最高为 `2026×1080`，完整清单最高为 `3840×2048`。测试 8K 时请使用有原生 8K 档位的素材。记录实际分辨率、首个解码帧耗时、缓冲等待、视频掉帧率和转动视角时的 p95 帧间隔。在同一设备、同一档位下比较默认 DPR 和 **1×**。字节范围分片的 CDN 需对范围请求返回 `206 Partial Content`。
+
 ## 在真实设备上验证
 
 构建与类型检查无法验证浏览器自动播放策略和触控行为。发布前请在当前版本的
