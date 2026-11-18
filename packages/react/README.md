@@ -1285,6 +1285,8 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
 - `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
+- `clickToTogglePlayback` — Defaults to `true`. Click or tap the panorama to play or pause in screen mode, including fullscreen. Set `false` to disable this gesture. Call `nativeEvent.preventDefault()` in a panorama click callback to cancel the toggle for that click.
+- `showCenterPlayButton` — Defaults to `true`. Shows a translucent play button at the center while playback is paused, blocked, or ended in screen mode. Set `false` to hide it. This button and `clickToTogglePlayback` are configured independently of `controls`.
 - `yawOffset` — horizontal offset in degrees, default `0`.
 - `loop` — default `false`.
 - `muted` — default `true`.

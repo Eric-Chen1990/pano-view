@@ -9,6 +9,9 @@ export type PanoVideoHost = {
   controller: PanoVideoController | null;
   controls: boolean | PanoVideoControlsAppearance;
   captions: boolean | PanoVideoCaptionAppearance;
+  clickToTogglePlayback: boolean;
+  showCenterPlayButton: boolean;
+  activationPlayEvents: WeakMap<Event, PanoVideoController>;
   controlClaims: number;
   revision: number;
   listeners: Set<() => void>;
@@ -23,6 +26,9 @@ export function createPanoVideoHost(): PanoVideoHost {
     controller: null,
     controls: true,
     captions: true,
+    clickToTogglePlayback: false,
+    showCenterPlayButton: false,
+    activationPlayEvents: new WeakMap(),
     controlClaims: 0,
     revision: 0,
     listeners: new Set(),
@@ -33,6 +39,9 @@ export function resetPanoVideoHost(host: PanoVideoHost): void {
   host.controller = null;
   host.controls = true;
   host.captions = true;
+  host.clickToTogglePlayback = false;
+  host.showCenterPlayButton = false;
+  host.activationPlayEvents = new WeakMap();
   host.controlClaims = 0;
   notifyPanoVideoHost(host);
 }

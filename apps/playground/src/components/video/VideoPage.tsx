@@ -75,6 +75,8 @@ function buildVideoSnippet(
   fontSize: number,
   captionColor: string,
   useHls: boolean,
+  clickToTogglePlayback: boolean,
+  showCenterPlayButton: boolean,
 ): string {
   const defaultTrack = captionLang === "zh" ? "zh" : "en";
   const tracks = useHls ? HLS_TRACKS : VIDEO_TRACKS;
@@ -95,6 +97,8 @@ function buildVideoSnippet(
   <PanoVideo
     autoPlay
     loop={${loop}}
+    clickToTogglePlayback={${clickToTogglePlayback}}
+    showCenterPlayButton={${showCenterPlayButton}}
     captions={${captionsProp}}
 ${useHls ? `    src="${HLS_EXAMPLE_URL}"
     crossOrigin="anonymous"` : `    defaultVariantId="1024"
@@ -128,6 +132,8 @@ ${tracks.map((track) => `      { src: "${track.src}", srcLang: "${track.srcLang}
 export function VideoPage() {
   const [useHls, setUseHls] = useState(true);
   const [loop, setLoop] = useState(true);
+  const [clickToTogglePlayback, setClickToTogglePlayback] = useState(true);
+  const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
@@ -150,8 +156,8 @@ export function VideoPage() {
   }, [captionColor, captionLang, fontSize]);
 
   const snippet = useMemo(
-    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, useHls),
-    [captionColor, captionLang, fontSize, loop, useHls],
+    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, useHls, clickToTogglePlayback, showCenterPlayButton),
+    [captionColor, captionLang, clickToTogglePlayback, fontSize, loop, showCenterPlayButton, useHls],
   );
 
   return (
@@ -190,6 +196,24 @@ export function VideoPage() {
               type="checkbox"
             />
             Loop
+          </label>
+          <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
+            <input
+              className="accent-[#df6b42]"
+              checked={clickToTogglePlayback}
+              onChange={(event) => setClickToTogglePlayback(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            Click to play or pause
+          </label>
+          <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
+            <input
+              className="accent-[#df6b42]"
+              checked={showCenterPlayButton}
+              onChange={(event) => setShowCenterPlayButton(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            Center play button
           </label>
           <label className={controlLabelClassName}>
             Captions
@@ -243,8 +267,10 @@ export function VideoPage() {
             <PanoVideo
               autoPlay
               captions={captions}
+              clickToTogglePlayback={clickToTogglePlayback}
               defaultVariantId="1024"
               loop={loop}
+              showCenterPlayButton={showCenterPlayButton}
               tracks={tracks}
               src={useHls ? HLS_SAMPLE : undefined}
               crossOrigin={useHls ? "anonymous" : undefined}

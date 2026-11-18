@@ -78,6 +78,10 @@ export type PanoVideoProps = {
    * Render `PanoVideoControls` as a PanoViewer child to replace the default.
    */
   controls?: boolean | PanoVideoControlsAppearance;
+  /** Click or tap the panorama to toggle playback in screen mode. Defaults to true. */
+  clickToTogglePlayback?: boolean;
+  /** Show a centered play button while the visible video is stopped. Defaults to true. */
+  showCenterPlayButton?: boolean;
   /** Horizontal video offset in degrees. */
   yawOffset?: number;
   loop?: boolean;
@@ -277,6 +281,8 @@ export function PanoVideo({
   tracks: tracksProp,
   captions = true,
   controls = true,
+  clickToTogglePlayback = true,
+  showCenterPlayButton = true,
   yawOffset = 0,
   loop = false,
   muted = true,
@@ -400,6 +406,7 @@ export function PanoVideo({
 
   const resolvedVariantId = resolvePanoVideoVariantId(variants, variantId);
   const activeVariant = variants.find((variant) => variant.id === resolvedVariantId);
+  const videoInteractionsEnabled = visible && activeVariant?.sources.some(({ src }) => src.trim().length > 0) === true;
   const mediaKey = activeVariant ? JSON.stringify([
     activeVariant.id,
     activeVariant.sources,
@@ -546,13 +553,20 @@ export function PanoVideo({
     }
     host.controls = controls;
     host.captions = captionsEnabled;
+    host.clickToTogglePlayback = videoInteractionsEnabled && clickToTogglePlayback;
+    host.showCenterPlayButton = videoInteractionsEnabled && showCenterPlayButton;
     host.controller = controller;
     notifyPanoVideoHost(host);
     return () => {
       host.controller = null;
+      host.clickToTogglePlayback = false;
+      host.showCenterPlayButton = false;
       notifyPanoVideoHost(host);
     };
-  }, [captionsEnabled, controller, controls, host, variants.length]);
+  }, [
+    captionsEnabled, clickToTogglePlayback, controller, controls, host,
+    showCenterPlayButton, variants.length, videoInteractionsEnabled,
+  ]);
 
   useLayoutEffect(() => {
     if (!video) return;

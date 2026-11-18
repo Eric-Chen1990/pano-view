@@ -7,6 +7,30 @@ import {
 } from "./host";
 import { PanoVideoCaptionsOverlay } from "./pano-video-captions";
 import { PanoVideoControlsHud } from "./pano-video-controls";
+import type { PanoVideoController } from "./types";
+
+function CenterPlayButton({ controller }: { controller: PanoVideoController }) {
+  const playbackState = useSyncExternalStore(
+    controller.subscribe,
+    () => controller.getSnapshot().playbackState,
+  );
+
+  if (playbackState === "playing") return null;
+
+  return (
+    <button
+      aria-label={playbackState === "ended" ? "Replay video" : "Play video"}
+      className="pano-video-center-play"
+      data-pano-video-center-play=""
+      onClick={() => void controller.play()}
+      type="button"
+    >
+      <svg aria-hidden="true" fill="currentColor" height="36" viewBox="0 0 16 16" width="36">
+        <path d="M5 3.2v9.6L13 8z" />
+      </svg>
+    </button>
+  );
+}
 
 export function PanoVideoChromeBridge({
   fullscreen,
@@ -34,6 +58,9 @@ export function PanoVideoChromeBridge({
 
   return (
     <>
+      {host.showCenterPlayButton && host.controller ? (
+        <CenterPlayButton controller={host.controller} />
+      ) : null}
       {showDefaultControls ? (
         <PanoVideoControlsHud
           appearance={
