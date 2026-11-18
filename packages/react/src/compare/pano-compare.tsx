@@ -25,6 +25,7 @@ import { useCompareSplit } from "./split";
 import {
   CompareHostContext,
   CompareSourceSideContext,
+  type CompareDividerAppearance,
   type PanoCompareLayout,
   type PanoComparePresentation,
   type PanoCompareSide,
@@ -49,7 +50,7 @@ export type PanoCompareSceneError = {
   error: unknown;
 };
 
-export type PanoCompareProps = {
+export type PanoCompareProps = CompareDividerAppearance & {
   scenes: readonly PanoCompareScene[];
   activeSceneId?: string;
   defaultActiveSceneId?: string;
@@ -144,6 +145,7 @@ const ComparePair = memo(function ComparePair({
 export function PanoCompare({
   scenes, activeSceneId, defaultActiveSceneId, onActiveSceneIdChange,
   presentation = "wipe", layout = "left-right",
+  dividerColor, dividerWidth,
   split: controlledSplit, defaultSplit = 0.5, onSplitChange,
   onSceneReady, onSceneError, renderHotspots,
 }: PanoCompareProps) {
@@ -196,8 +198,8 @@ export function PanoCompare({
 
   const compareActive = Boolean(visible) && !vrActive;
   useLayoutEffect(() => {
-    if (compareActive && host) host.setConfig({ layout, presentation, split });
-  }, [compareActive, host, layout, presentation, split]);
+    if (compareActive && host) host.setConfig({ layout, presentation, split, dividerColor, dividerWidth });
+  }, [compareActive, host, layout, presentation, split, dividerColor, dividerWidth]);
   useLayoutEffect(() => {
     if (compareActive && host) return () => host.setConfig(null);
   }, [compareActive, host]);

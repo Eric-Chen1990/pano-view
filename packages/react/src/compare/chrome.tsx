@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useSyncExternalStore, type PointerEvent } from "react";
+import { useCallback, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type PointerEvent } from "react";
 import type { CompareConfig, createCompareHost } from "./view";
 
 export function CompareChrome({ host }: { host: ReturnType<typeof createCompareHost> }) {
@@ -48,12 +48,17 @@ function stopDrag(drag: DividerDrag) {
   if (drag.element.hasPointerCapture(drag.pointerId)) drag.element.releasePointerCapture(drag.pointerId);
 }
 
-export function CompareDivider({ layout, presentation, split }: CompareConfig) {
+export function CompareDivider({ layout, presentation, split, dividerColor, dividerWidth }: CompareConfig) {
   const slider = useRef<HTMLInputElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<DividerDrag | null>(null);
   const horizontal = layout === "left-right";
   const wipe = presentation === "wipe";
+  const style = {
+    "--pano-compare-divider-color": dividerColor,
+    "--pano-compare-divider-width": dividerWidth !== undefined && Number.isFinite(dividerWidth) && dividerWidth > 0
+      ? `${dividerWidth}px` : undefined,
+  } as CSSProperties;
 
   useLayoutEffect(() => {
     const input = slider.current;
@@ -93,7 +98,7 @@ export function CompareDivider({ layout, presentation, split }: CompareConfig) {
   }
 
   return (
-    <div ref={track} className="pano-compare-divider-track" data-presentation={presentation}>
+    <div ref={track} className="pano-compare-divider-track" data-presentation={presentation} style={style}>
       {wipe ? (
         <div className="pano-compare-divider pano-compare-divider-draggable"
           onPointerDown={(event) => {

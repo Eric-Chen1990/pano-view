@@ -2,11 +2,11 @@ import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "
 import { CompareDivider } from "../compare/chrome";
 import { useCompareSplit } from "../compare/split";
 import type {
-  CompareConfig, PanoCompareLayout, PanoComparePresentation, PanoCompareSide,
+  CompareConfig, CompareDividerAppearance, PanoCompareLayout, PanoComparePresentation, PanoCompareSide,
 } from "../compare/view";
 import { loadPlanarManifest } from "./manifest";
 import {
-  mountPlanarSurfaces, type PlanarStatus, type PlanarViewOptions,
+  mountPlanarSurfaces, type PlanarComparisonViewOptions, type PlanarStatus,
 } from "./runtime";
 import type { PlanarTileViewerProps } from "./planar-tile-viewer";
 import { PlanarZoomControls } from "./zoom-controls";
@@ -24,7 +24,7 @@ export type PlanarTileCompareSceneError = {
   error: unknown;
 };
 
-export type PlanarTileCompareProps = PlanarViewOptions & {
+export type PlanarTileCompareProps = PlanarComparisonViewOptions & CompareDividerAppearance & {
   scenes: readonly PlanarTileCompareScene[];
   activeSceneId?: string;
   defaultActiveSceneId?: string;
@@ -58,7 +58,7 @@ function PlanarPair({
   scene: PlanarTileCompareScene;
   active: boolean;
   comparison: CompareConfig;
-  options: PlanarViewOptions;
+  options: PlanarComparisonViewOptions;
   label: string;
   getPreviousView: () => ReturnType<PairControls["getView"]> | undefined;
   onReady: (controls: PairControls) => void;
@@ -159,7 +159,8 @@ function PlanarPair({
 export function PlanarTileCompare({
   scenes, activeSceneId, defaultActiveSceneId, onActiveSceneIdChange,
   presentation = "wipe", layout = "left-right", split: controlledSplit, defaultSplit = 0.5, onSplitChange,
-  initialScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
+  dividerColor, dividerWidth,
+  initialScale, minScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
   onSceneReady, onSceneError, "aria-label": label = "Image comparison", className, style,
 }: PlanarTileCompareProps) {
   const [internalId, setInternalId] = useState(() => defaultActiveSceneId ?? scenes[0]?.id);
@@ -179,7 +180,8 @@ export function PlanarTileCompare({
   const error = requestedKey === failure?.key ? failure : null;
   const pending = requested && requestedKey !== visible?.key && !error ? requested : null;
   const comparison = useMemo(() => ({ layout, presentation, split }), [layout, presentation, split]);
-  const options = useMemo(() => ({ initialScale, maxScale, dragMotion }), [initialScale, maxScale, dragMotion]);
+  const options = useMemo(() => ({ initialScale, minScale, maxScale, dragMotion }),
+    [initialScale, minScale, maxScale, dragMotion]);
 
   useLayoutEffect(() => {
     const element = root.current!;
@@ -238,7 +240,7 @@ export function PlanarTileCompare({
       })}
       {visible && (
         <div className="pano-compare-chrome" data-layout={layout}>
-          <CompareDivider {...comparison} />
+          <CompareDivider {...comparison} dividerColor={dividerColor} dividerWidth={dividerWidth} />
         </div>
       )}
       {showScenePicker && scenes.length > 1 && (
@@ -266,7 +268,10 @@ export function PlanarTileCompare({
           }}>Retry</button>}
         </div>
       )}
-      {showZoomControls && <PlanarZoomControls controls={visible?.controls ?? null} ready={Boolean(visible)} maxScale={maxScale} />}
+      {showZoomControls && (
+        <PlanarZoomControls controls={visible?.controls ?? null} ready={Boolean(visible)}
+          minScale={minScale} maxScale={maxScale} />
+      )}
     </div>
   );
 }

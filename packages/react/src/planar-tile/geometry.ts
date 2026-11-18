@@ -2,6 +2,7 @@ import { containRect, type MapPoint as Point, type MapRect as Rect } from "../ma
 import type { PlanarLevel, PlanarManifest, Size } from "./manifest";
 
 export type PlanarView = { center: Point; zoom: number };
+export type PlanarZoomRange = { min: number; max: number; hardMin?: boolean; hardMax?: boolean };
 export const FIT_VIEW: PlanarView = { center: { x: 0.5, y: 0.5 }, zoom: 1 };
 
 export type PlanarTile = {
@@ -32,8 +33,8 @@ function constrainCenter(center: number, viewport: number, image: number) {
   return Math.max(edge, Math.min(1 - edge, center));
 }
 
-export function constrainView(view: PlanarView, size: Size, fit: Rect, maxZoom: number): PlanarView {
-  const zoom = Math.max(1, Math.min(maxZoom, view.zoom));
+export function constrainView(view: PlanarView, size: Size, fit: Rect, range: PlanarZoomRange): PlanarView {
+  const zoom = Math.max(range.min, Math.min(range.max, view.zoom));
   return {
     zoom,
     center: {
@@ -58,11 +59,11 @@ export function planarPaneCenter(view: PlanarView, viewport: Size, sharedFit: Re
 }
 
 export function moveView(
-  view: PlanarView, fit: Rect, viewport: Size, maxZoom: number,
+  view: PlanarView, fit: Rect, viewport: Size, range: PlanarZoomRange,
   from: Point, to: Point, factor: number,
 ): PlanarView {
-  const zoom = Math.max(1, Math.min(maxZoom, view.zoom * factor));
-  return constrainView(anchorView(view, fit, viewport, from, to, zoom), viewport, fit, maxZoom);
+  const zoom = Math.max(range.min, Math.min(range.max, view.zoom * factor));
+  return constrainView(anchorView(view, fit, viewport, from, to, zoom), viewport, fit, range);
 }
 
 export function anchorView(
@@ -78,12 +79,12 @@ export function anchorView(
   };
 }
 
-export function normalizeMaxScale(maxScale: number | undefined) {
-  return maxScale !== undefined && Number.isFinite(maxScale) ? Math.max(1, maxScale) : undefined;
+export function normalizeScaleLimit(scale: number | undefined) {
+  return scale !== undefined && Number.isFinite(scale) ? Math.max(1, scale) : undefined;
 }
 
 export function viewportGeometry(
-  manifest: PlanarManifest, viewport: Size, pixelRatio: number, maxScale?: number,
+  manifest: PlanarManifest, viewport: Size, pixelRatio: number, maxScale?: number, minScale = 1,
 ) {
   const fit = containRect(viewport.width, viewport.height, manifest.source.width, manifest.source.height);
   const highest = manifest.levels[manifest.levels.length - 1]!;
@@ -92,7 +93,7 @@ export function viewportGeometry(
     highest.height / (fit.height * pixelRatio),
   ));
   return { fit, maxZoom: Math.min(
-    normalizeMaxScale(maxScale) ?? autoZoom,
+    normalizeScaleLimit(maxScale) ?? Math.max(autoZoom, minScale),
     Number.MAX_SAFE_INTEGER / Math.max(1, fit.width, fit.height),
   ) };
 }

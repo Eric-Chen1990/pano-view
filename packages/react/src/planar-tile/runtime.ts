@@ -1,8 +1,8 @@
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
 import { clampAxis, resolveDragMotion, velocityFromSamples, type PanoDragMotion } from "../drag-motion";
 import {
-  constrainView, FIT_VIEW, moveView, normalizeMaxScale, planarPaneCenter, viewportGeometry, viewRect,
-  type PlanarView,
+  constrainView, FIT_VIEW, moveView, normalizeScaleLimit, planarPaneCenter, viewportGeometry, viewRect,
+  type PlanarView, type PlanarZoomRange,
 } from "./geometry";
 import type { PlanarManifest } from "./manifest";
 import type { CompareConfig } from "../compare/view";
@@ -21,6 +21,10 @@ export type PlanarViewOptions = {
   initialScale?: number;
   /** Drag and pinch inertia and edge bounce. Both default to true. */
   dragMotion?: PanoDragMotion | false;
+};
+export type PlanarComparisonViewOptions = PlanarViewOptions & {
+  /** Minimum zoom relative to the fitted image. Defaults to 1. */
+  minScale?: number;
 };
 export type PlanarControls = {
   zoom: (factor: number) => void;
@@ -59,16 +63,17 @@ export function mountPlanarSurfaces(
   viewportElement: HTMLElement,
   surfaces: readonly [PlanarSurface] | readonly [PlanarSurface, PlanarSurface],
   signal: AbortSignal,
-  options: PlanarViewOptions,
+  options: PlanarComparisonViewOptions,
   comparison?: CompareConfig,
 ) {
   const viewport = { width: 0, height: 0 };
   const bounds = { width: 0, height: 0 };
   let view = FIT_VIEW;
   let fit = EMPTY_RECT;
-  let maxZoom = 2;
-  let scaleLimit = normalizeMaxScale(options.maxScale);
-  let motion = { ...resolveDragMotion(options.dragMotion), hardMaxZoom: scaleLimit !== undefined };
+  const range: PlanarZoomRange = { min: 1, max: 2 };
+  let minScale = normalizeScaleLimit(options.minScale);
+  let maxScale = normalizeScaleLimit(options.maxScale);
+  let motion = resolveDragMotion(options.dragMotion);
   let initialized = false;
   let pixelRatio = 1;
   let frame = 0;
@@ -93,18 +98,18 @@ export function mountPlanarSurfaces(
   function advance(now: number) {
     if (!animation) return;
     if (reducedMotion?.matches) {
-      view = "target" in animation ? animation.target : constrainView(view, viewport, fit, maxZoom);
+      view = "target" in animation ? animation.target : constrainView(view, viewport, fit, range);
       animation = undefined;
       return;
     }
     const dt = clampAxis((now - animationTime) / 1000, 0, 0.032);
     animationTime = now;
     if ("target" in animation) {
-      const next = followPlanarView(view, animation.target, fit, viewport, maxZoom, dt);
+      const next = followPlanarView(view, animation.target, fit, viewport, range, dt);
       view = next.view;
       if (next.settled) animation = undefined;
     } else {
-      const next = coastPlanarView(view, animation.velocity, animation.anchor, fit, viewport, maxZoom, dt, motion);
+      const next = coastPlanarView(view, animation.velocity, animation.anchor, fit, viewport, range, dt, motion);
       view = next.view;
       animation.velocity = next.velocity;
       if (next.settled) animation = undefined;
@@ -121,7 +126,7 @@ export function mountPlanarSurfaces(
     if (signal.aborted || !viewport.width || !viewport.height) return false;
     advance(now);
     let painted = true;
-    const lodZoom = clampAxis(view.zoom, 1, maxZoom);
+    const lodZoom = clampAxis(view.zoom, range.min, range.max);
     for (const layer of layers) {
       const center = planarPaneCenter(view, viewport, fit, layer.fit);
       painted = layer.paint(viewport, viewRect(layer.fit, { center, zoom: view.zoom }),
@@ -148,19 +153,22 @@ export function mountPlanarSurfaces(
     );
     const backingWidth = Math.max(1, Math.floor(width * pixelRatio));
     const backingHeight = Math.max(1, Math.floor(height * pixelRatio));
-    maxZoom = Infinity;
+    range.max = Infinity;
     let fitWidth = 0;
     let fitHeight = 0;
     for (const layer of layers) {
       const { canvas, manifest } = layer;
       if (canvas.width !== backingWidth) canvas.width = backingWidth;
       if (canvas.height !== backingHeight) canvas.height = backingHeight;
-      const geometry = viewportGeometry(manifest, viewport, pixelRatio, scaleLimit);
+      const geometry = viewportGeometry(manifest, viewport, pixelRatio, maxScale, minScale);
       layer.fit = geometry.fit;
-      maxZoom = Math.min(maxZoom, geometry.maxZoom);
+      range.max = Math.min(range.max, geometry.maxZoom);
       fitWidth = Math.max(fitWidth, layer.fit.width);
       fitHeight = Math.max(fitHeight, layer.fit.height);
     }
+    range.min = Math.min(minScale ?? 1, range.max);
+    range.hardMin = minScale !== undefined;
+    range.hardMax = maxScale !== undefined;
     fit = {
       width: fitWidth, height: fitHeight,
       left: (width - fitWidth) / 2, top: (height - fitHeight) / 2,
@@ -170,7 +178,7 @@ export function mountPlanarSurfaces(
       view = { ...FIT_VIEW, zoom: Number.isFinite(initialScale) ? initialScale : 1 };
       initialized = true;
     }
-    view = constrainView(view, viewport, fit, maxZoom);
+    view = constrainView(view, viewport, fit, range);
     schedule();
   }
 
@@ -190,7 +198,7 @@ export function mountPlanarSurfaces(
 
   function move(from: Point, to: Point, factor = 1) {
     if (!viewport.width || !viewport.height) return;
-    setTarget(moveView(targetView(), fit, viewport, maxZoom, from, to, factor));
+    setTarget(moveView(targetView(), fit, viewport, range, from, to, factor));
   }
 
   function drag(from: Point, to: Point, time: number, before = 1, after = 1) {
@@ -198,8 +206,8 @@ export function mountPlanarSurfaces(
     animation = undefined;
     const factor = after / before;
     view = reducedMotion?.matches || !motion.bounce
-      ? moveView(view, fit, viewport, maxZoom, from, to, factor)
-      : dragPlanarView(view, fit, viewport, maxZoom, from, to, factor, motion.hardMaxZoom);
+      ? moveView(view, fit, viewport, range, from, to, factor)
+      : dragPlanarView(view, fit, viewport, range, from, to, factor);
     if (samplePointerCount !== pointers.size) {
       samples = [];
       samplePointerCount = pointers.size;
@@ -215,12 +223,12 @@ export function mountPlanarSurfaces(
       move(center, center, factor);
     },
     reset() {
-      setTarget(FIT_VIEW);
+      setTarget({ ...FIT_VIEW, zoom: range.min });
     },
     getView: () => view,
     setView(next: PlanarView) {
       animation = undefined;
-      view = constrainView(next, viewport, fit, maxZoom);
+      view = constrainView(next, viewport, fit, range);
       cancelAnimationFrame(frame);
       return render(performance.now());
     },
@@ -229,13 +237,16 @@ export function mountPlanarSurfaces(
       comparison = next;
       if (resizeNeeded) resize();
     },
-    configure(next: PlanarViewOptions) {
+    configure(next: PlanarComparisonViewOptions) {
       options = next;
-      const nextLimit = normalizeMaxScale(next.maxScale);
+      const nextMin = normalizeScaleLimit(next.minScale);
+      const nextMax = normalizeScaleLimit(next.maxScale);
       const nextMotion = resolveDragMotion(next.dragMotion);
-      if (scaleLimit === nextLimit && motion.inertia === nextMotion.inertia && motion.bounce === nextMotion.bounce) return;
-      scaleLimit = nextLimit;
-      motion = { ...nextMotion, hardMaxZoom: nextLimit !== undefined };
+      if (minScale === nextMin && maxScale === nextMax &&
+          motion.inertia === nextMotion.inertia && motion.bounce === nextMotion.bounce) return;
+      minScale = nextMin;
+      maxScale = nextMax;
+      motion = nextMotion;
       resize();
     },
   };
@@ -332,7 +343,7 @@ export function mountPlanarSurfaces(
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
     const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
     const target = targetView();
-    if (!delta || (delta > 0 && target.zoom <= 1) || (delta < 0 && target.zoom >= maxZoom)) return;
+    if (!delta || (delta > 0 && target.zoom <= range.min) || (delta < 0 && target.zoom >= range.max)) return;
     event.preventDefault();
     const point = localPoint(event);
     const anchor = toSharedPoint(point, paneAt(point));

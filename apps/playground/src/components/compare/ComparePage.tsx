@@ -17,6 +17,9 @@ import { CodeSnippet } from "../CodeSnippet";
 import { ExamplePage } from "../ExamplePage";
 
 const assets = "/fixtures/compare/v1";
+const viewLimits = { fov: { min: 35, max: 90 } };
+const dividerColor = "#38bdf8";
+const dividerWidth = 4;
 
 function panorama(name: string): PanoCompareSource {
   return {
@@ -52,11 +55,13 @@ export function ComparePage() {
     setActiveId(id);
   };
 
-  const snippet = `<PanoViewer style={{ height: 480 }}>
+  const snippet = `<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
   <PanoCompare
     scenes={scenes}
     presentation="${presentation}"
     layout="${layout}"
+    dividerColor="${dividerColor}"
+    dividerWidth={${dividerWidth}}
   />
 </PanoViewer>`;
 
@@ -84,6 +89,7 @@ export function ComparePage() {
       </div>
       {error && <p role="alert" className="mb-3 text-sm text-red-300">{error}</p>}
       <PanoViewer ref={viewer.ref} aria-label="Panorama comparison" className="rounded-xl bg-slate-900"
+        viewLimits={viewLimits}
         style={{ height: "clamp(340px, 65dvh, 620px)" }}>
         <PanoCompare
           scenes={scenes}
@@ -91,6 +97,8 @@ export function ComparePage() {
           onActiveSceneIdChange={selectScene}
           presentation={presentation}
           layout={layout}
+          dividerColor={dividerColor}
+          dividerWidth={dividerWidth}
           onSceneError={({ side }) => setError(`Unable to load the ${side} image.`)}
           renderHotspots={() => (
             <GraphicHotspot id="comparison-info" ariaLabel="About this comparison"

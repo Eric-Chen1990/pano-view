@@ -757,11 +757,24 @@ divider. Use `"split-view"` for two equal panes that each fit the whole image
 at `1×`. Both presentations support `layout="left-right"` (default) and
 `"top-bottom"`. Use `split` and `onSplitChange` to control the wipe from 0 to 1,
 or set its starting position with `defaultSplit` (default `0.5`).
+In either presentation, `dividerColor` accepts a CSS color and `dividerWidth`
+sets the visible thickness in CSS pixels. The defaults are white and `2`;
+non-positive or non-finite widths use the default.
 
 Each image retains its aspect ratio. For pixel-aligned wipes, prepare images
 with the same aspect ratio and register their contents before generating tiles.
-`initialScale`, `maxScale`, `dragMotion` and `showZoomControls` work as with
-`PlanarTileViewer`. Automatic zoom uses the lower of the two resolution-based limits.
+`minScale` controls the minimum zoom for both images. Omit it to keep the
+default `1×` floor with pinch bounce. A finite value is raised to at least `1`
+and enforced during pinch and inertia. A non-finite value behaves like omission.
+Automatic zoom uses the lower of the two resolution-based limits, raised to
+the minimum if needed. An explicit `maxScale` takes precedence if it falls
+below `minScale`. With equal limits, the zoom is fixed and panning remains available.
+
+`initialScale` defaults to `1` and is clamped to the range on first open. Pair
+switches carry the current view forward within the range. The Fit button and
+the `Home` and `0` keys center the images at their minimum scale. The button
+reads Reset view when that scale is greater than `1×`. `dragMotion` and
+`showZoomControls` work as with `PlanarTileViewer`.
 
 Use unique scene IDs. Set `defaultActiveSceneId` to start at a different pair,
 or control selection with `activeSceneId` and `onActiveSceneIdChange`. Set
@@ -1537,11 +1550,13 @@ Inside `Scenes` with `type: "tile"`, the shared texture cache overrides per-scen
 Use `PanoCompare` as the panorama source inside `PanoViewer`. Each entry pairs two `sphere`, `tile`, or `sphereTile` source definitions. Give the pair a stable, unique `id`.
 
 ```tsx
-<PanoViewer style={{ height: 480 }}>
+<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
   <PanoCompare
     scenes={[{ id: "room", before: originalRoom, after: renovatedRoom }]}
     presentation="split-view"
     layout="left-right"
+    dividerColor="#38bdf8"
+    dividerWidth={4}
   />
 </PanoViewer>
 ```
@@ -1549,6 +1564,12 @@ Use `PanoCompare` as the panorama source inside `PanoViewer`. Each entry pairs t
 `presentation="wipe"` is the default. Both images use the full viewer projection, and the draggable divider reveals part of each image. `"split-view"` gives each image a complete, centered view in an equal pane. Both presentations support `"left-right"` (default) and `"top-bottom"`. Use `split` with `onSplitChange` to control the wipe from 0 to 1, or use `defaultSplit` to set its initial value (default 0.5). Switching to split view moves the two camera centers outward. Switching back brings them together. Layout changes crossfade. Both transitions respect the system’s reduced-motion preference.
 
 Use `activeSceneId`, `defaultActiveSceneId`, and `onActiveSceneIdChange` as with `Scenes`. Pair IDs work with the viewer's scene navigation and `PanoSceneMenu`. A pair stays visible until both incoming sources can be displayed. Tiled sources use their previews for this handoff. `onSceneReady(id)` fires when the pair takes over. `onSceneError({ sceneId, side, error })` reports a load failure that prevents the switch. The current view carries forward, with any fields supplied by the new pair's `initialView` applied on arrival.
+
+Set the shared zoom range with `viewLimits.fov` on the containing `PanoViewer`.
+It sets the vertical field of view in degrees. Smaller angles zoom in further.
+`dividerColor` and `dividerWidth` customize the line in both presentations.
+They default to white and `2` CSS pixels. Non-positive or non-finite widths
+use the default.
 
 `renderHotspots(scene)` mounts one set of hotspots, projected into both panes in split view. Viewer overlays, dialogs, and hotspot actions are shared. An embedded iframe has a separate document in each pane. When the viewer enters WebVR, the active pair's `before` source fills the view. Exiting restores the comparison.
 

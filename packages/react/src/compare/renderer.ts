@@ -94,12 +94,16 @@ function captureComparison(
   const split = separation === undefined
     ? config.presentation === "wipe" ? config.split : 0.5
     : config.split + (0.5 - config.split) * separation;
-  ctx.fillStyle = "white";
+  const divider = layer.parentElement?.querySelector(".pano-compare-divider");
+  const horizontal = layer.parentElement?.dataset.layout === "top-bottom";
+  const line = divider && getComputedStyle(divider, "::before");
+  const width = line ? Number.parseFloat(horizontal ? line.height : line.width) : 2;
+  ctx.fillStyle = line ? line.backgroundColor : "white";
   if (config.layout === "left-right") {
-    const thickness = 2 * canvas.width / previous.width;
+    const thickness = width * canvas.width / previous.width;
     ctx.fillRect(split * canvas.width - thickness / 2, 0, thickness, canvas.height);
   } else {
-    const thickness = 2 * canvas.height / previous.height;
+    const thickness = width * canvas.height / previous.height;
     ctx.fillRect(0, split * canvas.height - thickness / 2, canvas.width, thickness);
   }
   if (outgoing?.canvas.isConnected) {

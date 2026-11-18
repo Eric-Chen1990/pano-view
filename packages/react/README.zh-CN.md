@@ -727,10 +727,18 @@ import "@ericchen1990/pano-view/styles.css";
 时各显示整图。两种模式都支持 `layout="left-right"`（默认）和
 `"top-bottom"`。用 `split` 和 `onSplitChange` 控制 0 到 1 之间的擦拭位置，
 或用 `defaultSplit` 设置起点（默认 `0.5`）。
+两种模式都可通过 `dividerColor` 设置分隔线的 CSS 颜色，通过 `dividerWidth`
+设置以 CSS 像素计的粗度。默认是白色、`2px`。非正数或非有限线宽使用默认值。
 
 两张图各自保留宽高比。需要擦拭时逐像素对应，请在生成瓦片前让两张图的宽高比一致，
-并对齐图像内容。`initialScale`、`maxScale`、`dragMotion` 和
-`showZoomControls` 的用法与 `PlanarTileViewer` 相同。自动缩放上限取两侧计算值中的较小值。
+并对齐图像内容。`minScale` 设置两侧共用的最小倍率。省略时沿用 `1×` 下限和捏合回弹。
+有限值至少按 `1` 处理，并在捏合和惯性阶段生效。非有限值按省略处理。
+自动上限取两侧计算值中的较小值，必要时抬高至最小倍率。显式 `maxScale` 低于
+`minScale` 时以上限为准。上下限相等时倍率固定，仍可平移。
+
+`initialScale` 默认是 `1`，首次打开时限制在有效范围内。切换图片组时，在范围内保留当前视图。
+适配按钮和 `Home`、`0` 键会回到最小倍率并居中。最小倍率高于 `1×` 时，按钮显示
+`Reset view`。`dragMotion` 和 `showZoomControls` 的用法与 `PlanarTileViewer` 相同。
 
 每组使用唯一的 ID。用 `defaultActiveSceneId` 设置默认组，或用
 `activeSceneId` 和 `onActiveSceneIdChange` 控制选择。设置
@@ -1444,11 +1452,13 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 在 `PanoViewer` 中使用 `PanoCompare` 作为全景来源。每组由两份 `sphere`、`tile` 或 `sphereTile` 来源配置组成，并使用唯一且稳定的 `id`。
 
 ```tsx
-<PanoViewer style={{ height: 480 }}>
+<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
   <PanoCompare
     scenes={[{ id: "room", before: originalRoom, after: renovatedRoom }]}
     presentation="split-view"
     layout="left-right"
+    dividerColor="#38bdf8"
+    dividerWidth={4}
   />
 </PanoViewer>
 ```
@@ -1456,6 +1466,10 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 `presentation="wipe"` 默认使用整窗投影，拖动分隔线露出两张图各自的一部分。`"split-view"` 将窗口等分，两格各自居中并完整取景。两种显示方式都支持 `"left-right"`（默认）和 `"top-bottom"`。用 `split` 与 `onSplitChange` 受控更新擦拭比例，或通过 `defaultSplit` 设置初始值。范围为 0 到 1，默认 0.5。切到完整双画面时，两侧的取景中心向外分开；切回擦拭时再向中间合拢。切换摆放方向时会短暂淡入淡出。两种过渡都遵循系统的减少动态效果偏好。
 
 `activeSceneId`、`defaultActiveSceneId` 和 `onActiveSceneIdChange` 沿用 `Scenes` 约定。每组的 ID 可用于查看器场景切换方法和 `PanoSceneMenu`。当前组保留到下一组两侧都可显示时，瓦片来源使用预览完成交接。`onSceneReady(id)` 在新组显示时触发，`onSceneError({ sceneId, side, error })` 报告导致切换失败的来源。切组默认保留当前视角，新组的 `initialView` 可覆盖指定字段。
+
+在外层 `PanoViewer` 上通过 `viewLimits.fov` 设置两侧共用的垂直视角范围。单位为度，
+角度越小画面越近。两种模式都支持 `dividerColor` 和 `dividerWidth`，默认白色、
+`2px`。非正数或非有限线宽使用默认值。
 
 `renderHotspots(scene)` 挂载一套共享热点，在完整双画面的两格各投影一次。操作、浮层和弹窗共用。内嵌 iframe 在两格各有独立文档。进入 WebVR 时整窗显示当前组的 `before` 来源，退出后恢复对比。
 

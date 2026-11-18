@@ -24,13 +24,20 @@ export function compareRects(
     : [{ x: 0, y: 0, width, height: edge }, { x: 0, y: edge, width, height: height - edge }];
 }
 
-export type CompareConfig = {
+export type CompareDividerAppearance = {
+  /** CSS color of the dividing line. Defaults to white. */
+  dividerColor?: string;
+  /** Thickness of the dividing line in CSS pixels. Defaults to 2. */
+  dividerWidth?: number;
+};
+
+export type CompareConfig = CompareDividerAppearance & {
   layout: PanoCompareLayout;
   presentation: PanoComparePresentation;
   split: ReturnType<typeof createCompareSplit>;
 };
 
-export type CompareFrameConfig = Omit<CompareConfig, "split"> & { split: number };
+export type CompareFrameConfig = Pick<CompareConfig, "layout" | "presentation"> & { split: number };
 
 type CompareMotion = { layout: PanoCompareLayout; separation: number };
 

@@ -7,6 +7,10 @@ import { CodeSnippet } from "../CodeSnippet";
 import { ExamplePage } from "../ExamplePage";
 
 const assets = "/fixtures/planar-compare/v1";
+const minScale = 1.25;
+const maxScale = 4;
+const dividerColor = "#38bdf8";
+const dividerWidth = 4;
 const before = { manifestUrl: `${assets}/image1.tiles/manifest.json`, alt: "Original plaza photograph" };
 const after = { manifestUrl: `${assets}/image-1.tiles/manifest.json`, alt: "Stylized plaza photograph" };
 const scenes: PlanarTileCompareScene[] = [
@@ -22,6 +26,10 @@ export function PlanarComparePage() {
   scenes={scenes}
   presentation="${presentation}"
   layout="${layout}"
+  minScale={${minScale}}
+  maxScale={${maxScale}}
+  dividerColor="${dividerColor}"
+  dividerWidth={${dividerWidth}}
   style={{ height: 480 }}
 />`;
 
@@ -50,6 +58,7 @@ export function PlanarComparePage() {
         </label>
       </div>
       <PlanarTileCompare scenes={scenes} presentation={presentation} layout={layout}
+        minScale={minScale} maxScale={maxScale} dividerColor={dividerColor} dividerWidth={dividerWidth}
         className="rounded-xl" style={{ height: "clamp(340px, 65dvh, 620px)" }}
       />
       <div className="mt-6">

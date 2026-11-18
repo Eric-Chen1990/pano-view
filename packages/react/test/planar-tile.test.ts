@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCompareSplit } from "../src/compare/split";
-import { resolveDragMotion } from "../src/drag-motion";
 import {
   FIT_VIEW, moveView, planarPaneCenter, selectLevel, viewportGeometry, viewRect, visibleTiles,
 } from "../src/planar-tile/geometry";
@@ -61,9 +60,10 @@ test("zoom selects a denser level, culls offscreen tiles and includes exact edge
   const manifest = parsePlanarManifest(document("deepzoom"), manifestUrl);
   const viewport = { width: 240, height: 180 };
   const { fit, maxZoom } = viewportGeometry(manifest, viewport, 2);
+  const range = { min: 1, max: maxZoom };
   const start = viewRect(fit, FIT_VIEW);
   assert.equal(selectLevel(manifest.levels, start, 2).level, 10);
-  const zoom = moveView(FIT_VIEW, fit, viewport, maxZoom, { x: 240, y: 180 }, { x: 240, y: 180 }, 10);
+  const zoom = moveView(FIT_VIEW, fit, viewport, range, { x: 240, y: 180 }, { x: 240, y: 180 }, 10);
   const zoomed = viewRect(fit, zoom);
   assert.ok(Math.abs(zoomed.left + zoomed.width - viewport.width) < 1e-9);
   assert.ok(Math.abs(zoomed.top + zoomed.height - viewport.height) < 1e-9);
@@ -82,11 +82,12 @@ test("zoom preserves its anchor away from bounds, and fit clamps both axes", () 
   const viewport = { width: 500, height: 500 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
   const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const range = { min: 1, max: maxZoom };
   const anchor = { x: 270, y: 250 };
-  const zoomed = moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 2);
+  const zoomed = moveView(FIT_VIEW, fit, viewport, range, anchor, anchor, 2);
   const rect = viewRect(fit, zoomed);
   assert.ok(Math.abs((anchor.x - rect.left) / rect.width - anchor.x / fit.width) < 1e-9);
-  assert.deepEqual(moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, { x: 0, y: 0 }, 1), FIT_VIEW);
+  assert.deepEqual(moveView(FIT_VIEW, fit, viewport, range, anchor, { x: 0, y: 0 }, 1), FIT_VIEW);
 });
 
 test("comparison panes align at the same aspect ratio and clamp independently with different ratios", () => {
@@ -105,17 +106,18 @@ test("drag overshoots with resistance, reverses freely, and springs back to fit"
   const viewport = { width: 240, height: 180 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
   const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const range = { min: 1, max: maxZoom };
   const center = { x: 120, y: 90 };
   const beyond = { x: 320, y: 90 };
-  const stretched = dragPlanarView(FIT_VIEW, fit, viewport, maxZoom, center, beyond, 1);
+  const stretched = dragPlanarView(FIT_VIEW, fit, viewport, range, center, beyond, 1);
   const offset = viewRect(fit, stretched).left - fit.left;
   assert.ok(offset > 0 && offset < 70);
-  const reversed = dragPlanarView(stretched, fit, viewport, maxZoom, beyond, center, 1);
+  const reversed = dragPlanarView(stretched, fit, viewport, range, beyond, center, 1);
   assert.ok(Math.abs(reversed.center.x - 0.5) < 1e-10);
-  let step = coastPlanarView(stretched, NO_VELOCITY, center, fit, viewport, maxZoom, 1 / 60);
+  let step = coastPlanarView(stretched, NO_VELOCITY, center, fit, viewport, range, 1 / 60);
   assert.ok(viewRect(fit, step.view).left < viewRect(fit, stretched).left);
   for (let i = 0; !step.settled && i < 120; i++) {
-    step = coastPlanarView(step.view, step.velocity, center, fit, viewport, maxZoom, 1 / 60);
+    step = coastPlanarView(step.view, step.velocity, center, fit, viewport, range, 1 / 60);
   }
   assert.ok(step.settled);
   assert.deepEqual(step.view, FIT_VIEW);
@@ -125,20 +127,21 @@ test("release coasts in the gesture direction and pinch rebounds at zoom limits"
   const viewport = { width: 240, height: 180 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
   const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const range = { min: 1, max: maxZoom };
   const anchor = { x: 120, y: 90 };
-  const view = moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 2);
-  const coast = coastPlanarView(view, { x: -500, y: 0, zoom: 120 }, anchor, fit, viewport, maxZoom, 1 / 60);
+  const view = moveView(FIT_VIEW, fit, viewport, range, anchor, anchor, 2);
+  const coast = coastPlanarView(view, { x: -500, y: 0, zoom: 120 }, anchor, fit, viewport, range, 1 / 60);
   assert.ok(coast.view.center.x > view.center.x);
   assert.ok(coast.view.zoom > view.zoom);
   assert.ok(coast.velocity.x > -500 && coast.velocity.zoom < 120);
 
   for (const [factor, limit] of [[0.5, 1], [10, maxZoom]] as const) {
-    const stretched = dragPlanarView(view, fit, viewport, maxZoom, anchor, anchor, factor / 2);
+    const stretched = dragPlanarView(view, fit, viewport, range, anchor, anchor, factor / 2);
     if (factor < 1) assert.ok(stretched.zoom < limit);
     else assert.ok(stretched.zoom > limit);
-    let step = coastPlanarView(stretched, NO_VELOCITY, anchor, fit, viewport, maxZoom, 1 / 60);
+    let step = coastPlanarView(stretched, NO_VELOCITY, anchor, fit, viewport, range, 1 / 60);
     for (let i = 0; !step.settled && i < 120; i++) {
-      step = coastPlanarView(step.view, step.velocity, anchor, fit, viewport, maxZoom, 1 / 60);
+      step = coastPlanarView(step.view, step.velocity, anchor, fit, viewport, range, 1 / 60);
     }
     assert.ok(step.settled);
     assert.ok(Math.abs(step.view.zoom - limit) < 1e-9);
@@ -150,14 +153,14 @@ test("explicit zoom limits apply even with pinch bounce and momentum", () => {
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
   const { fit } = viewportGeometry(manifest, viewport, 1);
   const anchor = { x: 120, y: 90 };
-  const motion = { ...resolveDragMotion(undefined), hardMaxZoom: true };
   for (const maxScale of [1, 2, 3]) {
     const { maxZoom } = viewportGeometry(manifest, viewport, 1, maxScale);
     assert.equal(maxZoom, maxScale);
-    assert.equal(dragPlanarView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 10, true).zoom, maxScale);
+    const range = { min: 1, max: maxZoom, hardMax: true };
+    assert.equal(dragPlanarView(FIT_VIEW, fit, viewport, range, anchor, anchor, 10).zoom, maxScale);
     const almostAtMax = { ...FIT_VIEW, zoom: Math.max(1, maxScale - 0.01) };
     const next = coastPlanarView(
-      almostAtMax, { ...NO_VELOCITY, zoom: 600 }, anchor, fit, viewport, maxZoom, 1 / 60, motion,
+      almostAtMax, { ...NO_VELOCITY, zoom: 600 }, anchor, fit, viewport, range, 1 / 60,
     );
     assert.equal(next.view.zoom, maxScale);
     assert.equal(next.velocity.zoom, 0);
@@ -166,13 +169,28 @@ test("explicit zoom limits apply even with pinch bounce and momentum", () => {
   assert.equal(viewportGeometry(manifest, viewport, 1, Infinity).maxZoom, viewportGeometry(manifest, viewport, 1).maxZoom);
 });
 
+test("an explicit floor stops pinch and outward zoom inertia at the minimum", () => {
+  const viewport = { width: 240, height: 180 };
+  const fit = { ...viewport, left: 0, top: 0 };
+  const anchor = { x: 120, y: 90 };
+  for (const min of [1, 1.5]) {
+    const range = { min, max: 4, hardMin: true };
+    const view = { ...FIT_VIEW, zoom: min + 0.01 };
+    assert.equal(dragPlanarView(view, fit, viewport, range, anchor, anchor, 0.5).zoom, min);
+    const next = coastPlanarView(view, { ...NO_VELOCITY, zoom: -600 }, anchor, fit, viewport, range, 1 / 60);
+    assert.equal(next.view.zoom, min);
+    assert.equal(next.velocity.zoom, 0);
+  }
+});
+
 test("a smoothed zoom approaches the target without moving the image point under the cursor", () => {
   const viewport = { width: 240, height: 180 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
   const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const range = { min: 1, max: maxZoom };
   const anchor = { x: 134, y: 98 };
-  const target = moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 2);
-  const first = followPlanarView(FIT_VIEW, target, fit, viewport, maxZoom, 1 / 60);
+  const target = moveView(FIT_VIEW, fit, viewport, range, anchor, anchor, 2);
+  const first = followPlanarView(FIT_VIEW, target, fit, viewport, range, 1 / 60);
   assert.ok(first.view.zoom > 1 && first.view.zoom < target.zoom);
   const rect = viewRect(fit, first.view);
   assert.ok(Math.abs((anchor.x - rect.left) / rect.width - (anchor.x - fit.left) / fit.width) < 1e-9);
@@ -180,7 +198,8 @@ test("a smoothed zoom approaches the target without moving the image point under
 });
 
 test("planar runtime handles tile failures, gestures, synchronized panes and cleanup", async (t) => {
-  const browser = new EventTarget();
+  const reducedMotion = { matches: false };
+  const browser = Object.assign(new EventTarget(), { matchMedia: () => reducedMotion });
   const captured = new Set<number>();
   const viewport = Object.assign(new EventTarget(), {
     clientWidth: 240,
@@ -336,11 +355,13 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   const pair = mountPlanarSurfaces(viewport as unknown as HTMLElement, [
     { canvas: canvas as unknown as HTMLCanvasElement, manifest, report: () => {} },
     { canvas: secondCanvas as unknown as HTMLCanvasElement, manifest: secondManifest, report: () => {} },
-  ], comparison.signal, { dragMotion: false }, { layout: "left-right", presentation: "split-view", split });
+  ], comparison.signal, { initialScale: 1, minScale: 1.5, dragMotion: false },
+    { layout: "left-right", presentation: "split-view", split });
   requests.get("maps/thumbnail.png")!(new Response("overview"));
   requests.get("after/thumbnail.png")!(new Response("second overview"));
   await tick();
   assert.equal(canvas.width, 120);
+  assert.equal(pair.getView().zoom, 1.5);
   assert.deepEqual(beforeRect, afterRect);
   assert.ok(pair.setView({ center: FIT_VIEW.center, zoom: 2 }));
   touch("pointerdown", 1, 180);
@@ -357,6 +378,29 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   await tick();
   split.change(0.8);
   assert.equal(frames.size, 0);
+
+  reducedMotion.matches = true;
+  pair.configure({ minScale: 1.75, maxScale: 3 });
+  assert.equal(pair.getView().zoom, 2);
+  pair.setView({ center: { x: 0.6, y: 0.5 }, zoom: 1 });
+  assert.equal(pair.getView().zoom, 1.75);
+  assert.ok(pair.getView().center.x > 0.5);
+  viewport.dispatchEvent(Object.assign(new Event("keydown"), { key: "Home" }));
+  assert.deepEqual(pair.getView(), { center: FIT_VIEW.center, zoom: 1.75 });
+  pair.zoom(0.1);
+  assert.equal(pair.getView().zoom, 1.75);
+
+  pair.configure({ minScale: 10, maxScale: 3 });
+  assert.equal(pair.getView().zoom, 3);
+  pair.zoom(0.1);
+  assert.equal(pair.getView().zoom, 3);
+  pair.configure({ minScale: 10 });
+  assert.equal(pair.getView().zoom, 10);
+  pair.setView({ center: FIT_VIEW.center, zoom: 20 });
+  assert.equal(pair.getView().zoom, 10);
+  pair.configure({ minScale: Infinity, maxScale: 3 });
+  pair.reset();
+  assert.deepEqual(pair.getView(), FIT_VIEW);
   comparison.abort();
   await tick();
   assert.ok(signals.every((signal) => signal.aborted));
