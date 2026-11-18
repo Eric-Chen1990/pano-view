@@ -16,6 +16,7 @@
 - [兼容 krpano 的瓦片输出](#兼容-krpano-的瓦片输出)
 - [安装](#安装)
 - [示例](#示例)
+- [PlanarTileViewer](#planartileviewer)
 - [导出组件](#导出组件)
 - [PanoViewer](#panoviewer)
 - [DOM Overlay 与弹窗](#dom-overlay-与弹窗)
@@ -492,7 +493,7 @@ const project = await loadPanoProject("/tour/project.json", {
 
 `PanoDataError` 提供稳定 `code`：`INVALID_OPTIONS`、`FETCH_FAILED`、`HTTP_ERROR`、`INVALID_JSON`、`INVALID_CONFIG`、`UNSUPPORTED_SCHEMA_VERSION`、`UNSUPPORTED_PROJECTION`、`INVALID_PROJECT`、`INVALID_REFERENCE`、`ABORTED`；HTTP 错误带 `status`，项目错误尽可能带 `sceneId` 和 `field`。加载成功仅代表配置就绪，纹理就绪仍由 `onSceneReady` 等回调表示。
 
-完整静态示例见 playground 的 `/project` 页面和 `public/fixtures/projects/tour/project.json`。`/map` 在该漫游上展示平面图 overlay。
+完整静态示例见 playground 的 `/project` 页面和[示例 project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json)。`/map` 在该漫游上展示平面图 overlay。
 
 ## 兼容 krpano 的瓦片输出
 
@@ -659,6 +660,34 @@ export function Tour() {
 ~~~
 
 过渡预设与热点渲染见 [Scenes](#scenes)。
+
+## PlanarTileViewer
+
+使用 `PlanarTileViewer` 浏览单张平面图片。先用转换器生成瓦片，再通过
+HTTP 提供完整输出目录。
+
+```sh
+pano-convert scan.png --projection planar -o ./public/scan
+```
+
+```tsx
+import { PlanarTileViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileViewer
+  manifestUrl="/scan/manifest.json"
+  alt="扫描的建筑图纸"
+  style={{ height: 480 }}
+/>;
+```
+
+通过 `style`、`className` 或父容器指定高度。组件接受转换器生成的
+默认 Deep Zoom 和自定义平面 `manifest.json`，瓦片须无重叠。部署时保留
+清单与资源的相对路径。使用跨域 CDN 时，清单、缩略图和瓦片均需允许 CORS。
+
+用鼠标或单指拖拽平移，通过滚轮、双指捏合或按钮缩放。图片获得焦点时，
+可用方向键平移、`+` 或 `-` 缩放，按 `Home` 或 `0` 恢复全图。
+加载期间显示缩略图，高清瓦片按当前视口请求。
 
 ## 导出组件
 

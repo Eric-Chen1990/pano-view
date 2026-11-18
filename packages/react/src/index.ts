@@ -143,6 +143,8 @@ export type {
 } from "./sphere-tile/types";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
+export { PlanarTileViewer } from "./planar-tile/planar-tile-viewer";
+export type { PlanarTileViewerProps } from "./planar-tile/planar-tile-viewer";
 export { PanoVideo } from "./video/pano-video";
 export type { PanoVideoProps } from "./video/pano-video";
 export { PanoVideoControls } from "./video/pano-video-controls";

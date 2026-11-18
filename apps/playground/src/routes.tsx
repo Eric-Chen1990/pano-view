@@ -13,6 +13,7 @@ import { BasicsPage } from "./components/basics/BasicsPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { MapPage } from "./components/map/MapPage";
+import { PlanarTilePage } from "./components/planar-tile/PlanarTilePage";
 
 const EditorPage = lazy(() =>
   import("./components/editor/EditorPage").then((module) => ({
@@ -80,6 +81,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Panorama basics",
     group: "start",
     Component: BasicsPage,
+  },
+  {
+    path: "/planar-image",
+    navLabel: "Tiled flat image",
+    group: "start",
+    Component: PlanarTilePage,
   },
   {
     path: "/controls",

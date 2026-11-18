@@ -953,3 +953,85 @@
 .pano-scroll-controls [data-scroll-direction="right"] { width:44px; top:50%; transform:translateY(-50%); }
 .pano-scroll-controls [data-scroll-direction="left"] { left:6px; }
 .pano-scroll-controls [data-scroll-direction="right"] { right:6px; }
+
+.pano-planar-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: #101217;
+  color: #fff;
+}
+
+.pano-planar-viewport {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.pano-planar-viewport[data-dragging] {
+  cursor: grabbing;
+}
+
+.pano-planar-viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pano-planar-controls,
+.pano-planar-status {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #171a20;
+  color: #fff;
+  font: 500 14px/1.25 system-ui, sans-serif;
+}
+
+.pano-planar-controls {
+  right: 12px;
+  bottom: 12px;
+}
+
+.pano-planar-status {
+  top: 12px;
+  left: 12px;
+  padding: 8px 12px;
+}
+
+.pano-planar-controls button,
+.pano-planar-status button {
+  appearance: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pano-planar-controls button:hover,
+.pano-planar-status button:hover {
+  background: #363d49;
+}
+
+.pano-planar-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pano-planar-controls button:focus-visible,
+.pano-planar-status button:focus-visible,
+.pano-planar-viewport:focus-visible canvas {
+  outline: 2px solid #8bc6ff;
+  outline-offset: -3px;
+}

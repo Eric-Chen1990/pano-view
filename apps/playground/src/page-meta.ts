@@ -11,6 +11,11 @@ export const PAGE_META = {
     description:
       "Start with a single React panorama. Compare Sphere images and Tile cube sources, resource paths, previews and loading diagnostics.",
   },
+  "/planar-image": {
+    title: "Tiled Flat Image Demo | Pano View",
+    description:
+      "Pan and zoom a high-resolution flat image. The React viewer loads visible image tiles as you zoom into the floor plan.",
+  },
   "/controls": {
     title: "Panorama View Controls Demo | Pano View",
     description:

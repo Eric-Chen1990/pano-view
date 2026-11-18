@@ -16,6 +16,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [krpano-compatible tile output](#krpano-compatible-tile-output)
 - [Install](#install)
 - [Examples](#examples)
+- [PlanarTileViewer](#planartileviewer)
 - [Exported components](#exported-components)
 - [PanoViewer](#panoviewer)
 - [DOM overlays and dialogs](#dom-overlays-and-dialogs)
@@ -496,7 +497,7 @@ Hotspot mapping covers images, SVG image URLs, audio source arrays, video poster
 
 `PanoDataError` exposes stable codes: `INVALID_OPTIONS`, `FETCH_FAILED`, `HTTP_ERROR`, `INVALID_JSON`, `INVALID_CONFIG`, `UNSUPPORTED_SCHEMA_VERSION`, `UNSUPPORTED_PROJECTION`, `INVALID_PROJECT`, `INVALID_REFERENCE`, `ABORTED`. HTTP errors carry `status`; project errors include `sceneId` and `field` where available. Successful loading means metadata is ready, not that textures have loaded; use `onSceneReady` for render readiness.
 
-See the `/project` playground route and `public/fixtures/projects/tour/project.json` for a complete static example. `/map` shows the floor-plan overlay on that tour.
+See the `/project` playground route and its [sample project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json) for a complete static example. `/map` shows the floor-plan overlay on that tour.
 
 ## krpano-compatible tile output
 
@@ -686,6 +687,36 @@ export function Tour() {
 ~~~
 
 Presets and hotspot rendering are in [Scenes](#scenes).
+
+## PlanarTileViewer
+
+Use `PlanarTileViewer` to pan and zoom one flat image. Generate the tiles once
+with the converter and serve the complete output directory over HTTP.
+
+```sh
+pano-convert scan.png --projection planar -o ./public/scan
+```
+
+```tsx
+import { PlanarTileViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileViewer
+  manifestUrl="/scan/manifest.json"
+  alt="A scanned architectural drawing"
+  style={{ height: 480 }}
+/>;
+```
+
+Give the component a height through `style`, `className`, or its parent.
+The viewer accepts the converter's default Deep Zoom and custom planar
+`manifest.json` layouts with zero tile overlap. Keep asset paths relative to the
+manifest. For a cross-origin CDN, enable CORS for the manifest, thumbnail, and tiles.
+
+Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
+buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
+to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
+progressive loading and requests detail tiles for the current viewport.
 
 ## Exported components
 
