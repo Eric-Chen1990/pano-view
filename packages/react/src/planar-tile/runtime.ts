@@ -1,14 +1,23 @@
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
+import { clampAxis, velocityFromSamples } from "../drag-motion";
 import {
   constrainView, FIT_VIEW, moveView, selectLevel, viewportGeometry, viewRect,
-  visibleTiles, type PlanarTile,
+  visibleTiles, type PlanarTile, type PlanarView,
 } from "./geometry";
 import { planarTileUrl, type PlanarManifest } from "./manifest";
+import {
+  coastPlanarView, dragPlanarView, followPlanarView, NO_VELOCITY, ZOOM_MOTION_SCALE,
+  type PlanarVelocity,
+} from "./motion";
 
 export type PlanarStatus = "loading" | "ready" | "error";
 export type PlanarControls = { zoom: (factor: number) => void; reset: () => void };
 
 type CachedTile = { tile: PlanarTile; bitmap: ImageBitmap };
+type GestureSample = PlanarVelocity & { t: number };
+type ViewAnimation =
+  | { target: PlanarView }
+  | { velocity: PlanarVelocity; anchor: Point };
 
 const OVERVIEW: Rect = { left: 0, top: 0, width: 1, height: 1 };
 const MAX_CONCURRENT_LOADS = 4;
@@ -69,6 +78,39 @@ export function mountPlanarView(
   const pending = new Set<string>();
   const failed = new Set<string>();
   const pointers = new Map<number, Point>();
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+  let animation: ViewAnimation | undefined;
+  let animationTime = 0;
+  let samples: GestureSample[] = [];
+  let samplePointerCount = 0;
+
+  function animate(next: ViewAnimation) {
+    if (!animation) animationTime = performance.now();
+    animation = next;
+    schedule();
+  }
+
+  function advance(now: number) {
+    if (!animation) return;
+    if (reducedMotion?.matches) {
+      view = "target" in animation ? animation.target : constrainView(view, viewport, fit, maxZoom);
+      animation = undefined;
+      return;
+    }
+    const dt = clampAxis((now - animationTime) / 1000, 0, 0.032);
+    animationTime = now;
+    if ("target" in animation) {
+      const next = followPlanarView(view, animation.target, fit, viewport, maxZoom, dt);
+      view = next.view;
+      if (next.settled) animation = undefined;
+    } else {
+      const next = coastPlanarView(view, animation.velocity, animation.anchor, fit, viewport, maxZoom, dt);
+      view = next.view;
+      animation.velocity = next.velocity;
+      if (next.settled) animation = undefined;
+    }
+    if (animation) schedule();
+  }
 
   function schedule() {
     if (!frame && !signal.aborted) frame = requestAnimationFrame(render);
@@ -92,11 +134,13 @@ export function mountPlanarView(
     }
   }
 
-  function render() {
+  function render(now: number) {
     frame = 0;
     if (signal.aborted || !viewport.width || !viewport.height || !ctx) return;
+    advance(now);
     const image = viewRect(fit, view);
-    const level = selectLevel(manifest.levels, image, pixelRatio);
+    const lodZoom = clampAxis(view.zoom, 1, maxZoom);
+    const level = selectLevel(manifest.levels, viewRect(fit, { ...view, zoom: lodZoom }), pixelRatio);
     const tiles = visibleTiles(level, manifest.tileSize, image, viewport);
     const visible = new Set(tiles.map((tile) => tile.key));
     const drawRect = {
@@ -149,6 +193,8 @@ export function mountPlanarView(
   function resize() {
     viewport.width = viewportElement.clientWidth;
     viewport.height = viewportElement.clientHeight;
+    animation = undefined;
+    samples = [];
     const { width, height } = viewport;
     if (!width || !height) return;
     pixelRatio = Math.min(
@@ -165,9 +211,38 @@ export function mountPlanarView(
     schedule();
   }
 
+  function targetView() {
+    return animation && "target" in animation ? animation.target : view;
+  }
+
+  function setTarget(target: PlanarView) {
+    if (reducedMotion?.matches) {
+      animation = undefined;
+      view = target;
+      schedule();
+    } else {
+      animate({ target });
+    }
+  }
+
   function move(from: Point, to: Point, factor = 1) {
     if (!viewport.width || !viewport.height) return;
-    view = moveView(view, fit, viewport, maxZoom, from, to, factor);
+    setTarget(moveView(targetView(), fit, viewport, maxZoom, from, to, factor));
+  }
+
+  function drag(from: Point, to: Point, time: number, before = 1, after = 1) {
+    if (!viewport.width || !viewport.height) return;
+    animation = undefined;
+    const factor = after / before;
+    view = reducedMotion?.matches
+      ? moveView(view, fit, viewport, maxZoom, from, to, factor)
+      : dragPlanarView(view, fit, viewport, maxZoom, from, to, factor);
+    if (samplePointerCount !== pointers.size) {
+      samples = [];
+      samplePointerCount = pointers.size;
+    }
+    samples = samples.filter(({ t }) => time - t <= 100).slice(-7);
+    samples.push({ ...to, zoom: Math.log(after) * ZOOM_MOTION_SCALE, t: time });
     schedule();
   }
 
@@ -177,8 +252,7 @@ export function mountPlanarView(
       move(center, center, factor);
     },
     reset() {
-      view = FIT_VIEW;
-      schedule();
+      setTarget(FIT_VIEW);
     },
   };
 
@@ -192,9 +266,16 @@ export function mountPlanarView(
 
   viewportElement.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || pointers.size >= 2) return;
+    animation = undefined;
+    samples = [];
     viewportElement.focus({ preventScroll: true });
     viewportElement.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, localPoint(event));
+    const [first, second] = pointers.values();
+    const anchor = second ? midpoint(first!, second) : first!;
+    const span = second ? Math.max(1, Math.hypot(first!.x - second.x, first!.y - second.y)) : 1;
+    samplePointerCount = pointers.size;
+    samples.push({ ...anchor, zoom: Math.log(span) * ZOOM_MOTION_SCALE, t: event.timeStamp });
     viewportElement.dataset.dragging = "";
   }, { signal });
   viewportElement.addEventListener("pointermove", (event) => {
@@ -202,28 +283,49 @@ export function mountPlanarView(
     if (!previous) return;
     const current = localPoint(event);
     pointers.set(event.pointerId, current);
-    const other = Array.from(pointers.entries()).find(([id]) => id !== event.pointerId)?.[1];
+    const other = [...pointers.entries()].find(([id]) => id !== event.pointerId)?.[1];
     if (!other) {
-      move(previous, current);
+      drag(previous, current, event.timeStamp);
       return;
     }
-    const midpoint = (point: Point) => ({ x: (point.x + other.x) / 2, y: (point.y + other.y) / 2 });
-    const before = Math.hypot(previous.x - other.x, previous.y - other.y);
-    const after = Math.hypot(current.x - other.x, current.y - other.y);
-    move(midpoint(previous), midpoint(current), before > 0 && after > 0 ? after / before : 1);
+    const before = Math.max(1, Math.hypot(previous.x - other.x, previous.y - other.y));
+    const after = Math.max(1, Math.hypot(current.x - other.x, current.y - other.y));
+    drag(midpoint(previous, other), midpoint(current, other), event.timeStamp, before, after);
   }, { signal });
+
+  function midpoint(a: Point, b: Point): Point {
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  }
+
   const releasePointer = (event: PointerEvent) => {
-    pointers.delete(event.pointerId);
-    if (!pointers.size) delete viewportElement.dataset.dragging;
+    if (!pointers.delete(event.pointerId)) return;
+    if (viewportElement.hasPointerCapture(event.pointerId)) {
+      viewportElement.releasePointerCapture(event.pointerId);
+    }
+    if (event.type !== "pointerup") samples = [];
+    if (pointers.size) return;
+    delete viewportElement.dataset.dragging;
+    const last = samples[samples.length - 1];
+    const recent = samples.filter(({ t }) => event.timeStamp - t <= 100);
+    const speed = (axis: keyof PlanarVelocity, limit: number) => clampAxis(
+      velocityFromSamples(recent.map((sample) => ({ t: sample.t, position: sample[axis] }))), -limit, limit,
+    );
+    const velocity = recent.length > 1
+      ? { x: speed("x", 1800), y: speed("y", 1800), zoom: speed("zoom", 600) }
+      : NO_VELOCITY;
+    samples = [];
+    animate({ velocity, anchor: last ?? localPoint(event) });
   };
   for (const event of ["pointerup", "pointercancel", "lostpointercapture"] as const) {
     viewportElement.addEventListener(event, releasePointer, { signal });
   }
 
   viewportElement.addEventListener("wheel", (event) => {
+    if (pointers.size) return;
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
     const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
-    if (!delta || (delta > 0 && view.zoom <= 1) || (delta < 0 && view.zoom >= maxZoom)) return;
+    const target = targetView();
+    if (!delta || (delta > 0 && target.zoom <= 1) || (delta < 0 && target.zoom >= maxZoom)) return;
     event.preventDefault();
     const point = localPoint(event);
     move(point, point, Math.exp(-delta * 0.004));

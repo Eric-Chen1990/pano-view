@@ -5,6 +5,7 @@ import {
 } from "../src/planar-tile/geometry";
 import { parsePlanarManifest, planarTileUrl } from "../src/planar-tile/manifest";
 import { mountPlanarView, type PlanarStatus } from "../src/planar-tile/runtime";
+import { coastPlanarView, dragPlanarView, followPlanarView, NO_VELOCITY } from "../src/planar-tile/motion";
 
 const manifestUrl = "https://cdn.test/maps/manifest.json";
 const source = { width: 1025, height: 769 };
@@ -86,6 +87,63 @@ test("zoom preserves its anchor away from bounds, and fit clamps both axes", () 
   assert.deepEqual(moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, { x: 0, y: 0 }, 1), FIT_VIEW);
 });
 
+test("drag overshoots with resistance, reverses freely, and springs back to fit", () => {
+  const viewport = { width: 240, height: 180 };
+  const manifest = parsePlanarManifest(document("custom"), manifestUrl);
+  const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const center = { x: 120, y: 90 };
+  const beyond = { x: 320, y: 90 };
+  const stretched = dragPlanarView(FIT_VIEW, fit, viewport, maxZoom, center, beyond, 1);
+  const offset = viewRect(fit, stretched).left - fit.left;
+  assert.ok(offset > 0 && offset < 70);
+  const reversed = dragPlanarView(stretched, fit, viewport, maxZoom, beyond, center, 1);
+  assert.ok(Math.abs(reversed.center.x - 0.5) < 1e-10);
+  let step = coastPlanarView(stretched, NO_VELOCITY, center, fit, viewport, maxZoom, 1 / 60);
+  assert.ok(viewRect(fit, step.view).left < viewRect(fit, stretched).left);
+  for (let i = 0; !step.settled && i < 120; i++) {
+    step = coastPlanarView(step.view, step.velocity, center, fit, viewport, maxZoom, 1 / 60);
+  }
+  assert.ok(step.settled);
+  assert.deepEqual(step.view, FIT_VIEW);
+});
+
+test("release coasts in the gesture direction and pinch rebounds at zoom limits", () => {
+  const viewport = { width: 240, height: 180 };
+  const manifest = parsePlanarManifest(document("custom"), manifestUrl);
+  const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const anchor = { x: 120, y: 90 };
+  const view = moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 2);
+  const coast = coastPlanarView(view, { x: -500, y: 0, zoom: 120 }, anchor, fit, viewport, maxZoom, 1 / 60);
+  assert.ok(coast.view.center.x > view.center.x);
+  assert.ok(coast.view.zoom > view.zoom);
+  assert.ok(coast.velocity.x > -500 && coast.velocity.zoom < 120);
+
+  for (const [factor, limit] of [[0.5, 1], [10, maxZoom]] as const) {
+    const stretched = dragPlanarView(view, fit, viewport, maxZoom, anchor, anchor, factor / 2);
+    if (factor < 1) assert.ok(stretched.zoom < limit);
+    else assert.ok(stretched.zoom > limit);
+    let step = coastPlanarView(stretched, NO_VELOCITY, anchor, fit, viewport, maxZoom, 1 / 60);
+    for (let i = 0; !step.settled && i < 120; i++) {
+      step = coastPlanarView(step.view, step.velocity, anchor, fit, viewport, maxZoom, 1 / 60);
+    }
+    assert.ok(step.settled);
+    assert.ok(Math.abs(step.view.zoom - limit) < 1e-9);
+  }
+});
+
+test("a smoothed zoom approaches the target without moving the image point under the cursor", () => {
+  const viewport = { width: 240, height: 180 };
+  const manifest = parsePlanarManifest(document("custom"), manifestUrl);
+  const { fit, maxZoom } = viewportGeometry(manifest, viewport, 1);
+  const anchor = { x: 134, y: 98 };
+  const target = moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 2);
+  const first = followPlanarView(FIT_VIEW, target, fit, viewport, maxZoom, 1 / 60);
+  assert.ok(first.view.zoom > 1 && first.view.zoom < target.zoom);
+  const rect = viewRect(fit, first.view);
+  assert.ok(Math.abs((anchor.x - rect.left) / rect.width - (anchor.x - fit.left) / fit.width) < 1e-9);
+  assert.ok(Math.abs((anchor.y - rect.top) / rect.height - (anchor.y - fit.top) / fit.height) < 1e-9);
+});
+
 test("planar runtime handles partial failure, pinch, and source cleanup", async (t) => {
   const browser = new EventTarget();
   const captured = new Set<number>();
@@ -146,9 +204,9 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
 
   const tick = async () => {
     await new Promise<void>((resolve) => setImmediate(resolve));
-    for (const [frame, callback] of frames) {
+    for (const [frame, callback] of [...frames]) {
       frames.delete(frame);
-      callback(0);
+      callback(performance.now() + 16);
     }
   };
   const controller = new AbortController();
@@ -179,6 +237,9 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
   await tick();
   // Four requests start even when more detail tiles intersect the viewport.
   assert.equal(urls.length, 7);
+  touch("pointerup", 2, 210);
+  touch("pointerup", 1, 90);
+  assert.ok(frames.size > 0);
   controller.abort();
   await tick();
   assert.ok(signals.every((signal) => signal.aborted));

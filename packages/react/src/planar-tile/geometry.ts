@@ -47,15 +47,21 @@ export function moveView(
   view: PlanarView, fit: Rect, viewport: Size, maxZoom: number,
   from: Point, to: Point, factor: number,
 ): PlanarView {
-  const rect = viewRect(fit, view);
   const zoom = Math.max(1, Math.min(maxZoom, view.zoom * factor));
-  return constrainView({
+  return constrainView(anchorView(view, fit, viewport, from, to, zoom), viewport, fit, maxZoom);
+}
+
+export function anchorView(
+  view: PlanarView, fit: Rect, viewport: Size, from: Point, to: Point, zoom: number,
+): PlanarView {
+  const rect = viewRect(fit, view);
+  return {
     zoom,
     center: {
       x: (from.x - rect.left) / rect.width + (viewport.width / 2 - to.x) / (fit.width * zoom),
       y: (from.y - rect.top) / rect.height + (viewport.height / 2 - to.y) / (fit.height * zoom),
     },
-  }, viewport, fit, maxZoom);
+  };
 }
 
 export function viewportGeometry(manifest: PlanarManifest, viewport: Size, pixelRatio: number) {

@@ -717,6 +717,8 @@ Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
 buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
 to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
 progressive loading and requests detail tiles for the current viewport.
+Drag and pinch coast after release and spring back at the limits. Wheel and
+button zoom ease toward the target. The viewer respects reduced-motion preferences.
 
 ## Exported components
 
