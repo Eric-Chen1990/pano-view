@@ -35,6 +35,7 @@ export type {
 } from "./background-audio-host";
 export { PanoFilter } from "./pano-filter/pano-filter";
 export type { PanoFilterProps } from "./pano-filter/pano-filter";
+export type { PanoColorAdjustments } from "./pano-filter/adjustments";
 export { PANO_FILTER_PRESETS } from "./pano-filter/presets";
 export type { PanoColorMatrix, PanoFilterPreset } from "./pano-filter/presets";
 export { Gyro } from "./gyro";
@@ -155,7 +156,11 @@ export type {
   PanoVideoController,
   PanoVideoErrorEvent,
   PanoVideoErrorSource,
+  PanoVideoHlsLevel,
+  PanoVideoHlsQuality,
+  PanoVideoHlsSelection,
   PanoVideoPlaybackSnapshot,
+  PanoVideoQualitySwitch,
   PanoVideoSource,
   PanoVideoTrack,
   PanoVideoTrackKind,

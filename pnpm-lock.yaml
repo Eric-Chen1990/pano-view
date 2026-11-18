@@ -137,6 +137,9 @@ importers:
       '@types/three':
         specifier: ^0.185.0
         version: 0.185.4
+      hls.js:
+        specifier: 1.7.0
+        version: 1.7.0
       howler:
         specifier: ^2.2.4
         version: 2.2.4

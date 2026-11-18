@@ -1,5 +1,13 @@
 # @ericchen1990/pano-view
 
+## 5.5.0
+
+### Minor Changes
+
+- 7f7fff9: Support HLS in PanoVideo with automatic and manual quality selection, playback resolution reporting, and buffered quality handoffs on the native HLS path. Handle in-band, alternate, and absent audio tracks.
+- Toggle `PanoVideo` playback from a panorama click or tap, and show a centered play button while paused. Both are on by default in screen mode, including fullscreen, and stay independent of the control bar.
+- 838f6bd: Add real-time exposure, saturation, contrast, and local clarity adjustments to `PanoFilter` for panoramic images, tiles, and video.
+
 ## 5.4.2
 
 ### Patch Changes

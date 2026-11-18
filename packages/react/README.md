@@ -1279,12 +1279,14 @@ AAC MP4 fallback, poster, CORS, and Range support.
 
 ### Props
 
-- `src` — single-file shortcut; mutually exclusive with `variants`.
+- `src` — video file or HLS playlist; mutually exclusive with `variants`.
 - `poster` — cover image. Variants may also set `variants[].poster`.
 - `variants` / `defaultVariantId` — multi-quality list; missing `defaultVariantId` falls back to the first item. Switching keeps current time and play/pause.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
 - `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
+- `clickToTogglePlayback` — Defaults to `true`. Click or tap the panorama to play or pause in screen mode, including fullscreen. Set `false` to disable this gesture. Call `nativeEvent.preventDefault()` in a panorama click callback to cancel the toggle for that click.
+- `showCenterPlayButton` — Defaults to `true`. Shows a translucent play button at the center while playback is paused, blocked, or ended in screen mode. Set `false` to hide it. This button and `clickToTogglePlayback` are configured independently of `controls`.
 - `yawOffset` — horizontal offset in degrees, default `0`.
 - `loop` — default `false`.
 - `muted` — default `true`.
@@ -1292,7 +1294,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `autoPlay` — default `false`. When `true`, counts as media-activation intent.
 - `playsInline` — default `true`.
 - `preload` — `"none"` | `"metadata"` | `"auto"`, default `"metadata"`.
-- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; omit to leave unset.
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`; native HLS defaults to anonymous.
 - `playbackRates` — speed menu list, default `[0.5, 1, 1.25, 1.5, 2]`.
 - `visible` — default `true`; `false` preloads without drawing.
 - `onLoad` — when the video becomes playable.
@@ -1300,6 +1302,20 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`.
 - `onEnded` — when playback reaches the end without looping.
 - `onVariantChange` / `onTrackChange` — current variant id, or current track id (`null` when none).
+
+### HLS playback
+
+Pass a multivariant HLS playlist to enable the quality menu and automatic bitrate selection.
+
+```tsx
+<PanoVideo src="/360/tour/master.m3u8" crossOrigin="anonymous" />
+```
+
+PanoVideo loads hls.js on demand where supported and uses native HLS otherwise. Both paths display the resolution reported by the video while in Auto. An HLS URL without a `.m3u8` extension can use `type: "application/vnd.apple.mpegurl"` in `variants[].sources`. Cross-origin playlists, segments, and keys need CORS headers. Native HLS uses anonymous CORS by default.
+
+Both engines support audio inside the video segments, separate audio declared by `EXT-X-MEDIA:TYPE=AUDIO`, and silent video. Associate independent audio and video URLs in a multivariant playlist. For native manual selection of variants with separate audio or other master-level dependencies, supply independently playable single-variant master URLs via `variants`. Include the original multivariant playlist as an explicit Auto variant when offering both choices through `variants`.
+
+For native manual switches, use aligned on-demand renditions. The current video keeps playing while the requested rendition buffers. A browser may require a second tap for audible playback, and an unready rendition can time out. Custom controls can read `getSnapshot().hlsQuality` and `qualitySwitch`, call `setHlsLevel?.(index)` to lock a discovered quality, or call `setHlsLevel?.("auto")` to resume adaptation. Use `setVariantId` for explicitly configured variants.
 
 ## Tile
 
@@ -1799,10 +1815,9 @@ only panorama materials. `colorMatrix` defaults to the panorama; set
 tooltips, video controls, and iframes are unaffected. WebXR / MobileVR use the
 same panorama shader and inherit its filter appearance.
 
-`intensity` mixes the filtered result with the original image (`0`–`1`,
-default `1`). Omit the component or set `enabled={false}` to disable all filtering.
-`preset="none"` disables only the built-in preset; a configured `colorMatrix`
-still applies.
+`intensity` blends the built-in preset and color matrix with their respective
+inputs (`0`–`1`, default `1`). Omit the component or set `enabled={false}` to
+disable all filtering. `preset="none"` disables the built-in preset.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1829,6 +1844,32 @@ still applies.
 | `watercolor` | Soft pigment on paper |
 | `cartoon` | Cel shading with outlines |
 | `crosshatch` | Luminance hatching |
+
+### Real-time color adjustments
+
+Pass `adjustments` (type `PanoColorAdjustments`) to grade images, tiles, and video.
+Each field is optional. Zero is neutral, finite values are clamped to the
+listed ranges, and non-finite values are treated as zero.
+
+| Field | Range | Effect |
+|---|---|---|
+| `exposure` | `-2` to `2` EV | Changes linear exposure. One stop doubles the light. |
+| `saturation` | `-1` to `1` | Ranges from grayscale to more saturated color. |
+| `contrast` | `-1` to `1` | Reduces or increases contrast around display-space middle gray. |
+| `clarity` | `-1` to `1` | Softens or enhances local midtone contrast. |
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter adjustments={{ exposure: 0.3, saturation: 0.15, contrast: 0.1, clarity: 0.25 }} />
+  <PanoVideo src="/panoramas/room-360.mp4" />
+</PanoViewer>
+```
+
+Color adjustments apply to the panorama source before the preset and color
+matrix, independently of `intensity`. Clarity samples the assembled panorama
+in a low-resolution GPU pass per view. If that buffer is unavailable, exposure,
+saturation, and contrast still apply. Hosts can store and reuse the adjustment
+object as JSON.
 
 Built-in artistic looks use screen-space edges and world-space grain so cube
 tiles do not show filter seams. Scene-transition snapshots capture the filtered

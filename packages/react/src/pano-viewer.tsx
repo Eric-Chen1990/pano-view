@@ -448,7 +448,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         setMediaActivated(true);
       };
 
-      const tryActivate = () => {
+      const tryActivate = (gesture?: Event) => {
         if (activating || cancelled) {
           return;
         }
@@ -457,6 +457,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         const controls: PanoMediaActivationControls = {
           resumeAudio: mediaActivationControls.resumeAudio,
           playVideo: (options) => {
+            const controller = videoHost.controller;
+            if (gesture instanceof PointerEvent && controller && !controller.getSnapshot().playing) {
+              videoHost.activationPlayEvents.set(gesture, controller);
+            }
             const result = mediaActivationControls.playVideo(options);
             videoPlay = result;
             return result;
@@ -484,7 +488,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         if (!isMediaActivationEvent(event)) {
           return;
         }
-        tryActivate();
+        tryActivate(event);
       };
 
       window.addEventListener("pointerdown", handleGesture, { capture: true });
@@ -948,7 +952,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     enabled={legacyAutoRotate && !spatialOpen}
                     speed={legacyAutoRotateOptions.autoRotateSpeed}
                   />
-                  <PanoramaEventSurface />
+                  <PanoramaEventSurface videoInteractionsDisabled={vrActive || modalOpen} />
                   {contextMenuChannel.mount ? (
                     <PanoContextMenu {...contextMenuChannel.props} />
                   ) : null}

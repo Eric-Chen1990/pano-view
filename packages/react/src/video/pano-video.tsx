@@ -26,6 +26,8 @@ import { isAutoplayPolicyError } from "../media-activation-event";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { applyInlineVideoPlayback, mountTextureVideo } from "./inline-playback";
+import { prepareNativeHlsSwitch } from "./native-hls-switch";
+import { isHlsSource, loadVideoSources, resetVideoSource } from "./video-source";
 import {
   DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE,
   PanoVideoCaptions,
@@ -48,6 +50,8 @@ import type {
   PanoVideoController,
   PanoVideoControlsAppearance,
   PanoVideoErrorEvent,
+  PanoVideoHlsSelection,
+  PanoVideoQualitySwitch,
   PanoVideoPlaybackSnapshot,
   PanoVideoTrack,
   PanoVideoVariant,
@@ -56,7 +60,7 @@ import type {
 const EMPTY_TRACKS: readonly PanoVideoTrack[] = [];
 
 export type PanoVideoProps = {
-  /** Single-file shortcut when `variants` is omitted. */
+  /** Video file or HLS playlist when `variants` is omitted. */
   src?: string;
   poster?: string;
   variants?: readonly PanoVideoVariant[];
@@ -74,6 +78,10 @@ export type PanoVideoProps = {
    * Render `PanoVideoControls` as a PanoViewer child to replace the default.
    */
   controls?: boolean | PanoVideoControlsAppearance;
+  /** Click or tap the panorama to toggle playback in screen mode. Defaults to true. */
+  clickToTogglePlayback?: boolean;
+  /** Show a centered play button while the visible video is stopped. Defaults to true. */
+  showCenterPlayButton?: boolean;
   /** Horizontal video offset in degrees. */
   yawOffset?: number;
   loop?: boolean;
@@ -98,9 +106,11 @@ export type PanoVideoProps = {
   onTrackChange?: (id: string | null) => void;
 };
 
-type VideoResource = {
+type PendingQualitySwitch = {
   video: HTMLVideoElement;
-  texture: VideoTexture;
+  target: PanoVideoQualitySwitch["target"];
+  state: PanoVideoQualitySwitch["state"];
+  transition: ReturnType<typeof prepareNativeHlsSwitch>;
 };
 
 type Store = {
@@ -168,32 +178,11 @@ function collectCaptionText(track: TextTrack | null): string {
   return parts.join("\n");
 }
 
-function findTextTrack(
-  video: HTMLVideoElement,
-  tracks: readonly PanoVideoTrack[],
-  trackId: string | null,
-): TextTrack | null {
-  if (!trackId) {
-    return null;
-  }
-  const configured = tracks.find((track) => panoVideoTrackId(track) === trackId);
-  if (!configured) {
-    return null;
-  }
-  const list = video.textTracks;
-  for (let index = 0; index < list.length; index += 1) {
-    const textTrack = list[index];
-    if (!textTrack) {
-      continue;
-    }
-    if (
-      textTrack.language === configured.srcLang ||
-      textTrack.label === configured.label
-    ) {
-      return textTrack;
-    }
-  }
-  return list.length > 0 ? list[0]! : null;
+function findTextTrack(video: HTMLVideoElement, trackId: string | null): TextTrack | null {
+  if (!trackId) return null;
+  return [...video.querySelectorAll<HTMLTrackElement>("track")].find(
+    (element) => element.dataset.panoVideoTrack === trackId,
+  )?.track ?? null;
 }
 
 function applyEquirectangularLayout(texture: Texture, anisotropy: number): void {
@@ -264,24 +253,11 @@ function usePosterTexture(
   return texture;
 }
 
-function replaceMediaChildren(
-  video: HTMLVideoElement,
-  variant: PanoVideoVariant,
-  tracks: readonly PanoVideoTrack[],
-): void {
-  video.querySelectorAll("source, track").forEach((node) => {
-    node.remove();
-  });
-  for (const source of variant.sources) {
-    const element = document.createElement("source");
-    element.src = source.src;
-    if (source.type) {
-      element.type = source.type;
-    }
-    video.appendChild(element);
-  }
+function replaceTextTracks(video: HTMLVideoElement, tracks: readonly PanoVideoTrack[]): void {
+  video.querySelectorAll("track").forEach((node) => node.remove());
   for (const track of tracks) {
     const element = document.createElement("track");
+    element.dataset.panoVideoTrack = panoVideoTrackId(track);
     element.kind = track.kind ?? "subtitles";
     element.src = track.src;
     element.srclang = track.srcLang;
@@ -305,6 +281,8 @@ export function PanoVideo({
   tracks: tracksProp,
   captions = true,
   controls = true,
+  clickToTogglePlayback = true,
+  showCenterPlayButton = true,
   yawOffset = 0,
   loop = false,
   muted = true,
@@ -373,6 +351,7 @@ export function PanoVideo({
     setMuted: (_muted: boolean) => {},
     setPlaybackRate: (_rate: number) => {},
     setVariantId: (_id: string) => {},
+    setHlsLevel: (_level: PanoVideoHlsSelection) => {},
     setTrackId: (_id: string | null) => {},
     setCaptionAppearance: (
       _appearance: Partial<PanoVideoCaptionAppearance>,
@@ -391,72 +370,61 @@ export function PanoVideo({
   onVariantChangeRef.current = onVariantChange;
   onTrackChangeRef.current = onTrackChange;
 
-  const resource = useMemo<VideoResource | null>(() => {
-    if (typeof document === "undefined") {
-      return null;
-    }
-    const video = document.createElement("video");
-    video.muted = true;
-    applyInlineVideoPlayback(video, true);
-    video.preload = "metadata";
+  const [video, setVideo] = useState(() =>
+    typeof document === "undefined" ? null : document.createElement("video"),
+  );
+  const videoRef = useRef(video);
+  const sourceRef = useRef<ReturnType<typeof loadVideoSources> | null>(null);
+  const initialSourceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const pendingSwitch = useRef<PendingQualitySwitch | null>(null);
+  const nativeVariantId = useRef<string | null>(null);
+  const resume = useRef<{ time: number; playing: boolean; rate: number } | null>(null);
+  const playAfterLoad = useRef(false);
+  const [textureRevision, setTextureRevision] = useState(0);
+  const videoTexture = useMemo(() => {
+    if (!video) return null;
     const texture = new VideoTexture(video);
-    applyEquirectangularLayout(texture, 1);
+    applyEquirectangularLayout(texture, gl.capabilities.getMaxAnisotropy());
     texture.magFilter = LinearFilter;
     texture.minFilter = LinearFilter;
     texture.generateMipmaps = false;
-    return { video, texture };
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (!resource) {
-        return;
-      }
-      resource.video.pause();
-      resource.video.removeAttribute("src");
-      resource.video.querySelectorAll("source, track").forEach((node) => {
-        node.remove();
-      });
-      resource.video.load();
-      resource.texture.dispose();
-    },
-    [resource],
-  );
-
-  useEffect(() => {
-    if (!resource) {
-      return;
-    }
-    resource.texture.anisotropy = gl.capabilities.getMaxAnisotropy();
-  }, [gl, resource]);
+    return texture;
+  }, [gl, video, textureRevision]);
+  useEffect(() => () => videoTexture?.dispose(), [videoTexture]);
 
   useLayoutEffect(() => {
-    if (!resource) {
-      return;
-    }
-    mountTextureVideo(resource.video, gl.domElement);
-    return () => {
-      resource.video.remove();
-    };
-  }, [gl, resource]);
+    if (!video) return;
+    mountTextureVideo(video, gl.domElement);
+    return () => video.remove();
+  }, [gl, video]);
+
+  useLayoutEffect(() => () => {
+    if (!video) return;
+    resetVideoSource(video);
+    video.querySelectorAll("track").forEach((node) => node.remove());
+  }, [video]);
 
   const resolvedVariantId = resolvePanoVideoVariantId(variants, variantId);
-  const activeVariant =
-    variants.find((variant) => variant.id === resolvedVariantId) ?? variants[0];
-  const mediaKey = activeVariant
-    ? `${activeVariant.id}:${activeVariant.sources.map((source) => source.src).join("|")}:${tracks
-        .map((track) => `${panoVideoTrackId(track)}:${track.src}`)
-        .join("|")}:${crossOrigin ?? ""}`
-    : "";
+  const activeVariant = variants.find((variant) => variant.id === resolvedVariantId);
+  const videoInteractionsEnabled = visible && activeVariant?.sources.some(({ src }) => src.trim().length > 0) === true;
+  const mediaKey = activeVariant ? JSON.stringify([
+    activeVariant.id,
+    activeVariant.sources,
+    tracks.map(({ id, src, srcLang, kind, label }) => [id, src, srcLang, kind, label]),
+    crossOrigin,
+    variants.some((variant) => variant.sources.some(isHlsSource))
+      ? variants.map(({ id, sources }) => ({ id, sources }))
+      : null,
+  ]) : "";
   const posterTexture = usePosterTexture(
-    activeVariant?.poster ?? poster,
+    variants.find((variant) => variant.id === nativeVariantId.current)?.poster ?? activeVariant?.poster ?? poster,
     onError,
   );
 
   const emitSnapshot = useCallback(
     (patch?: Partial<PanoVideoPlaybackSnapshot>) => {
       const store = storeRef.current;
-      const video = resource?.video;
+      const video = videoRef.current;
       if (!store) {
         return;
       }
@@ -467,6 +435,8 @@ export function PanoVideo({
         ...captionAppearance,
         ...captionAppearanceOverrideRef.current,
       };
+      const mediaAudio = video ? probeMediaHasAudio(video) : undefined;
+      const pending = pendingSwitch.current;
       const next: PanoVideoPlaybackSnapshot = {
         ...store.snapshot,
         ready,
@@ -475,13 +445,15 @@ export function PanoVideo({
         ended: playbackState === "ended",
         currentTime: video?.currentTime ?? 0,
         duration: video && Number.isFinite(video.duration) ? video.duration : 0,
-        hasAudio: video ? probeMediaHasAudio(video) : undefined,
+        hasAudio: mediaAudio === true ? true : sourceRef.current?.audio ?? mediaAudio,
         volume: video ? clampVolume(video.volume) : clampVolume(volume),
         volumeAdjustable: mediaCapabilitiesRef.current.volumeAdjustable,
         muted: video?.muted ?? muted,
         playbackRate: video?.playbackRate ?? 1,
-        variantId: resolvedVariantId,
+        variantId: nativeVariantId.current ?? resolvedVariantId,
         variants,
+        hlsQuality: video ? sourceRef.current?.quality(video) : undefined,
+        qualitySwitch: pending ? { target: pending.target, state: pending.state } : undefined,
         trackId,
         tracks,
         captionsEnabled,
@@ -500,7 +472,6 @@ export function PanoVideo({
       muted,
       ready,
       resolvedVariantId,
-      resource,
       trackId,
       tracks,
       variants,
@@ -508,6 +479,19 @@ export function PanoVideo({
       captionAppearance,
     ],
   );
+
+  const emitSnapshotRef = useRef(emitSnapshot);
+  emitSnapshotRef.current = emitSnapshot;
+
+  const cancelSwitch = useCallback(() => {
+    const pending = pendingSwitch.current;
+    if (!pending) return;
+    pendingSwitch.current = null;
+    pending.transition.cancel();
+    resetVideoSource(pending.video);
+    pending.video.remove();
+    emitSnapshotRef.current();
+  }, []);
 
   const controller = useMemo<PanoVideoController>(
     () => ({
@@ -552,6 +536,7 @@ export function PanoVideo({
       setVariantId: (id) => {
         actionsRef.current.setVariantId(id);
       },
+      setHlsLevel: (level) => actionsRef.current.setHlsLevel(level),
       setTrackId: (id) => {
         actionsRef.current.setTrackId(id);
       },
@@ -568,104 +553,168 @@ export function PanoVideo({
     }
     host.controls = controls;
     host.captions = captionsEnabled;
+    host.clickToTogglePlayback = videoInteractionsEnabled && clickToTogglePlayback;
+    host.showCenterPlayButton = videoInteractionsEnabled && showCenterPlayButton;
     host.controller = controller;
     notifyPanoVideoHost(host);
     return () => {
       host.controller = null;
+      host.clickToTogglePlayback = false;
+      host.showCenterPlayButton = false;
       notifyPanoVideoHost(host);
     };
-  }, [captionsEnabled, controller, controls, host, variants.length]);
+  }, [
+    captionsEnabled, clickToTogglePlayback, controller, controls, host,
+    showCenterPlayButton, variants.length, videoInteractionsEnabled,
+  ]);
 
   useLayoutEffect(() => {
-    if (!resource) {
-      return;
-    }
+    if (!video) return;
     mediaCapabilitiesRef.current = {
-      volumeAdjustable: probeVolumeAdjustable(resource.video),
-      playbackRates: filterSupportedPlaybackRates(
-        resource.video,
-        playbackRates,
-      ),
+      volumeAdjustable: probeVolumeAdjustable(video),
+      playbackRates: filterSupportedPlaybackRates(video, playbackRates),
     };
-    emitSnapshot();
-  }, [emitSnapshot, playbackRates, resource]);
+    emitSnapshotRef.current();
+  }, [playbackRates, video]);
 
   useEffect(() => {
     emitSnapshot();
   }, [emitSnapshot]);
 
   useEffect(() => {
-    if (!resource || !activeVariant || !mediaKey) {
-      return;
-    }
-    const { video } = resource;
-    if (crossOrigin !== undefined) {
-      video.crossOrigin = crossOrigin;
-    }
-    const resumeTime = video.currentTime;
-    const wasPlaying = !video.paused && !video.ended && video.readyState > 0;
-    const resumeRate = video.playbackRate;
+    const video = videoRef.current;
+    if (!video) return;
+    nativeVariantId.current = null;
     blockedRef.current = false;
     setReady(false);
-    replaceMediaChildren(video, activeVariant, tracks);
-    video.load();
+    if (!activeVariant || !mediaKey) {
+      resetVideoSource(video);
+      return;
+    }
 
-    let active = true;
+    const saved = resume.current;
+    resume.current = null;
+    playAfterLoad.current = saved?.playing ?? autoPlayRef.current;
+    let loaded = false;
+    initialSourceVideoRef.current = video;
+    video.crossOrigin = crossOrigin ?? (activeVariant.sources.some(isHlsSource) ? "anonymous" : null);
+    replaceTextTracks(video, tracks);
+    emitSnapshotRef.current({ ready: false, captionText: "" });
     const handleLoadedMetadata = () => {
-      if (!active) {
-        return;
+      if (saved && saved.time > 0 && Number.isFinite(video.duration)) {
+        video.currentTime = Math.min(saved.time, video.duration);
       }
-      if (resumeTime > 0 && Number.isFinite(video.duration)) {
-        video.currentTime = Math.min(resumeTime, video.duration);
-      }
-      try {
-        video.playbackRate = resumeRate;
-      } catch {
-        // Some browsers reject rates outside a narrow range.
+      if (saved) {
+        try {
+          video.playbackRate = saved.rate;
+        } catch {
+          // Some browsers reject rates outside a narrow range.
+        }
       }
     };
     const handleLoadedData = () => {
-      if (!active) {
-        return;
-      }
+      if (loaded || videoRef.current !== video || video.readyState < video.HAVE_CURRENT_DATA || !video.videoWidth) return;
+      loaded = true;
+      // Browsers can stop delivering callbacks registered on the previous
+      // source. Bind a fresh VideoTexture to the first frame of this source.
+      setTextureRevision((revision) => revision + 1);
       setReady(true);
       onLoadRef.current?.();
-      if (wasPlaying || autoPlayRef.current) {
-        void actionsRef.current.play();
-      }
-    };
-    const handleError = () => {
-      if (!active) {
-        return;
-      }
-      onErrorRef.current?.({
-        source: "video",
-        error: video.error ?? new Error("Unable to load panorama video."),
-      });
+      if (playAfterLoad.current && video.paused) void actionsRef.current.play();
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("loadeddata", handleLoadedData);
-    video.addEventListener("error", handleError);
+    video.addEventListener("canplay", handleLoadedData);
+    const source = loadVideoSources(video, activeVariant.sources, {
+      crossOrigin,
+      startImmediately: video.preload !== "none" || playAfterLoad.current,
+      hasLoaded: () => loaded,
+      onError: (error) => {
+        if (videoRef.current === video) onErrorRef.current?.({ source: "video", error });
+      },
+      onChange: () => emitSnapshotRef.current(),
+    });
+    sourceRef.current = source;
+    emitSnapshotRef.current();
+
     return () => {
-      active = false;
+      const current = videoRef.current!;
+      resume.current = {
+        time: current.currentTime,
+        playing: loaded ? !current.paused && !current.ended : playAfterLoad.current,
+        rate: current.playbackRate,
+      };
+      cancelSwitch();
+      sourceRef.current = null;
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("loadeddata", handleLoadedData);
-      video.removeEventListener("error", handleError);
+      video.removeEventListener("canplay", handleLoadedData);
+      source.dispose();
+      resetVideoSource(current);
     };
-  }, [mediaKey, resource]);
+  }, [mediaKey, cancelSwitch]);
 
-  useEffect(() => {
-    if (!resource) {
-      return;
-    }
-    const { video } = resource;
+  useLayoutEffect(() => {
+    if (!video) return;
+    const startNativeSwitch = (current: HTMLVideoElement, url: string, target: PanoVideoQualitySwitch["target"]) => {
+      const pending = pendingSwitch.current;
+      if (pending && JSON.stringify(pending.target) === JSON.stringify(target)) {
+        pending.transition.confirm();
+        return;
+      }
+      cancelSwitch();
+      const next = current.ownerDocument.createElement("video");
+      applyInlineVideoPlayback(next, current.playsInline);
+      next.preload = "auto";
+      next.crossOrigin = current.crossOrigin;
+      next.muted = true;
+      replaceTextTracks(next, tracks);
+      mountTextureVideo(next, gl.domElement);
+      const transition = prepareNativeHlsSwitch(current, next, {
+        commit: () => {
+          pendingSwitch.current = null;
+          current.pause();
+          next.preload = current.preload;
+          videoRef.current = next;
+          setVideo(next);
+          if ("level" in target) {
+            sourceRef.current?.selectLevel(target.level);
+          } else {
+            nativeVariantId.current = target.variantId;
+            sourceRef.current?.selectLevel("auto");
+            onVariantChangeRef.current?.(target.variantId);
+          }
+          emitSnapshotRef.current();
+        },
+        awaitingGesture: () => {
+          if (!pendingSwitch.current) return;
+          pendingSwitch.current.state = "awaiting-gesture";
+          emitSnapshotRef.current();
+        },
+        fail: (error) => {
+          cancelSwitch();
+          onErrorRef.current?.({ source: "video", error });
+        },
+      });
+      pendingSwitch.current = { video: next, target, transition, state: "buffering" };
+      next.src = url;
+      next.load();
+      // Prime playback in the selection gesture, including when the current
+      // video is paused. Native preload can stop at metadata.
+      transition.start();
+      emitSnapshotRef.current();
+    };
     actionsRef.current = {
       play: async () => {
+        const video = videoRef.current!;
+        playAfterLoad.current = true;
+        sourceRef.current?.start();
         blockedRef.current = false;
         try {
           await video.play();
         } catch (error) {
+          if (videoRef.current !== video || (error instanceof DOMException && error.name === "AbortError")) return;
           if (isAutoplayPolicyError(error)) {
             blockedRef.current = true;
             onPlaybackStateChangeRef.current?.("blocked");
@@ -675,9 +724,11 @@ export function PanoVideo({
         }
       },
       pause: () => {
-        video.pause();
+        playAfterLoad.current = false;
+        videoRef.current?.pause();
       },
       seek: (time) => {
+        const video = videoRef.current!;
         if (!Number.isFinite(time)) {
           return;
         }
@@ -686,6 +737,7 @@ export function PanoVideo({
         emitSnapshot();
       },
       setVolume: (nextVolume) => {
+        const video = videoRef.current!;
         if (!Number.isFinite(nextVolume) || !mediaCapabilitiesRef.current.volumeAdjustable) {
           return;
         }
@@ -696,10 +748,12 @@ export function PanoVideo({
         emitSnapshot();
       },
       setMuted: (nextMuted) => {
+        const video = videoRef.current!;
         video.muted = nextMuted;
         emitSnapshot();
       },
       setPlaybackRate: (rate) => {
+        const video = videoRef.current!;
         if (!Number.isFinite(rate) || rate <= 0) {
           return;
         }
@@ -722,13 +776,39 @@ export function PanoVideo({
         emitSnapshot();
       },
       setVariantId: (id) => {
-        setVariantId((current) => {
-          if (current === id) {
-            return current;
-          }
-          onVariantChangeRef.current?.(id);
-          return id;
-        });
+        const requested = variants.find((variant) => variant.id === id);
+        if (!requested) return;
+        const current = videoRef.current!;
+        const selected = nativeVariantId.current ?? resolvedVariantId;
+        if (selected === id) {
+          cancelSwitch();
+          return;
+        }
+        const first = requested.sources[0];
+        if (sourceRef.current?.native && current.readyState > 0 && first && isHlsSource(first)) {
+          startNativeSwitch(current, first.src, { variantId: id });
+          return;
+        }
+        cancelSwitch();
+        nativeVariantId.current = null;
+        setVariantId(id);
+        onVariantChangeRef.current?.(id);
+      },
+      setHlsLevel: (level) => {
+        const source = sourceRef.current;
+        if (!source) return;
+        if (!source.native) {
+          source.selectLevel(level);
+          return;
+        }
+        const current = videoRef.current!;
+        const url = source.nativeTarget(level);
+        if (!url || !current.readyState) return;
+        if (source.quality(current)?.selectedLevel === level) {
+          cancelSwitch();
+          return;
+        }
+        startNativeSwitch(current, url, { level });
       },
       setTrackId: (id) => {
         setTrackId((current) => {
@@ -747,27 +827,20 @@ export function PanoVideo({
         emitSnapshot();
       },
     };
-  }, [emitSnapshot, resource]);
+  }, [cancelSwitch, emitSnapshot, gl, resolvedVariantId, tracks, variants, video]);
 
   useLayoutEffect(() => {
-    if (!resource) {
-      return;
-    }
-    const { video } = resource;
+    const video = videoRef.current;
+    if (!video) return;
     video.loop = loop;
     video.muted = muted;
-    if (mediaCapabilitiesRef.current.volumeAdjustable) {
-      video.volume = clampVolume(volume);
-    }
+    if (mediaCapabilitiesRef.current.volumeAdjustable) video.volume = clampVolume(volume);
     applyInlineVideoPlayback(video, playsInline);
     video.preload = preload;
-  }, [loop, muted, playsInline, preload, resource, volume]);
+  }, [loop, muted, playsInline, preload, volume]);
 
   useEffect(() => {
-    if (!resource) {
-      return;
-    }
-    const { video } = resource;
+    if (!video) return;
     let active = true;
     const handleTimeUpdate = () => {
       if (active) {
@@ -775,17 +848,20 @@ export function PanoVideo({
       }
     };
     const handlePlay = () => {
+      if (videoRef.current !== video) return;
       blockedRef.current = false;
       onPlaybackStateChangeRef.current?.("playing");
       emitSnapshot();
     };
     const handlePause = () => {
+      if (videoRef.current !== video) return;
       onPlaybackStateChangeRef.current?.(
         video.ended ? "ended" : "paused",
       );
       emitSnapshot();
     };
     const handleEnded = () => {
+      if (videoRef.current !== video) return;
       onPlaybackStateChangeRef.current?.("ended");
       onEndedRef.current?.();
       emitSnapshot();
@@ -794,6 +870,25 @@ export function PanoVideo({
       emitSnapshot();
     };
     const unsubscribeAudio = subscribeMediaAudio(video, handleTimeUpdate);
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    const handleResize = () => {
+      if (!video.videoWidth || !video.videoHeight) return;
+      if (width && height && (width !== video.videoWidth || height !== video.videoHeight)) {
+        setTextureRevision((revision) => revision + 1);
+      }
+      width = video.videoWidth;
+      height = video.videoHeight;
+      emitSnapshot();
+    };
+    const handleSwitchedSourceError = () => {
+      if (videoRef.current === video && video !== initialSourceVideoRef.current) {
+        onErrorRef.current?.({ source: "video", error: video.error ?? new Error("Unable to play the switched HLS source.") });
+      }
+    };
+    video.addEventListener("loadeddata", handleResize);
+    video.addEventListener("resize", handleResize);
+    video.addEventListener("error", handleSwitchedSourceError);
     video.addEventListener("durationchange", handleTimeUpdate);
     video.addEventListener("progress", handleTimeUpdate);
     video.addEventListener("play", handlePlay);
@@ -804,6 +899,9 @@ export function PanoVideo({
     return () => {
       active = false;
       unsubscribeAudio();
+      video.removeEventListener("loadeddata", handleResize);
+      video.removeEventListener("resize", handleResize);
+      video.removeEventListener("error", handleSwitchedSourceError);
       video.removeEventListener("durationchange", handleTimeUpdate);
       video.removeEventListener("progress", handleTimeUpdate);
       video.removeEventListener("play", handlePlay);
@@ -812,44 +910,43 @@ export function PanoVideo({
       video.removeEventListener("volumechange", handleVolume);
       video.removeEventListener("ratechange", handleVolume);
     };
-  }, [emitSnapshot, resource]);
+  }, [emitSnapshot, video]);
 
   useEffect(() => {
-    if (!resource) {
-      return;
-    }
-    const { video } = resource;
+    if (!video) return;
+    let selected: TextTrack | null = null;
+    const handleCueChange = () => {
+      if (videoRef.current === video) emitSnapshot({ captionText: collectCaptionText(selected) });
+    };
     const applyModes = () => {
-      const selected = findTextTrack(video, tracks, trackId);
+      const next = findTextTrack(video, trackId);
+      if (next !== selected) {
+        selected?.removeEventListener("cuechange", handleCueChange);
+        selected = next;
+        selected?.addEventListener("cuechange", handleCueChange);
+      }
       const list = video.textTracks;
       for (let index = 0; index < list.length; index += 1) {
         const textTrack = list[index];
-        if (!textTrack) {
-          continue;
-        }
-        textTrack.mode = textTrack === selected ? "hidden" : "disabled";
+        const mode = textTrack === selected ? "hidden" : "disabled";
+        if (textTrack && textTrack.mode !== mode) textTrack.mode = mode;
       }
-      emitSnapshot({ captionText: collectCaptionText(selected) });
+      handleCueChange();
     };
 
     applyModes();
-    const selected = findTextTrack(video, tracks, trackId);
-    const handleCueChange = () => {
-      emitSnapshot({
-        captionText: collectCaptionText(
-          findTextTrack(video, tracks, trackId),
-        ),
-      });
-    };
-    selected?.addEventListener("cuechange", handleCueChange);
     video.textTracks.addEventListener("addtrack", applyModes);
     video.textTracks.addEventListener("change", applyModes);
+    video.addEventListener("load", applyModes, true);
+    video.addEventListener("seeked", handleCueChange);
     return () => {
       selected?.removeEventListener("cuechange", handleCueChange);
       video.textTracks.removeEventListener("addtrack", applyModes);
       video.textTracks.removeEventListener("change", applyModes);
+      video.removeEventListener("load", applyModes, true);
+      video.removeEventListener("seeked", handleCueChange);
     };
-  }, [emitSnapshot, resource, trackId, tracks]);
+  }, [emitSnapshot, video, trackId, tracks]);
 
   useEffect(() => {
     if (!captionsEnabled) {
@@ -859,7 +956,7 @@ export function PanoVideo({
     setTrackId(defaultPanoVideoTrackId(tracks));
   }, [captionsEnabled, tracks]);
 
-  const activeTexture = ready && resource ? resource.texture : posterTexture;
+  const activeTexture = ready ? videoTexture : posterTexture;
 
   if (variants.length === 0) {
     return null;

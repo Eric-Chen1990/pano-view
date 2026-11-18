@@ -1207,12 +1207,14 @@ export function VideoExample() {
 
 ### 属性
 
-- `src` — 单文件快捷方式；与 `variants` 二选一。
+- `src` — 单个视频文件或 HLS 清单；与 `variants` 二选一。
 - `poster` — 封面图。多档时也可写在各 `variants[].poster`。
 - `variants` / `defaultVariantId` — 多分辨率列表；找不到 `defaultVariantId` 时回退到第一项。切换档位保留当前时间与播放/暂停状态。
 - `tracks` — WebVTT 字幕轨。每项可含 `src`、`srcLang`、`label`、`default`、`id`（省略时用 `srcLang`）、`kind`（`"subtitles"` 或 `"captions"`，默认 `"subtitles"`）。
 - `captions` — `true` / 省略显示默认字幕层；`false` 隐藏叠加层与语言菜单；对象与默认外观合并。默认外观：`color` `#ffffff`，`background` `rgba(0, 0, 0, 0.55)`，`fontSize` `16`，`fontFamily` Inter / system-ui，`fontWeight` `500`，`textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`，`padding` `"6px 10px"`，`borderRadius` `6`，`maxWidth` `"72%"`，`bottom` `72`，`lineHeight` `1.35`。
 - `controls` — `true` / 省略挂载默认播放栏；`false` 隐藏；对象重设默认实例外观。外观字段：`background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）、`padding`（`"8px 10px"`）。也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件替换默认条（同样接收 `appearance`）。
+- `clickToTogglePlayback` — 默认 `true`。在普通观看和全屏时，点击或轻触全景画面可切换播放与暂停。传 `false` 关闭此手势，也可在全景点击回调中调用 `nativeEvent.preventDefault()` 取消本次切换。
+- `showCenterPlayButton` — 默认 `true`。在普通观看和全屏时，视频暂停、自动播放受阻或播完时，画面中央显示半透明播放按钮。传 `false` 隐藏。此按钮与 `clickToTogglePlayback` 均独立于 `controls`。
 - `yawOffset` — 水平偏移，单位为度，默认 `0`。
 - `loop` — 默认 `false`。
 - `muted` — 默认 `true`。
@@ -1220,7 +1222,7 @@ export function VideoExample() {
 - `autoPlay` — 默认 `false`。为 `true` 时会作为媒体激活的触发条件。
 - `playsInline` — 默认 `true`。
 - `preload` — `"none"` | `"metadata"` | `"auto"`，默认 `"metadata"`。
-- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`；省略则不设。
+- `crossOrigin` — `""` | `"anonymous"` | `"use-credentials"`；原生 HLS 默认匿名。
 - `playbackRates` — 倍速菜单列表，默认 `[0.5, 1, 1.25, 1.5, 2]`。
 - `visible` — 默认 `true`；`false` 时预加载但不绘制。
 - `onLoad` — 视频可播放时。
@@ -1228,6 +1230,20 @@ export function VideoExample() {
 - `onPlaybackStateChange` — `"playing" | "paused" | "ended" | "blocked"`。
 - `onEnded` — 播放到结尾（未循环时）。
 - `onVariantChange` / `onTrackChange` — 当前档位 id，或当前字幕轨 id（无轨时为 `null`）。
+
+### HLS 播放
+
+传入多档 HLS 主清单，即可启用自动清晰度和手动选档。
+
+```tsx
+<PanoVideo src="/360/tour/master.m3u8" crossOrigin="anonymous" />
+```
+
+`PanoVideo` 在支持的浏览器中按需加载 hls.js，其余支持 HLS 的浏览器走原生播放。自动模式显示视频实际报告的分辨率。URL 无 `.m3u8` 后缀时，可在 `variants[].sources` 里指定 `type: "application/vnd.apple.mpegurl"`。跨域清单、分片、密钥需要 CORS 响应头。原生 HLS 默认使用匿名 CORS。
+
+支持分片内嵌音轨、由 `EXT-X-MEDIA:TYPE=AUDIO` 关联的独立音轨和无音轨视频。独立的音视频地址由宿主在主清单内配对。原生模式下，依赖独立音轨等主清单信息的档位可通过 `variants` 传入各档完整可播的单档主清单。需要同时提供自动选档时，将原始多档主清单作为一个「自动」档位。
+
+原生手动切换适用于时间轴对齐的点播档位。目标档缓冲期间继续播放当前档。有声交接可能需要再次点击，目标档超时则保留当前档。自定义控件可读 `getSnapshot().hlsQuality` 和 `qualitySwitch`，调用 `setHlsLevel?.(index)` 锁定发现的档位，或调用 `setHlsLevel?.("auto")` 返回自动。显式配置的档位仍使用 `setVariantId`。
 
 ## Tile
 
@@ -1615,7 +1631,7 @@ export function Tour() {
 
 在 `PanoViewer` 内渲染 `PanoFilter` 可对全景源（`Sphere`、`Tile`、`SphereTile`、`PanoVideo`）调色或风格化。内置预设仅作用于全景材质；`colorMatrix` 默认仅作用于全景，设 `colorMatrixScope="all"` 可同时作用于热点纹理。tooltip、视频控件与 iframe 等 DOM 叠加层不受影响。WebXR / MobileVR 使用相同的全景着色器，因此继承相同的滤镜外观。
 
-`intensity` 在滤镜结果与原图之间混合（`0`–`1`，默认 `1`）。省略组件或设 `enabled={false}` 可关闭全部滤镜；`preset="none"` 仅关闭内置预设，已配置的 `colorMatrix` 仍会生效。
+`intensity` 控制内置预设和颜色矩阵分别与各自输入画面的混合比例（`0`–`1`，默认 `1`）。省略组件或设 `enabled={false}` 可关闭全部滤镜。设置 `preset="none"` 可关闭内置预设。
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1642,6 +1658,29 @@ export function Tour() {
 | `watercolor` | 纸上柔和水彩 |
 | `cartoon` | 赛璐珞着色与描边 |
 | `crosshatch` | 亮度交叉排线 |
+
+### 实时调色
+
+通过 `adjustments`（类型为 `PanoColorAdjustments`）实时调节全景图、瓦片和视频。
+各字段均可省略，默认值为 `0`。有限数值超出范围时取边界值，非有限值按 `0` 处理。
+
+| 字段 | 范围 | 效果 |
+|---|---|---|
+| `exposure` | `-2` 到 `2` EV | 调节线性曝光，增加一档使亮度加倍。 |
+| `saturation` | `-1` 到 `1` | 从灰度画面到增强色彩。 |
+| `contrast` | `-1` 到 `1` | 以显示空间的中灰为中心，减弱或增强对比度。 |
+| `clarity` | `-1` 到 `1` | 柔化或增强中间调的局部对比。 |
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter adjustments={{ exposure: 0.3, saturation: 0.15, contrast: 0.1, clarity: 0.25 }} />
+  <PanoVideo src="/panoramas/room-360.mp4" />
+</PanoViewer>
+```
+
+调色参数只作用于全景源，在艺术预设和颜色矩阵之前生效，并独立于 `intensity`。
+清晰度从每个视图的低分辨率全景缓冲中取样；缓冲不可用时，曝光、饱和度与对比度仍可使用。
+宿主可按需将参数对象保存为 JSON 并复用。
 
 内置艺术效果使用屏幕空间边缘与世界空间颗粒，避免立方体瓦片出现滤镜接缝。启用滤镜时，场景过渡快照会捕获带滤镜的全景。
 

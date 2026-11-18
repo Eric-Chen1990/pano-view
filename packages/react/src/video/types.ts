@@ -55,6 +55,27 @@ export type PanoVideoErrorEvent = {
   error: unknown;
 };
 
+export type PanoVideoHlsLevel = {
+  index: number;
+  width: number;
+  height: number;
+  bitrate: number;
+};
+
+export type PanoVideoHlsSelection = number | "auto";
+
+export type PanoVideoHlsQuality = {
+  levels: readonly PanoVideoHlsLevel[];
+  selectedLevel: PanoVideoHlsSelection;
+  activeLevel: number | null;
+  resolution?: { width: number; height: number };
+};
+
+export type PanoVideoQualitySwitch = {
+  target: { level: PanoVideoHlsSelection } | { variantId: string };
+  state: "buffering" | "awaiting-gesture";
+};
+
 export type PanoVideoPlaybackSnapshot = {
   ready: boolean;
   playing: boolean;
@@ -71,6 +92,8 @@ export type PanoVideoPlaybackSnapshot = {
   playbackRate: number;
   variantId: string;
   variants: readonly PanoVideoVariant[];
+  hlsQuality?: PanoVideoHlsQuality;
+  qualitySwitch?: PanoVideoQualitySwitch;
   trackId: string | null;
   tracks: readonly PanoVideoTrack[];
   captionText: string;
@@ -92,6 +115,7 @@ export type PanoVideoController = {
   toggleMuted: () => void;
   setPlaybackRate: (rate: number) => void;
   setVariantId: (id: string) => void;
+  setHlsLevel?: (level: PanoVideoHlsSelection) => void;
   setTrackId: (id: string | null) => void;
   setCaptionAppearance: (
     appearance: Partial<PanoVideoCaptionAppearance>,

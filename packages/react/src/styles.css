@@ -6,6 +6,7 @@
 .pano-webvr-button,
 .pano-webvr-setup,
 .pano-video-controls,
+.pano-video-center-play,
 .pano-video-chrome-button,
 .pano-video-chrome-menu,
 .pano-video-volume-popover,
@@ -307,10 +308,15 @@
   border-radius: 4px;
   cursor: pointer;
   display: inline-flex;
-  height: 28px;
+  height: 32px;
   justify-content: center;
-  min-width: 28px;
+  min-width: 32px;
   padding: 4px;
+}
+
+.pano-video-chrome-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
 .pano-video-chrome-button:disabled {
@@ -404,6 +410,30 @@
   padding: 0 0.125rem;
 }
 
+.pano-video-center-play {
+  background: rgba(16, 16, 16, 0.65);
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  height: 72px;
+  left: 50%;
+  padding: 0;
+  place-items: center;
+  pointer-events: auto;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  z-index: 1;
+}
+
+.pano-video-center-play:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
 .pano-video-controls {
   align-items: center;
   display: flex;
@@ -412,6 +442,16 @@
   position: absolute;
   transition: opacity 160ms ease;
   z-index: 2;
+}
+
+.pano-video-controls[data-idle] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pano-video-controls[data-idle]:has(:focus-visible) {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 @media (max-width: 600px) {
@@ -448,7 +488,6 @@
     bottom: calc(0.5rem + var(--pano-safe-bottom)) !important;
   }
 
-  .pano-video-chrome-label,
   .pano-video-time {
     display: none;
   }

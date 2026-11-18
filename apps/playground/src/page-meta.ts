@@ -87,9 +87,9 @@ export const PAGE_META = {
       "Explore immersive panorama viewing with Pano View. Try WebXR and mobile viewing options on supported browsers and devices.",
   },
   "/filters": {
-    title: "Panorama Image Filters Demo | Pano View",
+    title: "Panorama Color Adjustments Demo | Pano View",
     description:
-      "Try visual filters on 360° panorama images and multiresolution cube tiles. Adjust the appearance live with Pano View React components.",
+      "Adjust exposure, saturation, contrast, and clarity on 360° images, tiles, and video with Pano View.",
   },
 } as const;
 

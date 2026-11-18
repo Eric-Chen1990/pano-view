@@ -1,4 +1,6 @@
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useLayoutEffect, useMemo } from "react";
+import type { PanoColorAdjustments } from "./adjustments";
+import { PanoClarityPass } from "./clarity-pass";
 import {
   claimPanoFilter,
   PanoFilterHostContext,
@@ -14,12 +16,14 @@ import {
 export type PanoFilterProps = {
   /** Built-in look. Defaults to `none` (identity). */
   preset?: PanoFilterPreset;
-  /** Mix with the original panorama, 0–1. Defaults to 1. */
+  /** Mix each preset and matrix with its input, 0–1. Defaults to 1. */
   intensity?: number;
   /** Display-space RGBA matrix applied after the artistic preset. */
   colorMatrix?: PanoColorMatrix | null;
   /** `all` also filters hotspot textures. HTML tooltips/chrome remain host-styled. */
   colorMatrixScope?: "panorama" | "all";
+  /** Source-only SDR color adjustments, independent of preset intensity. */
+  adjustments?: PanoColorAdjustments;
   /** When false, the panorama renders without a filter. Defaults to true. */
   enabled?: boolean;
 };
@@ -35,6 +39,7 @@ export function PanoFilter({
   enabled = true,
   colorMatrix,
   colorMatrixScope,
+  adjustments,
 }: PanoFilterProps) {
   const host = useContext(PanoFilterHostContext);
   if (!host) {
@@ -49,20 +54,23 @@ export function PanoFilter({
         enabled,
         colorMatrix,
         colorMatrixScope,
+        adjustments,
       }),
-    [enabled, intensity, preset, colorMatrix, colorMatrixScope],
+    [enabled, intensity, preset, colorMatrix, colorMatrixScope, adjustments],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     claimPanoFilter(host);
     return () => {
       releasePanoFilter(host);
     };
   }, [host]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPanoFilterSnapshot(host, snapshot);
   }, [host, snapshot]);
 
-  return null;
+  return snapshot.enabled && snapshot.adjustments?.clarity
+    ? <PanoClarityPass views={host.clarityViews} />
+    : null;
 }

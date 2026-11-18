@@ -23,6 +23,10 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
+const HLS_SAMPLE = "https://storage.web-3d.tech/videos/ZyCNIoP5er5jEpgDwHvHKo6zJ0etSgeY/T3T1UcnAhNPAGK_a/hls/h264/video.m3u8";
+const HLS_EXAMPLE_URL = "/your-360-video/master.m3u8";
+const exampleSource = fullSource.split(HLS_SAMPLE).join(HLS_EXAMPLE_URL);
+
 const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
   {
     id: "1024",
@@ -58,6 +62,11 @@ const VIDEO_TRACKS: readonly PanoVideoTrack[] = [
   },
 ];
 
+const HLS_TRACKS = VIDEO_TRACKS.map((track) => ({
+  ...track,
+  src: `/fixtures/360video/hls-${track.srcLang}.vtt`,
+}));
+
 type CaptionLang = "zh" | "en" | "off";
 
 function buildVideoSnippet(
@@ -65,8 +74,12 @@ function buildVideoSnippet(
   captionLang: CaptionLang,
   fontSize: number,
   captionColor: string,
+  useHls: boolean,
+  clickToTogglePlayback: boolean,
+  showCenterPlayButton: boolean,
 ): string {
   const defaultTrack = captionLang === "zh" ? "zh" : "en";
+  const tracks = useHls ? HLS_TRACKS : VIDEO_TRACKS;
   const captionsProp =
     captionLang === "off"
       ? "false"
@@ -83,9 +96,12 @@ function buildVideoSnippet(
 >
   <PanoVideo
     autoPlay
-    defaultVariantId="1024"
     loop={${loop}}
+    clickToTogglePlayback={${clickToTogglePlayback}}
+    showCenterPlayButton={${showCenterPlayButton}}
     captions={${captionsProp}}
+${useHls ? `    src="${HLS_EXAMPLE_URL}"
+    crossOrigin="anonymous"` : `    defaultVariantId="1024"
     variants={[
       {
         id: "1024",
@@ -105,31 +121,32 @@ function buildVideoSnippet(
           { src: "/fixtures/360video/1/video-1920x960.webm", type: "video/webm" },
         ],
       },
-    ]}
+    ]}`}
     tracks={[
-      { src: "/fixtures/360video/1/en.vtt", srcLang: "en", label: "English"${defaultTrack === "en" ? ", default: true" : ""} },
-      { src: "/fixtures/360video/1/zh.vtt", srcLang: "zh", label: "中文"${defaultTrack === "zh" ? ", default: true" : ""} },
+${tracks.map((track) => `      { src: "${track.src}", srcLang: "${track.srcLang}", label: "${track.label}"${defaultTrack === track.srcLang ? ", default: true" : ""} },`).join("\n")}
     ]}
   />
 </PanoViewer>`;
 }
 
 export function VideoPage() {
+  const [useHls, setUseHls] = useState(true);
   const [loop, setLoop] = useState(true);
+  const [clickToTogglePlayback, setClickToTogglePlayback] = useState(true);
+  const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
   const [status, setStatus] = useState("Play the 360 clip, then switch quality or captions.");
 
   const tracks = useMemo(() => {
-    if (captionLang === "off") {
-      return VIDEO_TRACKS;
-    }
-    return VIDEO_TRACKS.map((track) => ({
+    const sourceTracks = useHls ? HLS_TRACKS : VIDEO_TRACKS;
+    if (captionLang === "off") return sourceTracks;
+    return sourceTracks.map((track) => ({
       ...track,
       default: track.srcLang === captionLang,
     }));
-  }, [captionLang]);
+  }, [captionLang, useHls]);
 
   const captions = useMemo((): boolean | PanoVideoCaptionAppearance => {
     if (captionLang === "off") {
@@ -139,8 +156,8 @@ export function VideoPage() {
   }, [captionColor, captionLang, fontSize]);
 
   const snippet = useMemo(
-    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor),
-    [captionColor, captionLang, fontSize, loop],
+    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, useHls, clickToTogglePlayback, showCenterPlayButton),
+    [captionColor, captionLang, clickToTogglePlayback, fontSize, loop, showCenterPlayButton, useHls],
   );
 
   return (
@@ -160,6 +177,17 @@ export function VideoPage() {
           <p className={pageHeadingStatusClassName}>{status}</p>
         </div>
         <div className={pageControlsClassName}>
+          <label className={controlLabelClassName}>
+            Video source
+            <select
+              className={controlInputClassName}
+              value={useHls ? "hls" : "files"}
+              onChange={(event) => setUseHls(event.currentTarget.value === "hls")}
+            >
+              <option value="hls">HLS stream</option>
+              <option value="files">MP4 / WebM</option>
+            </select>
+          </label>
           <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             <input
               className="accent-[#df6b42]"
@@ -168,6 +196,24 @@ export function VideoPage() {
               type="checkbox"
             />
             Loop
+          </label>
+          <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
+            <input
+              className="accent-[#df6b42]"
+              checked={clickToTogglePlayback}
+              onChange={(event) => setClickToTogglePlayback(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            Click to play or pause
+          </label>
+          <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
+            <input
+              className="accent-[#df6b42]"
+              checked={showCenterPlayButton}
+              onChange={(event) => setShowCenterPlayButton(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            Center play button
           </label>
           <label className={controlLabelClassName}>
             Captions
@@ -221,12 +267,16 @@ export function VideoPage() {
             <PanoVideo
               autoPlay
               captions={captions}
+              clickToTogglePlayback={clickToTogglePlayback}
               defaultVariantId="1024"
               loop={loop}
+              showCenterPlayButton={showCenterPlayButton}
               tracks={tracks}
-              variants={VIDEO_VARIANTS}
-              onError={({ source }) => {
-                setStatus(`Could not load ${source}.`);
+              src={useHls ? HLS_SAMPLE : undefined}
+              crossOrigin={useHls ? "anonymous" : undefined}
+              variants={useHls ? undefined : VIDEO_VARIANTS}
+              onError={({ source, error }) => {
+                setStatus(error instanceof Error ? error.message : `Could not load ${source}.`);
               }}
               onPlaybackStateChange={(state) => {
                 if (state === "blocked") {
@@ -245,12 +295,12 @@ export function VideoPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="Equirectangular mp4/webm variants, WebVTT tracks, and caption appearance."
+          blurb={useHls ? "Replace the sample path with your own HLS playlist URL." : "MP4/WebM variants and WebVTT captions."}
           code={snippet}
           label="PanoVideo"
         />
       <details className="border-t border-line p-5"><summary>Complete running example</summary>
-        <CodeSnippet label="360 video page" blurb="Full page implementation, including the displayed controls, loading/error status and example code generation." code={fullSource} />
+        <CodeSnippet label="360 video page" blurb="Full page implementation, including the displayed controls, loading/error status and example code generation." code={exampleSource} />
       </details>
       </section>
       <SiteFooter label="@ericchen1990/pano-view · 360 video sphere" />
