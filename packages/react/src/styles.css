@@ -1060,19 +1060,19 @@
 }
 
 [data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="before"] {
-  clip-path: inset(0 calc(100% - var(--pano-planar-split)) 0 0);
+  clip-path: inset(0 calc(100% - var(--pano-compare-split, 50%)) 0 0);
 }
 
 [data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="after"] {
-  clip-path: inset(0 0 0 var(--pano-planar-split));
+  clip-path: inset(0 0 0 var(--pano-compare-split, 50%));
 }
 
 [data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="before"] {
-  clip-path: inset(0 0 calc(100% - var(--pano-planar-split)) 0);
+  clip-path: inset(0 0 calc(100% - var(--pano-compare-split, 50%)) 0);
 }
 
 [data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="after"] {
-  clip-path: inset(var(--pano-planar-split) 0 0 0);
+  clip-path: inset(var(--pano-compare-split, 50%) 0 0 0);
 }
 
 [data-planar-presentation="split-view"][data-planar-layout="left-right"] .pano-planar-pair canvas {
@@ -1162,9 +1162,28 @@
   top: var(--pano-compare-motion-divider, 50%);
 }
 
+.pano-compare-divider-track {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  --pano-compare-divider-position: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-divider-track[data-presentation="wipe"] {
+  --pano-compare-divider-position: var(--pano-compare-motion-divider, var(--pano-compare-split, 50%));
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-divider-track {
+  transform: translateX(var(--pano-compare-divider-position));
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-track {
+  transform: translateY(var(--pano-compare-divider-position));
+}
+
 .pano-compare-divider {
   position: absolute;
-  z-index: 2;
   --pano-compare-divider-hit-size: 2px;
 }
 
@@ -1182,6 +1201,7 @@
 .pano-compare-chrome[data-layout="left-right"] .pano-compare-divider {
   top: 0;
   bottom: 0;
+  left: 0;
   width: var(--pano-compare-divider-hit-size);
   transform: translateX(-50%);
 }
@@ -1189,6 +1209,7 @@
 .pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider {
   left: 0;
   right: 0;
+  top: 0;
   height: var(--pano-compare-divider-hit-size);
   transform: translateY(-50%);
 }
@@ -1228,6 +1249,16 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+/* The visible divider replaces the native thumb. Keep the range focusable
+   without repositioning a hidden thumb on each drag frame. */
+.pano-compare-divider-draggable input::-webkit-slider-thumb {
+  display: none;
+}
+
+.pano-compare-divider-draggable input::-moz-range-thumb {
+  display: none;
 }
 
 .pano-compare-transition,

@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
 import { PerspectiveCamera, type Camera, type Vector2 } from "three";
+import type { createCompareSplit } from "./split";
 
 export type PanoCompareLayout = "left-right" | "top-bottom";
 export type PanoComparePresentation = "wipe" | "split-view";
@@ -7,10 +8,6 @@ export type PanoCompareSide = "before" | "after";
 
 export type CompareRect = { x: number; y: number; width: number; height: number };
 export type CompareSize = { width: number; height: number };
-
-export function normalizeCompareSplit(value: number): number {
-  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.5;
-}
 
 /** Use the same rounded buffer edge for both panes, even at fractional DPR. */
 export function compareRects(
@@ -30,9 +27,10 @@ export function compareRects(
 export type CompareConfig = {
   layout: PanoCompareLayout;
   presentation: PanoComparePresentation;
-  split: number;
-  changeSplit: (split: number) => void;
+  split: ReturnType<typeof createCompareSplit>;
 };
+
+export type CompareFrameConfig = Omit<CompareConfig, "split"> & { split: number };
 
 type CompareMotion = { layout: PanoCompareLayout; separation: number };
 
@@ -57,6 +55,7 @@ export function comparePaneViewport(
 
 export function createCompareHost() {
   let currentConfig: CompareConfig | null = null;
+  let frameConfig: CompareFrameConfig | null = null;
   let currentMotion: CompareMotion | null = null;
   const cameras: Partial<Record<PanoCompareSide, PerspectiveCamera>> = {};
   let cachedRects: {
@@ -64,6 +63,16 @@ export function createCompareHost() {
     rects: ReturnType<typeof compareRects>;
   } | undefined;
   const listeners = new Set<() => void>();
+
+  function getFrameConfig(): CompareFrameConfig | null {
+    if (!currentConfig) return null;
+    const split = currentConfig.split.get();
+    if (frameConfig?.split !== split) {
+      frameConfig = { layout: currentConfig.layout, presentation: currentConfig.presentation, split };
+    }
+    return frameConfig;
+  }
+
   const host = {
     get config(): CompareConfig | null { return currentConfig; },
     get motion(): CompareMotion | null { return currentMotion; },
@@ -79,13 +88,16 @@ export function createCompareHost() {
     getConfig: () => currentConfig,
     setConfig: (config: CompareConfig | null) => {
       currentConfig = config;
+      frameConfig = null;
       host.notify();
     },
+    getFrameConfig,
     setMotion(motion: CompareMotion | null) {
       const presenceChanged = Boolean(currentMotion) !== Boolean(motion);
       currentMotion = motion;
       if (motion && currentConfig?.layout === motion.layout) {
-        const split = currentConfig.split + (0.5 - currentConfig.split) * motion.separation;
+        const currentSplit = currentConfig.split.get();
+        const split = currentSplit + (0.5 - currentSplit) * motion.separation;
         host.chrome?.style.setProperty("--pano-compare-motion-divider", `${split * 100}%`);
       } else {
         host.chrome?.style.removeProperty("--pano-compare-motion-divider");
@@ -93,7 +105,7 @@ export function createCompareHost() {
       if (presenceChanged) host.notify();
     },
     hasPaneViews: () => currentMotion !== null || currentConfig?.presentation === "split-view",
-    getRects(size: CompareSize, dpr: number, config: CompareConfig | null = currentConfig): readonly [CompareRect, CompareRect] | null {
+    getRects(size: CompareSize, dpr: number, config = getFrameConfig()): readonly [CompareRect, CompareRect] | null {
       if (!config) return null;
       const { layout } = config;
       const split = currentMotion?.layout === layout
@@ -111,7 +123,7 @@ export function createCompareHost() {
       size: CompareSize,
       dpr: number,
       side: PanoCompareSide,
-      config: CompareConfig | null = currentConfig,
+      config = getFrameConfig(),
     ): { camera: PerspectiveCamera; rect: CompareRect; clip: CompareRect } | null {
       if (!config || !(camera instanceof PerspectiveCamera)) return null;
       const separation = currentMotion?.layout === config.layout ? currentMotion.separation : null;

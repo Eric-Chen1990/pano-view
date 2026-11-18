@@ -1,7 +1,7 @@
 import { useFrame, useThree, type RootState } from "@react-three/fiber";
 import { useCallback, useContext, useEffect, useMemo, useRef, type RefObject } from "react";
 import { Vector4, type Group } from "three";
-import { CompareHostContext, type CompareConfig, type createCompareHost } from "./view";
+import { CompareHostContext, type CompareFrameConfig, type createCompareHost } from "./view";
 
 const LAYOUT_FADE_MS = 240;
 const SEPARATION_MS = 360;
@@ -13,7 +13,7 @@ function renderComparison(
   { gl, camera, scene, size }: RootState,
   host: ReturnType<typeof createCompareHost>,
   pair: PairGroups,
-  config: CompareConfig,
+  config: CompareFrameConfig,
   viewport: Vector4,
   scissor: Vector4,
 ) {
@@ -64,7 +64,7 @@ function renderComparison(
 }
 
 type Frame = {
-  config: CompareConfig;
+  config: CompareFrameConfig;
   pair: PairGroups;
   width: number;
   height: number;
@@ -116,6 +116,7 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
   const viewport = useMemo(() => new Vector4(), []);
   const scissor = useMemo(() => new Vector4(), []);
   const lastFrame = useRef<Frame | null>(null);
+  const dividerChrome = useRef<HTMLDivElement | null>(null);
   const fade = useRef<Fade | null>(null);
   const separation = useRef<Separation | null>(null);
   const clearFade = useCallback(() => {
@@ -146,7 +147,7 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
 
   useFrame((state) => {
     const { gl, camera, scene, size } = state;
-    const config = host?.config;
+    const config = host?.getFrameConfig();
     const pair = groups.current;
     if (!config || !pair || !host || gl.xr.isPresenting) {
       lastFrame.current = null;
@@ -216,6 +217,11 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
     }
 
     renderComparison(state, host, pair, config, viewport, scissor);
+    const chrome = host.chrome;
+    if (chrome && (chrome !== dividerChrome.current || config.split !== previous?.config.split)) {
+      chrome.style.setProperty("--pano-compare-split", `${config.split * 100}%`);
+    }
+    dividerChrome.current = chrome;
     if (previous?.config !== config || !samePair || !sameFrameSize) {
       lastFrame.current = { config, pair, width: size.width, height: size.height };
     }

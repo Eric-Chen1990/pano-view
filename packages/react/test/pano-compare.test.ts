@@ -1,9 +1,52 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PerspectiveCamera, Raycaster, Vector2, Vector3 } from "three";
-import { aimComparePointer, comparePaneViewport, compareRects, createCompareHost, normalizeCompareSplit } from "../src/compare/view";
+import { createCompareSplit, normalizeCompareSplit } from "../src/compare/split";
+import { aimComparePointer, comparePaneViewport, compareRects, createCompareHost } from "../src/compare/view";
 
 const size = { width: 801, height: 501 };
+
+test("wipe updates stay out of the host's structural subscriptions and retain previous frame crops", () => {
+  const split = createCompareSplit(0.25);
+  const host = createCompareHost();
+  host.setConfig({ layout: "left-right", presentation: "wipe", split });
+  const notifications: number[] = [];
+  let hostNotifications = 0;
+  host.subscribe(() => { hostNotifications++; });
+  const unsubscribe = split.subscribe((value) => notifications.push(value));
+  const previous = host.getFrameConfig()!;
+
+  split.change(0.75);
+  split.change(0.75);
+  assert.deepEqual(notifications, [0.75]);
+  assert.equal(hostNotifications, 0);
+  assert.equal(host.getRects(size, 1)?.[0].width, Math.round(0.75 * size.width));
+  assert.equal(host.getRects(size, 1, previous)?.[0].width, Math.round(0.25 * size.width));
+  unsubscribe();
+  split.change(1);
+  assert.deepEqual(notifications, [0.75]);
+});
+
+test("controlled wipe changes wait for the prop and preserve the local split", () => {
+  const split = createCompareSplit(0.3);
+  const requests: number[] = [];
+  const changes: number[] = [];
+  split.subscribe((value) => changes.push(value));
+  const request = (value: number) => requests.push(value);
+
+  split.configure(0.4, request);
+  split.change(1.1);
+  assert.equal(split.get(), 0.4);
+  assert.deepEqual(requests, [1]);
+  split.configure(1, request);
+  split.configure(1, request);
+  assert.equal(split.get(), 1);
+  split.configure(undefined, request);
+  assert.equal(split.get(), 0.3);
+  split.change(-0.1);
+  assert.deepEqual(requests, [1, 0]);
+  assert.deepEqual(changes, [0.4, 1, 0.3, 0]);
+});
 
 test("separating the projections moves their centers apart without uncovering either crop", () => {
   const dpr = 1.5;
@@ -59,7 +102,7 @@ test("split pane centers hit the same camera direction in either layout", () => 
     getBoundingClientRect: () => ({ left: 40, top: 30, width: size.width * 2, height: size.height * 2 }),
   } as HTMLCanvasElement;
   for (const layout of ["left-right", "top-bottom"] as const) {
-    host.setConfig({ layout, presentation: "split-view", split: 0.8, changeSplit: () => {} });
+    host.setConfig({ layout, presentation: "split-view", split: createCompareSplit(0.8) });
     const rects = host.getRects(size, 1.5)!;
     for (const [index, side] of ["before", "after"].entries()) {
       const rect = rects[index]!;
@@ -79,7 +122,7 @@ test("split pane centers hit the same camera direction in either layout", () => 
 
 test("wheel and pointer events return to the full viewport in wipe mode", () => {
   const host = createCompareHost();
-  host.setConfig({ layout: "top-bottom", presentation: "wipe", split: 0.25, changeSplit: () => {} });
+  host.setConfig({ layout: "top-bottom", presentation: "wipe", split: createCompareSplit(0.25) });
   const camera = new PerspectiveCamera();
   assert.equal(host.getPane(camera, size, 1, "before"), null);
   const canvas = {

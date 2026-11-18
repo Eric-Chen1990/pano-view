@@ -21,10 +21,10 @@ import { TileTextureManagerProvider } from "../tile/texture-manager-context";
 import type { PanoViewerState } from "../types";
 import { useSceneSelection } from "../use-scene-selection";
 import { subscribeWebVRHost, WebVRRuntimeContext } from "../webvr/host";
+import { useCompareSplit } from "./split";
 import {
   CompareHostContext,
   CompareSourceSideContext,
-  normalizeCompareSplit,
   type PanoCompareLayout,
   type PanoComparePresentation,
   type PanoCompareSide,
@@ -59,6 +59,7 @@ export type PanoCompareProps = {
   /** Fraction occupied by the before source in wipe mode, in the range 0–1. */
   split?: number;
   defaultSplit?: number;
+  /** Reports wipe input, coalesced to the latest position per frame during dragging. */
   onSplitChange?: (split: number) => void;
   renderHotspots?: (scene: PanoCompareScene) => ReactNode;
   onSceneReady?: (sceneId: string) => void;
@@ -165,13 +166,7 @@ export function PanoCompare({
   const requested = scenes.find((scene) => scene.id === selectedId);
   const [shown, setShown] = useState<PanoCompareScene | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const [localSplit, setLocalSplit] = useState(() => normalizeCompareSplit(defaultSplit));
-  const split = normalizeCompareSplit(controlledSplit ?? localSplit);
-  const changeSplit = useCallback((value: number) => {
-    const next = normalizeCompareSplit(value);
-    if (controlledSplit === undefined) setLocalSplit(next);
-    onSplitChange?.(next);
-  }, [controlledSplit, onSplitChange]);
+  const split = useCompareSplit(defaultSplit, controlledSplit, onSplitChange);
   const visible = scenes.length ? shown : null;
   const pending = requested && requested.id !== visible?.id && requested.id !== failed ? requested : null;
   transitioning.current = Boolean(pending);
@@ -201,8 +196,8 @@ export function PanoCompare({
 
   const compareActive = Boolean(visible) && !vrActive;
   useLayoutEffect(() => {
-    if (compareActive && host) host.setConfig({ layout, presentation, split, changeSplit });
-  }, [changeSplit, compareActive, host, layout, presentation, split]);
+    if (compareActive && host) host.setConfig({ layout, presentation, split });
+  }, [compareActive, host, layout, presentation, split]);
   useLayoutEffect(() => {
     if (compareActive && host) return () => host.setConfig(null);
   }, [compareActive, host]);

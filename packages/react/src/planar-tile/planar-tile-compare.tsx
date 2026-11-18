@@ -1,13 +1,12 @@
-import {
-  useLayoutEffect, useMemo, useRef, useState, type CSSProperties,
-} from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CompareDivider } from "../compare/chrome";
-import {
-  normalizeCompareSplit, type PanoCompareLayout, type PanoComparePresentation, type PanoCompareSide,
+import { useCompareSplit } from "../compare/split";
+import type {
+  CompareConfig, PanoCompareLayout, PanoComparePresentation, PanoCompareSide,
 } from "../compare/view";
 import { loadPlanarManifest } from "./manifest";
 import {
-  mountPlanarSurfaces, type PlanarComparisonConfig, type PlanarStatus, type PlanarViewOptions,
+  mountPlanarSurfaces, type PlanarStatus, type PlanarViewOptions,
 } from "./runtime";
 import type { PlanarTileViewerProps } from "./planar-tile-viewer";
 import { PlanarZoomControls } from "./zoom-controls";
@@ -35,6 +34,7 @@ export type PlanarTileCompareProps = PlanarViewOptions & {
   /** Fraction occupied by the before image in wipe mode, in the range 0–1. */
   split?: number;
   defaultSplit?: number;
+  /** Reports wipe input, coalesced to the latest position per frame during dragging. */
   onSplitChange?: (split: number) => void;
   /** Shows a native scene selector when multiple scenes are available. Defaults to true. */
   showScenePicker?: boolean;
@@ -57,7 +57,7 @@ function PlanarPair({
 }: {
   scene: PlanarTileCompareScene;
   active: boolean;
-  comparison: PlanarComparisonConfig;
+  comparison: CompareConfig;
   options: PlanarViewOptions;
   label: string;
   getPreviousView: () => ReturnType<PairControls["getView"]> | undefined;
@@ -165,7 +165,7 @@ export function PlanarTileCompare({
   const [internalId, setInternalId] = useState(() => defaultActiveSceneId ?? scenes[0]?.id);
   const [shown, setShown] = useState<ShownPair | null>(null);
   const [failure, setFailure] = useState<PairFailure | null>(null);
-  const [localSplit, setLocalSplit] = useState(() => normalizeCompareSplit(defaultSplit));
+  const split = useCompareSplit(defaultSplit, controlledSplit, onSplitChange);
   const announced = useRef<ShownPair | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const restoreViewportFocus = useRef(false);
@@ -178,9 +178,15 @@ export function PlanarTileCompare({
   const visible = displayedScene ? shown : null;
   const error = requestedKey === failure?.key ? failure : null;
   const pending = requested && requestedKey !== visible?.key && !error ? requested : null;
-  const split = normalizeCompareSplit(controlledSplit ?? localSplit);
   const comparison = useMemo(() => ({ layout, presentation, split }), [layout, presentation, split]);
   const options = useMemo(() => ({ initialScale, maxScale, dragMotion }), [initialScale, maxScale, dragMotion]);
+
+  useLayoutEffect(() => {
+    const element = root.current!;
+    const sync = (value: number) => element.style.setProperty("--pano-compare-split", `${value * 100}%`);
+    sync(split.get());
+    return split.subscribe(sync);
+  }, [split]);
 
   useLayoutEffect(() => {
     if (shown && !displayedScene) setShown(null);
@@ -203,17 +209,11 @@ export function PlanarTileCompare({
     }
   }, [onSceneReady, visible]);
 
-  function changeSplit(value: number) {
-    const next = normalizeCompareSplit(value);
-    if (controlledSplit === undefined) setLocalSplit(next);
-    onSplitChange?.(next);
-  }
-
   return (
     <div ref={root} tabIndex={-1}
       className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"}
       data-planar-presentation={presentation} data-planar-layout={layout}
-      style={{ ...style, "--pano-planar-split": `${split * 100}%` } as CSSProperties}
+      style={style}
     >
       {[visible?.scene, pending].map((scene) => {
         if (!scene) return null;
@@ -238,7 +238,7 @@ export function PlanarTileCompare({
       })}
       {visible && (
         <div className="pano-compare-chrome" data-layout={layout}>
-          <CompareDivider {...comparison} changeSplit={changeSplit} />
+          <CompareDivider {...comparison} />
         </div>
       )}
       {showScenePicker && scenes.length > 1 && (

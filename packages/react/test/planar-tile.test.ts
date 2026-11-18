@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createCompareSplit } from "../src/compare/split";
 import { resolveDragMotion } from "../src/drag-motion";
 import {
   FIT_VIEW, moveView, planarPaneCenter, selectLevel, viewportGeometry, viewRect, visibleTiles,
@@ -331,10 +332,11 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
     thumbnailUrl: "https://cdn.test/after/thumbnail.png",
     urlTemplate: "after/%l/%00v/after%0h.png",
   };
+  const split = createCompareSplit(0.5);
   const pair = mountPlanarSurfaces(viewport as unknown as HTMLElement, [
     { canvas: canvas as unknown as HTMLCanvasElement, manifest, report: () => {} },
     { canvas: secondCanvas as unknown as HTMLCanvasElement, manifest: secondManifest, report: () => {} },
-  ], comparison.signal, { dragMotion: false }, { layout: "left-right", presentation: "split-view", split: 0.5 });
+  ], comparison.signal, { dragMotion: false }, { layout: "left-right", presentation: "split-view", split });
   requests.get("maps/thumbnail.png")!(new Response("overview"));
   requests.get("after/thumbnail.png")!(new Response("second overview"));
   await tick();
@@ -347,10 +349,14 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   assert.ok(pair.getView().center.x < 0.5);
   assert.deepEqual(beforeRect, afterRect);
   touch("pointerup", 1, 210);
-  pair.setComparison({ layout: "top-bottom", presentation: "split-view", split: 0.5 });
+  pair.setComparison({ layout: "top-bottom", presentation: "split-view", split });
   await tick();
   assert.equal(canvas.height, 90);
   assert.deepEqual(beforeRect, afterRect);
+  pair.setComparison({ layout: "top-bottom", presentation: "wipe", split });
+  await tick();
+  split.change(0.8);
+  assert.equal(frames.size, 0);
   comparison.abort();
   await tick();
   assert.ok(signals.every((signal) => signal.aborted));

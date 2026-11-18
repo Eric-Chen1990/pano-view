@@ -44,8 +44,6 @@ type PlanarSurface = {
   report: (status: PlanarStatus, error?: unknown) => void;
 };
 
-export type PlanarComparisonConfig = Pick<CompareConfig, "layout" | "presentation" | "split">;
-
 export function mountPlanarView(
   viewportElement: HTMLElement,
   canvas: HTMLCanvasElement,
@@ -62,7 +60,7 @@ export function mountPlanarSurfaces(
   surfaces: readonly [PlanarSurface] | readonly [PlanarSurface, PlanarSurface],
   signal: AbortSignal,
   options: PlanarViewOptions,
-  comparison?: PlanarComparisonConfig,
+  comparison?: CompareConfig,
 ) {
   const viewport = { width: 0, height: 0 };
   const bounds = { width: 0, height: 0 };
@@ -226,7 +224,7 @@ export function mountPlanarSurfaces(
       cancelAnimationFrame(frame);
       return render(performance.now());
     },
-    setComparison(next: PlanarComparisonConfig) {
+    setComparison(next: CompareConfig) {
       const resizeNeeded = comparison?.presentation !== next.presentation || comparison.layout !== next.layout;
       comparison = next;
       if (resizeNeeded) resize();
@@ -252,7 +250,7 @@ export function mountPlanarSurfaces(
 
   function paneAt(point: Point) {
     if (!comparison) return 0;
-    const split = comparison.presentation === "split-view" ? 0.5 : comparison.split;
+    const split = comparison.presentation === "split-view" ? 0.5 : comparison.split.get();
     const fraction = comparison.layout === "left-right" ? point.x / bounds.width : point.y / bounds.height;
     return fraction < split ? 0 : 1;
   }
