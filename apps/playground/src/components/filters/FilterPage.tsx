@@ -2,12 +2,18 @@ import {
   GraphicHotspot,
   ImageHotspot,
   PanoFilter,
+  PanoVideo,
   PanoViewer,
   Sphere,
+  SphereTile,
   Tile,
+  WebVR,
+  usePanoViewer,
+  type PanoColorAdjustments,
   type PanoFilterPreset,
+  type PanoVideoVariant,
 } from "@ericchen1990/pano-view";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { FILTER_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -30,7 +36,62 @@ import { SiteHeader } from "../SiteHeader";
 const SPHERE_SCENE = TRANSITION_SCENES[0];
 const TILE_SCENE = TRANSITION_SCENES[2];
 
-type SourceKind = "sphere" | "tile";
+const SOURCES = [
+  { id: "sphere", component: "Sphere", label: "Single image" },
+  { id: "tile", component: "Tile", label: "Cube tiles" },
+  { id: "sphereTile", component: "SphereTile", label: "Sphere tiles" },
+  { id: "video", component: "PanoVideo", label: "360° video" },
+] as const;
+type SourceKind = (typeof SOURCES)[number]["id"];
+
+const SPHERE_TILE_PROPS = {
+  baseUrl: "/fixtures/panorama/sphere-tiles/",
+  multires: "512,512x256,1536x768",
+  previewUrl: "previews/400.webp",
+  urlTemplate: "tiles/%l/%h_%v.webp",
+} as const;
+
+const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
+  { width: 1024, height: 512 },
+  { width: 1920, height: 960 },
+].map(({ width, height }) => {
+  const base = `/fixtures/360video/1/video-${width}x${height}`;
+  return {
+    id: String(width),
+    label: `${width} × ${height}`,
+    poster: `${base}-poster.jpg`,
+    sources: [
+      { src: `${base}.mp4`, type: "video/mp4" },
+      { src: `${base}.webm`, type: "video/webm" },
+    ],
+  };
+});
+
+const VIDEO_TRACKS = [
+  { src: "/fixtures/360video/1/en.vtt", srcLang: "en", label: "English", default: true },
+];
+
+const ADJUSTMENTS = [
+  { key: "exposure", label: "Exposure", limit: 2, unit: " EV" },
+  { key: "saturation", label: "Saturation", limit: 1, unit: "" },
+  { key: "contrast", label: "Contrast", limit: 1, unit: "" },
+  { key: "clarity", label: "Clarity", limit: 1, unit: "" },
+] as const;
+
+function FilterSource({ source }: { source: SourceKind }) {
+  switch (source) {
+    case "sphere":
+      return SPHERE_SCENE?.type === "sphere" ? <Sphere {...SPHERE_SCENE} /> : null;
+    case "tile":
+      return TILE_SCENE?.type === "tile" ? (
+        <Tile {...TILE_SCENE} maxConcurrentLoads={3} maxTextureMemoryMb={96} />
+      ) : null;
+    case "sphereTile":
+      return <SphereTile {...SPHERE_TILE_PROPS} />;
+    case "video":
+      return <PanoVideo loop muted variants={VIDEO_VARIANTS} tracks={VIDEO_TRACKS} />;
+  }
+}
 
 function FilterHotspots() {
   return (
@@ -63,34 +124,42 @@ function buildFilterSnippet(
   source: SourceKind,
   preset: PanoFilterPreset,
   intensity: number,
+  adjustments: PanoColorAdjustments,
+  enabled: boolean,
 ): string {
-  const intensityLiteral =
-    Number.isInteger(intensity) ? String(intensity) : intensity.toFixed(2);
-  const sourceBlock =
-    source === "sphere"
-      ? `  <Sphere
-    src="/fixtures/panorama/panos/1/sphere.webp"
-    previewUrl="preview.webp"
-  />`
-      : `  <Tile
-    baseUrl="/fixtures/panorama/cube-tiles/3"
-    multires="512,1000,2000"
-    urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
-    previewUrl="previews/cube-vertical.webp"
-  />`;
+  const component = SOURCES.find((option) => option.id === source)!.component;
+  const sourceProps = source === "sphere" ? SPHERE_SCENE
+    : source === "tile" ? TILE_SCENE
+    : source === "sphereTile" ? SPHERE_TILE_PROPS
+    : { variants: VIDEO_VARIANTS, tracks: VIDEO_TRACKS, loop: true, muted: true };
+  const sourceAttributes = Object.entries(sourceProps ?? {})
+    .filter(([key]) => key !== "id" && key !== "type")
+    .map(([key, value]) => typeof value === "string"
+      ? `${key}=${JSON.stringify(value)}`
+      : `${key}={${JSON.stringify(value)}}`)
+    .join("\n    ");
+  const adjustmentLiteral = ADJUSTMENTS.map(({ key }) =>
+    `${key}: ${adjustments[key] ?? 0}`,
+  ).join(", ");
 
   return `import {
   GraphicHotspot,
   ImageHotspot,
   PanoFilter,
   PanoViewer,
-  ${source === "sphere" ? "Sphere" : "Tile"},
+  ${component},
 } from "@ericchen1990/pano-view";
 
-{/* PanoFilter grades only the panorama source by default; hotspots keep their color. */}
 <PanoViewer style={{ height: 540 }}>
-  <PanoFilter preset="${preset}" intensity={${intensityLiteral}} />
-${sourceBlock}
+  <PanoFilter
+    adjustments={{ ${adjustmentLiteral} }}
+    enabled={${enabled}}
+    preset="${preset}"
+    intensity={${intensity}}
+  />
+  <${component}
+    ${sourceAttributes}
+  />
   <ImageHotspot
     id="filter-image-marker"
     position={{ yaw: 18, pitch: 5 }}
@@ -114,11 +183,15 @@ ${sourceBlock}
 
 export function FilterPage() {
   const [source, setSource] = useState<SourceKind>("sphere");
-  const [preset, setPreset] = useState<PanoFilterPreset>("pencil");
+  const [preset, setPreset] = useState<PanoFilterPreset>("none");
   const [intensity, setIntensity] = useState(1);
+  const [adjustments, setAdjustments] = useState<PanoColorAdjustments>({});
+  const [showOriginal, setShowOriginal] = useState(false);
+  const viewer = usePanoViewer();
+  const vr = useSyncExternalStore(viewer.subscribeVR, viewer.getVRState, viewer.getVRState);
   const snippet = useMemo(
-    () => buildFilterSnippet(source, preset, intensity),
-    [intensity, preset, source],
+    () => buildFilterSnippet(source, preset, intensity, adjustments, !showOriginal),
+    [intensity, preset, source, adjustments, showOriginal],
   );
 
   return (
@@ -130,40 +203,99 @@ export function FilterPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Panorama filter bench</p>
+            <p className={eyebrowClassName}>Panorama filters</p>
             <h1 className={pageHeadingTitleClassName} id="filter-bench-title">
-              Source-only looks
+              Real-time color adjustments
             </h1>
           </div>
           <p className={pageHeadingStatusClassName}>
-            Compare filters on Sphere and Tile sources here. The orange marker and signal hotspot keep their original color. PanoVideo is also supported by the API, but is not demonstrated on this page.
+            Adjust exposure, color and local detail on panoramic images and video.
           </p>
         </div>
         <div className={pageControlsClassName}>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Panorama source">
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                source === "sphere" && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setSource("sphere")}
-              type="button"
-            >
-              Sphere
-            </button>
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                source === "tile" && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setSource("tile")}
-              type="button"
-            >
-              Tile
-            </button>
+            {SOURCES.map(({ id, label }) => (
+              <button
+                aria-pressed={source === id}
+                className={cn(segmentedButtonClassName, source === id && segmentedButtonActiveClassName)}
+                key={id}
+                onClick={() => setSource(id)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
           </div>
+          <button
+            aria-pressed={showOriginal}
+            className={cn(segmentedButtonClassName, showOriginal && segmentedButtonActiveClassName)}
+            onClick={() => setShowOriginal((current) => !current)}
+            type="button"
+          >
+            Show original
+          </button>
+          <button
+            className={segmentedButtonClassName}
+            onClick={() => {
+              setAdjustments({});
+              setPreset("none");
+              setIntensity(1);
+              setShowOriginal(false);
+            }}
+            type="button"
+          >
+            Reset filters
+          </button>
+          {vr.available ? (
+            <button
+              className={segmentedButtonClassName}
+              onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
+              type="button"
+            >
+              {vr.enabled ? "Exit VR" : "Enter VR"}
+            </button>
+          ) : null}
+        </div>
+        <div className={pageControlsClassName} role="group" aria-label="Color adjustments">
+          {ADJUSTMENTS.map(({ key, label, limit, unit }) => (
+            <label key={key} className={controlLabelClassName}>
+              {label} {(adjustments[key] ?? 0).toFixed(2)}{unit}
+              <input
+                aria-label={label}
+                className={cn(controlInputClassName, "w-28")}
+                max={limit}
+                min={-limit}
+                onChange={(event) => {
+                  const next = Number(event.currentTarget.value);
+                  setAdjustments((current) => ({ ...current, [key]: next }));
+                }}
+                step={0.01}
+                type="range"
+                value={adjustments[key] ?? 0}
+              />
+            </label>
+          ))}
+        </div>
+        <div className="bg-[#020607]">
+          <PanoViewer
+            ref={viewer.ref}
+            aria-label="Panorama filter demo"
+            style={{ height: "min(540px, 68dvh)" }}
+          >
+            <WebVR />
+            <PanoFilter
+              adjustments={adjustments}
+              enabled={!showOriginal}
+              intensity={intensity}
+              preset={preset}
+            />
+            <FilterSource source={source} />
+            <FilterHotspots />
+          </PanoViewer>
+        </div>
+        <div className={pageControlsClassName}>
           <label className={controlLabelClassName}>
-            Intensity {Math.round(intensity * 100)}%
+            Preset intensity {Math.round(intensity * 100)}%
             <input
               aria-label="Filter intensity"
               className={cn(controlInputClassName, "w-40")}
@@ -185,6 +317,7 @@ export function FilterPage() {
               <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${group.label} filters`}>
                 {group.presets.map((entry) => (
                   <button
+                    aria-pressed={preset === entry.value}
                     className={cn(
                       segmentedButtonClassName,
                       preset === entry.value && segmentedButtonActiveClassName,
@@ -200,34 +333,8 @@ export function FilterPage() {
             </div>
           ))}
         </div>
-        <div className="bg-[#020607] p-0">
-          <PanoViewer
-            aria-label="Panorama filter demo"
-            style={{ height: 540 }}
-          >
-            <PanoFilter intensity={intensity} preset={preset} />
-            {source === "sphere" && SPHERE_SCENE?.type === "sphere" ? (
-              <Sphere
-                src={SPHERE_SCENE.src}
-                previewUrl={SPHERE_SCENE.previewUrl}
-                yawOffset={SPHERE_SCENE.yawOffset}
-              />
-            ) : null}
-            {source === "tile" && TILE_SCENE?.type === "tile" ? (
-              <Tile
-                baseUrl={TILE_SCENE.baseUrl}
-                maxConcurrentLoads={3}
-                maxTextureMemoryMb={96}
-                multires={TILE_SCENE.multires}
-                urlTemplate={TILE_SCENE.urlTemplate}
-                previewUrl={TILE_SCENE.previewUrl}
-              />
-            ) : null}
-            <FilterHotspots />
-          </PanoViewer>
-        </div>
         <CodeSnippet
-          blurb="This demo applies PanoFilter to Sphere or Tile. Hotspots stay unfiltered unless colorMatrixScope is set to all."
+          blurb="Pass an adjustments object to PanoFilter. Its values apply to the panorama source."
           code={snippet}
           label="PanoFilter"
         />

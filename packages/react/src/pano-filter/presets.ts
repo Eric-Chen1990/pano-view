@@ -1,3 +1,5 @@
+import { resolvePanoColorAdjustments, type PanoColorAdjustments } from "./adjustments";
+
 export const PANO_FILTER_PRESETS = [
   "none",
   "grayscale",
@@ -47,6 +49,7 @@ export type PanoFilterSnapshot = {
   enabled: boolean;
   colorMatrix: PanoColorMatrix | null;
   colorMatrixScope: "panorama" | "all";
+  adjustments: Required<PanoColorAdjustments> | null;
 };
 
 export const DEFAULT_PANO_FILTER_INTENSITY = 1;
@@ -57,6 +60,7 @@ export const DEFAULT_PANO_FILTER_SNAPSHOT: PanoFilterSnapshot = {
   enabled: true,
   colorMatrix: null,
   colorMatrixScope: "panorama",
+  adjustments: null,
 };
 
 export function clampPanoFilterIntensity(value: number | undefined): number {
@@ -72,6 +76,7 @@ export function resolvePanoFilterSnapshot(input: {
   enabled?: boolean;
   colorMatrix?: PanoColorMatrix | null;
   colorMatrixScope?: "panorama" | "all";
+  adjustments?: PanoColorAdjustments;
 }): PanoFilterSnapshot {
   if (
     input.colorMatrix &&
@@ -81,6 +86,7 @@ export function resolvePanoFilterSnapshot(input: {
     throw new Error("colorMatrix must contain 20 finite numbers");
   }
   return {
+    adjustments: input.adjustments ? resolvePanoColorAdjustments(input.adjustments) : null,
     colorMatrix: input.colorMatrix ? [...input.colorMatrix] : null,
     colorMatrixScope: input.colorMatrixScope ?? "panorama",
     preset: input.preset ?? "none",
@@ -92,6 +98,9 @@ export function resolvePanoFilterSnapshot(input: {
 export function isPanoFilterActive(snapshot: PanoFilterSnapshot): boolean {
   return (
     snapshot.enabled &&
-    (snapshot.preset !== "none" || snapshot.colorMatrix !== null)
+    (snapshot.preset !== "none" ||
+      snapshot.colorMatrix !== null ||
+      (snapshot.adjustments !== null &&
+        Object.values(snapshot.adjustments).some((value) => value !== 0)))
   );
 }

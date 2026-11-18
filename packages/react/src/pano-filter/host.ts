@@ -1,4 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
+import type { Camera } from "three";
+import type { PanoClarityView } from "./clarity-pass";
 import {
   DEFAULT_PANO_FILTER_SNAPSHOT,
   type PanoFilterSnapshot,
@@ -9,6 +11,7 @@ export type PanoFilterHost = {
   claims: number;
   revision: number;
   listeners: Set<() => void>;
+  clarityViews: Map<Camera, PanoClarityView>;
 };
 
 export const PanoFilterHostContext = createContext<PanoFilterHost | null>(null);
@@ -19,6 +22,7 @@ export function createPanoFilterHost(): PanoFilterHost {
     claims: 0,
     revision: 0,
     listeners: new Set(),
+    clarityViews: new Map(),
   };
 }
 

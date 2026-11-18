@@ -179,3 +179,61 @@ export function injectPanoColorMatrixShader(
   gl_FragColor = mix(gl_FragColor, clamp(uPanoColorMatrix * gl_FragColor + uPanoColorOffset, 0.0, 1.0), uPanoColorMatrixIntensity);`,
     );
 }
+
+// Insert after the texture decode and before any artistic preset.
+export function injectPanoColorAdjustmentsShader(
+  shader: WebGLProgramParametersWithUniforms,
+): void {
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+uniform vec4 uPanoAdjustments;
+uniform sampler2D uPanoClarityMap;
+uniform vec4 uPanoClarityViewport;
+uniform vec2 uPanoClarityTexel;
+
+vec3 panoAdjustLocalContrast(vec3 color, float amount) {
+  vec2 uv = (gl_FragCoord.xy - uPanoClarityViewport.xy) / uPanoClarityViewport.zw;
+  vec2 stepUv = 2.0 * uPanoClarityTexel;
+  vec4 neighbors =
+    texture2D(uPanoClarityMap, uv + vec2(-stepUv.x, -stepUv.y)) +
+    texture2D(uPanoClarityMap, uv + vec2( stepUv.x, -stepUv.y)) +
+    texture2D(uPanoClarityMap, uv + vec2(-stepUv.x,  stepUv.y)) +
+    texture2D(uPanoClarityMap, uv + vec2( stepUv.x,  stepUv.y));
+  if (neighbors.a < 0.001) return color;
+
+  float linearLuma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  if (linearLuma <= 0.0001) return color;
+  float luma = sRGBTransferOETF(vec4(vec3(linearLuma), 1.0)).r;
+  float delta = clamp(luma - neighbors.r / neighbors.a, -0.15, 0.15);
+  float midtones = 4.0 * luma * (1.0 - luma);
+  float adjusted = clamp(luma + amount * midtones * delta, 0.0, 1.0);
+  return color * (sRGBTransferEOTF(vec4(vec3(adjusted), 1.0)).r / linearLuma);
+}
+
+vec3 applyPanoAdjustments(vec3 color) {
+  if (uPanoAdjustments.w != 0.0 && uPanoClarityViewport.z > 0.0) {
+    color = panoAdjustLocalContrast(color, uPanoAdjustments.w);
+  }
+  color *= exp2(uPanoAdjustments.x);
+  if (uPanoAdjustments.y != 0.0 || uPanoAdjustments.z != 0.0) {
+    vec3 display = sRGBTransferOETF(vec4(color, 1.0)).rgb;
+    float luma = dot(display, vec3(0.2126, 0.7152, 0.0722));
+    display = mix(vec3(luma), display, 1.0 + uPanoAdjustments.y);
+    display = mix(vec3(0.5), display, 1.0 + uPanoAdjustments.z);
+    return sRGBTransferEOTF(vec4(clamp(display, 0.0, 1.0), 1.0)).rgb;
+  }
+  return clamp(color, 0.0, 1.0);
+}`,
+    )
+    .replace(
+      "#include <map_fragment>",
+      `#include <map_fragment>
+if (uPanoAdjustments.x != 0.0 || uPanoAdjustments.y != 0.0 ||
+    uPanoAdjustments.z != 0.0 ||
+    (uPanoAdjustments.w != 0.0 && uPanoClarityViewport.z > 0.0)) {
+  diffuseColor.rgb = applyPanoAdjustments(diffuseColor.rgb);
+}`,
+    );
+}

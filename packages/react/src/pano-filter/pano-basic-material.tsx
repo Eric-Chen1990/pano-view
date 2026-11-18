@@ -1,13 +1,20 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useContext, useLayoutEffect, useMemo } from "react";
 import {
   Matrix4,
+  Vector2,
   Vector4,
+  type MeshBasicMaterial,
   type Side,
   type Texture,
   type WebGLProgramParametersWithUniforms,
 } from "three";
-import { usePanoFilterSnapshot } from "./host";
-import { injectPanoColorMatrixShader, injectPanoFilterShader } from "./shaders";
+import { markPanoClaritySource } from "./clarity-pass";
+import { PanoFilterHostContext, usePanoFilterSnapshot } from "./host";
+import {
+  injectPanoColorAdjustmentsShader,
+  injectPanoColorMatrixShader,
+  injectPanoFilterShader,
+} from "./shaders";
 import type { PanoColorMatrix } from "./presets";
 
 export type PanoBasicMaterialProps = {
@@ -22,6 +29,9 @@ export type PanoBasicMaterialProps = {
   opacity?: number;
   transparent?: boolean;
 };
+
+const EMPTY_VIEWPORT = new Vector4(0, 0, 0, 0);
+const EMPTY_TEXEL = new Vector2();
 
 function matrixUniforms(matrix: PanoColorMatrix) {
   return {
@@ -52,6 +62,7 @@ export function PanoBasicMaterial({
   target = "panorama",
   ...props
 }: PanoBasicMaterialProps) {
+  const host = useContext(PanoFilterHostContext);
   const snapshot = usePanoFilterSnapshot();
   const preset =
     snapshot.enabled && target === "panorama" ? snapshot.preset : "none";
@@ -61,48 +72,72 @@ export function PanoBasicMaterial({
       ? snapshot.colorMatrix
       : null;
   const hasMatrix = matrix !== null;
-  const currentRef = useRef({ matrix, intensity: snapshot.intensity });
-  currentRef.current = { matrix, intensity: snapshot.intensity };
-  const shaderRef = useRef<WebGLProgramParametersWithUniforms | null>(null);
+  const adjustments = snapshot.enabled && target === "panorama"
+    ? snapshot.adjustments
+    : null;
+  const hasAdjustments = adjustments !== null;
+  const intensityUniform = useMemo(() => ({ value: 1 }), []);
+  const matrixUniform = useMemo(() => ({ value: new Matrix4() }), []);
+  const offsetUniform = useMemo(() => ({ value: new Vector4() }), []);
+  const adjustmentUniforms = useMemo(() => hasAdjustments ? {
+    uPanoAdjustments: { value: new Vector4(0, 0, 0, 0) },
+    uPanoClarityMap: { value: null as Texture | null },
+    uPanoClarityViewport: { value: EMPTY_VIEWPORT },
+    uPanoClarityTexel: { value: EMPTY_TEXEL },
+  } : null, [hasAdjustments]);
   const onBeforeCompile = useMemo(() => {
     const compile = (shader: WebGLProgramParametersWithUniforms) => {
-      shaderRef.current = shader;
       if (preset !== "none") {
         injectPanoFilterShader(shader, preset);
-        shader.uniforms.uPanoFilterIntensity!.value =
-          currentRef.current.intensity;
+        shader.uniforms.uPanoFilterIntensity = intensityUniform;
       }
-      if (hasMatrix && currentRef.current.matrix) {
+      if (adjustmentUniforms) {
+        injectPanoColorAdjustmentsShader(shader);
+        Object.assign(shader.uniforms, adjustmentUniforms);
+      }
+      if (hasMatrix) {
         injectPanoColorMatrixShader(shader);
-        const values = matrixUniforms(currentRef.current.matrix);
-        shader.uniforms.uPanoColorMatrix = { value: values.matrix };
-        shader.uniforms.uPanoColorOffset = { value: values.offset };
-        shader.uniforms.uPanoColorMatrixIntensity = {
-          value: currentRef.current.intensity,
-        };
+        shader.uniforms.uPanoColorMatrix = matrixUniform;
+        shader.uniforms.uPanoColorOffset = offsetUniform;
+        shader.uniforms.uPanoColorMatrixIntensity = intensityUniform;
       }
     };
-    compile.toString = () => `pano-filter:${preset}:matrix:${hasMatrix}`;
+    compile.toString = () => `pano-filter:${preset}:matrix:${hasMatrix}:adjustments:${hasAdjustments}`;
     return compile;
-  }, [preset, hasMatrix]);
+  }, [preset, hasMatrix, hasAdjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
   useLayoutEffect(() => {
-    const shader = shaderRef.current;
-    if (!shader) return;
-    if (shader.uniforms.uPanoFilterIntensity)
-      shader.uniforms.uPanoFilterIntensity.value = snapshot.intensity;
-    if (shader.uniforms.uPanoColorMatrix && matrix) {
+    intensityUniform.value = snapshot.intensity;
+    if (matrix) {
       const values = matrixUniforms(matrix);
-      shader.uniforms.uPanoColorMatrix.value = values.matrix;
-      shader.uniforms.uPanoColorOffset!.value = values.offset;
-      shader.uniforms.uPanoColorMatrixIntensity!.value = snapshot.intensity;
+      matrixUniform.value = values.matrix;
+      offsetUniform.value = values.offset;
     }
-  }, [matrix, snapshot.intensity]);
+    if (adjustments && adjustmentUniforms) {
+      adjustmentUniforms.uPanoAdjustments.value.set(
+        adjustments.exposure, adjustments.saturation, adjustments.contrast, adjustments.clarity,
+      );
+    }
+  }, [matrix, snapshot.intensity, adjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
+  const bindClarity = useMemo<MeshBasicMaterial["onBeforeRender"] | undefined>(() => {
+    if (!adjustmentUniforms || !host) return undefined;
+    const viewport = new Vector4();
+    return (renderer, _scene, camera) => {
+      const view = host.clarityViews.get(camera);
+      const active = view && view.output === renderer.getRenderTarget() &&
+        view.viewport.equals(renderer.getCurrentViewport(viewport));
+      adjustmentUniforms.uPanoClarityMap.value = active ? view.target.texture : null;
+      adjustmentUniforms.uPanoClarityViewport.value = active ? view.viewport : EMPTY_VIEWPORT;
+      adjustmentUniforms.uPanoClarityTexel.value = active ? view.texel : EMPTY_TEXEL;
+    };
+  }, [host, adjustmentUniforms]);
   return (
     <meshBasicMaterial
-      key={`${preset}:${hasMatrix}`}
+      key={`${preset}:${hasMatrix}:${hasAdjustments}`}
       toneMapped={false}
       {...props}
+      ref={target === "panorama" ? markPanoClaritySource : undefined}
       onBeforeCompile={onBeforeCompile}
+      onBeforeRender={bindClarity}
     />
   );
 }

@@ -1813,10 +1813,9 @@ only panorama materials. `colorMatrix` defaults to the panorama; set
 tooltips, video controls, and iframes are unaffected. WebXR / MobileVR use the
 same panorama shader and inherit its filter appearance.
 
-`intensity` mixes the filtered result with the original image (`0`–`1`,
-default `1`). Omit the component or set `enabled={false}` to disable all filtering.
-`preset="none"` disables only the built-in preset; a configured `colorMatrix`
-still applies.
+`intensity` blends the built-in preset and color matrix with their respective
+inputs (`0`–`1`, default `1`). Omit the component or set `enabled={false}` to
+disable all filtering. `preset="none"` disables the built-in preset.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1843,6 +1842,32 @@ still applies.
 | `watercolor` | Soft pigment on paper |
 | `cartoon` | Cel shading with outlines |
 | `crosshatch` | Luminance hatching |
+
+### Real-time color adjustments
+
+Pass `adjustments` (type `PanoColorAdjustments`) to grade images, tiles, and video.
+Each field is optional. Zero is neutral, finite values are clamped to the
+listed ranges, and non-finite values are treated as zero.
+
+| Field | Range | Effect |
+|---|---|---|
+| `exposure` | `-2` to `2` EV | Changes linear exposure. One stop doubles the light. |
+| `saturation` | `-1` to `1` | Ranges from grayscale to more saturated color. |
+| `contrast` | `-1` to `1` | Reduces or increases contrast around display-space middle gray. |
+| `clarity` | `-1` to `1` | Softens or enhances local midtone contrast. |
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter adjustments={{ exposure: 0.3, saturation: 0.15, contrast: 0.1, clarity: 0.25 }} />
+  <PanoVideo src="/panoramas/room-360.mp4" />
+</PanoViewer>
+```
+
+Color adjustments apply to the panorama source before the preset and color
+matrix, independently of `intensity`. Clarity samples the assembled panorama
+in a low-resolution GPU pass per view. If that buffer is unavailable, exposure,
+saturation, and contrast still apply. Hosts can store and reuse the adjustment
+object as JSON.
 
 Built-in artistic looks use screen-space edges and world-space grain so cube
 tiles do not show filter seams. Scene-transition snapshots capture the filtered

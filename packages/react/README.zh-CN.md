@@ -1629,7 +1629,7 @@ export function Tour() {
 
 在 `PanoViewer` 内渲染 `PanoFilter` 可对全景源（`Sphere`、`Tile`、`SphereTile`、`PanoVideo`）调色或风格化。内置预设仅作用于全景材质；`colorMatrix` 默认仅作用于全景，设 `colorMatrixScope="all"` 可同时作用于热点纹理。tooltip、视频控件与 iframe 等 DOM 叠加层不受影响。WebXR / MobileVR 使用相同的全景着色器，因此继承相同的滤镜外观。
 
-`intensity` 在滤镜结果与原图之间混合（`0`–`1`，默认 `1`）。省略组件或设 `enabled={false}` 可关闭全部滤镜；`preset="none"` 仅关闭内置预设，已配置的 `colorMatrix` 仍会生效。
+`intensity` 控制内置预设和颜色矩阵分别与各自输入画面的混合比例（`0`–`1`，默认 `1`）。省略组件或设 `enabled={false}` 可关闭全部滤镜。设置 `preset="none"` 可关闭内置预设。
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
@@ -1656,6 +1656,29 @@ export function Tour() {
 | `watercolor` | 纸上柔和水彩 |
 | `cartoon` | 赛璐珞着色与描边 |
 | `crosshatch` | 亮度交叉排线 |
+
+### 实时调色
+
+通过 `adjustments`（类型为 `PanoColorAdjustments`）实时调节全景图、瓦片和视频。
+各字段均可省略，默认值为 `0`。有限数值超出范围时取边界值，非有限值按 `0` 处理。
+
+| 字段 | 范围 | 效果 |
+|---|---|---|
+| `exposure` | `-2` 到 `2` EV | 调节线性曝光，增加一档使亮度加倍。 |
+| `saturation` | `-1` 到 `1` | 从灰度画面到增强色彩。 |
+| `contrast` | `-1` 到 `1` | 以显示空间的中灰为中心，减弱或增强对比度。 |
+| `clarity` | `-1` 到 `1` | 柔化或增强中间调的局部对比。 |
+
+```tsx
+<PanoViewer style={{ height: 560 }}>
+  <PanoFilter adjustments={{ exposure: 0.3, saturation: 0.15, contrast: 0.1, clarity: 0.25 }} />
+  <PanoVideo src="/panoramas/room-360.mp4" />
+</PanoViewer>
+```
+
+调色参数只作用于全景源，在艺术预设和颜色矩阵之前生效，并独立于 `intensity`。
+清晰度从每个视图的低分辨率全景缓冲中取样；缓冲不可用时，曝光、饱和度与对比度仍可使用。
+宿主可按需将参数对象保存为 JSON 并复用。
 
 内置艺术效果使用屏幕空间边缘与世界空间颗粒，避免立方体瓦片出现滤镜接缝。启用滤镜时，场景过渡快照会捕获带滤镜的全景。
 
