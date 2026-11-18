@@ -13,6 +13,7 @@ import { BasicsPage } from "./components/basics/BasicsPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { MapPage } from "./components/map/MapPage";
+import { ComparePage } from "./components/compare/ComparePage";
 import { PlanarTilePage } from "./components/planar-tile/PlanarTilePage";
 
 const EditorPage = lazy(() =>
@@ -99,6 +100,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Static JSON tour",
     group: "project",
     Component: ProjectPage,
+  },
+  {
+    path: "/compare",
+    navLabel: "Panorama comparison",
+    group: "scenes",
+    Component: ComparePage,
   },
   {
     path: "/scene-transitions",

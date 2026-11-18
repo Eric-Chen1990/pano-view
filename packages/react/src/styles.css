@@ -1035,3 +1035,124 @@
   outline: 2px solid #8bc6ff;
   outline-offset: -3px;
 }
+
+/* In wipe mode, projected tooltips live inside the Fiber canvas wrapper.
+   Keep their local z-index below the comparison chrome. */
+[data-pano-background]:has(.pano-compare-chrome) > .pano-render-surface {
+  isolation: isolate;
+}
+
+.pano-compare-chrome,
+.pano-compare-html {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pano-compare-html {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-html[data-side="before"] {
+  right: calc(100% - var(--pano-compare-motion-divider, 50%));
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-html[data-side="after"] {
+  left: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-html[data-side="before"] {
+  bottom: calc(100% - var(--pano-compare-motion-divider, 50%));
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-html[data-side="after"] {
+  top: var(--pano-compare-motion-divider, 50%);
+}
+
+.pano-compare-divider {
+  position: absolute;
+  z-index: 2;
+  --pano-compare-divider-hit-size: 2px;
+}
+
+.pano-compare-divider::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 2px;
+  height: 100%;
+  background: white;
+  box-shadow: 0 0 2px #000b;
+}
+
+.pano-compare-chrome[data-layout="left-right"] .pano-compare-divider {
+  top: 0;
+  bottom: 0;
+  width: var(--pano-compare-divider-hit-size);
+  transform: translateX(-50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider {
+  left: 0;
+  right: 0;
+  height: var(--pano-compare-divider-hit-size);
+  transform: translateY(-50%);
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider::before {
+  width: 100%;
+  height: 2px;
+}
+
+.pano-compare-divider-draggable {
+  --pano-compare-divider-hit-size: 16px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  cursor: ew-resize;
+}
+
+@media (pointer: coarse) {
+  .pano-compare-divider-draggable {
+    --pano-compare-divider-hit-size: 44px;
+  }
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-draggable {
+  cursor: ns-resize;
+}
+
+.pano-compare-divider-draggable:has(input:focus-visible)::before {
+  outline: 2px solid #1264d1;
+}
+
+.pano-compare-divider-draggable input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pano-compare-transition,
+.pano-compare-transition canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pano-compare-transition {
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pano-compare-transition {
+    display: none;
+  }
+}

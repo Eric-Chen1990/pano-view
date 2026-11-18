@@ -1,3 +1,4 @@
+import { aimComparePointer, CompareHostContext } from "./compare/view";
 import { SpatialHostContext } from "./spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useThree } from "@react-three/fiber";
@@ -40,7 +41,8 @@ export function PanoramaEventSurface({
   const spatialHost = useContext(SpatialHostContext);
   const eventBus = useContext(PanoEventBusContext);
   const videoHost = useContext(PanoVideoHostContext);
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
+  const compareHost = useContext(CompareHostContext);
   const [tap] = useState(createPanoramaTap);
   const clickToTogglePlayback = useSyncExternalStore(
     useCallback(
@@ -87,11 +89,12 @@ export function PanoramaEventSurface({
         return;
       }
 
-      ndc.set(
+      const pane = aimComparePointer(compareHost, nativeEvent, element, camera, size, gl.getPixelRatio(), ndc);
+      if (!pane) ndc.set(
         ((nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
         -((nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
       );
-      raycaster.setFromCamera(ndc, camera);
+      raycaster.setFromCamera(ndc, pane?.camera ?? camera);
       direction.copy(raycaster.ray.direction);
 
       eventBus.emit("contextmenu", {
@@ -112,7 +115,7 @@ export function PanoramaEventSurface({
     return () => {
       element.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [camera, eventBus, gl, spatialHost, tap]);
+  }, [camera, compareHost, eventBus, gl, size, spatialHost, tap]);
 
   if (!eventBus) {
     return null;

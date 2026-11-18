@@ -1,5 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture } from "three";
 import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
@@ -135,7 +136,10 @@ function SphereTileSource({
   onTileError,
   onLevelChange,
 }: Omit<SphereTileProps, "multires"> & { config: SphereTileMultiresConfig }) {
-  const { camera, gl, size } = useThree();
+  const root = useThree();
+  const { camera, gl } = root;
+  const compareHost = useContext(CompareHostContext);
+  const compareSide = useContext(CompareSourceSideContext);
   const anisotropy = gl.capabilities.getMaxAnisotropy();
   const preview = usePreviewTexture(
     resolveAssetUrl(baseUrl, previewUrl),
@@ -251,6 +255,9 @@ function SphereTileSource({
     [camera, candidates],
   );
   useFrame(() => {
+    const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
+    const camera = pane ? pane.camera : root.camera;
+    const size = pane ? pane.rect : root.size;
     if (!(camera instanceof PerspectiveCamera)) return;
     const now = performance.now(),
       dpr = gl.getPixelRatio();

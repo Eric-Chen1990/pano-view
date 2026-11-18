@@ -15,7 +15,7 @@ import {
   LinearFilter,
   WebGLRenderTarget,
 } from "three";
-import { cycleSceneId } from "./keyboard-controls";
+import { useSceneSelection } from "./use-scene-selection";
 import { PanoramaViewContext } from "./panorama-view-runtime";
 import {
   SceneDetailContext,
@@ -37,9 +37,7 @@ import {
 } from "./scene-transition-policy";
 import {
   markSceneVisited,
-  notifyScenesHost,
   ScenesHostContext,
-  type ScenesController,
 } from "./scenes-host";
 import { TransitionOverlay } from "./scene-transitions/transition-overlay";
 import { Sphere } from "./sphere";
@@ -156,12 +154,16 @@ export function SceneSource({
   baseOnly,
   onReady,
   onError,
+  onPreviewError,
+  previewOnly = false,
 }: {
   scene: Scene | null;
   visible: boolean;
   baseOnly: boolean;
   onReady: () => void;
   onError: (error: unknown) => void;
+  onPreviewError?: (error: unknown) => void;
+  previewOnly?: boolean;
 }) {
   if (!scene) {
     return null;
@@ -177,6 +179,7 @@ export function SceneSource({
           visible={visible}
           onReady={onReady}
           onError={onError}
+          onPreviewError={onPreviewError}
         />
       );
     case "tile": {
@@ -185,7 +188,7 @@ export function SceneSource({
         <Tile
           {...tileProps}
           visible={visible}
-          loadMode={baseOnly ? "base" : "full"}
+          loadMode={previewOnly ? "preview" : baseOnly ? "base" : "full"}
           onReady={onReady}
           onPreviewError={onError}
         />
@@ -197,7 +200,7 @@ export function SceneSource({
         <SphereTile
           {...tileProps}
           visible={visible}
-          loadMode={baseOnly ? "base" : "full"}
+          loadMode={previewOnly ? "preview" : baseOnly ? "base" : "full"}
           onReady={onReady}
           onPreviewError={onError}
         />
@@ -765,84 +768,11 @@ export function Scenes({
   scenes,
   ...rest
 }: ScenesProps) {
-  const isControlled = controlledId !== undefined;
-  const [internalId, setInternalId] = useState(
-    () => controlledId ?? defaultActiveSceneId ?? scenes[0]?.id ?? "",
-  );
-
-  const resolvedId = isControlled ? controlledId : internalId;
-
-  const requestSceneChange = useCallback(
-    (id: string) => {
-      if (isControlled) {
-        onActiveSceneIdChange?.(id);
-      } else {
-        setInternalId(id);
-      }
-    },
-    [isControlled, onActiveSceneIdChange],
-  );
-
-  const scenesRef = useRef(scenes);
-  scenesRef.current = scenes;
-  const resolvedIdRef = useRef(resolvedId);
-  resolvedIdRef.current = resolvedId;
-
-  const host = useContext(ScenesHostContext);
   const phaseRef = useRef<Phase>("idle");
-
-  useEffect(() => {
-    if (!host) {
-      return;
-    }
-
-    const controller: ScenesController = {
-      setScene: (id) => {
-        const match = scenesRef.current.find((s) => s.id === id);
-        if (!match) {
-          return false;
-        }
-        requestSceneChange(id);
-        return true;
-      },
-      nextScene: () => {
-        const next = cycleSceneId(
-          scenesRef.current,
-          resolvedIdRef.current,
-          1,
-        );
-        if (next === null) {
-          return false;
-        }
-        requestSceneChange(next);
-        return true;
-      },
-      previousScene: () => {
-        const next = cycleSceneId(
-          scenesRef.current,
-          resolvedIdRef.current,
-          -1,
-        );
-        if (next === null) {
-          return false;
-        }
-        requestSceneChange(next);
-        return true;
-      },
-      getActiveSceneId: () => resolvedIdRef.current,
-      getSceneIds: () => scenesRef.current.map((s) => s.id),
-      isTransitioning: () => phaseRef.current !== "idle",
-    };
-
-    host.controller = controller;
-    notifyScenesHost(host);
-    return () => {
-      if (host.controller === controller) {
-        host.controller = null;
-        notifyScenesHost(host);
-      }
-    };
-  }, [host, requestSceneChange]);
+  const isTransitioning = useCallback(() => phaseRef.current !== "idle", []);
+  const resolvedId = useSceneSelection({
+    scenes, controlledId, defaultActiveSceneId, onActiveSceneIdChange, isTransitioning,
+  });
 
   return (
     <TileTextureManagerProvider

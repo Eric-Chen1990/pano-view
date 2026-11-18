@@ -1,5 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
+import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box3,
   Frustum,
@@ -440,7 +441,10 @@ export function Tile({
   onTileError,
   onLevelChange,
 }: TileProps) {
-  const { camera, gl, size } = useThree();
+  const root = useThree();
+  const { camera, gl } = root;
+  const compareHost = useContext(CompareHostContext);
+  const compareSide = useContext(CompareSourceSideContext);
   const multiresConfig = useMemo(() => parseMultires(multires), [multires]);
   const { levels, tileSize } = multiresConfig;
   const multiresToken = `${tileSize}:${levels.join(",")}`;
@@ -561,6 +565,9 @@ export function Tile({
   };
 
   useFrame(() => {
+    const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
+    const camera = pane ? pane.camera : root.camera;
+    const size = pane ? pane.rect : root.size;
     if (!(camera instanceof PerspectiveCamera)) {
       return;
     }

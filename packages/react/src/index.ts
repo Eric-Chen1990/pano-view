@@ -1,3 +1,6 @@
+export { PanoCompare } from "./compare/pano-compare";
+export type { PanoCompareProps, PanoCompareScene, PanoCompareSceneError, PanoCompareSource } from "./compare/pano-compare";
+export type { PanoCompareLayout, PanoComparePresentation, PanoCompareSide } from "./compare/view";
 export type { PanoIframeSupport } from "./types";
 export { PanoViewer } from "./pano-viewer";
 export {

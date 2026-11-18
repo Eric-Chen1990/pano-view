@@ -24,6 +24,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoVideo](#panovideo)
 - [Tile](#tile)
 - [Scenes](#scenes)
+- [PanoCompare](#panocompare)
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [AutoRotate](#autorotate)
@@ -1491,6 +1492,28 @@ a single non-stereo cube panorama.
 - `onLevelChange` — current cube level, **1-based** (`SphereTile` logical levels are 0-based).
 
 Inside `Scenes` with `type: "tile"`, the shared texture cache overrides per-scene `maxTextureMemoryMb`, `maxConcurrentLoads`, and `retryCount` (the shared provider fixes retry at `1`). Visibility, `loadMode`, and the callbacks above are owned by `Scenes` and should not be set on the scene object.
+
+## PanoCompare
+
+Use `PanoCompare` as the panorama source inside `PanoViewer`. Each entry pairs two `sphere`, `tile`, or `sphereTile` source definitions. Give the pair a stable, unique `id`.
+
+```tsx
+<PanoViewer style={{ height: 480 }}>
+  <PanoCompare
+    scenes={[{ id: "room", before: originalRoom, after: renovatedRoom }]}
+    presentation="split-view"
+    layout="left-right"
+  />
+</PanoViewer>
+```
+
+`presentation="wipe"` is the default. Both images use the full viewer projection, and the draggable divider reveals part of each image. `"split-view"` gives each image a complete, centered view in an equal pane. Both presentations support `"left-right"` (default) and `"top-bottom"`. Use `split` with `onSplitChange` to control the wipe from 0 to 1, or use `defaultSplit` to set its initial value (default 0.5). Switching to split view moves the two camera centers outward. Switching back brings them together. Layout changes crossfade. Both transitions respect the system’s reduced-motion preference.
+
+Use `activeSceneId`, `defaultActiveSceneId`, and `onActiveSceneIdChange` as with `Scenes`. Pair IDs work with the viewer's scene navigation and `PanoSceneMenu`. A pair stays visible until both incoming sources can be displayed. Tiled sources use their previews for this handoff. `onSceneReady(id)` fires when the pair takes over. `onSceneError({ sceneId, side, error })` reports a load failure that prevents the switch. The current view carries forward, with any fields supplied by the new pair's `initialView` applied on arrival.
+
+`renderHotspots(scene)` mounts one set of hotspots, projected into both panes in split view. Viewer overlays, dialogs, and hotspot actions are shared. An embedded iframe has a separate document in each pane. When the viewer enters WebVR, the active pair's `before` source fills the view. Exiting restores the comparison.
+
+[Open the Playground comparison example](https://pano-view-playground.vercel.app/compare).
 
 ## Scenes
 

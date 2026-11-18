@@ -51,6 +51,10 @@ export const PAGE_META = {
     description:
       "Explore a React panorama tour built from static JSON, with linked scenes, interactive hotspots, view actions, and reusable popup content.",
   },
+  "/compare": {
+    title: "Panorama Comparison Demo | Pano View",
+    description: "Compare synchronized 360° panoramas with a draggable wipe or two complete views, arranged side by side or stacked.",
+  },
   "/scene-transitions": {
     title: "Panorama Scene Transitions Demo | Pano View",
     description:
