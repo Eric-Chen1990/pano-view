@@ -64,14 +64,23 @@ export function anchorView(
   };
 }
 
-export function viewportGeometry(manifest: PlanarManifest, viewport: Size, pixelRatio: number) {
+export function normalizeMaxScale(maxScale: number | undefined) {
+  return maxScale !== undefined && Number.isFinite(maxScale) ? Math.max(1, maxScale) : undefined;
+}
+
+export function viewportGeometry(
+  manifest: PlanarManifest, viewport: Size, pixelRatio: number, maxScale?: number,
+) {
   const fit = containRect(viewport.width, viewport.height, manifest.source.width, manifest.source.height);
   const highest = manifest.levels[manifest.levels.length - 1]!;
-  const maxZoom = Math.max(2, Math.min(
+  const autoZoom = Math.max(2, Math.min(
     highest.width / (fit.width * pixelRatio),
     highest.height / (fit.height * pixelRatio),
   ));
-  return { fit, maxZoom };
+  return { fit, maxZoom: Math.min(
+    normalizeMaxScale(maxScale) ?? autoZoom,
+    Number.MAX_SAFE_INTEGER / Math.max(1, fit.width, fit.height),
+  ) };
 }
 
 export function selectLevel(levels: PlanarLevel[], image: Rect, pixelRatio: number) {

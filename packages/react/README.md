@@ -704,6 +704,8 @@ import "@ericchen1990/pano-view/styles.css";
 <PlanarTileViewer
   manifestUrl="/scan/manifest.json"
   alt="A scanned architectural drawing"
+  maxScale={3}
+  dragMotion={{ bounce: false }}
   style={{ height: 480 }}
 />;
 ```
@@ -717,8 +719,18 @@ Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
 buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
 to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
 progressive loading and requests detail tiles for the current viewport.
-Drag and pinch coast after release and spring back at the limits. Wheel and
-button zoom ease toward the target. The viewer respects reduced-motion preferences.
+Scales use the fitted image as `1×`.
+
+| Prop | Default | Behavior |
+| --- | --- | --- |
+| `maxScale` | Automatic | The automatic upper limit uses the highest tile resolution and effective screen pixel density, with at least `2×` zoom. An explicit limit applies to all inputs, including pinch and momentum. Set `1` for fit-only viewing. |
+| `initialScale` | `1` | Centered zoom when a source first opens, clamped from `1` to the maximum. Fit always returns to `1×`. |
+| `dragMotion` | `{ inertia: true, bounce: true }` | Disable either effect independently. `{ bounce: false }` clamps the image at the edges while retaining inertia. Pass `false` to disable both. |
+| `showZoomControls` | `true` | Shows the zoom and Fit buttons. Wheel, touch, and keyboard controls remain available when the buttons are hidden. |
+
+Finite `maxScale` values below `1` are clamped to `1`. A non-finite
+`maxScale` uses the automatic limit. Wheel and button zoom ease toward the
+target. The system's reduced-motion preference disables animated movement.
 
 ## Exported components
 

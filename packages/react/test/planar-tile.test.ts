@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { resolveDragMotion } from "../src/drag-motion";
 import {
   FIT_VIEW, moveView, selectLevel, viewportGeometry, viewRect, visibleTiles,
 } from "../src/planar-tile/geometry";
@@ -131,6 +132,27 @@ test("release coasts in the gesture direction and pinch rebounds at zoom limits"
   }
 });
 
+test("explicit zoom limits apply even with pinch bounce and momentum", () => {
+  const viewport = { width: 240, height: 180 };
+  const manifest = parsePlanarManifest(document("custom"), manifestUrl);
+  const { fit } = viewportGeometry(manifest, viewport, 1);
+  const anchor = { x: 120, y: 90 };
+  const motion = { ...resolveDragMotion(undefined), hardMaxZoom: true };
+  for (const maxScale of [1, 2, 3]) {
+    const { maxZoom } = viewportGeometry(manifest, viewport, 1, maxScale);
+    assert.equal(maxZoom, maxScale);
+    assert.equal(dragPlanarView(FIT_VIEW, fit, viewport, maxZoom, anchor, anchor, 10, true).zoom, maxScale);
+    const almostAtMax = { ...FIT_VIEW, zoom: Math.max(1, maxScale - 0.01) };
+    const next = coastPlanarView(
+      almostAtMax, { ...NO_VELOCITY, zoom: 600 }, anchor, fit, viewport, maxZoom, 1 / 60, motion,
+    );
+    assert.equal(next.view.zoom, maxScale);
+    assert.equal(next.velocity.zoom, 0);
+  }
+  assert.equal(viewportGeometry(manifest, viewport, 1, 0.5).maxZoom, 1);
+  assert.equal(viewportGeometry(manifest, viewport, 1, Infinity).maxZoom, viewportGeometry(manifest, viewport, 1).maxZoom);
+});
+
 test("a smoothed zoom approaches the target without moving the image point under the cursor", () => {
   const viewport = { width: 240, height: 180 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
@@ -158,11 +180,19 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 240, height: 180 }),
   });
   const draw: string[] = [];
+  let overviewWidth = 0;
+  let overviewLeft = 0;
   const canvas = { width: 0, height: 0, getContext: () => ctx };
   const ctx = {
     canvas,
     clearRect: () => draw.push("clear"),
-    drawImage: (bitmap: { name: string }) => draw.push(bitmap.name),
+    drawImage: (bitmap: { name: string }, ...coordinates: number[]) => {
+      draw.push(bitmap.name);
+      if (bitmap.name === "overview") {
+        overviewWidth = coordinates[2]!;
+        overviewLeft = coordinates[4]!;
+      }
+    },
   };
   const frames = new Map<number, FrameRequestCallback>();
   let id = 0;
@@ -212,7 +242,7 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
   const controller = new AbortController();
   const statuses: PlanarStatus[] = [];
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
-  mountPlanarView(
+  const controls = mountPlanarView(
     viewport as unknown as HTMLElement,
     canvas as unknown as HTMLCanvasElement,
     manifest, controller.signal, (status) => statuses.push(status),
@@ -240,10 +270,36 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
   touch("pointerup", 2, 210);
   touch("pointerup", 1, 90);
   assert.ok(frames.size > 0);
+
+  controls.configure({ maxScale: 1, dragMotion: { bounce: false } });
+  await tick();
+  assert.equal(overviewWidth, 256);
+  touch("pointerdown", 1, 90);
+  touch("pointermove", 1, 145);
+  await tick();
+  assert.equal(overviewLeft, 0);
+  touch("pointerup", 1, 145);
+  await tick();
+  assert.equal(overviewLeft, 0);
+  assert.equal(frames.size, 0);
+  assert.equal(urls.length, 7);
+
   controller.abort();
   await tick();
   assert.ok(signals.every((signal) => signal.aborted));
   assert.equal(captured.size, 0);
   assert.deepEqual(closed.sort(), ["overview", "transparent detail"]);
   assert.equal(frames.size, 0);
+
+  const reopened = new AbortController();
+  mountPlanarView(
+    viewport as unknown as HTMLElement,
+    canvas as unknown as HTMLCanvasElement,
+    manifest, reopened.signal, () => {}, { initialScale: 4, maxScale: 2 },
+  );
+  requests.get("maps/thumbnail.png")!(new Response("overview"));
+  await tick();
+  assert.equal(overviewWidth, 128);
+  reopened.abort();
+  await tick();
 });

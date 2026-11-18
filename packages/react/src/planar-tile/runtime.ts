@@ -1,7 +1,7 @@
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
-import { clampAxis, velocityFromSamples } from "../drag-motion";
+import { clampAxis, resolveDragMotion, velocityFromSamples, type PanoDragMotion } from "../drag-motion";
 import {
-  constrainView, FIT_VIEW, moveView, selectLevel, viewportGeometry, viewRect,
+  constrainView, FIT_VIEW, moveView, normalizeMaxScale, selectLevel, viewportGeometry, viewRect,
   visibleTiles, type PlanarTile, type PlanarView,
 } from "./geometry";
 import { planarTileUrl, type PlanarManifest } from "./manifest";
@@ -11,7 +11,19 @@ import {
 } from "./motion";
 
 export type PlanarStatus = "loading" | "ready" | "error";
-export type PlanarControls = { zoom: (factor: number) => void; reset: () => void };
+export type PlanarViewOptions = {
+  /** Maximum zoom relative to the fitted image. Defaults to a resolution-based limit. */
+  maxScale?: number;
+  /** Opening zoom relative to the fitted image. Defaults to 1. */
+  initialScale?: number;
+  /** Drag and pinch inertia and edge bounce. Both default to true. */
+  dragMotion?: PanoDragMotion | false;
+};
+export type PlanarControls = {
+  zoom: (factor: number) => void;
+  reset: () => void;
+  configure: (options: PlanarViewOptions) => void;
+};
 
 type CachedTile = { tile: PlanarTile; bitmap: ImageBitmap };
 type GestureSample = PlanarVelocity & { t: number };
@@ -61,6 +73,7 @@ export function mountPlanarView(
   manifest: PlanarManifest,
   signal: AbortSignal,
   report: (status: PlanarStatus) => void,
+  options: PlanarViewOptions = {},
 ): PlanarControls {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is unavailable");
@@ -68,6 +81,9 @@ export function mountPlanarView(
   let view = FIT_VIEW;
   let fit: Rect = { left: 0, top: 0, width: 0, height: 0 };
   let maxZoom = 2;
+  let scaleLimit = normalizeMaxScale(options.maxScale);
+  let motion = { ...resolveDragMotion(options.dragMotion), hardMaxZoom: scaleLimit !== undefined };
+  let initialized = false;
   let pixelRatio = 1;
   let frame = 0;
   let preview: ImageBitmap | undefined;
@@ -104,7 +120,7 @@ export function mountPlanarView(
       view = next.view;
       if (next.settled) animation = undefined;
     } else {
-      const next = coastPlanarView(view, animation.velocity, animation.anchor, fit, viewport, maxZoom, dt);
+      const next = coastPlanarView(view, animation.velocity, animation.anchor, fit, viewport, maxZoom, dt, motion);
       view = next.view;
       animation.velocity = next.velocity;
       if (next.settled) animation = undefined;
@@ -206,7 +222,12 @@ export function mountPlanarView(
     const backingHeight = Math.max(1, Math.floor(height * pixelRatio));
     if (canvas.width !== backingWidth) canvas.width = backingWidth;
     if (canvas.height !== backingHeight) canvas.height = backingHeight;
-    ({ fit, maxZoom } = viewportGeometry(manifest, viewport, pixelRatio));
+    ({ fit, maxZoom } = viewportGeometry(manifest, viewport, pixelRatio, scaleLimit));
+    if (!initialized) {
+      const initialScale = options.initialScale ?? 1;
+      view = { ...FIT_VIEW, zoom: Number.isFinite(initialScale) ? initialScale : 1 };
+      initialized = true;
+    }
     view = constrainView(view, viewport, fit, maxZoom);
     schedule();
   }
@@ -234,9 +255,9 @@ export function mountPlanarView(
     if (!viewport.width || !viewport.height) return;
     animation = undefined;
     const factor = after / before;
-    view = reducedMotion?.matches
+    view = reducedMotion?.matches || !motion.bounce
       ? moveView(view, fit, viewport, maxZoom, from, to, factor)
-      : dragPlanarView(view, fit, viewport, maxZoom, from, to, factor);
+      : dragPlanarView(view, fit, viewport, maxZoom, from, to, factor, motion.hardMaxZoom);
     if (samplePointerCount !== pointers.size) {
       samples = [];
       samplePointerCount = pointers.size;
@@ -253,6 +274,15 @@ export function mountPlanarView(
     },
     reset() {
       setTarget(FIT_VIEW);
+    },
+    configure(next) {
+      options = next;
+      const nextLimit = normalizeMaxScale(next.maxScale);
+      const nextMotion = resolveDragMotion(next.dragMotion);
+      if (scaleLimit === nextLimit && motion.inertia === nextMotion.inertia && motion.bounce === nextMotion.bounce) return;
+      scaleLimit = nextLimit;
+      motion = { ...nextMotion, hardMaxZoom: nextLimit !== undefined };
+      resize();
     },
   };
 
@@ -310,7 +340,7 @@ export function mountPlanarView(
     const speed = (axis: keyof PlanarVelocity, limit: number) => clampAxis(
       velocityFromSamples(recent.map((sample) => ({ t: sample.t, position: sample[axis] }))), -limit, limit,
     );
-    const velocity = recent.length > 1
+    const velocity = motion.inertia && recent.length > 1
       ? { x: speed("x", 1800), y: speed("y", 1800), zoom: speed("zoom", 600) }
       : NO_VELOCITY;
     samples = [];

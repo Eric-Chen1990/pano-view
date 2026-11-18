@@ -1,5 +1,5 @@
 import {
-  clampAxis, constrainDragPosition, DRAG_RUBBER_CONSTANT, integrateAxis,
+  clampAxis, constrainDragPosition, DRAG_RUBBER_CONSTANT, integrateAxis, type ResolvedDragMotion,
 } from "../drag-motion";
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
 import { anchorView, constrainView, type PlanarView } from "./geometry";
@@ -7,6 +7,8 @@ import type { Size } from "./manifest";
 
 export type PlanarVelocity = Point & { zoom: number };
 export const NO_VELOCITY: PlanarVelocity = { x: 0, y: 0, zoom: 0 };
+export type PlanarMotion = ResolvedDragMotion & { hardMaxZoom: boolean };
+const DEFAULT_MOTION: PlanarMotion = { inertia: true, bounce: true, hardMaxZoom: false };
 
 // Express logarithmic zoom in units comparable to CSS pixels for damping and springs.
 export const ZOOM_MOTION_SCALE = 200;
@@ -30,13 +32,14 @@ function unband(position: number, min: number, max: number, dimension: number) {
 
 export function dragPlanarView(
   view: PlanarView, fit: Rect, viewport: Size, maxZoom: number,
-  from: Point, to: Point, factor: number,
+  from: Point, to: Point, factor: number, hardMaxZoom = false,
 ): PlanarView {
   const max = Math.log(maxZoom) * ZOOM_MOTION_SCALE;
   const raw = unband(Math.log(view.zoom) * ZOOM_MOTION_SCALE, 0, max, ZOOM_BAND);
-  const zoom = factor === 1 ? view.zoom : Math.exp(constrainDragPosition(
+  const nextZoom = factor === 1 ? view.zoom : Math.exp(constrainDragPosition(
     raw + Math.log(factor) * ZOOM_MOTION_SCALE, 0, max, ZOOM_BAND, true,
   ) / ZOOM_MOTION_SCALE);
+  const zoom = maxZoom === 1 ? 1 : hardMaxZoom ? Math.min(maxZoom, nextZoom) : nextZoom;
   const candidate = anchorView(view, fit, viewport, from, to, zoom);
 
   function axis(center: number, nextCenter: number, fitted: number, size: number) {
@@ -64,19 +67,21 @@ export function dragPlanarView(
 
 export function coastPlanarView(
   view: PlanarView, velocity: PlanarVelocity, anchor: Point,
-  fit: Rect, viewport: Size, maxZoom: number, dt: number,
+  fit: Rect, viewport: Size, maxZoom: number, dt: number, motion = DEFAULT_MOTION,
 ) {
+  const max = Math.log(maxZoom) * ZOOM_MOTION_SCALE;
   const zoomMotion = integrateAxis({
     position: Math.log(view.zoom) * ZOOM_MOTION_SCALE,
     velocity: velocity.zoom,
-  }, dt, { min: 0, max: Math.log(maxZoom) * ZOOM_MOTION_SCALE, inertia: true, bounce: true });
-  const zoom = Math.exp(zoomMotion.position / ZOOM_MOTION_SCALE);
+  }, dt, { ...motion, min: 0, max });
+  const stopZoom = maxZoom === 1 || (motion.hardMaxZoom && zoomMotion.position >= max);
+  const zoom = stopZoom ? maxZoom : Math.exp(zoomMotion.position / ZOOM_MOTION_SCALE);
   const candidate = zoom === view.zoom ? view : anchorView(view, fit, viewport, anchor, anchor, zoom);
 
   function axis(center: number, speed: number, image: number, size: number) {
     const limit = panLimit(size, image);
     return integrateAxis({ position: (0.5 - center) * image, velocity: speed }, dt, {
-      min: -limit, max: limit, inertia: true, bounce: true,
+      ...motion, min: -limit, max: limit,
     });
   }
 
@@ -84,11 +89,11 @@ export function coastPlanarView(
   const height = fit.height * zoom;
   const x = axis(candidate.center.x, velocity.x, width, viewport.width);
   const y = axis(candidate.center.y, velocity.y, height, viewport.height);
-  const settled = x.settled && y.settled && zoomMotion.settled;
+  const settled = x.settled && y.settled && (stopZoom || zoomMotion.settled);
   const next = { zoom, center: { x: 0.5 - x.position / width, y: 0.5 - y.position / height } };
   return {
     view: settled ? constrainView(next, viewport, fit, maxZoom) : next,
-    velocity: { x: x.velocity, y: y.velocity, zoom: zoomMotion.velocity },
+    velocity: { x: x.velocity, y: y.velocity, zoom: stopZoom ? 0 : zoomMotion.velocity },
     settled,
   };
 }
