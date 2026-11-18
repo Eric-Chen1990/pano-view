@@ -88,7 +88,6 @@ function buildVideoSnippet(
   profile: VideoProfile,
   clickToTogglePlayback: boolean,
   showCenterPlayButton: boolean,
-  lowDpr: boolean,
 ): string {
   const defaultTrack = captionLang === "zh" ? "zh" : "en";
   const tracks = profile === "files" ? VIDEO_TRACKS : HLS_TRACKS;
@@ -110,7 +109,7 @@ function buildVideoSnippet(
       void media.playVideo({ unmute: true });
     },
   }}
-${lowDpr ? "  dpr={1}\n" : ""}  style={{ height: "min(540px, 68dvh)" }}
+  style={{ height: "min(540px, 68dvh)" }}
 >
   <PanoVideo
     autoPlay
@@ -130,7 +129,6 @@ export function VideoPage() {
   const [profile, setProfile] = useState<VideoProfile>(() =>
     window.matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop",
   );
-  const [lowDpr, setLowDpr] = useState(false);
   const viewerRoot = useRef<HTMLDivElement>(null);
   const motion = useRef<VideoMotionStats>({ lastViewChange: -Infinity, frames: [], nextFrame: 0 }).current;
   const markViewChange = useCallback(() => {
@@ -161,8 +159,8 @@ export function VideoPage() {
   }, [captionColor, captionLang, fontSize]);
 
   const snippet = useMemo(
-    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton, lowDpr),
-    [captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton, lowDpr],
+    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton),
+    [captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton],
   );
 
   return (
@@ -213,21 +211,6 @@ export function VideoPage() {
           </dl>
         </div>
         <div className={pageControlsClassName}>
-          <label className={controlLabelClassName}>
-            Canvas pixel ratio
-            <select
-              className={controlInputClassName}
-              value={lowDpr ? "1" : "default"}
-              onChange={(event) => {
-                motion.frames.length = 0;
-                motion.nextFrame = 0;
-                setLowDpr(event.currentTarget.value === "1");
-              }}
-            >
-              <option value="default">Viewer default</option>
-              <option value="1">1×</option>
-            </select>
-          </label>
           <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             <input
               className="accent-[#df6b42]"
@@ -300,7 +283,6 @@ export function VideoPage() {
         <div className="bg-[#020607]" ref={viewerRoot}>
           <PanoViewer
             aria-label="360 panorama video demo"
-            dpr={lowDpr ? 1 : undefined}
             onViewChange={markViewChange}
             mediaActivation={{
               onActivate: (media) => {
