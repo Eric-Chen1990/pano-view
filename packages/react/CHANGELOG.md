@@ -1,5 +1,15 @@
 # @ericchen1990/pano-view
 
+## 5.6.0
+
+### Minor Changes
+
+- a4b67ec: Protect PanoVideo from frames that exceed the renderer's texture size limit and add an optional fallback variant for playback capability errors.
+
+### Patch Changes
+
+- Show the selected panorama video quality immediately in the control bar and menus. Name wide equirectangular renditions from their encoded width, label other renditions by height, and keep automatic mode updated from the decoded frame.
+
 ## 5.5.0
 
 ### Minor Changes
