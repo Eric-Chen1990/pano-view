@@ -307,10 +307,15 @@
   border-radius: 4px;
   cursor: pointer;
   display: inline-flex;
-  height: 28px;
+  height: 32px;
   justify-content: center;
-  min-width: 28px;
+  min-width: 32px;
   padding: 4px;
+}
+
+.pano-video-chrome-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
 .pano-video-chrome-button:disabled {
@@ -414,6 +419,16 @@
   z-index: 2;
 }
 
+.pano-video-controls[data-idle] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pano-video-controls[data-idle]:has(:focus-visible) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 600px) {
   .pano-video-controls {
     bottom: calc(0.75rem + var(--pano-safe-bottom)) !important;
@@ -448,7 +463,6 @@
     bottom: calc(0.5rem + var(--pano-safe-bottom)) !important;
   }
 
-  .pano-video-chrome-label,
   .pano-video-time {
     display: none;
   }

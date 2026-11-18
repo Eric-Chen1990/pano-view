@@ -120,20 +120,30 @@ function volumeFromClientY(clientY: number, track: HTMLElement): number {
   return Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
 }
 
-function Icon({ path }: { path: string }) {
+const SPEAKER_PATH = "M3 9h4l5-4v14l-5-4H3z";
+const VIDEO_ICON_PATHS = {
+  play: "M7 4v16l13-8z",
+  pause: "M6 4h4v16H6zM14 4h4v16h-4z",
+  volume: `${SPEAKER_PATH} M14 9a3.5 3.5 0 0 1 0 6v-2.1a1.5 1.5 0 0 0 0-1.8zM16.8 6a7 7 0 0 1 0 12l-1-1.7a5 5 0 0 0 0-8.6z`,
+  muted: `${SPEAKER_PATH} M15.4 8.7l2.6 2.6 2.6-2.6L22 10l-2.6 2.6 2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6-2.6-2.6z`,
+  captions: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h16V6zM7 9h4v1.5H8v3h3V15H7a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5zm6.5 0h4v1.5h-3v3h3V15h-4a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5z",
+  settings: "M10 2H14L14.5 4.6 15.7 5.1 17.7 3.5 20.5 6.3 18.9 8.3 19.4 9.5 22 10V14L19.4 14.5 18.9 15.7 20.5 17.7 17.7 20.5 15.7 18.9 14.5 19.4 14 22H10L9.5 19.4 8.3 18.9 6.3 20.5 3.5 17.7 5.1 15.7 4.6 14.5 2 14V10L4.6 9.5 5.1 8.3 3.5 6.3 6.3 3.5 8.3 5.1 9.5 4.6zM15.3 12a3.3 3.3 0 1 1-6.6 0 3.3 3.3 0 1 1 6.6 0z",
+  enterFullscreen: "M3 3h7v2.5H5.5V10H3zM14 3h7v7h-2.5V5.5H14zM3 14h2.5v4.5H10V21H3zM18.5 14H21v7h-7v-2.5h4.5z",
+  exitFullscreen: "M7.5 3H10v7H3V7.5h4.5zM14 3h2.5v4.5H21V10h-7zM3 14h7v7H7.5v-4.5H3zM14 14h7v2.5h-4.5V21H14z",
+} as const;
+
+function Icon({ name }: { name: keyof typeof VIDEO_ICON_PATHS }) {
   return (
     <svg
       aria-hidden
-      fill="none"
-      height="16"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.75"
-      viewBox="0 0 16 16"
-      width="16"
+      fill="currentColor"
+      fillRule="evenodd"
+      focusable="false"
+      height="24"
+      viewBox="0 0 24 24"
+      width="24"
     >
-      <path d={path} />
+      <path d={VIDEO_ICON_PATHS[name]} />
     </svg>
   );
 }
@@ -566,6 +576,7 @@ function VolumeControl({
   const [open, setOpen] = useState(false);
   const displayVolume = muted ? 0 : volume;
   const mutedOrSilent = muted || volume === 0;
+  const volumeIcon = mutedOrSilent ? "muted" : "volume";
 
   useEffect(() => {
     onOpenChange(open);
@@ -596,11 +607,7 @@ function VolumeControl({
         label={mutedOrSilent ? "Unmute" : "Mute"}
         onClick={onToggleMuted}
       >
-        {mutedOrSilent ? (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.2 6.2l3.2 3.6M13.4 6.2l-3.2 3.6" />
-        ) : (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.5 5.5a3 3 0 0 1 0 5" />
-        )}
+        <Icon name={volumeIcon} />
       </ChromeButton>
     );
   }
@@ -649,11 +656,7 @@ function VolumeControl({
           onToggleMuted();
         }}
       >
-        {mutedOrSilent ? (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.2 6.2l3.2 3.6M13.4 6.2l-3.2 3.6" />
-        ) : (
-          <Icon path="M3 6.5h2.2L8.5 4v8L5.2 9.5H3zM10.5 5.5a3 3 0 0 1 0 5" />
-        )}
+        <Icon name={volumeIcon} />
       </ChromeButton>
     </div>
   );
@@ -989,11 +992,8 @@ export function PanoVideoControlsHud({
     display: "flex",
     fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
     fontSize: resolved.fontSize,
-    gap: 8,
     left: 10,
-    opacity: showBar ? 1 : 0,
     padding: resolved.padding,
-    pointerEvents: showBar ? "auto" : "none",
     position: "absolute",
     right: 10,
     transition: "opacity 160ms ease",
@@ -1041,14 +1041,13 @@ export function PanoVideoControlsHud({
       {!compact && menu === "captions" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
+        id={`${barId}-captions-btn`}
         label="Captions"
         onClick={() => {
           toggleMenu("captions");
         }}
       >
-        <span id={`${barId}-captions-btn`}>
-          <Icon path="M2.5 4.5h11v7h-11zM5 7.2h2.4M5 9.2h5.5" />
-        </span>
+        <Icon name="captions" />
       </ChromeButton>
     </div>
   ) : null;
@@ -1056,6 +1055,7 @@ export function PanoVideoControlsHud({
   return (
     <div
       className="pano-video-controls"
+      data-idle={showBar ? undefined : ""}
       data-pano-video-controls=""
       style={barStyle}
     >
@@ -1066,11 +1066,7 @@ export function PanoVideoControlsHud({
           controller.togglePlay();
         }}
       >
-        {snapshot.playing ? (
-          <Icon path="M5 3.5h2.2v9H5zM8.8 3.5H11v9H8.8z" />
-        ) : (
-          <Icon path="M5 3.2v9.6L13 8z" />
-        )}
+        <Icon name={snapshot.playing ? "pause" : "play"} />
       </ChromeButton>
       {hideTime ? null : (
         <span className="pano-video-time">
@@ -1091,7 +1087,7 @@ export function PanoVideoControlsHud({
         style={{
           accentColor: resolved.accent,
           flex: 1,
-          minWidth: 64,
+          minWidth: hideTime ? 0 : 64,
         }}
         type="range"
         value={duration > 0 ? snapshot.currentTime : 0}
@@ -1125,7 +1121,7 @@ export function PanoVideoControlsHud({
               toggleMenu("more");
             }}
           >
-            <Icon path="M3 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0M7 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0M11 8a1 1 0 1 0 2 0 1 1 0 1 0-2 0" />
+            <Icon name="settings" />
           </ChromeButton>
         </div>
       ) : (
@@ -1143,11 +1139,7 @@ export function PanoVideoControlsHud({
             fullscreen?.toggleFullscreen();
           }}
         >
-          {fullscreen?.isFullscreen ? (
-            <Icon path="M6 3.5H3.5V6M10 3.5h2.5V6M6 12.5H3.5V10M10 12.5h2.5V10" />
-          ) : (
-            <Icon path="M3.5 6V3.5H6M10 3.5h2.5V6M3.5 10v2.5H6M10 12.5h2.5V10" />
-          )}
+          <Icon name={fullscreen?.isFullscreen ? "exitFullscreen" : "enterFullscreen"} />
         </ChromeButton>
       ) : null}
     </div>
