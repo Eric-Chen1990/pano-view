@@ -146,6 +146,10 @@ export type {
 } from "./sphere-tile/types";
 export { Sphere } from "./sphere";
 export type { SphereProps } from "./sphere";
+export { PlanarTileCompare } from "./planar-tile/planar-tile-compare";
+export type {
+  PlanarTileCompareProps, PlanarTileCompareScene, PlanarTileCompareSceneError, PlanarTileCompareSource,
+} from "./planar-tile/planar-tile-compare";
 export { PlanarTileViewer } from "./planar-tile/planar-tile-viewer";
 export type { PlanarTileViewerProps } from "./planar-tile/planar-tile-viewer";
 export { PanoVideo } from "./video/pano-video";

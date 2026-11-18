@@ -14,6 +14,7 @@ import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { MapPage } from "./components/map/MapPage";
 import { ComparePage } from "./components/compare/ComparePage";
+import { PlanarComparePage } from "./components/planar-tile/PlanarComparePage";
 import { PlanarTilePage } from "./components/planar-tile/PlanarTilePage";
 
 const EditorPage = lazy(() =>
@@ -106,6 +107,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Panorama comparison",
     group: "scenes",
     Component: ComparePage,
+  },
+  {
+    path: "/planar-compare",
+    navLabel: "Flat image comparison",
+    group: "scenes",
+    Component: PlanarComparePage,
   },
   {
     path: "/scene-transitions",

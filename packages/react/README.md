@@ -733,6 +733,45 @@ Finite `maxScale` values below `1` are clamped to `1`. A non-finite
 `maxScale` uses the automatic limit. Wheel and button zoom ease toward the
 target. The system's reduced-motion preference disables animated movement.
 
+### PlanarTileCompare
+
+Use the same planar manifests to compare one or more image pairs in a standalone viewer.
+
+```tsx
+import { PlanarTileCompare } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileCompare
+  scenes={[{
+    id: "scan",
+    title: "Restoration",
+    before: { manifestUrl: "/original/manifest.json", alt: "Original scan" },
+    after: { manifestUrl: "/restored/manifest.json", alt: "Restored scan" },
+  }]}
+  style={{ height: 480 }}
+/>;
+```
+
+Pan and zoom from either side. The default `presentation="wipe"` uses a draggable
+divider. Use `"split-view"` for two equal panes that each fit the whole image
+at `1×`. Both presentations support `layout="left-right"` (default) and
+`"top-bottom"`. Use `split` and `onSplitChange` to control the wipe from 0 to 1,
+or set its starting position with `defaultSplit` (default `0.5`).
+
+Each image retains its aspect ratio. For pixel-aligned wipes, prepare images
+with the same aspect ratio and register their contents before generating tiles.
+`initialScale`, `maxScale`, `dragMotion` and `showZoomControls` work as with
+`PlanarTileViewer`. Automatic zoom uses the lower of the two resolution-based limits.
+
+Use unique scene IDs. Set `defaultActiveSceneId` to start at a different pair,
+or control selection with `activeSceneId` and `onActiveSceneIdChange`. Set
+`showScenePicker={false}` to hide the picker. The visible pair stays on screen
+until both incoming images can be drawn. `onSceneReady(id)` reports when the
+pair first appears, and `onSceneError({ sceneId, side, error })` reports a load
+failure. The viewer offers a retry for the requested pair.
+
+[Open the Playground flat image comparison](https://pano-view-playground.vercel.app/planar-compare).
+
 ## Exported components
 
 ### Viewer

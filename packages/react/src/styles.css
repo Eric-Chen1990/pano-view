@@ -1036,6 +1036,98 @@
   outline-offset: -3px;
 }
 
+.pano-planar-pair[data-staging] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pano-planar-pair canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pano-planar-pair:focus-visible {
+  outline: none;
+}
+
+.pano-planar-pair:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #8bc6ff;
+  pointer-events: none;
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="before"] {
+  clip-path: inset(0 calc(100% - var(--pano-planar-split)) 0 0);
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="left-right"] canvas[data-side="after"] {
+  clip-path: inset(0 0 0 var(--pano-planar-split));
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="before"] {
+  clip-path: inset(0 0 calc(100% - var(--pano-planar-split)) 0);
+}
+
+[data-planar-presentation="wipe"][data-planar-layout="top-bottom"] canvas[data-side="after"] {
+  clip-path: inset(var(--pano-planar-split) 0 0 0);
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="left-right"] .pano-planar-pair canvas {
+  width: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="left-right"] canvas[data-side="after"] {
+  left: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="top-bottom"] .pano-planar-pair canvas {
+  height: 50%;
+}
+
+[data-planar-presentation="split-view"][data-planar-layout="top-bottom"] canvas[data-side="after"] {
+  top: 50%;
+}
+
+[data-planar-presentation] .pano-compare-chrome {
+  z-index: 1;
+}
+
+[data-planar-presentation] .pano-planar-controls,
+[data-planar-presentation] .pano-planar-status,
+.pano-planar-scene-picker {
+  z-index: 2;
+}
+
+.pano-planar-scene-picker {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+}
+
+.pano-planar-scene-picker select {
+  max-width: 100%;
+  min-height: 44px;
+  border: 1px solid #535963;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #171a20;
+  color: #fff;
+  font: 500 14px/1.25 system-ui, sans-serif;
+}
+
+.pano-planar-scene-picker select:focus-visible {
+  outline: 2px solid #8bc6ff;
+  outline-offset: 2px;
+}
+
+.pano-planar-scene-picker + .pano-planar-status {
+  top: 64px;
+}
+
 /* In wipe mode, projected tooltips live inside the Fiber canvas wrapper.
    Keep their local z-index below the comparison chrome. */
 [data-pano-background]:has(.pano-compare-chrome) > .pano-render-surface {

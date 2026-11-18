@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveDragMotion } from "../src/drag-motion";
 import {
-  FIT_VIEW, moveView, selectLevel, viewportGeometry, viewRect, visibleTiles,
+  FIT_VIEW, moveView, planarPaneCenter, selectLevel, viewportGeometry, viewRect, visibleTiles,
 } from "../src/planar-tile/geometry";
 import { parsePlanarManifest, planarTileUrl } from "../src/planar-tile/manifest";
-import { mountPlanarView, type PlanarStatus } from "../src/planar-tile/runtime";
+import { mountPlanarSurfaces, mountPlanarView, type PlanarStatus } from "../src/planar-tile/runtime";
 import { coastPlanarView, dragPlanarView, followPlanarView, NO_VELOCITY } from "../src/planar-tile/motion";
 
 const manifestUrl = "https://cdn.test/maps/manifest.json";
@@ -88,6 +88,18 @@ test("zoom preserves its anchor away from bounds, and fit clamps both axes", () 
   assert.deepEqual(moveView(FIT_VIEW, fit, viewport, maxZoom, anchor, { x: 0, y: 0 }, 1), FIT_VIEW);
 });
 
+test("comparison panes align at the same aspect ratio and clamp independently with different ratios", () => {
+  const viewport = { width: 500, height: 400 };
+  const landscape = { left: 0, top: 75, width: 500, height: 250 };
+  const portrait = { left: 150, top: 0, width: 200, height: 400 };
+  const sharedFit = { left: 0, top: 0, ...viewport };
+  const view = { center: { x: 0.7, y: 0.35 }, zoom: 2 };
+  assert.deepEqual(planarPaneCenter(view, viewport, landscape, landscape), view.center);
+  assert.deepEqual(planarPaneCenter(view, viewport, sharedFit, landscape), { x: 0.7, y: 0.4 });
+  assert.deepEqual(planarPaneCenter(view, viewport, sharedFit, portrait), { x: 0.5, y: 0.35 });
+  assert.deepEqual(planarPaneCenter(FIT_VIEW, viewport, sharedFit, portrait), FIT_VIEW.center);
+});
+
 test("drag overshoots with resistance, reverses freely, and springs back to fit", () => {
   const viewport = { width: 240, height: 180 };
   const manifest = parsePlanarManifest(document("custom"), manifestUrl);
@@ -166,7 +178,7 @@ test("a smoothed zoom approaches the target without moving the image point under
   assert.ok(Math.abs((anchor.y - rect.top) / rect.height - (anchor.y - fit.top) / fit.height) < 1e-9);
 });
 
-test("planar runtime handles partial failure, pinch, and source cleanup", async (t) => {
+test("planar runtime handles tile failures, gestures, synchronized panes and cleanup", async (t) => {
   const browser = new EventTarget();
   const captured = new Set<number>();
   const viewport = Object.assign(new EventTarget(), {
@@ -182,6 +194,7 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
   const draw: string[] = [];
   let overviewWidth = 0;
   let overviewLeft = 0;
+  let beforeRect: number[] = [];
   const canvas = { width: 0, height: 0, getContext: () => ctx };
   const ctx = {
     canvas,
@@ -191,6 +204,7 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
       if (bitmap.name === "overview") {
         overviewWidth = coordinates[2]!;
         overviewLeft = coordinates[4]!;
+        beforeRect = coordinates;
       }
     },
   };
@@ -302,4 +316,43 @@ test("planar runtime handles partial failure, pinch, and source cleanup", async 
   assert.equal(overviewWidth, 128);
   reopened.abort();
   await tick();
+
+  const comparison = new AbortController();
+  let afterRect: number[] = [];
+  const secondCanvas = {
+    width: 0, height: 0,
+    getContext: () => ({
+      canvas: secondCanvas, clearRect() {},
+      drawImage: (_bitmap: unknown, ...coordinates: number[]) => { afterRect = coordinates; },
+    }),
+  };
+  const secondManifest = {
+    ...manifest,
+    thumbnailUrl: "https://cdn.test/after/thumbnail.png",
+    urlTemplate: "after/%l/%00v/after%0h.png",
+  };
+  const pair = mountPlanarSurfaces(viewport as unknown as HTMLElement, [
+    { canvas: canvas as unknown as HTMLCanvasElement, manifest, report: () => {} },
+    { canvas: secondCanvas as unknown as HTMLCanvasElement, manifest: secondManifest, report: () => {} },
+  ], comparison.signal, { dragMotion: false }, { layout: "left-right", presentation: "split-view", split: 0.5 });
+  requests.get("maps/thumbnail.png")!(new Response("overview"));
+  requests.get("after/thumbnail.png")!(new Response("second overview"));
+  await tick();
+  assert.equal(canvas.width, 120);
+  assert.deepEqual(beforeRect, afterRect);
+  assert.ok(pair.setView({ center: FIT_VIEW.center, zoom: 2 }));
+  touch("pointerdown", 1, 180);
+  touch("pointermove", 1, 210);
+  await tick();
+  assert.ok(pair.getView().center.x < 0.5);
+  assert.deepEqual(beforeRect, afterRect);
+  touch("pointerup", 1, 210);
+  pair.setComparison({ layout: "top-bottom", presentation: "split-view", split: 0.5 });
+  await tick();
+  assert.equal(canvas.height, 90);
+  assert.deepEqual(beforeRect, afterRect);
+  comparison.abort();
+  await tick();
+  assert.ok(signals.every((signal) => signal.aborted));
+  assert.equal(frames.size, 0);
 });

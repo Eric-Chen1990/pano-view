@@ -1,16 +1,19 @@
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
 import { clampAxis, resolveDragMotion, velocityFromSamples, type PanoDragMotion } from "../drag-motion";
 import {
-  constrainView, FIT_VIEW, moveView, normalizeMaxScale, selectLevel, viewportGeometry, viewRect,
-  visibleTiles, type PlanarTile, type PlanarView,
+  constrainView, FIT_VIEW, moveView, normalizeMaxScale, planarPaneCenter, viewportGeometry, viewRect,
+  type PlanarView,
 } from "./geometry";
-import { planarTileUrl, type PlanarManifest } from "./manifest";
+import type { PlanarManifest } from "./manifest";
+import type { CompareConfig } from "../compare/view";
+import { createPlanarTileLayer, type PlanarStatus } from "./tile-layer";
 import {
   coastPlanarView, dragPlanarView, followPlanarView, NO_VELOCITY, ZOOM_MOTION_SCALE,
   type PlanarVelocity,
 } from "./motion";
 
-export type PlanarStatus = "loading" | "ready" | "error";
+export type { PlanarStatus } from "./tile-layer";
+
 export type PlanarViewOptions = {
   /** Maximum zoom relative to the fitted image. Defaults to a resolution-based limit. */
   maxScale?: number;
@@ -25,47 +28,23 @@ export type PlanarControls = {
   configure: (options: PlanarViewOptions) => void;
 };
 
-type CachedTile = { tile: PlanarTile; bitmap: ImageBitmap };
 type GestureSample = PlanarVelocity & { t: number };
 type ViewAnimation =
   | { target: PlanarView }
   | { velocity: PlanarVelocity; anchor: Point };
 
-const OVERVIEW: Rect = { left: 0, top: 0, width: 1, height: 1 };
-const MAX_CONCURRENT_LOADS = 4;
-const CACHE_BYTES = 64 * 1024 * 1024;
 const MAX_CANVAS_EDGE = 4096;
 const MAX_CANVAS_PIXELS = 4 * 1024 * 1024;
 const ZOOM_STEP = 1.5;
+const EMPTY_RECT: Rect = { left: 0, top: 0, width: 0, height: 0 };
 
-async function loadBitmap(url: string, signal: AbortSignal) {
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`Image request returned HTTP ${response.status}`);
-  const bitmap = await createImageBitmap(await response.blob());
-  if (signal.aborted) {
-    bitmap.close();
-    throw signal.reason;
-  }
-  return bitmap;
-}
+type PlanarSurface = {
+  canvas: HTMLCanvasElement;
+  manifest: PlanarManifest;
+  report: (status: PlanarStatus, error?: unknown) => void;
+};
 
-function drawRegion(ctx: CanvasRenderingContext2D, bitmap: ImageBitmap, image: Rect, rect: Rect) {
-  const left = Math.round(image.left + rect.left * image.width);
-  const top = Math.round(image.top + rect.top * image.height);
-  const width = Math.round(image.left + (rect.left + rect.width) * image.width) - left;
-  const height = Math.round(image.top + (rect.top + rect.height) * image.height) - top;
-  const x = Math.max(0, left);
-  const y = Math.max(0, top);
-  const w = Math.min(ctx.canvas.width, left + width) - x;
-  const h = Math.min(ctx.canvas.height, top + height) - y;
-  if (w <= 0 || h <= 0) return false;
-  const sx = bitmap.width / width;
-  const sy = bitmap.height / height;
-  // Replace the lower-resolution pixels so transparent tiles keep their alpha.
-  ctx.clearRect(x, y, w, h);
-  ctx.drawImage(bitmap, (x - left) * sx, (y - top) * sy, w * sx, h * sy, x, y, w, h);
-  return true;
-}
+export type PlanarComparisonConfig = Pick<CompareConfig, "layout" | "presentation" | "split">;
 
 export function mountPlanarView(
   viewportElement: HTMLElement,
@@ -75,24 +54,31 @@ export function mountPlanarView(
   report: (status: PlanarStatus) => void,
   options: PlanarViewOptions = {},
 ): PlanarControls {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 2D is unavailable");
+  return mountPlanarSurfaces(viewportElement, [{ canvas, manifest, report }], signal, options);
+}
+
+export function mountPlanarSurfaces(
+  viewportElement: HTMLElement,
+  surfaces: readonly [PlanarSurface] | readonly [PlanarSurface, PlanarSurface],
+  signal: AbortSignal,
+  options: PlanarViewOptions,
+  comparison?: PlanarComparisonConfig,
+) {
   const viewport = { width: 0, height: 0 };
+  const bounds = { width: 0, height: 0 };
   let view = FIT_VIEW;
-  let fit: Rect = { left: 0, top: 0, width: 0, height: 0 };
+  let fit = EMPTY_RECT;
   let maxZoom = 2;
   let scaleLimit = normalizeMaxScale(options.maxScale);
   let motion = { ...resolveDragMotion(options.dragMotion), hardMaxZoom: scaleLimit !== undefined };
   let initialized = false;
   let pixelRatio = 1;
   let frame = 0;
-  let preview: ImageBitmap | undefined;
-  let previewPending = true;
-  let cacheBytes = 0;
-  let status: PlanarStatus = "loading";
-  const cached = new Map<string, CachedTile>();
-  const pending = new Set<string>();
-  const failed = new Set<string>();
+  const layers = surfaces.map(({ canvas, manifest, report }) => ({
+    canvas, manifest, fit: EMPTY_RECT,
+    paint: createPlanarTileLayer(canvas, manifest, signal, schedule, report, surfaces.length === 2),
+  }));
+  let gesturePane = 0;
   const pointers = new Map<number, Point>();
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
   let animation: ViewAnimation | undefined;
@@ -132,83 +118,27 @@ export function mountPlanarView(
     if (!frame && !signal.aborted) frame = requestAnimationFrame(render);
   }
 
-  async function load(tile: PlanarTile) {
-    pending.add(tile.key);
-    try {
-      const bitmap = await loadBitmap(planarTileUrl(manifest, tile.level, tile.col, tile.row), signal);
-      if (signal.aborted || bitmap.width !== tile.width || bitmap.height !== tile.height) {
-        bitmap.close();
-        throw new Error("Unexpected planar tile dimensions");
-      }
-      cached.set(tile.key, { tile, bitmap });
-      cacheBytes += bitmap.width * bitmap.height * 4;
-    } catch {
-      if (!signal.aborted) failed.add(tile.key);
-    } finally {
-      pending.delete(tile.key);
-      schedule();
-    }
-  }
-
   function render(now: number) {
     frame = 0;
-    if (signal.aborted || !viewport.width || !viewport.height || !ctx) return;
+    if (signal.aborted || !viewport.width || !viewport.height) return false;
     advance(now);
-    const image = viewRect(fit, view);
+    let painted = true;
     const lodZoom = clampAxis(view.zoom, 1, maxZoom);
-    const level = selectLevel(manifest.levels, viewRect(fit, { ...view, zoom: lodZoom }), pixelRatio);
-    const tiles = visibleTiles(level, manifest.tileSize, image, viewport);
-    const visible = new Set(tiles.map((tile) => tile.key));
-    const drawRect = {
-      left: image.left * canvas.width / viewport.width,
-      width: image.width * canvas.width / viewport.width,
-      top: image.top * canvas.height / viewport.height,
-      height: image.height * canvas.height / viewport.height,
-    };
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let painted = preview ? drawRegion(ctx, preview, drawRect, OVERVIEW) : false;
-    // Preserve already decoded detail while the selected level arrives.
-    const drawTiles = Array.from(cached.values())
-      .filter(({ tile }) => tile.level < level.level || visible.has(tile.key))
-      .sort((a, b) => a.tile.level - b.tile.level);
-    const used = new Set<string>();
-    for (const entry of drawTiles) {
-      if (!drawRegion(ctx, entry.bitmap, drawRect, entry.tile.rect)) continue;
-      painted = true;
-      used.add(entry.tile.key);
-      cached.delete(entry.tile.key);
-      cached.set(entry.tile.key, entry);
+    for (const layer of layers) {
+      const center = planarPaneCenter(view, viewport, fit, layer.fit);
+      painted = layer.paint(viewport, viewRect(layer.fit, { center, zoom: view.zoom }),
+        viewRect(layer.fit, { center, zoom: lodZoom }), pixelRatio) && painted;
     }
-    if (cacheBytes > CACHE_BYTES) {
-      for (const [key, { bitmap }] of cached) {
-        if (visible.has(key)) continue;
-        bitmap.close();
-        cacheBytes -= bitmap.width * bitmap.height * 4;
-        cached.delete(key);
-        // Redraw with the remaining fallback if an on-screen fallback was evicted.
-        if (used.has(key)) schedule();
-        if (cacheBytes <= CACHE_BYTES) break;
-      }
-    }
-
-    for (const tile of tiles) {
-      if (pending.size >= MAX_CONCURRENT_LOADS) break;
-      if (!cached.has(tile.key) && !pending.has(tile.key) && !failed.has(tile.key)) {
-        void load(tile);
-      }
-    }
-    const nextStatus = painted ? "ready"
-      : !previewPending && tiles.length > 0 && tiles.every(({ key }) => failed.has(key))
-        ? "error" : "loading";
-    if (status !== nextStatus) {
-      status = nextStatus;
-      report(status);
-    }
+    return painted;
   }
 
   function resize() {
-    viewport.width = viewportElement.clientWidth;
-    viewport.height = viewportElement.clientHeight;
+    bounds.width = viewportElement.clientWidth;
+    bounds.height = viewportElement.clientHeight;
+    const split = comparison?.presentation === "split-view";
+    viewport.width = split && comparison?.layout === "left-right" ? bounds.width / 2 : bounds.width;
+    viewport.height = split && comparison?.layout === "top-bottom" ? bounds.height / 2 : bounds.height;
+    clearPointers();
     animation = undefined;
     samples = [];
     const { width, height } = viewport;
@@ -220,9 +150,23 @@ export function mountPlanarView(
     );
     const backingWidth = Math.max(1, Math.floor(width * pixelRatio));
     const backingHeight = Math.max(1, Math.floor(height * pixelRatio));
-    if (canvas.width !== backingWidth) canvas.width = backingWidth;
-    if (canvas.height !== backingHeight) canvas.height = backingHeight;
-    ({ fit, maxZoom } = viewportGeometry(manifest, viewport, pixelRatio, scaleLimit));
+    maxZoom = Infinity;
+    let fitWidth = 0;
+    let fitHeight = 0;
+    for (const layer of layers) {
+      const { canvas, manifest } = layer;
+      if (canvas.width !== backingWidth) canvas.width = backingWidth;
+      if (canvas.height !== backingHeight) canvas.height = backingHeight;
+      const geometry = viewportGeometry(manifest, viewport, pixelRatio, scaleLimit);
+      layer.fit = geometry.fit;
+      maxZoom = Math.min(maxZoom, geometry.maxZoom);
+      fitWidth = Math.max(fitWidth, layer.fit.width);
+      fitHeight = Math.max(fitHeight, layer.fit.height);
+    }
+    fit = {
+      width: fitWidth, height: fitHeight,
+      left: (width - fitWidth) / 2, top: (height - fitHeight) / 2,
+    };
     if (!initialized) {
       const initialScale = options.initialScale ?? 1;
       view = { ...FIT_VIEW, zoom: Number.isFinite(initialScale) ? initialScale : 1 };
@@ -267,15 +211,27 @@ export function mountPlanarView(
     schedule();
   }
 
-  const controls: PlanarControls = {
-    zoom(factor) {
+  const controls = {
+    zoom(factor: number) {
       const center = { x: viewport.width / 2, y: viewport.height / 2 };
       move(center, center, factor);
     },
     reset() {
       setTarget(FIT_VIEW);
     },
-    configure(next) {
+    getView: () => view,
+    setView(next: PlanarView) {
+      animation = undefined;
+      view = constrainView(next, viewport, fit, maxZoom);
+      cancelAnimationFrame(frame);
+      return render(performance.now());
+    },
+    setComparison(next: PlanarComparisonConfig) {
+      const resizeNeeded = comparison?.presentation !== next.presentation || comparison.layout !== next.layout;
+      comparison = next;
+      if (resizeNeeded) resize();
+    },
+    configure(next: PlanarViewOptions) {
       options = next;
       const nextLimit = normalizeMaxScale(next.maxScale);
       const nextMotion = resolveDragMotion(next.dragMotion);
@@ -289,23 +245,45 @@ export function mountPlanarView(
   function localPoint(event: MouseEvent): Point {
     const rect = viewportElement.getBoundingClientRect();
     return {
-      x: rect.width ? (event.clientX - rect.left) * viewport.width / rect.width : 0,
-      y: rect.height ? (event.clientY - rect.top) * viewport.height / rect.height : 0,
+      x: rect.width ? (event.clientX - rect.left) * bounds.width / rect.width : 0,
+      y: rect.height ? (event.clientY - rect.top) * bounds.height / rect.height : 0,
+    };
+  }
+
+  function paneAt(point: Point) {
+    if (!comparison) return 0;
+    const split = comparison.presentation === "split-view" ? 0.5 : comparison.split;
+    const fraction = comparison.layout === "left-right" ? point.x / bounds.width : point.y / bounds.height;
+    return fraction < split ? 0 : 1;
+  }
+
+  function toSharedPoint(point: Point, pane: number): Point {
+    if (!comparison) return point;
+    const paneFit = layers[pane]!.fit;
+    const offset = pane === 1 && comparison.presentation === "split-view";
+    const x = point.x - (offset && comparison.layout === "left-right" ? viewport.width : 0);
+    const y = point.y - (offset && comparison.layout === "top-bottom" ? viewport.height : 0);
+    // Convert a pane-local cursor anchor into the shared view's coordinate space.
+    return {
+      x: viewport.width / 2 + (x - viewport.width / 2) * fit.width / paneFit.width,
+      y: viewport.height / 2 + (y - viewport.height / 2) * fit.height / paneFit.height,
     };
   }
 
   viewportElement.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0 || pointers.size >= 2) return;
+    if (event.button !== 0 || pointers.size >= 2 || !viewport.width || !viewport.height) return;
     animation = undefined;
     samples = [];
     viewportElement.focus({ preventScroll: true });
     viewportElement.setPointerCapture(event.pointerId);
-    pointers.set(event.pointerId, localPoint(event));
+    const point = localPoint(event);
+    if (!pointers.size) gesturePane = paneAt(point);
+    pointers.set(event.pointerId, point);
     const [first, second] = pointers.values();
     const anchor = second ? midpoint(first!, second) : first!;
     const span = second ? Math.max(1, Math.hypot(first!.x - second.x, first!.y - second.y)) : 1;
     samplePointerCount = pointers.size;
-    samples.push({ ...anchor, zoom: Math.log(span) * ZOOM_MOTION_SCALE, t: event.timeStamp });
+    samples.push({ ...toSharedPoint(anchor, gesturePane), zoom: Math.log(span) * ZOOM_MOTION_SCALE, t: event.timeStamp });
     viewportElement.dataset.dragging = "";
   }, { signal });
   viewportElement.addEventListener("pointermove", (event) => {
@@ -315,12 +293,13 @@ export function mountPlanarView(
     pointers.set(event.pointerId, current);
     const other = [...pointers.entries()].find(([id]) => id !== event.pointerId)?.[1];
     if (!other) {
-      drag(previous, current, event.timeStamp);
+      drag(toSharedPoint(previous, gesturePane), toSharedPoint(current, gesturePane), event.timeStamp);
       return;
     }
     const before = Math.max(1, Math.hypot(previous.x - other.x, previous.y - other.y));
     const after = Math.max(1, Math.hypot(current.x - other.x, current.y - other.y));
-    drag(midpoint(previous, other), midpoint(current, other), event.timeStamp, before, after);
+    drag(toSharedPoint(midpoint(previous, other), gesturePane),
+      toSharedPoint(midpoint(current, other), gesturePane), event.timeStamp, before, after);
   }, { signal });
 
   function midpoint(a: Point, b: Point): Point {
@@ -344,21 +323,22 @@ export function mountPlanarView(
       ? { x: speed("x", 1800), y: speed("y", 1800), zoom: speed("zoom", 600) }
       : NO_VELOCITY;
     samples = [];
-    animate({ velocity, anchor: last ?? localPoint(event) });
+    animate({ velocity, anchor: last ?? toSharedPoint(localPoint(event), gesturePane) });
   };
   for (const event of ["pointerup", "pointercancel", "lostpointercapture"] as const) {
     viewportElement.addEventListener(event, releasePointer, { signal });
   }
 
   viewportElement.addEventListener("wheel", (event) => {
-    if (pointers.size) return;
+    if (pointers.size || !viewport.width || !viewport.height) return;
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
     const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
     const target = targetView();
     if (!delta || (delta > 0 && target.zoom <= 1) || (delta < 0 && target.zoom >= maxZoom)) return;
     event.preventDefault();
     const point = localPoint(event);
-    move(point, point, Math.exp(-delta * 0.004));
+    const anchor = toSharedPoint(point, paneAt(point));
+    move(anchor, anchor, Math.exp(-delta * 0.004));
   }, { passive: false, signal });
   viewportElement.addEventListener("keydown", (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -377,31 +357,23 @@ export function mountPlanarView(
     event.preventDefault();
   }, { signal });
 
+  function clearPointers() {
+    const ids = Array.from(pointers.keys());
+    pointers.clear();
+    for (const id of ids) {
+      if (viewportElement.hasPointerCapture(id)) viewportElement.releasePointerCapture(id);
+    }
+    delete viewportElement.dataset.dragging;
+  }
+
   const observer = new ResizeObserver(resize);
   observer.observe(viewportElement);
   window.addEventListener("resize", resize, { signal });
   signal.addEventListener("abort", () => {
     observer.disconnect();
     cancelAnimationFrame(frame);
-    for (const id of pointers.keys()) {
-      if (viewportElement.hasPointerCapture(id)) viewportElement.releasePointerCapture(id);
-    }
-    delete viewportElement.dataset.dragging;
-    preview?.close();
-    for (const { bitmap } of cached.values()) bitmap.close();
-    cached.clear();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    clearPointers();
   }, { once: true });
-  void loadBitmap(manifest.thumbnailUrl, signal).then(
-    (bitmap) => {
-      if (signal.aborted) bitmap.close();
-      else preview = bitmap;
-    },
-    () => {},
-  ).finally(() => {
-    previewPending = false;
-    schedule();
-  });
   resize();
   return controls;
 }

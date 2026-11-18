@@ -703,6 +703,43 @@ import "@ericchen1990/pano-view/styles.css";
 小于 `1` 的有限 `maxScale` 会按 `1` 处理，非有限值使用自动上限。滚轮
 和按钮缩放使用平滑过渡。开启系统的减少动态效果后，查看器会直接响应。
 
+### PlanarTileCompare
+
+使用现有平面瓦片清单，在独立查看器中对比一组或多组图片。
+
+```tsx
+import { PlanarTileCompare } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PlanarTileCompare
+  scenes={[{
+    id: "scan",
+    title: "修复对比",
+    before: { manifestUrl: "/original/manifest.json", alt: "修复前扫描图" },
+    after: { manifestUrl: "/restored/manifest.json", alt: "修复后扫描图" },
+  }]}
+  style={{ height: 480 }}
+/>;
+```
+
+从任意一侧平移或缩放，两张图都会跟随。默认 `presentation="wipe"`，
+可拖动分割线。用 `"split-view"` 可以把图片放进两个等分区域，在 `1×`
+时各显示整图。两种模式都支持 `layout="left-right"`（默认）和
+`"top-bottom"`。用 `split` 和 `onSplitChange` 控制 0 到 1 之间的擦拭位置，
+或用 `defaultSplit` 设置起点（默认 `0.5`）。
+
+两张图各自保留宽高比。需要擦拭时逐像素对应，请在生成瓦片前让两张图的宽高比一致，
+并对齐图像内容。`initialScale`、`maxScale`、`dragMotion` 和
+`showZoomControls` 的用法与 `PlanarTileViewer` 相同。自动缩放上限取两侧计算值中的较小值。
+
+每组使用唯一的 ID。用 `defaultActiveSceneId` 设置默认组，或用
+`activeSceneId` 和 `onActiveSceneIdChange` 控制选择。设置
+`showScenePicker={false}` 可隐藏组件内的选择器。新组两张图都可绘制后才切换，
+由 `onSceneReady(id)` 通知显示成功。加载失败时触发
+`onSceneError({ sceneId, side, error })`，并提供重试。
+
+[打开 Playground 平面图片对比示例](https://pano-view-playground.vercel.app/planar-compare)。
+
 ## 导出组件
 
 ### 查看器

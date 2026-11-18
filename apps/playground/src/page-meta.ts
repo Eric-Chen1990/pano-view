@@ -55,6 +55,10 @@ export const PAGE_META = {
     title: "Panorama Comparison Demo | Pano View",
     description: "Compare synchronized 360° panoramas with a draggable wipe or two complete views, arranged side by side or stacked.",
   },
+  "/planar-compare": {
+    title: "Flat Image Comparison Demo | Pano View",
+    description: "Compare multiresolution flat images with synchronized pan and zoom, a draggable wipe, or equal panes.",
+  },
   "/scene-transitions": {
     title: "Panorama Scene Transitions Demo | Pano View",
     description:

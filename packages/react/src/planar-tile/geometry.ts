@@ -43,6 +43,20 @@ export function constrainView(view: PlanarView, size: Size, fit: Rect, maxZoom: 
   };
 }
 
+/** A narrower image can reach its edge while the other side continues panning. */
+export function planarPaneCenter(view: PlanarView, viewport: Size, sharedFit: Rect, paneFit: Rect): Point {
+  const { center, zoom } = view;
+  const project = (value: number, size: number, shared: number, pane: number) => {
+    if (shared === pane) return value;
+    const bounded = constrainCenter(value, size, shared * zoom);
+    return constrainCenter(bounded, size, pane * zoom) + (value - bounded);
+  };
+  return {
+    x: project(center.x, viewport.width, sharedFit.width, paneFit.width),
+    y: project(center.y, viewport.height, sharedFit.height, paneFit.height),
+  };
+}
+
 export function moveView(
   view: PlanarView, fit: Rect, viewport: Size, maxZoom: number,
   from: Point, to: Point, factor: number,
