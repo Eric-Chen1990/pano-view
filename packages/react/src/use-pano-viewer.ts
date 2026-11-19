@@ -12,6 +12,7 @@ function createPanoViewerHandle(
   ref: RefObject<PanoViewerHandle | null>,
 ): PanoViewerHandle {
   return {
+    getRendererBackend: () => ref.current?.getRendererBackend() ?? null,
     getView: () => ref.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 },
     setView: (view, options) => {
       ref.current?.setView(view, options);

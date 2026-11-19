@@ -24,6 +24,9 @@ import {
 import type { Snapshot } from "./scene-transitions/overlay-utils";
 import { resolveTransition } from "./scene-transitions/presets";
 import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
+import { useRequiresWebGL, WebGPURuntimeContext } from "./pano-renderer";
+import { isWebGPURenderer } from "./renderer-capabilities";
+import { WebGPUSnapshotOverlay } from "./scene-transitions/webgpu-snapshot-overlay";
 import { SnapshotHold } from "./scene-transitions/snapshot-hold";
 import {
   acceptDetailWait,
@@ -246,24 +249,28 @@ function SnapshotCapture({
     const scale = Math.min(1, Math.sqrt(maxPixels / (sourceWidth * sourceHeight)));
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
+    const webGPU = isWebGPURenderer(gl);
     const nextTarget = new WebGLRenderTarget(width, height, {
-      depthBuffer: false,
+      depthBuffer: webGPU,
       stencilBuffer: false,
     });
-    // WebGLRenderer renders non-XR targets in its linear working color space.
-    // Keep this metadata accurate so the snapshot is not treated as display-encoded.
+    // Both renderers write offscreen snapshots in the linear working space.
     nextTarget.texture.colorSpace = LinearSRGBColorSpace;
     nextTarget.texture.generateMipmaps = false;
     nextTarget.texture.minFilter = LinearFilter;
     nextTarget.texture.magFilter = LinearFilter;
 
-    // This one-off render keeps the transfer entirely on the GPU and permits
-    // downscaling the snapshot before its texture is retained for blending.
     const previousTarget = gl.getRenderTarget();
-    gl.setRenderTarget(nextTarget);
-    gl.clear();
-    gl.render(scene, camera);
-    gl.setRenderTarget(previousTarget);
+    try {
+      gl.setRenderTarget(nextTarget);
+      gl.clear();
+      gl.render(scene, camera);
+    } catch (error) {
+      nextTarget.dispose();
+      throw error;
+    } finally {
+      gl.setRenderTarget(previousTarget);
+    }
 
     capturedRequestRef.current = requestId;
     const previous = renderTargetRef.current;
@@ -308,6 +315,7 @@ function ScenesController({
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const scenesHost = useContext(ScenesHostContext);
+  const gpu = useContext(WebGPURuntimeContext);
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
     () => resolveTransition(transitionInput),
@@ -455,7 +463,10 @@ function ScenesController({
     if (!scene || readySceneRef.current === scene) return;
     readySceneRef.current = scene;
     controlsRef?.current?.setSceneViewLimits(sceneMap.get(scene.id)?.viewLimits);
-    if (scenesHost) markSceneVisited(scenesHost, scene.id);
+    if (scenesHost) {
+      scenesHost.recovery = null;
+      markSceneVisited(scenesHost, scene.id);
+    }
     onSceneReady?.(scene.id);
   }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
 
@@ -742,10 +753,20 @@ function ScenesController({
           </SceneDetailContext.Provider>
         );
       })}
-      {snapshot !== null && phase === "awaitingDetail" ? (
+      {gpu && snapshot && (snapshotVisible || phase === "awaitingDetail") ? (
+        <WebGPUSnapshotOverlay
+          key={`${transitionRunId}:${snapshot.texture.id}`}
+          snapshot={snapshot}
+          transition={transition}
+          running={phase === "transitioning"}
+          runId={transitionRunId}
+          onFinish={finishTransition}
+        />
+      ) : null}
+      {!gpu && snapshot !== null && phase === "awaitingDetail" ? (
         <SnapshotHold snapshot={snapshot} />
       ) : null}
-      {snapshotVisible ? (
+      {!gpu && snapshotVisible ? (
         <TransitionOverlay
           snapshot={snapshot}
           transition={transition}
@@ -759,7 +780,13 @@ function ScenesController({
   );
 }
 
-export function Scenes({
+export function Scenes(props: ScenesProps) {
+  const { preset } = resolveTransition(props.transition);
+  const waitingForWebGL = useRequiresWebGL(preset !== "none" && preset !== "crossfade");
+  return waitingForWebGL ? null : <ScenesWithRenderer {...props} />;
+}
+
+function ScenesWithRenderer({
   maxTextureMemoryMb,
   maxConcurrentTileLoads,
   activeSceneId: controlledId,

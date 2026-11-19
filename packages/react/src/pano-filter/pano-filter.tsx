@@ -1,3 +1,4 @@
+import { useRequiresWebGL } from "../pano-renderer";
 import { useContext, useLayoutEffect, useMemo } from "react";
 import type { PanoColorAdjustments } from "./adjustments";
 import { PanoClarityPass } from "./clarity-pass";
@@ -8,6 +9,7 @@ import {
   setPanoFilterSnapshot,
 } from "./host";
 import {
+  isPanoFilterActive,
   resolvePanoFilterSnapshot,
   type PanoFilterPreset,
   type PanoColorMatrix,
@@ -59,6 +61,8 @@ export function PanoFilter({
     [enabled, intensity, preset, colorMatrix, colorMatrixScope, adjustments],
   );
 
+  const waitingForWebGL = useRequiresWebGL(isPanoFilterActive(snapshot));
+
   useLayoutEffect(() => {
     claimPanoFilter(host);
     return () => {
@@ -67,10 +71,10 @@ export function PanoFilter({
   }, [host]);
 
   useLayoutEffect(() => {
-    setPanoFilterSnapshot(host, snapshot);
-  }, [host, snapshot]);
+    if (!waitingForWebGL) setPanoFilterSnapshot(host, snapshot);
+  }, [host, snapshot, waitingForWebGL]);
 
-  return snapshot.enabled && snapshot.adjustments?.clarity
+  return !waitingForWebGL && snapshot.enabled && snapshot.adjustments?.clarity
     ? <PanoClarityPass views={host.clarityViews} />
     : null;
 }

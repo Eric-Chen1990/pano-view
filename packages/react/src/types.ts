@@ -56,7 +56,11 @@ export type PanoViewNavigationResult = {
   status: "completed" | "cancelled" | "not-found";
 };
 
+export type PanoRendererBackend = "webgpu" | "webgl";
+
 export type PanoViewerHandle = {
+  /** The active canvas backend, or null while no renderer is ready. */
+  getRendererBackend: () => PanoRendererBackend | null;
   // -- View --
   getView: () => PanoViewerState;
   setView: (

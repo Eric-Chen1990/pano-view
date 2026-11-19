@@ -1,8 +1,11 @@
+import { ScenesHostContext } from "./scenes-host";
 import { hotspotAction } from "./data";
 import type { ProjectHotspotTrigger, ProjectCustomHotspotAction } from "./data";
 import {
   useContext,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
   type HTMLAttributeReferrerPolicy,
@@ -287,10 +290,26 @@ export function ProjectScenes({
   const controls = useContext(PanoramaViewContext);
   if (!controls)
     throw new Error("<ProjectScenes> must be rendered inside <PanoViewer>.");
-  const [selection, setSelection] = useState({
-    project,
-    id: project.initialSceneId,
+  const host = useContext(ScenesHostContext);
+  const [restoredId] = useState(() => {
+    const recovery = host?.recovery;
+    return recovery?.project === project &&
+      project.scenes.some(({ scene }) => scene.id === recovery.id)
+      ? recovery.id
+      : null;
   });
+  const restoring = useRef(restoredId);
+  const [selection, setSelection] = useState(() => ({
+    project,
+    id: restoredId ?? project.initialSceneId,
+  }));
+  useLayoutEffect(() => {
+    if (!host) return;
+    host.project = project;
+    return () => {
+      if (host.project === project) host.project = null;
+    };
+  }, [host, project]);
   // Reset uncontrolled selection when a different loaded project is supplied.
   if (selection.project !== project)
     setSelection({ project, id: project.initialSceneId });
@@ -318,7 +337,10 @@ export function ProjectScenes({
       onActiveSceneIdChange={navigate}
       onSceneReady={(id) => {
         const view = entries.get(id)?.initialView;
-        if (view) controls.current?.setView(view, { immediate: true });
+        if (view && restoring.current !== id) {
+          controls.current?.setView(view, { immediate: true });
+        }
+        restoring.current = null;
         onSceneReady?.(id);
       }}
       renderHotspots={(scene) =>

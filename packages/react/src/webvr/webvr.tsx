@@ -1,3 +1,4 @@
+import { useRequiresWebGL } from "../pano-renderer";
 import { WebVRInputBridge } from "./input-bridge";
 import { bindEmulatedXRViewport } from "./emulated-viewport";
 import { useThree } from "@react-three/fiber";
@@ -77,7 +78,11 @@ function getViewerElement(canvas: HTMLCanvasElement): Element {
   return canvas.closest("[data-pano-viewer]") ?? canvas.parentElement ?? canvas;
 }
 
-export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
+export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(props, ref) {
+  return useRequiresWebGL() ? null : <WebGLVR {...props} ref={ref} />;
+});
+
+const WebGLVR = forwardRef<WebVRHandle, WebVRProps>(function WebGLVR(
   {
     interactionMode = "auto",
     chrome = true,

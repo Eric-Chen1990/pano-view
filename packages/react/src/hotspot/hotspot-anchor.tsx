@@ -31,6 +31,7 @@ import {
   Raycaster,
   Vector2,
   Vector3,
+  WebGPUCoordinateSystem,
 } from "three";
 import { PanoEventBusContext } from "../pano-event-bus";
 import {
@@ -391,8 +392,9 @@ function unprojectScreenPointToLocalPlane(
 ): boolean {
   const ndcX = (screenX / viewport.width) * 2 - 1;
   const ndcY = -(screenY / viewport.height) * 2 + 1;
-  TOOLTIP_RAY_ORIGIN.set(ndcX, ndcY, -1).unproject(camera);
-  TOOLTIP_RAY_FAR.set(ndcX, ndcY, 1).unproject(camera);
+  const near = camera.coordinateSystem === WebGPUCoordinateSystem ? 0 : -1;
+  TOOLTIP_RAY_ORIGIN.set(ndcX, ndcY, camera.reversedDepth ? 1 : near).unproject(camera);
+  TOOLTIP_RAY_FAR.set(ndcX, ndcY, camera.reversedDepth ? near : 1).unproject(camera);
   TOOLTIP_RAY_DIRECTION.copy(TOOLTIP_RAY_FAR).sub(TOOLTIP_RAY_ORIGIN).normalize();
   TOOLTIP_RAY.set(TOOLTIP_RAY_ORIGIN, TOOLTIP_RAY_DIRECTION);
   TOOLTIP_PLANE_POINT.set(0, 0, 0).applyMatrix4(group.matrixWorld);

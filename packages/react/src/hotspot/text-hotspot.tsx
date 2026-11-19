@@ -419,9 +419,9 @@ function useRasterLongSide(
 ): number {
   const size = useThree((state) => state.size);
   const camera = useThree((state) => state.camera);
-  const getPixelRatio = useThree((state) => state.gl.getPixelRatio);
+  const gl = useThree((state) => state.gl);
   const measure = () => {
-    const pixelRatio = getPixelRatio();
+    const pixelRatio = gl.getPixelRatio();
     const viewportHeight =
       size.height * (Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1);
     const cameraFov = camera instanceof PerspectiveCamera ? camera.fov : DEFAULT_REFERENCE_FOV;

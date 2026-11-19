@@ -1,3 +1,4 @@
+import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useThree } from "@react-three/fiber";
 import {
   createContext,
@@ -31,16 +32,17 @@ export function TileTextureManagerProvider({
   maxConcurrentLoads = 4,
 }: TileTextureManagerProviderProps) {
   const gl = useThree((state) => state.gl);
-  const anisotropy = gl.capabilities.getMaxAnisotropy();
+  const anisotropy = getTextureAnisotropy(gl);
   const manager = useMemo(
     () =>
       new TileTextureManager<TextureAddress>({
         anisotropy,
+        fitTexture: (texture) => fitImageTexture(gl, texture),
         maxBytes: Math.max(1, maxTextureMemoryMb) * 1024 * 1024,
         concurrency: Math.max(1, Math.floor(maxConcurrentLoads)),
         retryCount: 1,
       }),
-    [anisotropy, maxConcurrentLoads, maxTextureMemoryMb],
+    [anisotropy, gl, maxConcurrentLoads, maxTextureMemoryMb],
   );
 
   useEffect(() => {

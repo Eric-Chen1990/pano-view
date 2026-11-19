@@ -1,3 +1,4 @@
+import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { mediaControllers } from "../controls/media";
 import { usePanoMediaController } from "../controls/media";
 import type { PanoMediaController } from "../controls/actions";
@@ -91,13 +92,14 @@ function usePosterTexture(
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         loadedTexture.colorSpace = SRGBColorSpace;
         loadedTexture.wrapS = ClampToEdgeWrapping;
         loadedTexture.wrapT = ClampToEdgeWrapping;
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = LinearMipmapLinearFilter;
         loadedTexture.generateMipmaps = true;
-        loadedTexture.anisotropy = gl.capabilities.getMaxAnisotropy();
+        loadedTexture.anisotropy = getTextureAnisotropy(gl);
         loadedTexture.needsUpdate = true;
         setTexture(loadedTexture);
       },

@@ -1,3 +1,4 @@
+import { useRequiresWebGL } from "../pano-renderer";
 import {
   Fragment,
   memo,
@@ -142,7 +143,11 @@ const ComparePair = memo(function ComparePair({
   );
 });
 
-export function PanoCompare({
+export function PanoCompare(props: PanoCompareProps) {
+  return useRequiresWebGL() ? null : <WebGLPanoCompare {...props} />;
+}
+
+function WebGLPanoCompare({
   scenes, activeSceneId, defaultActiveSceneId, onActiveSceneIdChange,
   presentation = "wipe", layout = "left-right",
   dividerColor, dividerWidth,

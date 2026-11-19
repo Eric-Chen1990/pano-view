@@ -138,6 +138,7 @@ type ActiveNavigation = {
 
 type PanoramaViewRuntimeProps = {
   initialView: PanoViewerState;
+  resumeView: RefObject<PanoViewerState | null>;
   viewLimits?: PanoViewLimits;
   minFov: number;
   maxFov: number;
@@ -209,15 +210,17 @@ export const PanoramaViewRuntime = forwardRef<
   PanoramaViewRuntimeHandle,
   PanoramaViewRuntimeProps
 >(function PanoramaViewRuntime(
-  { initialView, viewLimits, minFov, maxFov, options, eventBus },
+  { initialView, resumeView, viewLimits, minFov, maxFov, options, eventBus },
   ref,
 ) {
   const { camera, gl } = useThree();
   const xrSession = useXR((state) => state.session);
   const xrSessionRef = useRef(xrSession);
   const pointerRevisionRef = useRef(0);
-  const viewRef = useRef<PanoViewerState>({ ...initialView });
-  const targetViewRef = useRef<PanoViewerState>({ ...initialView });
+  const restoredView = useRef(resumeView.current);
+  const initialViewOnMount = useRef(initialView);
+  const viewRef = useRef<PanoViewerState>({ ...(restoredView.current ?? initialView) });
+  const targetViewRef = useRef<PanoViewerState>({ ...viewRef.current });
   const initialViewRef = useRef<PanoViewerState>({ ...initialView });
   const yawVelocityRef = useRef(0);
   const pitchVelocityRef = useRef(0);
@@ -789,8 +792,12 @@ export const PanoramaViewRuntime = forwardRef<
 
   useEffect(() => {
     initialViewRef.current = { ...initialView };
-    setView(initialView);
-  }, [initialView.fov, initialView.pitch, initialView.yaw]);
+    const view = initialView === initialViewOnMount.current
+      ? restoredView.current ?? initialView
+      : initialView;
+    resumeView.current = null;
+    setView(view);
+  }, [initialView, resumeView]);
 
   useFrame((_, deltaSeconds) => {
     if (!(camera instanceof PerspectiveCamera)) {

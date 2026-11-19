@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useRef, type ComponentRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, type ComponentRef } from "react";
 import {
   MathUtils,
   PerspectiveCamera,
@@ -8,6 +8,9 @@ import {
   type Camera,
   type ColorRepresentation,
 } from "three";
+
+import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
+import { WebGPURuntimeContext } from "../pano-renderer";
 
 export type HotspotStrokePoint = [number, number, number];
 
@@ -27,20 +30,15 @@ type DashedLineObject = ComponentRef<typeof Line>;
 
 const LINE_WORLD_POSITION = new Vector3();
 
-function applyScreenSpaceDashScale(
-  object: DashedLineObject | null,
+function screenSpaceDashScale(
+  object: DashedLineObject | Line2,
   camera: Camera,
   viewportHeight: number,
-) {
-  const material = object?.material;
-  if (!object || typeof material?.dashScale !== "number") {
-    return;
-  }
+): number {
   object.getWorldPosition(LINE_WORLD_POSITION);
   const depth = Math.max(camera.position.distanceTo(LINE_WORLD_POSITION), 1);
   const fov = camera instanceof PerspectiveCamera ? camera.fov : 75;
-  material.dashScale =
-    viewportHeight / (2 * Math.tan(MathUtils.degToRad(fov) * 0.5) * depth);
+  return viewportHeight / (2 * Math.tan(MathUtils.degToRad(fov) * 0.5) * depth);
 }
 
 function resolveDash(
@@ -58,7 +56,14 @@ function resolveDash(
 }
 
 /** Screen-space fat line shared by polygon and polyline hotspot outlines. */
-export function HotspotStrokeLine({
+export function HotspotStrokeLine(props: HotspotStrokeLineProps) {
+  const runtime = useContext(WebGPURuntimeContext);
+  return runtime
+    ? <WebGPUHotspotStrokeLine {...props} Line={runtime.Line2} />
+    : <WebGLHotspotStrokeLine {...props} />;
+}
+
+function WebGLHotspotStrokeLine({
   points,
   color,
   lineWidth,
@@ -75,14 +80,16 @@ export function HotspotStrokeLine({
     if (!dash.dashed) {
       return;
     }
-    applyScreenSpaceDashScale(lineRef.current, camera, size.height);
+    const line = lineRef.current;
+    if (line) line.material.dashScale = screenSpaceDashScale(line, camera, size.height);
   }, [camera, dash.dashed, dash.dashSize, dash.gapSize, size.height]);
 
   useFrame((state) => {
     if (!dash.dashed) {
       return;
     }
-    applyScreenSpaceDashScale(lineRef.current, state.camera, state.size.height);
+    const line = lineRef.current;
+    if (line) line.material.dashScale = screenSpaceDashScale(line, state.camera, state.size.height);
   });
 
   return (
@@ -103,4 +110,50 @@ export function HotspotStrokeLine({
       worldUnits={false}
     />
   );
+}
+
+function WebGPUHotspotStrokeLine({
+  Line,
+  points,
+  color,
+  lineWidth,
+  opacity,
+  renderOrder,
+  dashSize,
+  gapSize,
+}: HotspotStrokeLineProps & { Line: typeof Line2 }) {
+  const line = useMemo(() => {
+    const object = new Line();
+    object.geometry.setPositions(points.flat());
+    object.computeLineDistances();
+    return object;
+  }, [Line, points]);
+  const dash = resolveDash(dashSize, gapSize);
+
+  useLayoutEffect(() => {
+    line.material.dashed = dash.dashed;
+    line.material.setValues({
+      alphaToCoverage: true,
+      color,
+      dashSize: dash.dashSize,
+      depthTest: true,
+      depthWrite: false,
+      gapSize: dash.gapSize,
+      linewidth: Math.max(0.5, lineWidth),
+      opacity,
+      transparent: true,
+      worldUnits: false,
+    });
+    line.renderOrder = renderOrder;
+  }, [line, color, dash.dashed, dash.dashSize, dash.gapSize, lineWidth, opacity, renderOrder]);
+  useEffect(() => () => {
+    line.geometry.dispose();
+    line.material.dispose();
+  }, [line]);
+
+  useFrame(({ camera, size }) => {
+    if (dash.dashed) line.material.scale = screenSpaceDashScale(line, camera, size.height);
+  });
+
+  return <primitive object={line} />;
 }

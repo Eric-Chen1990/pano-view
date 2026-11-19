@@ -1,3 +1,4 @@
+import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -92,13 +93,14 @@ function useSpriteTexture({
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         loadedTexture.colorSpace = SRGBColorSpace;
         loadedTexture.wrapS = ClampToEdgeWrapping;
         loadedTexture.wrapT = ClampToEdgeWrapping;
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = LinearMipmapLinearFilter;
         loadedTexture.generateMipmaps = true;
-        loadedTexture.anisotropy = gl.capabilities.getMaxAnisotropy();
+        loadedTexture.anisotropy = getTextureAnisotropy(gl);
         loadedTexture.needsUpdate = true;
         onLoadProgressRef.current?.({ id, total: 1, loaded: 1, failed: 0 });
         setTexture(loadedTexture);

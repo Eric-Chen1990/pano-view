@@ -875,6 +875,33 @@ Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custo
 
 ## PanoViewer
 
+### Rendering backend
+
+`PanoViewer` defaults to `renderer="auto"`. It uses native WebGPU when available
+and automatically switches to WebGL if WebGPU cannot initialize, the GPU device
+is lost, or an active built-in feature requires WebGL.
+
+WebGPU supports sphere images, cube and equirectangular tiles, 360° video,
+built-in hotspots, direct cuts, and crossfade. WebVR, active filters,
+`PanoCompare`, and the other scene transition presets use WebGL. For custom GLSL
+or integrations that call WebGL-specific APIs, set `renderer="webgl"`. The
+WebGPU path disables frame-wide tone mapping to preserve panorama colors.
+A fallback after startup recreates the canvas and can reload the scene and media.
+
+```tsx
+const viewer = usePanoViewer();
+
+<PanoViewer ref={viewer.ref} renderer="auto" style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>;
+
+// Read from an event handler or a readiness callback.
+const backend = viewer.getRendererBackend(); // "webgpu", "webgl", or null
+```
+
+`getRendererBackend()` is also available on `PanoViewerHandle`. It returns the
+active renderer's backend and returns `null` while no canvas renderer is ready.
+
 `PanoViewer` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
 
 Angles in the public API are measured in degrees. Positive yaw looks right and positive pitch looks up.

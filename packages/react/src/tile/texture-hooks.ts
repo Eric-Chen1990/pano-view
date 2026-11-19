@@ -1,3 +1,5 @@
+import { useThree } from "@react-three/fiber";
+import { fitImageTexture } from "../renderer-capabilities";
 import { useEffect, useRef, useState } from "react";
 import { Texture, TextureLoader } from "three";
 import type { TextureEntrySnapshot } from "./types";
@@ -11,6 +13,7 @@ export function usePreviewTexture(
   anisotropy: number,
   onError?: (error: unknown) => void,
 ) {
+  const gl = useThree((state) => state.gl);
   const [texture, setTexture] = useState<Texture | null>(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -31,6 +34,7 @@ export function usePreviewTexture(
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         configureMipmappedTexture(loadedTexture, anisotropy);
         setTexture(loadedTexture);
       },
@@ -46,7 +50,7 @@ export function usePreviewTexture(
     return () => {
       active = false;
     };
-  }, [anisotropy, url]);
+  }, [anisotropy, gl, url]);
 
   useEffect(
     () => () => {

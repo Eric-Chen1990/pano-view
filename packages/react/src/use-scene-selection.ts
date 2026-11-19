@@ -12,9 +12,16 @@ export function useSceneSelection({
   isTransitioning: () => boolean;
   fallbackToFirst?: boolean;
 }) {
+  const host = useContext(ScenesHostContext);
   const isControlled = controlledId !== undefined;
   const [internalId, setInternalId] = useState(
-    () => controlledId ?? defaultActiveSceneId ?? scenes[0]?.id ?? "",
+    () => {
+      const recovery = host?.recovery;
+      const previousId = recovery?.project === null && scenes.some((scene) => scene.id === recovery.id)
+        ? recovery.id
+        : undefined;
+      return controlledId ?? previousId ?? defaultActiveSceneId ?? scenes[0]?.id ?? "";
+    },
   );
 
   const resolvedId = isControlled ? controlledId
@@ -37,8 +44,6 @@ export function useSceneSelection({
   scenesRef.current = scenes;
   const resolvedIdRef = useRef(resolvedId);
   resolvedIdRef.current = resolvedId;
-
-  const host = useContext(ScenesHostContext);
 
   useEffect(() => {
     if (!host) {

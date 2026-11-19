@@ -11,6 +11,8 @@ export type ScenesController = {
 
 export type ScenesHost = {
   controller: ScenesController | null;
+  project: object | null;
+  recovery: { id: string; project: object | null } | null;
   visitedSceneIds: ReadonlySet<string>;
   revision: number;
   listeners: Set<() => void>;
@@ -21,6 +23,8 @@ export const ScenesHostContext = createContext<ScenesHost | null>(null);
 export function createScenesHost(): ScenesHost {
   return {
     controller: null,
+    project: null,
+    recovery: null,
     visitedSceneIds: new Set(),
     revision: 0,
     listeners: new Set(),

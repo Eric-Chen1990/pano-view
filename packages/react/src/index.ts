@@ -276,6 +276,7 @@ export type {
   PanoViewNavigationOptions,
   PanoViewNavigationResult,
   PanoramaControlsOptions,
+  PanoRendererBackend,
   PanoViewerHandle,
   PanoViewerState,
   SetPanoViewerOptions,

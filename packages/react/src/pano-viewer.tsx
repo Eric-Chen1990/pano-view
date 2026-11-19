@@ -98,6 +98,7 @@ import {
   resolvePanoCursors,
   type PanoCursors,
 } from "./pano-cursor";
+import { usePanoRenderer, WebGPURuntimeContext } from "./pano-renderer";
 import { PanoEvents } from "./pano-events";
 import { createPanoModalHost } from "./overlay/modal-host";
 import { partitionPanoOverlay } from "./overlay/partition";
@@ -170,6 +171,8 @@ export type PanoViewerProps = Omit<
   "children" | "onChange" | "contextMenu"
 > & {
   children?: ReactNode;
+  /** Defaults to auto, which prefers WebGPU and falls back to WebGL. */
+  renderer?: "auto" | "webgl";
   /** Viewer-local DOM UI, rendered outside the Three.js tree, including in fullscreen. */
   renderOverlay?: (context: PanoOverlayRenderContext) => ReactNode;
   initialView?: Partial<PanoViewerState>;
@@ -308,6 +311,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
   function PanoViewer(
     {
       children,
+      renderer = "auto",
       renderOverlay,
       initialView,
       viewLimits,
@@ -358,6 +362,14 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     );
     const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
+    const resumeView = useRef<PanoViewerState | null>(null);
+    const rendererRuntime = usePanoRenderer(renderer, () => {
+      const runtime = controlsRef.current;
+      if (runtime) resumeView.current = runtime.getView();
+      const sceneId = scenesHost.controller?.getActiveSceneId();
+      if (sceneId) scenesHost.recovery = { id: sceneId, project: scenesHost.project };
+    });
+    const getRendererBackend = rendererRuntime.getBackend;
     const compareHost = useMemo(createCompareHost, []);
     const pointerEvents = useCallback((store: RootStore) => {
       const events = createPointerEvents(store);
@@ -764,6 +776,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     useImperativeHandle(
       ref,
       () => ({
+        getRendererBackend,
         // -- View --
         getView: () =>
           controlsRef.current?.getView() ?? { ...fallbackViewRef.current },
@@ -867,6 +880,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         activateMedia,
         enterFullscreen,
         exitFullscreen,
+        getRendererBackend,
         scenesHost,
         hotspotTargetRegistry,
         toggleFullscreen,
@@ -889,12 +903,19 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         {...divProps}
         className={cn("pano-viewer", divProps.className)}
         data-pano-viewer=""
+        data-pano-renderer={rendererRuntime.backend ?? undefined}
         ref={rootRef}
         aria-label={ariaLabel}
         style={rootStyle}
       >
         <div data-pano-background="" inert={modalOpen} style={{ position: "absolute", inset: 0 }}>
-        <Canvas
+        {rendererRuntime.mountCanvas && <Canvas
+          key={rendererRuntime.key}
+          ref={rendererRuntime.attachCanvas}
+          onCreated={rendererRuntime.onCreated}
+          frameloop={rendererRuntime.renderChildren ? "always" : "never"}
+          // WebGPU tone mapping affects the whole frame, including panorama textures.
+          flat={rendererRuntime.key === "webgpu"}
           aria-label={`${ariaLabel} canvas`}
           className="pano-render-surface"
           events={pointerEvents}
@@ -907,13 +928,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             position: [0, 0, 0.01],
           }}
           dpr={dpr}
-          gl={{
-            // Hotspots contain transparent textures and curved outlines. Keep
-            // the canvas multisampled so their visible edges are smoothed.
-            antialias: true,
-            powerPreference: "high-performance",
-            stencil: false,
-          }}
+          gl={rendererRuntime.gl}
           style={{
             ...DEFAULT_CANVAS_STYLE,
             touchAction: !userControlsEnabled
@@ -923,6 +938,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                 : "none",
           }}
         >
+          {rendererRuntime.renderChildren && <WebGPURuntimeContext.Provider value={rendererRuntime.runtime}>
           <XR store={xrStore}>
           <WebVRRuntimeContext.Provider
             value={{ host: webVRHost, xrStore, stereoView }}
@@ -952,6 +968,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     ref={setControlsRuntime}
                     eventBus={eventBus}
                     initialView={normalizedInitialView}
+                    resumeView={resumeView}
                     viewLimits={parsedLimits}
                     maxFov={normalizedMaxFov}
                     minFov={normalizedMinFov}
@@ -1004,7 +1021,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           </SpatialHostContext.Provider>
           </WebVRRuntimeContext.Provider>
           </XR>
-        </Canvas>
+          </WebGPURuntimeContext.Provider>}
+        </Canvas>}
         <div
           className="pano-chrome-overlay"
           data-pano-chrome-overlay=""

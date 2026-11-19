@@ -98,8 +98,7 @@ export function resolvePanoFilterSnapshot(input: {
 export function isPanoFilterActive(snapshot: PanoFilterSnapshot): boolean {
   return (
     snapshot.enabled &&
-    (snapshot.preset !== "none" ||
-      snapshot.colorMatrix !== null ||
+    ((snapshot.intensity > 0 && (snapshot.preset !== "none" || snapshot.colorMatrix !== null)) ||
       (snapshot.adjustments !== null &&
         Object.values(snapshot.adjustments).some((value) => value !== 0)))
   );

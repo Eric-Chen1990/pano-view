@@ -1,4 +1,5 @@
-import { useThree } from "@react-three/fiber";
+import { getTextureAnisotropy, fitImageTexture } from "./renderer-capabilities";
+import { useThree, type RootState } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BackSide,
@@ -38,7 +39,7 @@ export type SphereProps = {
 
 function useEquirectTexture(
   url: string | null,
-  anisotropy: number,
+  gl: RootState["gl"],
   generateMipmaps: boolean,
   onLoad?: (texture: Texture) => void,
   onError?: (error: unknown) => void,
@@ -67,11 +68,12 @@ function useEquirectTexture(
           return;
         }
 
+        fitImageTexture(gl, loadedTexture);
         loadedTexture.colorSpace = SRGBColorSpace;
         loadedTexture.wrapS = RepeatWrapping;
         loadedTexture.repeat.x = -1;
         loadedTexture.offset.x = 1;
-        loadedTexture.anisotropy = anisotropy;
+        loadedTexture.anisotropy = getTextureAnisotropy(gl);
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = generateMipmaps
           ? LinearMipmapLinearFilter
@@ -93,7 +95,7 @@ function useEquirectTexture(
     return () => {
       active = false;
     };
-  }, [anisotropy, generateMipmaps, url]);
+  }, [gl, generateMipmaps, url]);
 
   useEffect(
     () => () => {
@@ -116,21 +118,20 @@ export function Sphere({
   visible = true,
 }: SphereProps) {
   const gl = useThree((state) => state.gl);
-  const anisotropy = gl.capabilities.getMaxAnisotropy();
   const resolvedPreviewUrl = useMemo(
     () => resolveUrlAgainstFile(src, previewUrl),
     [previewUrl, src],
   );
   const texture = useEquirectTexture(
     src,
-    anisotropy,
+    gl,
     true,
     onLoad,
     onError,
   );
   const previewTexture = useEquirectTexture(
     texture ? null : resolvedPreviewUrl,
-    anisotropy,
+    gl,
     false,
     undefined,
     onPreviewError,

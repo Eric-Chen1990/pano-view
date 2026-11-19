@@ -838,6 +838,30 @@ import "@ericchen1990/pano-view/styles.css";
 
 ## PanoViewer
 
+### 渲染后端
+
+`PanoViewer` 默认使用 `renderer="auto"`。浏览器可用时优先使用原生 WebGPU。
+初始化失败、GPU 设备丢失或启用依赖 WebGL 的内置功能时，自动切换到 WebGL。
+
+WebGPU 支持球面图、立方体和等距柱状投影瓦片、360° 视频、内置热点、场景直切和交叉淡入淡出。
+WebVR、生效中的滤镜、`PanoCompare` 和其他转场预设使用 WebGL。宿主使用自定义 GLSL
+或直接调用 WebGL 专用 API 时，可以设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射，
+以保留全景图的原始色彩。运行中回退会重建画布，场景和媒体可能重新加载。
+
+```tsx
+const viewer = usePanoViewer();
+
+<PanoViewer ref={viewer.ref} renderer="auto" style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>;
+
+// 在交互处理或加载完成回调中读取当前后端。
+const backend = viewer.getRendererBackend(); // "webgpu"、"webgl" 或 null
+```
+
+`PanoViewerHandle` 也提供 `getRendererBackend()`。该方法返回画布实际使用的后端，
+画布 renderer 尚未就绪时返回 `null`。
+
 `PanoViewer` 负责画布、透视相机与控件。为其容器指定明确尺寸，并在内部放置一个全景源。
 
 公开 API 中的角度以度为单位。偏航（yaw）为正表示向右看，俯仰（pitch）为正表示向上看。
