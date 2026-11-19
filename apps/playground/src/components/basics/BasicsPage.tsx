@@ -1,11 +1,10 @@
 import fullSource from "./BasicsPage.tsx?raw";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   PanoViewer,
   Sphere,
   Tile,
   usePanoViewer,
-  type PanoRendererBackend,
   type TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import { cn } from "../../cn";
@@ -30,66 +29,40 @@ const tile = {
 
 function SourceExample({ source, renderer }: { source: "sphere" | "tile"; renderer: "auto" | "webgl" }) {
   const viewer = usePanoViewer();
-  const container = useRef<HTMLDivElement>(null);
-  const [backend, setBackend] = useState<PanoRendererBackend | null>(null);
-
-  useEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    const update = () => setBackend(viewer.getRendererBackend());
-    const observer = new MutationObserver(update);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-pano-renderer"], subtree: true });
-    update();
-    return () => observer.disconnect();
-  }, [viewer]);
-  const [status, setStatus] = useState("Loading preview…");
   const [error, setError] = useState<string>();
   const [progress, setProgress] = useState<TileLoadProgress>();
   const [level, setLevel] = useState(1);
   return (
     <>
-      <p className="px-6 text-sm" role={error ? "alert" : "status"}>
-        {error ?? status}
-      </p>
-      <p className="px-6 text-sm" role="status">
-        {backend ? `Rendering with ${backend === "webgpu" ? "WebGPU" : "WebGL"}` : "Initializing renderer…"}
-      </p>
-      <div ref={container}>
-        <PanoViewer ref={viewer.ref} renderer={renderer} aria-label="Panorama basics viewer" style={{ height: 540 }}>
-          {source === "sphere" ? (
-            <Sphere
-              {...sphere}
-              onReady={() =>
-                setStatus((value) =>
-                  value === "Full image loaded" ? value : "Preview ready",
-                )
-              }
-              onLoad={() => setStatus("Full image loaded")}
-              onError={() =>
-                setError("Full image could not load. Reload to retry.")
-              }
-              onPreviewError={() =>
-                setStatus("Preview unavailable; loading full image…")
-              }
-            />
-          ) : (
-            <Tile
-              {...tile}
-              onReady={() => setStatus("Preview ready; tiles follow the view")}
-              onPreviewError={() =>
-                setError("Preview could not load. Reload to retry.")
-              }
-              onTileError={() =>
-                setError(
-                  "Some tiles could not load; the preview remains available.",
-                )
-              }
-              onLoadProgress={setProgress}
-              onLevelChange={setLevel}
-            />
-          )}
-        </PanoViewer>
-      </div>
+      {error ? (
+        <p className="px-6 text-sm" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <PanoViewer ref={viewer.ref} renderer={renderer} aria-label="Panorama basics viewer" style={{ height: 540 }}>
+        {source === "sphere" ? (
+          <Sphere
+            {...sphere}
+            onError={() =>
+              setError("Full image could not load. Reload to retry.")
+            }
+          />
+        ) : (
+          <Tile
+            {...tile}
+            onPreviewError={() =>
+              setError("Preview could not load. Reload to retry.")
+            }
+            onTileError={() =>
+              setError(
+                "Some tiles could not load; the preview remains available.",
+              )
+            }
+            onLoadProgress={setProgress}
+            onLevelChange={setLevel}
+          />
+        )}
+      </PanoViewer>
       {source === "tile" ? (
         <p className="px-6 text-sm" aria-live="polite">
           Level {level} · tiles {progress?.loaded ?? 0}/
@@ -162,14 +135,14 @@ ${Object.entries(props)
       </p>
       <CodeSnippet
         label={`${component}: minimal setup`}
-        blurb="The demo also displays lifecycle diagnostics: Sphere onReady/onLoad/onError/onPreviewError; Tile onReady/onPreviewError/onLoadProgress/onTileError/onLevelChange. These callbacks observe loading without changing the source configuration."
+        blurb="The demo reports load failures and, for cube tiles, the current level and tile counts. These callbacks observe loading without changing the source configuration."
         code={code}
       />
       <details className="border-t border-line p-5">
         <summary>Complete running example</summary>
         <CodeSnippet
           label="Panorama basics page"
-          blurb="Full page implementation, including the displayed controls, loading/error status and example code generation."
+          blurb="Full page implementation, including the displayed controls, error status and example code generation."
           code={fullSource}
         />
       </details>
