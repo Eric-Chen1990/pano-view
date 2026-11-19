@@ -153,6 +153,11 @@ export function WebGPUPanoBasicMaterial({ target, modules, ...props }: PanoBasic
   }, [artistic, hasAdjustments, hasClarity, hasMatrix, host, modules]);
 
   useLayoutEffect(() => {
+    // The node pipeline uses a different binding for an absent map, a poster, and a video texture.
+    material.material.needsUpdate = true;
+  }, [material, props.map]);
+
+  useLayoutEffect(() => {
     material.strength.value = intensity;
     if (adjust) material.values.value.set(adjust.exposure, adjust.saturation, adjust.contrast, adjust.clarity);
     if (matrix) matrixValues(matrix, material.transform.value, material.offset.value);

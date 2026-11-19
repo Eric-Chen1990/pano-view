@@ -6,7 +6,7 @@ An embeddable React tour editor for scenes, all nine pano-view hotspot types, in
 
 ## Local browser editor
 
-Run the workspace with `pnpm dev` and open `/editor` to edit a ready-made two-scene tour with text, audio and scene-link hotspots. Download and unzip the prepared sample ZIP to try opening or dropping a directory without running the converter first.
+Run the workspace with `pnpm dev` and open `/editor` to edit a ready-made two-scene tour. In Entrance, select the image or video hotspot to adjust its corners or rotate it. Download and unzip the prepared sample ZIP to try opening or dropping a directory without running the converter first.
 
 For your own panoramas, prepare them with `pano-convert` locally first, then select a project root:
 
@@ -120,7 +120,7 @@ Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (a
 
 ### Portable project packages
 
-Select an image or video hotspot and choose **Enable corner placement** in **Position and size**. Drag individual corners, drag the media to move it, or drag the diamond handle to rotate it. The inspector also accepts exact coordinates and a clockwise rotation amount. **Restore rectangle** restores the original placement. Each drag, rotation, or mode change can be undone. Project JSON and ZIP exports keep the four anchors.
+Select an image or video hotspot and choose **Enable corner placement** in **Position and size**. Drag individual corners, drag the media to move it, or drag the round rotation handle to rotate it. The inspector also accepts exact coordinates and a clockwise rotation amount. **Restore rectangle** restores the original placement. Each drag, rotation, or mode change can be undone. Project JSON and ZIP exports keep the four anchors.
 
 **Export project package** downloads `panorama-project.zip` containing `project.json`, per-scene `panoramas/<number>/viewer.json`, all preview/tile levels, and referenced hotspot media, tooltip images, cursor images, the floor-plan image, and spot icons under `assets/`. Both local and online resources are copied and references rewritten relative to the package. Unzip it before using Open directory; serve the extracted directory over HTTP with your existing viewer. The package does not include a player page. **Export JSON** remains configuration-only.
 

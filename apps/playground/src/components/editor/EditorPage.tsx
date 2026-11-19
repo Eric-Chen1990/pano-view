@@ -12,7 +12,7 @@ import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
 
-const sampleProjectUrl = "/fixtures/projects/tour/project.json";
+const sampleProjectUrl = "/fixtures/projects/editor/v3/project.json";
 
 function buildEditorSnippet(locale: "en" | "zh-CN"): string {
   return `import { PanoEditor } from "@ericchen1990/pano-editor";
@@ -69,8 +69,8 @@ export function EditorPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 py-5">
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
-            ? "Try the sample tour: edit hotspots, test click actions, and reuse shared popup content."
-            : "直接试用示例漫游：编辑热点、测试点击动作，并复用共享弹窗内容。"}
+            ? "Select the image or video hotspot in Entrance to drag its corners or rotate it. Click the video in Preview to play it."
+            : "在入口场景选中图片或视频热点，即可拖动四角或旋转。在预览中点击视频即可播放。"}
         </p>
         <label className="shrink-0 text-xs text-muted-2">
           Language{" "}
@@ -93,7 +93,7 @@ export function EditorPage() {
       ) : project ? (
         <PanoEditor
           defaultValue={project}
-          baseUrl={new URL("/fixtures/projects/tour/", window.location.href).href}
+          baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
           locale={locale}
           style={{ height: "min(860px, 85vh)", minHeight: 660 }}
         />
@@ -109,7 +109,7 @@ export function EditorPage() {
       </p>
       <a
         className="mt-2 inline-block text-xs text-accent underline"
-        href="/fixtures/editor-demo.zip"
+        href="/fixtures/editor-demo-v3.zip"
         download
       >
         {locale === "en"

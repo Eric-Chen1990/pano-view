@@ -39,11 +39,25 @@ export function getHotspotCornerCenter(corners: HotspotCorners): HotspotPosition
   return fit ? vector3ToPanoPosition(fit.center) : null;
 }
 
-export function getHotspotRotationHandle(corners: HotspotCorners): HotspotPosition | null {
+/** Place the handle beyond an edge. The optional minimum gap is in degrees. */
+export function getHotspotRotationHandle(
+  corners: HotspotCorners,
+  edge: "top" | "bottom" = "top",
+  minimumGap = 0,
+): HotspotPosition | null {
   const fit = fitHotspotCorners(corners);
   if (!fit) return null;
-  const topCenter = fit.vertices[0].clone().lerp(fit.vertices[1], 0.5);
-  return vector3ToPanoPosition(fit.center.clone().lerp(topCenter, 1.4));
+  const [start, end] = edge === "top" ? [0, 1] as const : [2, 3] as const;
+  const edgeCenter = fit.vertices[start].clone().lerp(fit.vertices[end], 0.5);
+  const handle = fit.center.clone().lerp(edgeCenter, 1.4);
+  const edgeDirection = edgeCenter.normalize();
+  const gap = MathUtils.degToRad(Number.isFinite(minimumGap) ? Math.max(0, minimumGap) : 0);
+  if (handle.angleTo(edgeDirection) >= gap) return vector3ToPanoPosition(handle);
+
+  const axis = fit.center.normalize();
+  const angle = Math.min(axis.angleTo(edgeDirection) + gap, Math.PI - 1e-6);
+  const tangent = edgeDirection.projectOnPlane(axis).normalize();
+  return vector3ToPanoPosition(axis.multiplyScalar(Math.cos(angle)).addScaledVector(tangent, Math.sin(angle)));
 }
 
 function rotateCorners(corners: HotspotCorners, quaternion: Quaternion): HotspotCorners {

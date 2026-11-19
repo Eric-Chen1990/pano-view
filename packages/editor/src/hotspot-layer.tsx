@@ -21,6 +21,7 @@ import { errorMessage } from "./errors";
 type Props = {
   hotspots: ProjectHotspotDefinition[];
   selectedId?: string;
+  viewportHeight: number;
   drawing: boolean;
   draft: HotspotPosition[];
   draftKind?: "polygon" | "polyline";
@@ -47,6 +48,7 @@ function renderProps<T extends ProjectHotspotDefinition>({
 export const HotspotLayer = memo(function HotspotLayer({
   hotspots,
   selectedId,
+  viewportHeight,
   drawing,
   draft,
   draftKind,
@@ -58,6 +60,9 @@ export const HotspotLayer = memo(function HotspotLayer({
   t,
 }: Props) {
   const selected = hotspots.find((hotspot) => hotspot.id === selectedId);
+  const cornerHotspot = !drawing && (selected?.type === "image" || selected?.type === "video") && selected.corners
+    ? selected
+    : undefined;
   function verticesUpdate(
     hotspot: ProjectHotspotDefinition,
     vertices: HotspotPosition[],
@@ -76,6 +81,8 @@ export const HotspotLayer = memo(function HotspotLayer({
           ariaLabel: hotspot.label || hotspot.id,
           id: hotspot.id,
           visible: hotspot.id === selectedId || hotspot.visible !== false,
+          // A tooltip can cover nearby handles while editing corners.
+          ...(cornerHotspot ? { tooltip: undefined } : {}),
           interactive: !drawing,
           pointerEvents: "auto" as const,
           draggable: !drawing,
@@ -195,12 +202,13 @@ export const HotspotLayer = memo(function HotspotLayer({
             );
         }
       })}
-      {selected && (selected.type === "image" || selected.type === "video") && selected.corners && !drawing ? (
+      {cornerHotspot?.corners ? (
         <CornerHandles
-          key={selected.id}
-          id={selected.id}
-          corners={selected.corners}
-          onChange={(corners) => onUpdate(selected.id, { corners })}
+          key={cornerHotspot.id}
+          id={cornerHotspot.id}
+          corners={cornerHotspot.corners}
+          viewportHeight={viewportHeight}
+          onChange={(corners) => onUpdate(cornerHotspot.id, { corners })}
           onBegin={onBegin}
           onEnd={onEnd}
           t={t}

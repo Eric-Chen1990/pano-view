@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from "three";
-import { fitHotspotCorners, getHotspotCornerCenter, moveHotspotCorners, rotateHotspotCorners, validateHotspotCorners } from "../src/hotspot/corners";
+import { Mesh, MeshBasicMaterial, Raycaster, Vector3 } from "three";
+import { fitHotspotCorners, getHotspotCornerCenter, getHotspotRotationHandle, moveHotspotCorners, rotateHotspotCorners, validateHotspotCorners } from "../src/hotspot/corners";
 import { panoPositionToVector3 } from "../src/hotspot/coordinates";
+import { createSurfaceQuaternion } from "../src/hotspot/hotspot-anchor";
+import { createCornerMediaQuad } from "../src/hotspot/hotspot-media-plane";
 import type { HotspotCorners } from "../src/hotspot/types";
 
 const trapezoid: HotspotCorners = [
@@ -22,11 +24,12 @@ test("four rays form one planar UV mapping with continuous texture interpolation
   }
   const [a, b, c, d] = fit.vertices;
   assert.ok(a.clone().add(c).distanceTo(b.clone().add(d)) < 1e-10);
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(fit.vertices.flatMap((p) => p.toArray()), 3));
-  geometry.setAttribute("uv", new Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
-  geometry.setIndex([0, 2, 1, 0, 3, 2]);
-  const mesh = new Mesh(geometry, new MeshBasicMaterial());
+  const quad = createCornerMediaQuad(trapezoid);
+  assert.ok(quad);
+  const mesh = new Mesh(quad.geometry, new MeshBasicMaterial());
+  mesh.position.copy(panoPositionToVector3(quad.position, quad.distance));
+  mesh.quaternion.copy(createSurfaceQuaternion(quad.position));
+  mesh.updateMatrixWorld();
   const origin = new Vector3();
   for (const [u, v] of [[0.25, 0.68], [0.34, 0.49], [0.8, 0.6], [0.76, 0.13]] as const) {
     const direction = d.clone().addScaledVector(c.clone().sub(d), u).addScaledVector(a.clone().sub(d), v);
@@ -34,7 +37,7 @@ test("four rays form one planar UV mapping with continuous texture interpolation
     assert.ok(hit?.uv);
     assert.ok(Math.hypot(hit.uv.x - u, hit.uv.y - v) < 1e-6);
   }
-  geometry.dispose();
+  quad.geometry.dispose();
   mesh.material.dispose();
 });
 
@@ -61,4 +64,16 @@ test("crossed, duplicate, concave, degenerate and non-finite corners are rejecte
   assert.equal(validateHotspotCorners([a, b, { yaw: 0, pitch: 4 }, d]), false);
   assert.equal(validateHotspotCorners([a, { ...a, pitch: 2 }, { ...a, pitch: -1 }, { ...a, pitch: -4 }]), false);
   assert.equal(validateHotspotCorners([a, b, c, { yaw: 0, pitch: NaN }]), false);
+});
+
+test("rotation handle fits below the lower edge with the requested minimum gap", () => {
+  const fit = fitHotspotCorners(seam);
+  const handle = getHotspotRotationHandle(seam, "bottom", 6);
+  const before = getHotspotRotationHandle(seam);
+  assert.ok(fit && handle && before);
+  const bottom = fit.vertices[2].clone().lerp(fit.vertices[3], 0.5);
+  const handleDirection = panoPositionToVector3(handle);
+  assert.ok(handleDirection.angleTo(bottom) >= Math.PI / 30 - 1e-12);
+  assert.ok(handleDirection.angleTo(fit.center) > bottom.angleTo(fit.center));
+  assert.ok(handle.pitch < before.pitch);
 });

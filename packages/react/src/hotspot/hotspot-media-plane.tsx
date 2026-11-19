@@ -13,7 +13,7 @@ type Props = HotspotCommonProps & HotspotCornerProps & {
   map: Texture | null;
 };
 
-function buildQuad(corners: HotspotCorners) {
+export function createCornerMediaQuad(corners: HotspotCorners) {
   const fit = fitHotspotCorners(corners);
   if (!fit) return null;
   const position = vector3ToPanoPosition(fit.center);
@@ -49,7 +49,7 @@ function CornerMediaPlane({
   renderOrder = 0,
   ...anchorProps
 }: Props & { corners: HotspotCorners }) {
-  const quad = useMemo(() => buildQuad(corners), [corners]);
+  const quad = useMemo(() => createCornerMediaQuad(corners), [corners]);
   const startCorners = useRef<HotspotCorners | null>(null);
   useEffect(() => () => quad?.geometry.dispose(), [quad]);
   if (!quad) return null;
@@ -68,7 +68,7 @@ function CornerMediaPlane({
       rotation={0}
       renderOrder={renderOrder}
       focusContent={<HotspotStrokeLine points={quad.outline} color="#f5fbfc" opacity={1} lineWidth={5} renderOrder={renderOrder + 2} hitTest={false} />}
-      selectionContent={<HotspotStrokeLine points={quad.outline} color="#ffb300" opacity={1} lineWidth={3} renderOrder={renderOrder + 1} hitTest={false} />}
+      selectionContent={<HotspotStrokeLine points={quad.outline} color="#a06bff" opacity={1} lineWidth={2} renderOrder={renderOrder + 1} hitTest={false} />}
       onDragStart={(event) => {
         startCorners.current = corners;
         onDragStart?.(event);

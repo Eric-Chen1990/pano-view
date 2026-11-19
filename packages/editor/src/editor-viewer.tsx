@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   PanoViewer,
+  PanoEvents,
   getHotspotCornerCenter,
   PanoMapOverlay,
   PanoOverlay,
@@ -133,6 +134,7 @@ export function EditorViewer({
   if (popupSelection.sceneId !== activeId || popupSelection.preview !== preview)
     setPopupSelection({ sceneId: activeId, preview });
   const [readyId, setReadyId] = useState<string>();
+  const [viewportHeight, setViewportHeight] = useState(768);
   const tested = useRef<number | undefined>(undefined);
   const loader = useMemo(
     () =>
@@ -379,6 +381,11 @@ export function EditorViewer({
               if (!preview) onPlace(position);
             }}
           >
+            {!preview ? (
+              <PanoEvents onResize={({ height }) => {
+                if (height > 0) setViewportHeight(height);
+              }} />
+            ) : null}
             {preview ? (
               <ProjectScenes
                 project={runtime.loaded}
@@ -424,6 +431,7 @@ export function EditorViewer({
                   <HotspotLayer
                     hotspots={active.hotspots}
                     selectedId={selectedId}
+                    viewportHeight={viewportHeight}
                     drawing={placing || Boolean(draftKind)}
                     draft={draft}
                     draftKind={draftKind}
