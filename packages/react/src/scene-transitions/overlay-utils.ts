@@ -8,6 +8,7 @@ export const FULLSCREEN_PLANE = new PlaneGeometry(1, 1);
 
 export type Snapshot = {
   texture: Texture;
+  eyeTextures?: readonly [Texture, Texture];
   dispose: () => void;
 };
 

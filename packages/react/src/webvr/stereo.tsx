@@ -1,7 +1,10 @@
+import { WebGPURuntimeContext } from "../pano-renderer";
+import { WebGPUStereo } from "./webgpu-stereo";
+import type { WebGPURenderer } from "three/webgpu";
 import { stereoLensMappingGlsl, stereoLensMaskFragmentShader } from "./lens-mask";
 import { renderSpatialEye } from "../spatial/render-layer";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   Matrix4,
   Mesh,
@@ -131,14 +134,14 @@ function applyEyeViewOffset(
 
 type StereoEyeViewportLike = StereoLayout["left"];
 
-function syncStereoCameras(
+export function syncStereoCameras(
   stereo: StereoCamera,
   camera: PerspectiveCamera,
   profile: WebVRProfile,
   screensize: number | "auto",
   oversampling: number,
   size: Vector2,
-  gl: WebGLRenderer,
+  gl: WebGLRenderer | WebGPURenderer,
 ): { layout: StereoLayout; centers: ReturnType<typeof computeStereoLensCenters> } {
   gl.getSize(size);
   const layout = computeStereoLayout(
@@ -156,6 +159,8 @@ function syncStereoCameras(
   // Keep both eyes on the panorama center. A metric IPD is invisible on the
   // radius-1000 shell; the toe-in below is the disparity the headset fuses.
   stereo.eyeSep = 0;
+  stereo.cameraL.coordinateSystem = camera.coordinateSystem;
+  stereo.cameraR.coordinateSystem = camera.coordinateSystem;
   stereo.update(camera);
   const halfAngle = panoramaStereoHalfAngle(profile.ipdMm);
   TOE_IN.makeRotationY(panoramaStereoToeInYaw("left", halfAngle));
@@ -172,7 +177,41 @@ function syncStereoCameras(
   return { layout, centers };
 }
 
-export function WebVRStereoRenderer({
+type StereoProps = {
+  mode: WebVRMode | null;
+  oversampling?: number;
+  profile: WebVRProfile;
+  screensize: number | "auto";
+};
+
+export function WebVRStereoRenderer(props: StereoProps) {
+  const gpu = useContext(WebGPURuntimeContext)?.passes;
+  const runtime = useContext(WebVRRuntimeContext);
+  const camera = useThree((state) => state.camera);
+  const active = Boolean(gpu && runtime && isFallbackStereoMode(props.mode));
+  const options = useRef({ profile: props.profile, screensize: props.screensize, oversampling: props.oversampling ?? 1 });
+  options.current = { profile: props.profile, screensize: props.screensize, oversampling: props.oversampling ?? 1 };
+  const size = useRef(new Vector2());
+  useLayoutEffect(() => {
+    if (!active || !runtime || !(camera instanceof PerspectiveCamera)) return;
+    const fov = camera.fov;
+    runtime.stereoView.active = true;
+    return () => {
+      runtime.stereoView.active = false;
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    };
+  }, [active, camera, runtime]);
+  useFrame(() => {
+    if (!active || !gpu || !runtime || !(camera instanceof PerspectiveCamera)) return;
+    syncStereoCameras(runtime.stereoView.stereo, camera, options.current.profile, options.current.screensize,
+      options.current.oversampling, size.current, gpu.renderer);
+  }, -0.5);
+  if (!gpu) return <WebGLStereo {...props} />;
+  return active && runtime ? <WebGPUStereo passes={gpu} stereo={runtime.stereoView.stereo} options={options} /> : null;
+}
+
+function WebGLStereo({
   mode,
   oversampling = 1,
   profile,

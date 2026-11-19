@@ -878,15 +878,22 @@ Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custo
 ### Rendering backend
 
 `PanoViewer` defaults to `renderer="auto"`. It uses native WebGPU when available
-and automatically switches to WebGL if WebGPU cannot initialize, the GPU device
-is lost, or an active built-in feature requires WebGL.
+and switches to WebGL if initialization fails or the GPU device is lost. Native
+WebGPU supports filters (including clarity), `PanoCompare`, all `Scenes` transition
+presets, and the mobile and desktop simulated stereo modes.
 
-WebGPU supports sphere images, cube and equirectangular tiles, 360° video,
-built-in hotspots, direct cuts, and crossfade. WebVR, active filters,
-`PanoCompare`, and the other scene transition presets use WebGL. For custom GLSL
-or integrations that call WebGL-specific APIs, set `renderer="webgl"`. The
-WebGPU path disables frame-wide tone mapping to preserve panorama colors.
-A fallback after startup recreates the canvas and can reload the scene and media.
+Immersive VR uses WebGPU when the browser exposes `XRGPUBinding` and can start a
+session with the `webgpu` feature. Otherwise it uses WebGL. If the browser
+rejects the `webgpu` feature as unsupported or native binding fails, the viewer
+switches to WebGL and reports through `onDenied` that Enter VR can be tried again. The renderer stays on WebGL for
+that viewer mount. A switch recreates the canvas and may reload the scene and media.
+
+In an immersive WebGPU session, `Scenes` switches as soon as the destination
+scene can draw and reports `preset: "none"`. Three.js r185 disables XR MSAA and
+multiview and does not apply the XR framebuffer oversampling setting to its
+native WebGPU projection layer. For custom GLSL or integrations that call
+WebGL-specific APIs, set `renderer="webgl"`. The WebGPU path disables
+frame-wide tone mapping to preserve panorama colors.
 
 ```tsx
 const viewer = usePanoViewer();

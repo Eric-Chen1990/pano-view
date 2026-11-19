@@ -1,8 +1,10 @@
 import type { RootState } from "@react-three/fiber";
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CanvasTarget, WebGPURenderer } from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
 import type { PanoRendererBackend } from "./types";
+import { endWebXRSession, hasWebGPUXRBinding } from "./webvr/webgpu-xr";
+import { createWebGPUFramePasses, type WebGPUFramePasses } from "./webgpu-frame";
 import { getWebGPUDevice, isWebGPURenderer } from "./renderer-capabilities";
 
 const WEBGL_OPTIONS = {
@@ -14,28 +16,26 @@ const WEBGL_OPTIONS = {
 type PreparedRenderer = {
   renderer: WebGPURenderer;
   CanvasTarget: typeof CanvasTarget;
+  passes: WebGPUFramePasses;
+  nativeXR: boolean;
   Line2: typeof Line2;
 };
 
 type WebGPURuntime = {
+  passes: WebGPUFramePasses;
+  nativeXR: boolean;
   Line2: typeof Line2;
   fallback: () => void;
 };
 
 export const WebGPURuntimeContext = createContext<WebGPURuntime | null>(null);
 
-/** Gate WebGL-specific children before they install render callbacks or construct materials. */
-export function useRequiresWebGL(required = true): boolean {
-  const runtime = useContext(WebGPURuntimeContext);
-  useLayoutEffect(() => {
-    if (required) runtime?.fallback();
-  }, [required, runtime]);
-  return required && runtime !== null;
-}
-
 function releaseRenderer(renderer: WebGPURenderer) {
   renderer.onDeviceLost = () => {};
-  if (renderer.hasInitialized()) renderer.dispose();
+  if (!renderer.hasInitialized()) return;
+  const session = renderer.xr.getSession();
+  if (session) void endWebXRSession(session).catch(() => {}).finally(() => renderer.dispose());
+  else renderer.dispose();
 }
 
 export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () => void) {
@@ -62,7 +62,7 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
 
   useEffect(() => {
     if (!attemptWebGPU) return;
-    if (!("gpu" in navigator) || !navigator.gpu) {
+    if (typeof navigator === "undefined" || !("gpu" in navigator) || !navigator.gpu) {
       fallback();
       return;
     }
@@ -73,30 +73,46 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
 
     async function prepare() {
       try {
-        const [{ WebGPURenderer, CanvasTarget }, { Line2 }] = await Promise.all([
+        const [three, tsl, { Line2 }] = await Promise.all([
           import("three/webgpu"),
+          import("three/tsl"),
           import("three/addons/lines/webgpu/Line2.js"),
         ]);
         if (cancelled) return;
-        renderer = new WebGPURenderer({
-          ...WEBGL_OPTIONS,
-          alpha: true,
-          canvas: document.createElement("canvas"),
-        });
-        const reportDeviceLoss = renderer.onDeviceLost.bind(renderer);
-        renderer.onDeviceLost = (info) => {
-          if (cancelled) return;
-          lost = true;
-          reportDeviceLoss(info);
-          fallback();
-        };
+        const { WebGPURenderer, CanvasTarget } = three;
+        function makeRenderer(nativeXR: boolean) {
+          const candidate = new WebGPURenderer({
+            ...WEBGL_OPTIONS,
+            alpha: true,
+            canvas: document.createElement("canvas"),
+          });
+          candidate.xr.enabled = nativeXR;
+          const reportDeviceLoss = candidate.onDeviceLost.bind(candidate);
+          candidate.onDeviceLost = (info) => {
+            if (cancelled) return;
+            lost = true;
+            reportDeviceLoss(info);
+            fallback();
+          };
+          return candidate;
+        }
+
+        let nativeXR = hasWebGPUXRBinding();
+        renderer = makeRenderer(nativeXR);
         await renderer.init();
         if (cancelled || lost) return;
+        if (nativeXR && !("isWebGPUBackend" in renderer.backend)) {
+          releaseRenderer(renderer);
+          nativeXR = false;
+          renderer = makeRenderer(false);
+          await renderer.init();
+          if (cancelled || lost) return;
+        }
         if (!("isWebGPUBackend" in renderer.backend)) {
           fallback();
           return;
         }
-        setPrepared({ renderer, CanvasTarget, Line2 });
+        setPrepared({ renderer, CanvasTarget, Line2, nativeXR, passes: createWebGPUFramePasses(renderer, { three, tsl }) });
       } catch {
         if (!cancelled) fallback();
       } finally {
@@ -145,11 +161,13 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
     }, fallback);
   }, [fallback, gpu]);
 
-  const onCreated = useCallback(({ gl }: RootState) => {
+  const onCreated = useCallback(({ gl, xr }: RootState) => {
     // WebGPU's Canvas initially runs without children or a frame loop until its
     // real context has been validated. WebGL is ready as soon as R3F creates it.
-    if (isWebGPURenderer(gl)) setConfigured(gl);
-    else publish("webgl");
+    if (isWebGPURenderer(gl)) {
+      xr.disconnect();
+      setConfigured(gl);
+    } else publish("webgl");
   }, [publish]);
 
   useLayoutEffect(() => {
@@ -176,6 +194,6 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
     gl: gpu?.renderer ?? WEBGL_OPTIONS,
     attachCanvas,
     onCreated,
-    runtime: useMemo(() => gpu ? { Line2: gpu.Line2, fallback } : null, [gpu, fallback]),
+    runtime: useMemo(() => gpu ? { Line2: gpu.Line2, passes: gpu.passes, nativeXR: gpu.nativeXR, fallback } : null, [gpu, fallback]),
   };
 }

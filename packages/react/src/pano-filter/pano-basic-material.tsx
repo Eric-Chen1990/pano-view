@@ -1,3 +1,4 @@
+import { WebGPUPanoBasicMaterial } from "./webgpu-material";
 import { WebGPURuntimeContext } from "../pano-renderer";
 import { useContext, useLayoutEffect, useMemo } from "react";
 import {
@@ -65,7 +66,7 @@ export function PanoBasicMaterial({
 }: PanoBasicMaterialProps) {
   const gpu = useContext(WebGPURuntimeContext);
   return gpu
-    ? <meshBasicMaterial toneMapped={false} {...props} />
+    ? <WebGPUPanoBasicMaterial modules={gpu.passes.modules} target={target} {...props} />
     : <WebGLPanoBasicMaterial target={target} {...props} />;
 }
 

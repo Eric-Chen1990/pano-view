@@ -39,6 +39,8 @@ export type WebVRHostSnapshot = {
 
 export type WebVRHost = {
   controller: WebVRController | null;
+  pendingXR: { session: XRSession; connecting: boolean; finish: (entered: boolean) => void } | null;
+  requestingXR: boolean;
   revision: number;
   snapshot: WebVRHostSnapshot;
   /** Stable reference for useSyncExternalStore when available/mode are unchanged. */
@@ -74,6 +76,8 @@ function createWebVRState(
 export function createWebVRHost(): WebVRHost {
   return {
     controller: null,
+    pendingXR: null,
+    requestingXR: false,
     revision: 0,
     snapshot: {
       available: false,

@@ -98,6 +98,7 @@ import {
   resolvePanoCursors,
   type PanoCursors,
 } from "./pano-cursor";
+import { WebGPUFrame } from "./webgpu-frame";
 import { usePanoRenderer, WebGPURuntimeContext } from "./pano-renderer";
 import { PanoEvents } from "./pano-events";
 import { createPanoModalHost } from "./overlay/modal-host";
@@ -355,6 +356,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const videoHost = useMemo(() => createPanoVideoHost(), []);
     const filterHost = useMemo(() => createPanoFilterHost(), []);
     const webVRHost = useMemo(() => createWebVRHost(), []);
+    useEffect(() => () => webVRHost.pendingXR?.finish(false), [webVRHost]);
     const vrMode = useSyncExternalStore(
       (listener) => subscribeWebVRHost(webVRHost, listener),
       () => webVRHost.snapshot.mode,
@@ -939,6 +941,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           }}
         >
           {rendererRuntime.renderChildren && <WebGPURuntimeContext.Provider value={rendererRuntime.runtime}>
+          {rendererRuntime.runtime && <WebGPUFrame passes={rendererRuntime.runtime.passes} />}
           <XR store={xrStore}>
           <WebVRRuntimeContext.Provider
             value={{ host: webVRHost, xrStore, stereoView }}

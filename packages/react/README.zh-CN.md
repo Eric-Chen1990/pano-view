@@ -840,13 +840,19 @@ import "@ericchen1990/pano-view/styles.css";
 
 ### 渲染后端
 
-`PanoViewer` 默认使用 `renderer="auto"`。浏览器可用时优先使用原生 WebGPU。
-初始化失败、GPU 设备丢失或启用依赖 WebGL 的内置功能时，自动切换到 WebGL。
+`PanoViewer` 默认使用 `renderer="auto"`。浏览器可用时优先使用原生 WebGPU，
+初始化失败或 GPU 设备丢失时回退到 WebGL。原生 WebGPU 支持滤镜（含清晰度调整）、
+`PanoCompare`、全部 `Scenes` 转场预设，以及手机双目和桌面模拟 VR。
 
-WebGPU 支持球面图、立方体和等距柱状投影瓦片、360° 视频、内置热点、场景直切和交叉淡入淡出。
-WebVR、生效中的滤镜、`PanoCompare` 和其他转场预设使用 WebGL。宿主使用自定义 GLSL
-或直接调用 WebGL 专用 API 时，可以设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射，
-以保留全景图的原始色彩。运行中回退会重建画布，场景和媒体可能重新加载。
+沉浸式 VR 在浏览器提供 `XRGPUBinding` 且能启动带 `webgpu` 特性的会话时使用
+WebGPU，否则使用 WebGL。如果浏览器拒绝 `webgpu` 特性或原生绑定失败，
+Viewer 会切换到 WebGL，并通过 `onDenied` 提示可以再次点击进入 VR。本次 Viewer 挂载期间会继续使用 WebGL。
+切换后端会重建画布，场景和媒体可能重新加载。
+
+原生 WebGPU XR 会话内，`Scenes` 在目标场景可绘制时直接切换，并报告
+`preset: "none"`。Three.js r185 在原生 WebGPU XR 中关闭 MSAA 和 multiview，
+其投影层也不应用 XR 帧缓冲超采样设置。宿主使用自定义 GLSL 或调用 WebGL 专用
+API 时，可设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射以保留全景原始色彩。
 
 ```tsx
 const viewer = usePanoViewer();
