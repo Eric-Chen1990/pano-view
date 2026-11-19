@@ -6,6 +6,7 @@ import {
   Raycaster,
   Texture,
   Vector2,
+  type BufferGeometry,
   type Intersection,
 } from "three";
 
@@ -110,7 +111,7 @@ function hotspotPlaneRaycast(
   const material = Array.isArray(this.material)
     ? this.material[0]
     : this.material;
-  if (!(material instanceof MeshBasicMaterial)) {
+  if (!(material instanceof MeshBasicMaterial) && !("map" in material)) {
     Mesh.prototype.raycast.call(this, raycaster, intersects);
     return;
   }
@@ -120,7 +121,7 @@ function hotspotPlaneRaycast(
   }
   RAYCAST_HITS.length = 0;
   Mesh.prototype.raycast.call(this, raycaster, RAYCAST_HITS);
-  const map = material.map;
+  const map = material.map instanceof Texture ? material.map : null;
   for (const hit of RAYCAST_HITS) {
     if (!map || !hit.uv) {
       intersects.push(hit);
@@ -136,13 +137,15 @@ function hotspotPlaneRaycast(
 export function HotspotPlane({
   map,
   opacity,
+  geometry,
 }: {
   map: Texture | null;
+  geometry?: BufferGeometry;
   opacity?: number;
 }) {
   return (
-    <mesh raycast={hotspotPlaneRaycast}>
-      <planeGeometry args={[1, 1]} />
+    <mesh geometry={geometry} raycast={hotspotPlaneRaycast}>
+      {geometry ? null : <planeGeometry args={[1, 1]} />}
       <PanoBasicMaterial
         target="hotspot"
         alphaTest={HOTSPOT_ALPHA_CUTOFF}

@@ -64,6 +64,7 @@ import { HotspotStrokeLine, type HotspotStrokePoint } from "./hotspot-stroke-lin
 import {
   acceptsHotspotPointerEvents,
   type HotspotCommonProps,
+  type HotspotCorners,
   type HotspotInteractionEvent,
   type HotspotMode,
   type HotspotPosition,
@@ -145,6 +146,8 @@ export type HotspotAnchorProps = Omit<HotspotCommonProps, "opacity"> & {
   /** Internal escape hatch for world-space children such as polygons. */
   useAngularScale?: boolean;
   focusContent?: ReactNode;
+  selectionContent?: ReactNode;
+  captureRectangle?: boolean;
   children?: ReactNode;
   /** Private support for world-space polygon and polyline primitives. */
   internalOrientation?: "billboard" | "surface";
@@ -198,7 +201,7 @@ function maximumHotspotDistance(width: number, height: number): number {
   return (PANORAMA_RADIUS - PANORAMA_SURFACE_INSET) / cornerFactor;
 }
 
-function createSurfaceQuaternion(position: HotspotPosition): Quaternion {
+export function createSurfaceQuaternion(position: HotspotPosition): Quaternion {
   const outward = panoPositionToVector3(position).normalize();
   const inward = outward.clone().negate();
   const pitch = MathUtils.degToRad(position.pitch);
@@ -546,6 +549,8 @@ export function HotspotAnchor({
   scale = 1,
   useAngularScale = true,
   focusContent,
+  selectionContent,
+  captureRectangle = false,
   mode = "billboard",
   distance,
   internalOrientation,
@@ -611,8 +616,18 @@ export function HotspotAnchor({
     if (!hotspotTargetRegistry) {
       return;
     }
-    return hotspotTargetRegistry.register(id, normalizedPosition);
-  }, [hotspotTargetRegistry, id, normalizedPosition.pitch, normalizedPosition.yaw]);
+    const getCorners = (): HotspotCorners | null => {
+      const group = groupRef.current;
+      if (!group) return null;
+      group.updateWorldMatrix(true, false);
+      const cameraOrigin = camera.getWorldPosition(new Vector3());
+      const direction = (x: number, y: number) => vector3ToPanoPosition(
+        new Vector3(x, y, 0).applyMatrix4(group.matrixWorld).sub(cameraOrigin),
+      );
+      return [direction(-0.5, 0.5), direction(0.5, 0.5), direction(0.5, -0.5), direction(-0.5, -0.5)];
+    };
+    return hotspotTargetRegistry.register(id, normalizedPosition, captureRectangle ? getCorners : undefined);
+  }, [hotspotTargetRegistry, id, normalizedPosition.pitch, normalizedPosition.yaw, camera, captureRectangle]);
   const rendering =
     internalOrientation && internalPlacement
       ? { orientation: internalOrientation, placement: internalPlacement }
@@ -1056,6 +1071,7 @@ export function HotspotAnchor({
         </lineSegments>
       )) : null}
       {children}
+      {selected ? selectionContent : null}
       {selected && useAngularScale ? (
         <group ref={selectionFrameRef}>
           <HotspotStrokeLine

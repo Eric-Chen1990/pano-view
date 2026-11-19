@@ -9,11 +9,10 @@ import {
   Texture,
   TextureLoader,
 } from "three";
-import { HotspotAnchor } from "./hotspot-anchor";
-import { HotspotPlane } from "./hotspot-plane";
-import type { HotspotCommonProps } from "./types";
+import { HotspotMediaPlane } from "./hotspot-media-plane";
+import type { HotspotCommonProps, HotspotCornerProps } from "./types";
 
-export type ImageHotspotProps = HotspotCommonProps & {
+export type ImageHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   src: string;
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
@@ -95,8 +94,6 @@ export function ImageHotspot({
   const texture = useHotspotImageTexture(src, onLoad, onError);
 
   return (
-    <HotspotAnchor {...anchorProps} height={height} width={width}>
-      <HotspotPlane map={texture} opacity={opacity} />
-    </HotspotAnchor>
+    <HotspotMediaPlane {...anchorProps} height={height} width={width} map={texture} opacity={opacity} />
   );
 }

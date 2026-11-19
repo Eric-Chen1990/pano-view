@@ -83,6 +83,23 @@ test("default project renderer reuses every hotspot component and strips project
   }
 });
 
+test("the default project renderer forwards media hotspot corners", () => {
+  const corners = [
+    { yaw: -6, pitch: 4 }, { yaw: 5, pitch: 6 },
+    { yaw: 8, pitch: -5 }, { yaw: -7, pitch: -4 },
+  ] as const;
+  for (const type of ["image", "video"] as const) {
+    const element = ProjectHotspotSource({
+      hotspot: { ...point, type, corners, src: "media" },
+      playing: false,
+      onClick: () => {},
+      onEnded: () => {},
+      onError: () => {},
+    });
+    assert.equal(element.props.corners, corners);
+  }
+});
+
 test("click callbacks can suppress navigation or playback; scene actions take priority", () => {
   const navigated: string[] = [];
   let toggled = 0;

@@ -20,6 +20,7 @@ export type HotspotStrokeLineProps = {
   lineWidth: number;
   opacity: number;
   renderOrder: number;
+  hitTest?: boolean;
   /** Dash length in CSS pixels. Omit or 0 for a solid stroke. */
   dashSize?: number;
   /** Gap length in CSS pixels. Defaults to `dashSize` when dashed. */
@@ -28,6 +29,7 @@ export type HotspotStrokeLineProps = {
 
 type DashedLineObject = ComponentRef<typeof Line>;
 
+const ignoreRaycast = () => undefined;
 const LINE_WORLD_POSITION = new Vector3();
 
 function screenSpaceDashScale(
@@ -69,6 +71,7 @@ function WebGLHotspotStrokeLine({
   lineWidth,
   opacity,
   renderOrder,
+  hitTest = true,
   dashSize,
   gapSize,
 }: HotspotStrokeLineProps) {
@@ -95,6 +98,7 @@ function WebGLHotspotStrokeLine({
   return (
     <Line
       ref={lineRef}
+      {...(!hitTest ? { raycast: ignoreRaycast } : {})}
       alphaToCoverage
       color={color}
       dashed={dash.dashed}
@@ -119,6 +123,7 @@ function WebGPUHotspotStrokeLine({
   lineWidth,
   opacity,
   renderOrder,
+  hitTest = true,
   dashSize,
   gapSize,
 }: HotspotStrokeLineProps & { Line: typeof Line2 }) {
@@ -155,5 +160,5 @@ function WebGPUHotspotStrokeLine({
     if (dash.dashed) line.material.scale = screenSpaceDashScale(line, camera, size.height);
   });
 
-  return <primitive object={line} />;
+  return <primitive object={line} {...(!hitTest ? { raycast: ignoreRaycast } : {})} />;
 }

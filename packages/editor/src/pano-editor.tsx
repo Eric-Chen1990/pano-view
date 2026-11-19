@@ -47,6 +47,7 @@ import {
   removeScene,
   removePopup,
   type HotspotKind,
+  type HotspotGeometryPatch,
 } from "./document";
 import { LocalFiles } from "./local-files";
 import { SceneSources } from "./sources";
@@ -306,7 +307,7 @@ export function PanoEditor(props: PanoEditorProps) {
   }
   function patchHotspot(
     id: string,
-    patch: { position?: HotspotPosition; vertices?: HotspotPosition[] },
+    patch: HotspotGeometryPatch,
   ) {
     const hotspot = history.current.scenes
       .find((scene) => scene.id === active?.id)
@@ -1509,6 +1510,7 @@ export function PanoEditor(props: PanoEditorProps) {
                   onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
                   onTest={(trigger) => enterPreview(selected.id, trigger)}
                   onChange={updateHotspot}
+                  getRectangleCorners={(id) => viewerRef.current?.getHotspotCorners(id) ?? null}
                   onBegin={begin}
                   onEnd={end}
                   onPick={(field) => void pickAsset(field)}

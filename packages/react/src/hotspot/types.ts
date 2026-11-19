@@ -9,6 +9,9 @@ export type HotspotPosition = {
   pitch: number;
 };
 
+/** Texture corners in source order: top-left, top-right, bottom-right, bottom-left. */
+export type HotspotCorners = readonly [HotspotPosition, HotspotPosition, HotspotPosition, HotspotPosition];
+
 /**
  * A safe point-hotspot rendering mode.
  *
@@ -33,6 +36,18 @@ export type HotspotInteractionEvent = {
 export type HotspotDragEvent = HotspotInteractionEvent & {
   source: "pointer";
   startPosition: HotspotPosition;
+};
+
+export type HotspotCornersChangeEvent = HotspotDragEvent & {
+  corners: HotspotCorners;
+  startCorners: HotspotCorners;
+};
+
+export type HotspotCornerProps = {
+  /** Absolute panorama anchors. When set, these determine position, shape and orientation. */
+  corners?: HotspotCorners;
+  /** With draggable enabled, receives the proposed four anchors during a body drag. */
+  onCornersChange?: (event: HotspotCornersChangeEvent) => void;
 };
 
 /** When a hotspot tooltip is shown. Defaults to `"always"`. */

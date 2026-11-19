@@ -797,6 +797,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         zoomTo: (fov, options) =>
           controlsRef.current?.zoomTo(fov, options) ??
           Promise.resolve({ status: "cancelled" }),
+        getHotspotCorners: hotspotTargetRegistry.getCorners,
         lookToHotspot: (id, options) => {
           const position = hotspotTargetRegistry.getPosition(id);
           return position

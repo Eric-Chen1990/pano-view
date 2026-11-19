@@ -1,9 +1,11 @@
 import type { PanoCustomActionDefinition } from "./custom-actions";
 import type { ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
+import { CornerFields } from "./corner-fields";
 import { HotspotActionEditor } from "./hotspot-action-editor";
 import { useState } from "react";
 import {
   DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+  type HotspotCorners,
   type HotspotPosition,
   type PanoViewerState,
   type ProjectPopupDefinition,
@@ -32,6 +34,7 @@ export function HotspotInspector({
   onEnd,
   onPick,
   getViewPosition,
+  getRectangleCorners,
   cursorPreviewUrl,
   popups = [],
   getView,
@@ -48,6 +51,7 @@ export function HotspotInspector({
   onEnd: () => void;
   onPick: (field: string) => void;
   getViewPosition: () => HotspotPosition;
+  getRectangleCorners: (id: string) => HotspotCorners | null;
   cursorPreviewUrl?: string;
   popups?: ProjectPopupDefinition[];
   getView?: () => PanoViewerState;
@@ -188,7 +192,19 @@ export function HotspotInspector({
       {"position" in hotspot ? (
         <details open>
           <summary>{t("Position and size")}</summary>
-          <div className="pne-fields">{fields(pointFields)}</div>
+          {hotspot.type === "image" || hotspot.type === "video" ? (
+            <CornerFields
+              hotspot={hotspot}
+              getRectangleCorners={getRectangleCorners}
+              onChange={onChange}
+              onBegin={onBegin}
+              onEnd={onEnd}
+              t={t}
+            />
+          ) : null}
+          <div className="pne-fields">
+            {fields("corners" in hotspot && hotspot.corners ? pointFields.filter(({ name }) => name === "opacity") : pointFields)}
+          </div>
         </details>
       ) : (
         <details open>

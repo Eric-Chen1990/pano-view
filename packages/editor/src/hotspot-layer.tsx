@@ -9,10 +9,13 @@ import {
   IframeHotspot,
   PolygonHotspot,
   PolylineHotspot,
+  type HotspotCornersChangeEvent,
   type HotspotPosition,
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
-import { geometryIssue } from "./document";
+import { CornerHandles } from "./corner-handles";
+import type { Translate } from "./i18n";
+import { type HotspotGeometryPatch, geometryIssue } from "./document";
 import { errorMessage } from "./errors";
 
 type Props = {
@@ -24,11 +27,12 @@ type Props = {
   onSelect: (id: string) => void;
   onUpdate: (
     id: string,
-    patch: { position?: HotspotPosition; vertices?: HotspotPosition[] },
+    patch: HotspotGeometryPatch,
   ) => void;
   onBegin: () => void;
   onEnd: () => void;
   onError: (message: string) => void;
+  t: Translate;
 };
 
 function renderProps<T extends ProjectHotspotDefinition>({
@@ -51,6 +55,7 @@ export const HotspotLayer = memo(function HotspotLayer({
   onBegin,
   onEnd,
   onError,
+  t,
 }: Props) {
   const selected = hotspots.find((hotspot) => hotspot.id === selectedId);
   function verticesUpdate(
@@ -109,6 +114,12 @@ export const HotspotLayer = memo(function HotspotLayer({
           onPositionChange: ({ position }: { position: HotspotPosition }) =>
             onUpdate(hotspot.id, { position }),
         };
+        const mediaCornerProps = (hotspot.type === "image" || hotspot.type === "video") && hotspot.corners
+          ? {
+            onPositionChange: undefined,
+            onCornersChange: ({ corners }: HotspotCornersChangeEvent) => onUpdate(hotspot.id, { corners }),
+          }
+          : {};
         switch (hotspot.type) {
           case "image":
             return (
@@ -116,6 +127,7 @@ export const HotspotLayer = memo(function HotspotLayer({
                 key={hotspot.id}
                 {...renderProps(hotspot)}
                 {...point}
+                {...mediaCornerProps}
                 onError={(error) => onError(`${hotspot.id}: ${String(error)}`)}
               />
             );
@@ -152,6 +164,7 @@ export const HotspotLayer = memo(function HotspotLayer({
                 key={hotspot.id}
                 {...renderProps(hotspot)}
                 {...point}
+                {...mediaCornerProps}
                 playing={false}
                 onError={(error) => onError(`${hotspot.id}: ${String(error)}`)}
               />
@@ -182,6 +195,17 @@ export const HotspotLayer = memo(function HotspotLayer({
             );
         }
       })}
+      {selected && (selected.type === "image" || selected.type === "video") && selected.corners && !drawing ? (
+        <CornerHandles
+          key={selected.id}
+          id={selected.id}
+          corners={selected.corners}
+          onChange={(corners) => onUpdate(selected.id, { corners })}
+          onBegin={onBegin}
+          onEnd={onEnd}
+          t={t}
+        />
+      ) : null}
       {selected && "vertices" in selected && !drawing
         ? selected.vertices.map((vertex, index) => (
             <GraphicHotspot

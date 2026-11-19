@@ -120,6 +120,8 @@ Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (a
 
 ### Portable project packages
 
+Select an image or video hotspot and choose **Enable corner placement** in **Position and size**. Drag individual corners, drag the media to move it, or drag the diamond handle to rotate it. The inspector also accepts exact coordinates and a clockwise rotation amount. **Restore rectangle** restores the original placement. Each drag, rotation, or mode change can be undone. Project JSON and ZIP exports keep the four anchors.
+
 **Export project package** downloads `panorama-project.zip` containing `project.json`, per-scene `panoramas/<number>/viewer.json`, all preview/tile levels, and referenced hotspot media, tooltip images, cursor images, the floor-plan image, and spot icons under `assets/`. Both local and online resources are copied and references rewritten relative to the package. Unzip it before using Open directory; serve the extracted directory over HTTP with your existing viewer. The package does not include a player page. **Export JSON** remains configuration-only.
 
 Export uses up to four concurrent resource transfers, supports cancellation, and stops without downloading a ZIP if a resource is missing, unreadable or blocked by CORS. It does not substitute the editor's missing-tile placeholder. Packages are limited to 60,000 files and 1 GB. Embedded HTML/CSS/SVG that reference other resources or execute scripts cannot be proven self-contained and stop package export; use a document with inline resources and no runtime dependencies. Resource paths in an error identify the package entry; signed URL query parameters are not included.

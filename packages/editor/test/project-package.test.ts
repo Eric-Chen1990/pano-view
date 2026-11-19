@@ -542,8 +542,13 @@ test("shared and unused popup media are packaged once and reopen with the origin
     file("a/tiles/1/001_01.png", "left"), file("a/tiles/1/002_01.png", "right"),
     file("media/image.png", "image"), file("media/audio.mp3", "audio", "audio/mpeg"), file("media/video.mp4", "video", "video/mp4"),
   ]);
+  const corners = [
+    { yaw: -12, pitch: 7 }, { yaw: 9, pitch: 9 },
+    { yaw: 13, pitch: -7 }, { yaw: -10, pitch: -5 },
+  ] as const;
   const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [{ id: "a", source: { viewerUrl: "a/viewer.json" }, hotspots: [
-    { id: "one", type: "image", ...point, src: "media/image.png", action: { type: "popup", popupId: "shared" } },
+    { id: "one", type: "image", ...point, src: "media/image.png", corners, action: { type: "popup", popupId: "shared" } },
+    { id: "video", type: "video", ...point, src: "media/video.mp4", poster: "media/image.png", corners },
     { id: "two", type: "text", ...point, text: "Two", action: { type: "popup", popupId: "shared" } },
   ] }], popups: [
     { id: "shared", title: "Shared", blocks: [
@@ -558,6 +563,9 @@ test("shared and unused popup media are packaged once and reopen with the origin
   assertPortable(archive);
   const saved = parsePanoProject(JSON.parse(strFromU8(archive["project.json"]!)));
   assert.equal(saved.popups?.length, 2);
+  const [image, video] = saved.scenes[0]!.hotspots!;
+  assert.deepEqual(image?.type === "image" && image.corners, corners);
+  assert.deepEqual(video?.type === "video" && video.corners, corners);
   assert.equal(JSON.stringify(project), before);
   const reopened = new LocalFiles(Object.entries(archive).map(([path, bytes]) => file(path, bytes)));
   assert.deepEqual(await reopened.project(), saved);

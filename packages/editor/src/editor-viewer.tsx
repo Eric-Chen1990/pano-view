@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   PanoViewer,
+  getHotspotCornerCenter,
   PanoMapOverlay,
   PanoOverlay,
   Scenes,
@@ -33,6 +34,7 @@ import {
 } from "@ericchen1990/pano-view/data";
 import { SceneSources, projectRoot } from "./sources";
 import { LocalFiles, LOCAL_ROOT } from "./local-files";
+import type { HotspotGeometryPatch } from "./document";
 import { HotspotLayer } from "./hotspot-layer";
 import type { PanoEditorProps } from "./types";
 import type { Translate } from "./i18n";
@@ -111,7 +113,7 @@ export function EditorViewer({
   onSelect: (id: string) => void;
   onUpdate: (
     id: string,
-    patch: { position?: HotspotPosition; vertices?: HotspotPosition[] },
+    patch: HotspotGeometryPatch,
   ) => void;
   onBegin: () => void;
   onEnd: () => void;
@@ -400,7 +402,9 @@ export function EditorViewer({
                   if (item.visible === false || item.interactive === false || item.pointerEvents === "none") {
                     onError(t("Show the hotspot and enable pointer interaction to test a click.")); return;
                   }
-                  const interaction = { id: item.id, position: "position" in item ? item.position : item.vertices[0]!, source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
+                  const center = (item.type === "image" || item.type === "video") && item.corners
+                    ? getHotspotCornerCenter(item.corners) : null;
+                  const interaction = { id: item.id, position: center ?? ("position" in item ? item.position : item.vertices[0]!), source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
                   const trigger = testRequest.trigger ?? "click";
                   if (trigger === "click") runtimeContext.onClick(interaction);
                   else runtimeContext.onHoverChange(trigger === "pointerenter", interaction);
@@ -428,6 +432,7 @@ export function EditorViewer({
                     onBegin={onBegin}
                     onEnd={onEnd}
                     onError={onError}
+                    t={t}
                   />
                 )}
               />

@@ -3018,6 +3018,8 @@ handler, `onEnded`, or playback error.
 
 ## VideoHotspot
 
+Pass `corners` to `VideoHotspot` or `ImageHotspot` to pin the source top-left, top-right, bottom-right, and bottom-left to four panorama yaw/pitch positions in degrees. The anchors must form a clockwise convex quadrilateral. The texture follows those positions as the view pans and zooms. In this mode, `position`, dimensions, placement, and `rotation` describe the rectangle used when `corners` is omitted. Use `rotateHotspotCorners(corners, degrees)` to rotate all four anchors clockwise around the center. With `draggable`, apply the `corners` supplied by `onCornersChange` to move the entire hotspot. `getHotspotCorners(id)` on the viewer handle reads the displayed corners of a mounted rectangular image or video hotspot.
+
 `VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
 prop is likewise controlled: initialize it to `false` for manual playback, then toggle it from your click handler or application state. On source change or unmount, the element is paused and its texture is
 released. `playsInline` defaults to `true` and uses the same inline-playback

@@ -2602,6 +2602,8 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 
 ## VideoHotspot
 
+为 `VideoHotspot` 或 `ImageHotspot` 传入 `corners`，可将源画面的左上、右上、右下、左下固定到四个全景 yaw/pitch 角度。锚点需按顺时针顺序组成凸四边形，平移或缩放视角时仍贴在同一场景位置。省略 `corners` 时，使用 `position`、尺寸、放置方式和 `rotation` 定义矩形。调用 `rotateHotspotCorners(corners, degrees)` 可绕中心顺时针旋转四角。启用 `draggable` 后，使用 `onCornersChange` 提供的四角更新整个热点。viewer handle 的 `getHotspotCorners(id)` 可读取已挂载的矩形图片或视频热点在当前画面中的四角。
+
 `VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：手动播放时初始化为 `false`，在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `false`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
 
 ```tsx

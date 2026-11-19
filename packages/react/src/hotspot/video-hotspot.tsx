@@ -13,14 +13,13 @@ import {
   TextureLoader,
   VideoTexture,
 } from "three";
-import { HotspotAnchor } from "./hotspot-anchor";
-import { HotspotPlane } from "./hotspot-plane";
+import { HotspotMediaPlane } from "./hotspot-media-plane";
 import { usePanoMediaActivationIntent } from "../media-activation";
 import {
   applyInlineVideoPlayback,
   mountTextureVideo,
 } from "../video/inline-playback";
-import type { HotspotCommonProps } from "./types";
+import type { HotspotCommonProps, HotspotCornerProps } from "./types";
 
 export type VideoPlaybackState = "playing" | "paused" | "ended" | "blocked";
 
@@ -30,7 +29,7 @@ export type VideoHotspotErrorEvent = {
   error: unknown;
 };
 
-export type VideoHotspotProps = HotspotCommonProps & {
+export type VideoHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   ref?: Ref<PanoMediaController>;
   src: string;
   playing: boolean;
@@ -346,8 +345,6 @@ export function VideoHotspot({
   const activeTexture = resource?.ready ? resource.texture : posterTexture;
 
   return (
-    <HotspotAnchor {...anchorProps} id={id} height={height} width={width}>
-      <HotspotPlane map={activeTexture} opacity={opacity} />
-    </HotspotAnchor>
+    <HotspotMediaPlane {...anchorProps} id={id} height={height} width={width} map={activeTexture} opacity={opacity} />
   );
 }
