@@ -5,7 +5,6 @@ import {
   useContext,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
   type HTMLAttributeReferrerPolicy,
@@ -23,6 +22,8 @@ import { TextHotspot } from "./hotspot/text-hotspot";
 import { IframeHotspot } from "./hotspot/iframe-hotspot";
 import { PolygonHotspot } from "./hotspot/polygon-hotspot";
 import { PolylineHotspot } from "./hotspot/polyline-hotspot";
+import { PortalHotspot } from "./hotspot/portal-hotspot";
+import { PortalHostContext } from "./hotspot/portal-host";
 
 export type ProjectHotspotClickEvent = {
   sceneId: string;
@@ -145,6 +146,11 @@ export function ProjectHotspotSource({
   const common = { ariaLabel: hotspot.label || hotspot.id, onClick, onHoverChange };
   // Narrow each variant before passing serializable data to its existing component.
   switch (hotspot.type) {
+    case "portal": {
+      const action = hotspotAction(hotspot, "click");
+      return <PortalHotspot {...hotspotProps(hotspot)} {...common}
+        targetSceneId={action?.type === "scene" ? action.sceneId : ""} onError={onError} />;
+    }
     case "image":
       return (
         <ImageHotspot
@@ -233,6 +239,7 @@ function ProjectHotspot({
   ProjectScenesProps,
   "onHotspotClick" | "onHotspotEvent" | "onHotspotError" | "renderHotspot"
 >) {
+  const portals = useContext(PortalHostContext);
   const [playing, setPlaying] = useState(
     "playing" in hotspot ? hotspot.playing ?? false : false
   );
@@ -246,7 +253,9 @@ function ProjectHotspot({
     if (trigger !== "click" && (interaction.source !== "pointer" || ("pointerType" in interaction.nativeEvent && interaction.nativeEvent.pointerType === "touch"))) return;
     const failed = (error: unknown) => onHotspotError?.({ sceneId, hotspot, error, trigger });
     try {
-      const result = handleProjectHotspotClick(hotspot, sceneId, interaction, onHotspotClick, navigate, togglePlayback, execute, trigger, onHotspotEvent);
+      const request = hotspot.type === "portal" && trigger === "click" && portals
+        ? (id: string) => portals.enter(hotspot.id, id) : navigate;
+      const result = handleProjectHotspotClick(hotspot, sceneId, interaction, onHotspotClick, request, togglePlayback, execute, trigger, onHotspotEvent);
       if (result) void Promise.resolve(result).catch(failed);
     } catch (error) { failed(error); }
   };
@@ -298,7 +307,6 @@ export function ProjectScenes({
       ? recovery.id
       : null;
   });
-  const restoring = useRef(restoredId);
   const [selection, setSelection] = useState(() => ({
     project,
     id: restoredId ?? project.initialSceneId,
@@ -321,7 +329,7 @@ export function ProjectScenes({
     [project]
   );
   const scenes = useMemo(
-    () => project.scenes.map((entry) => entry.scene),
+    () => project.scenes.map(({ scene, initialView }) => ({ ...scene, initialView: initialView ?? scene.initialView })),
     [project]
   );
   const navigate = (id: string) => {
@@ -335,14 +343,7 @@ export function ProjectScenes({
       scenes={scenes}
       activeSceneId={currentId}
       onActiveSceneIdChange={navigate}
-      onSceneReady={(id) => {
-        const view = entries.get(id)?.initialView;
-        if (view && restoring.current !== id) {
-          controls.current?.setView(view, { immediate: true });
-        }
-        restoring.current = null;
-        onSceneReady?.(id);
-      }}
+      onSceneReady={onSceneReady}
       renderHotspots={(scene) =>
         entries
           .get(scene.id)

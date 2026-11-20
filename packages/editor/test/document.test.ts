@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   loadPanoProject,
   parsePanoProject,
+  setHotspotAction,
   type PanoProjectDefinition,
   type ProjectHotspotDefinition,
   type ViewerConfig,
@@ -25,6 +26,29 @@ const config: ViewerConfig = {
   previewFaceOrder: ["l", "f", "r", "b", "u", "d"],
 };
 const point = { position: { yaw: 10, pitch: 5 } };
+
+test("deleting a portal destination preserves the doorway for rebinding and undo", () => {
+  const source = { viewerConfig: config };
+  const portal: ProjectHotspotDefinition = {
+    id: "door", type: "portal", ...point, width: 10, height: 16,
+    events: { click: { type: "scene", sceneId: "b" } },
+  };
+  const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [
+    { id: "a", source, hotspots: [portal] }, { id: "b", source }, { id: "c", source },
+  ] };
+  const history = new DocumentHistory(project);
+  const deleted = readDocument(removeScene(project, "b"));
+  history.commit(deleted);
+  const unbound = deleted.scenes[0]!.hotspots![0]!;
+  assert.equal(unbound.type, "portal");
+  assert.deepEqual(unbound.position, portal.position);
+  assert.equal(unbound.events, undefined);
+  assert.throws(() => exportDocument(deleted), /requires a target scene/);
+  assert.deepEqual(history.undo().scenes[0]!.hotspots, [portal]);
+  const rebound = setHotspotAction(unbound, "click", { type: "scene", sceneId: "c" });
+  deleted.scenes[0]!.hotspots = [rebound];
+  assert.deepEqual(readDocument(JSON.parse(exportDocument(deleted))).scenes[0]!.hotspots, [rebound]);
+});
 const hotspots: ProjectHotspotDefinition[] = [
   {
     id: "image",

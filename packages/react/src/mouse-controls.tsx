@@ -227,7 +227,7 @@ export function MouseControls({
 
       controlsRef.current?.applyViewDelta(
         { fov: delta },
-        { source: "mouse" },
+        { source: "mouse", zoomEvent: event },
       );
     };
 

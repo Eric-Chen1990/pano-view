@@ -198,7 +198,7 @@ export function TouchControls({
             const nextFov = view.fov * (previousDistance / distance);
             controlsRef.current?.applyViewDelta(
               { fov: nextFov - view.fov },
-              { recordVelocity: true, source: "touch" },
+              { recordVelocity: true, source: "touch", zoomEvent: event },
             );
           }
         }

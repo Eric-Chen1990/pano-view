@@ -88,6 +88,8 @@ export function exportDocument(project: PanoProjectDefinition): string {
       if (hotspot.tooltipAppearance?.background) mapCursorAssets(hotspot.tooltipAppearance.background, path => { check(path, `${hotspot.id}.tooltipAppearance.background`); return path; });
       if (hotspot.type === "graphic" && hotspot.graphic.kind === "svg")
         check(hotspot.graphic.src, `${hotspot.id}.graphic.src`);
+      if (hotspot.type === "portal")
+        check(hotspot.frame?.src, `${hotspot.id}.frame.src`);
       if (typeof hotspot.tooltip === "object")
         check(hotspot.tooltip.image, `${hotspot.id}.tooltip.image`);
     }
@@ -168,6 +170,7 @@ export const hotspotKinds: HotspotKind[] = [
   "iframe",
   "polygon",
   "polyline",
+  "portal",
 ];
 
 export function createHotspot(
@@ -193,6 +196,8 @@ export function createHotspot(
   };
   const common = { ...metadata, position, width: 12, height: 12 };
   switch (kind) {
+    case "portal":
+      return { ...common, type: kind, width: 10, height: 16 };
     case "graphic":
       return {
         ...common,

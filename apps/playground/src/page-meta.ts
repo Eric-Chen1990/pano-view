@@ -64,6 +64,11 @@ export const PAGE_META = {
     description:
       "Try panorama scene transitions in React. Move between equirectangular images and multiresolution cube tiles with configurable visual effects.",
   },
+  "/portals": {
+    title: "Panorama Portals Demo | Pano View",
+    description:
+      "Look through live 360° portals to different panoramas. Click a doorway or look directly at it and zoom in to travel.",
+  },
   "/weather": {
     title: "360° Rain and Snow Demo | Pano View",
     description:

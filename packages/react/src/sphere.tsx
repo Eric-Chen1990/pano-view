@@ -59,6 +59,17 @@ function configureSpherePreview(texture: Texture, gl: RootState["gl"]) {
   configureEquirectTexture(texture, gl, false);
 }
 
+function SphereSurface({ texture, yawOffset, visible = true }: {
+  texture: Texture; yawOffset: number; visible?: boolean;
+}) {
+  return (
+    <mesh rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
+      <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
+      <PanoBasicMaterial map={texture} side={BackSide} toneMapped={false} />
+    </mesh>
+  );
+}
+
 function useEquirectTexture(
   url: string,
   gl: RootState["gl"],
@@ -114,7 +125,7 @@ function useEquirectTexture(
   return loaded?.url === url && loaded.gl === gl ? loaded.texture : null;
 }
 
-export function Sphere({
+export function SphereSource({
   src,
   previewUrl,
   yawOffset = 0,
@@ -123,21 +134,22 @@ export function Sphere({
   onError,
   onPreviewError,
   visible = true,
-}: SphereProps) {
+  previewOnly = false,
+}: SphereProps & { previewOnly?: boolean }) {
   const gl = useThree((state) => state.gl);
   const compareSide = useContext(CompareSourceSideContext);
   const resolvedPreviewUrl = useMemo(
     () => resolveUrlAgainstFile(src, previewUrl),
     [previewUrl, src],
   );
-  const texture = useEquirectTexture(src, gl, onLoad, onError);
+  const texture = useEquirectTexture(previewOnly ? "" : src, gl, onLoad, onError);
   const { texture: previewTexture, showDetail } = usePreviewTexture(
     resolvedPreviewUrl,
     configureSpherePreview,
     onPreviewError,
-    { showPreviewFirst: visible && !compareSide, discardPreview: texture !== null },
+    { showPreviewFirst: visible && !compareSide, discardPreview: texture !== null && !previewOnly },
   );
-  const showFullTexture = showDetail && texture !== null;
+  const showFullTexture = !previewOnly && showDetail && texture !== null;
   const displayTexture = showFullTexture ? texture : previewTexture;
   const readyRef = useRef(false);
   const detailReporter = useSceneDetailReporter();
@@ -168,17 +180,7 @@ export function Sphere({
     return null;
   }
 
-  return (
-    <mesh
-      rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]}
-      visible={visible}
-    >
-      <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
-      <PanoBasicMaterial
-        map={displayTexture}
-        side={BackSide}
-        toneMapped={false}
-      />
-    </mesh>
-  );
+  return <SphereSurface texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
 }
+
+export const Sphere: (props: SphereProps) => ReturnType<typeof SphereSource> = SphereSource;

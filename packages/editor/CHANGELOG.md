@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 3.2.0
+
+### Minor Changes
+
+- Add portal hotspots to the editor. Place a doorway, choose its target scene, shape, frame, and enter-on-zoom behavior, and keep the doorway when its destination scene is deleted so it can be rebound or undone.
+
 ## 3.1.1
 
 ### Patch Changes

@@ -3,9 +3,10 @@ import {
   ImageHotspot,
   Scenes,
   PanoViewer,
+  type PanoViewerHandle,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
@@ -27,7 +28,6 @@ import { SiteHeader } from "../SiteHeader";
 
 function buildSceneTransitionSnippet(preset: SceneTransitionPreset): string {
   return `import {
-  ImageHotspot,
   PanoViewer,
   Scenes,
 } from "@ericchen1990/pano-view";
@@ -43,24 +43,18 @@ const [activeSceneId, setActiveSceneId] = useState("sphere-1");
     onActiveSceneIdChange={setActiveSceneId}
     scenes={scenes}
     transition="${preset}"
-    renderHotspots={(scene) => (
-      <ImageHotspot
-        id={\`marker-\${scene.id}\`}
-        position={{ yaw: 18, pitch: 5 }}
-        src="/fixtures/hotspots/signal.svg"
-        width={6}
-        height={6}
-      />
-    )}
   />
 </PanoViewer>`;
 }
 
 export function SceneTransitionPage() {
   const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+  const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
+  const [backend, setBackend] = useState("");
+  const viewer = useRef<PanoViewerHandle>(null);
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState(
-    "Compare transition presets across sphere and cube scenes. Choose a scene and a blend.",
+    "Choose a scene to compare transition effects.",
   );
   const snippet = useMemo(() => buildSceneTransitionSnippet(preset), [preset]);
 
@@ -107,9 +101,23 @@ export function SceneTransitionPage() {
             Blend
             <BlendSelect onChange={setPreset} value={preset} />
           </div>
+          <label className={controlLabelClassName}>
+            Renderer
+            <select value={renderer} onChange={({ currentTarget }) => {
+              setBackend("");
+              setRenderer(currentTarget.value === "webgl" ? "webgl" : "auto");
+            }}>
+              <option value="auto">Auto</option>
+              <option value="webgl">WebGL</option>
+            </select>
+          </label>
+          {backend ? <output className={controlLabelClassName} aria-label="Active renderer">{backend}</output> : null}
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
+            key={renderer}
+            ref={viewer}
+            renderer={renderer}
             aria-label="Panorama scene transition demo"
             style={{ height: "min(540px, 68dvh)" }}
           >
@@ -120,6 +128,7 @@ export function SceneTransitionPage() {
               maxTextureMemoryMb={96}
               scenes={TRANSITION_SCENES}
               transition={preset}
+              onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? "")}
               onTransitionEnd={({
                 previousSceneId,
                 sceneId,
@@ -148,7 +157,7 @@ export function SceneTransitionPage() {
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="Compare transition presets across sphere and cube scenes. A marker rendered per scene makes scene-owned content visible during the transition. Completion and error callbacks update the status above."
+          blurb="Set the transition preset and update the active scene to compare effects."
           code={snippet}
           label="Scenes: transition presets"
         />

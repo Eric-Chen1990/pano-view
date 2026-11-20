@@ -2884,6 +2884,43 @@ visible WebGL focus outline.
 `ImageHotspot` calls `onLoad(texture)` and `onError(error)`. When size is
 omitted, defaults are `width={12}` and `height={8}`.
 
+## PortalHotspot
+
+Place a doorway in `Scenes.renderHotspots` or add a `type: "portal"` hotspot
+in a project. In a project, set `events.click` to
+`{ type: "scene", sceneId: "hall" }`. The destination can be a sphere,
+cubemap tile scene, or sphere tile scene.
+
+```tsx
+<PortalHotspot
+  id="door"
+  ariaLabel="Enter the hall"
+  position={{ yaw: 20, pitch: 0 }}
+  targetSceneId="hall"
+  width={10}
+  height={16}
+/>
+```
+
+The doorway follows the panorama surface. Its preview responds to panning.
+Zooming the current scene changes the size of the opening while the destination
+keeps its field of view. Detail loads for up to two visible doors. A portal arrives at the
+destination scene’s `initialView`, with yaw `0`, pitch `0`, and FOV `75`
+as defaults before applying view limits. Portal clicks use a dedicated
+animation in WebGL and WebGPU. Reduced motion, WebXR and stereo use a direct
+cut once the target is ready. A custom React `onClick` replaces the built-in
+activation. Project callbacks can cancel it with `preventDefault()`.
+Set `enterOnZoom` to enter when the visitor aims at the opening and zooms in
+with a wheel or pinch gesture. The editor also saves this option for Preview mode.
+
+Set `shape` to `"rectangle"`, `"circle"`, or `"ellipse"`. A circle uses
+`width` as its angular diameter. Set `frame={{ color: "#f5c984", thickness: 0.06 }}`
+to style the solid frame. Thickness is measured as a fraction of the shorter
+side from `0` to `0.25`. Set `frame.src` to a PNG or WebP with a transparent
+opening to use custom artwork. The image fills the outer bounds, so match the
+opening to the selected shape and frame thickness. These fields also round-trip
+through project JSON and the editor.
+
 ## GraphicHotspot
 
 `GraphicHotspot` accepts built-in `circle`, `triangle`, `diamond`, `star`,

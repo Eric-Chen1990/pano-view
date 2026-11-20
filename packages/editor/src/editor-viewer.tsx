@@ -338,7 +338,7 @@ export function EditorViewer({
     return { loaded, issues };
   }, [project, sources, local, directories, media, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
   const scenes = useMemo(
-    () => runtime.loaded.scenes.map((entry) => entry.scene),
+    () => runtime.loaded.scenes.map(({ scene, initialView }) => ({ ...scene, initialView })),
     [runtime.loaded.scenes],
   );
   const active = runtime.loaded.scenes.find(

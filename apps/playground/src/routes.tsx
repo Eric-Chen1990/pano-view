@@ -18,6 +18,7 @@ import { MapPage } from "./components/map/MapPage";
 import { ComparePage } from "./components/compare/ComparePage";
 import { PlanarComparePage } from "./components/planar-tile/PlanarComparePage";
 import { PlanarTilePage } from "./components/planar-tile/PlanarTilePage";
+import { PortalPage } from "./components/portals/PortalPage";
 
 const EditorPage = lazy(() =>
   import("./components/editor/EditorPage").then((module) => ({
@@ -121,6 +122,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Scene transitions",
     group: "scenes",
     Component: SceneTransitionPage,
+  },
+  {
+    path: "/portals",
+    navLabel: "Panorama portals",
+    group: "scenes",
+    Component: PortalPage,
   },
   {
     path: "/weather",

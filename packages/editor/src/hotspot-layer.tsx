@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { hotspotAction } from "@ericchen1990/pano-view/data";
 import {
   ImageHotspot,
   GraphicHotspot,
@@ -9,6 +10,7 @@ import {
   IframeHotspot,
   PolygonHotspot,
   PolylineHotspot,
+  PortalHotspot,
   type HotspotCornersChangeEvent,
   type HotspotPosition,
   type ProjectHotspotDefinition,
@@ -128,6 +130,13 @@ export const HotspotLayer = memo(function HotspotLayer({
           }
           : {};
         switch (hotspot.type) {
+          case "portal": {
+            const action = hotspotAction(hotspot, "click");
+            return <PortalHotspot key={hotspot.id} {...renderProps(hotspot)} {...point}
+              enterOnZoom={false}
+              targetSceneId={action?.type === "scene" ? action.sceneId : ""}
+              onError={(error) => onError(`${hotspot.id}: ${String(error)}`)} />;
+          }
           case "image":
             return (
               <ImageHotspot

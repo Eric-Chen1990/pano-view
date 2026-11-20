@@ -18,7 +18,7 @@ import { DocumentHistory } from "../src/history";
 const position = { yaw: 10, pitch: 5 };
 const noop = () => {};
 
-test("all nine creation presets have localized unique names and ready-to-use tooltips", () => {
+test("all creation presets have localized unique names and ready-to-use tooltips", () => {
   for (const kind of hotspotKinds) {
     const first = createHotspot(kind, position, "media/resource", {
       t: translator("zh-CN"),

@@ -2,7 +2,7 @@ import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities"
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture } from "three";
+import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture, type Box3 } from "three";
 import { resolveAssetUrl } from "../asset-url";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
@@ -34,6 +34,79 @@ import type {
 } from "./types";
 
 type Layer = { level: number; addresses: SphereTileAddress[] };
+type Candidate = { address: SphereTileAddress; bounds: Box3 };
+
+function collectLayerAddresses(
+  candidates: Candidate[],
+  budget: number,
+  includes: (bounds: Box3) => boolean,
+) {
+  const addresses: SphereTileAddress[] = [];
+  let bytes = 0;
+  for (const { address, bounds } of candidates) {
+    if (!includes(bounds)) continue;
+    bytes += mipmappedTextureBytes(address.width, address.height);
+    if (bytes > budget) return null;
+    addresses.push(address);
+  }
+  return { addresses, bytes };
+}
+
+export function selectSphereTileLayers({
+  candidates,
+  preferredLevel,
+  budget,
+  visibleFrustum,
+  paddedFrustum,
+  keepBase,
+}: {
+  candidates: Candidate[][];
+  preferredLevel: number;
+  budget: number;
+  visibleFrustum: Frustum;
+  paddedFrustum: Frustum;
+  keepBase: boolean;
+}): Layer[] {
+  const layers: Layer[] = [];
+  let residentBytes = 0;
+  let baseBytes = 0;
+  for (let level = 0; level <= preferredLevel; level++) {
+    const layer = collectLayerAddresses(
+      candidates[level]!,
+      budget - residentBytes,
+      (bounds) => (level === 0 && keepBase) || paddedFrustum.intersectsBox(bounds),
+    );
+    if (!layer) break;
+    if (level === 0) baseBytes = layer.bytes;
+    residentBytes += layer.bytes;
+    layers.push({ level, addresses: layer.addresses });
+  }
+
+  const base = layers[0];
+  if (!base) return layers;
+
+  // Intermediate layers can consume the budget even when the base and every
+  // visible tile at a sharper level fit together.
+  const detailBudget = budget - baseBytes;
+  for (let level = preferredLevel; level >= layers.length; level--) {
+    const target = collectLayerAddresses(
+      candidates[level]!,
+      detailBudget,
+      (bounds) => visibleFrustum.intersectsBox(bounds),
+    );
+    if (!target?.addresses.length) continue;
+    const padding = collectLayerAddresses(
+      candidates[level]!,
+      detailBudget - target.bytes,
+      (bounds) => paddedFrustum.intersectsBox(bounds) && !visibleFrustum.intersectsBox(bounds),
+    );
+    const addresses = padding
+      ? target.addresses.concat(padding.addresses)
+      : target.addresses;
+    return [base, { level, addresses }];
+  }
+  return layers;
+}
 
 export function sphereTileViewShouldRefresh(input: {
   loadModeChanged: boolean;
@@ -261,8 +334,10 @@ function SphereTileSource({
   const scratch = useMemo(
     () => ({
       camera: new PerspectiveCamera(),
-      frustum: new Frustum(),
+      visibleFrustum: new Frustum(),
+      paddedFrustum: new Frustum(),
       matrix: new Matrix4(),
+      projection: new Matrix4(),
       quaternion: camera.quaternion.clone(),
       fov: NaN,
       width: 0,
@@ -290,6 +365,7 @@ function SphereTileSource({
     const loadModeChanged = scratch.loadMode !== loadMode;
     const viewUnchanged =
       scratch.fov === camera.fov &&
+      scratch.projection.equals(camera.projectionMatrix) &&
       scratch.width === size.width &&
       scratch.height === size.height &&
       scratch.dpr === dpr &&
@@ -305,6 +381,7 @@ function SphereTileSource({
       const reset = managerChanged || loadModeChanged;
       scratch.time = now;
       scratch.fov = camera.fov;
+      scratch.projection.copy(camera.projectionMatrix);
       scratch.width = size.width;
       scratch.height = size.height;
       scratch.dpr = dpr;
@@ -312,17 +389,24 @@ function SphereTileSource({
       scratch.manager = manager;
       scratch.loadMode = loadMode;
       scratch.camera.copy(camera, false);
-      scratch.camera.fov = Math.min(179, camera.fov + 8);
-      scratch.camera.updateProjectionMatrix();
       scratch.camera.updateMatrixWorld();
       scratch.matrix.multiplyMatrices(
         scratch.camera.projectionMatrix,
         scratch.camera.matrixWorldInverse,
       );
-      scratch.frustum.setFromProjectionMatrix(
+      scratch.visibleFrustum.setFromProjectionMatrix(
         scratch.matrix, scratch.camera.coordinateSystem, scratch.camera.reversedDepth,
       );
-      let level =
+      scratch.camera.fov = Math.min(179, camera.fov + 8);
+      scratch.camera.updateProjectionMatrix();
+      scratch.matrix.multiplyMatrices(
+        scratch.camera.projectionMatrix,
+        scratch.camera.matrixWorldInverse,
+      );
+      scratch.paddedFrustum.setFromProjectionMatrix(
+        scratch.matrix, scratch.camera.coordinateSystem, scratch.camera.reversedDepth,
+      );
+      const preferredLevel =
         loadMode === "preview"
           ? -1
           : loadMode === "base"
@@ -334,28 +418,18 @@ function SphereTileSource({
                 camera.fov,
                 size.width,
               );
-      const next: Layer[] = [];
-      let residentBytes = 0;
-      for (let index = 0; index <= level; index++) {
-        // The incoming camera can jump at handoff. Retain the complete base until
-        // the preview supplies coverage outside the original frustum.
-        const keepBase = index === 0 && handedOffWithBase.current && !preview;
-        const addresses = candidates[index]!.filter(({ bounds }) =>
-          keepBase || scratch.frustum.intersectsBox(bounds),
-        ).map(({ address }) => address);
-        const bytes = addresses.reduce(
-          (total, address) =>
-            total + mipmappedTextureBytes(address.width, address.height),
-          0,
-        );
-        if (residentBytes + bytes > budget) {
-          level = index - 1;
-          break;
-        }
-        residentBytes += bytes;
-        next.push({ level: index, addresses });
-      }
-      const targetLayer = loadMode === "full" ? next[next.length - 1] : undefined;
+      const next = selectSphereTileLayers({
+        candidates,
+        preferredLevel,
+        budget,
+        visibleFrustum: scratch.visibleFrustum,
+        paddedFrustum: scratch.paddedFrustum,
+        // Keep complete coverage after a preview-free scene handoff.
+        keepBase: handedOffWithBase.current && !preview,
+      });
+      const selectedLayer = next[next.length - 1];
+      const level = selectedLayer?.level ?? -1;
+      const targetLayer = loadMode === "full" ? selectedLayer : undefined;
       targetKeysRef.current = targetLayer
         ? targetLayer.addresses.map(
             (address) => `${resolveUrl(address)}\u0000${sphereTileKey(address)}`,

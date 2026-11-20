@@ -413,4 +413,5 @@ const hotspotHelp: Record<HotspotKind, string> = {
   iframe: "An embedded web page",
   polygon: "Draw a closed area with three or more vertices",
   polyline: "Draw a line with two or more vertices",
+  portal: "Place a doorway to another panorama",
 };

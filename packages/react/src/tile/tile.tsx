@@ -55,6 +55,7 @@ export function decideTileLodUpdate(input: {
   lastUpdateAt: number;
   visibilityDirty: boolean;
   viewportChanged: boolean;
+  projectionChanged?: boolean;
   rotationDelta: number;
   fovDelta: number;
 }): boolean {
@@ -66,6 +67,7 @@ export function decideTileLodUpdate(input: {
     input.visibilityDirty ||
     loadModeChanged ||
     input.viewportChanged ||
+    input.projectionChanged ||
     input.rotationDelta > VIEW_CHANGE_EPSILON ||
     input.fovDelta > VIEW_CHANGE_EPSILON;
   if (!viewChanged) {
@@ -534,6 +536,7 @@ export function Tile({
   const visibilityDirtyRef = useRef(true);
   const lastVisibilityQuaternionRef = useRef(camera.quaternion.clone());
   const lastVisibilityFovRef = useRef(Number.NaN);
+  const lastVisibilityProjectionRef = useRef(new Matrix4());
   const lastViewportRef = useRef({ width: 0, height: 0, dpr: 0 });
   const frustumRef = useRef(new Frustum());
   const projectionMatrixRef = useRef(new Matrix4());
@@ -604,6 +607,7 @@ export function Tile({
       lastUpdateAt: lastUpdateAtRef.current,
       visibilityDirty: visibilityDirtyRef.current,
       viewportChanged,
+      projectionChanged: !lastVisibilityProjectionRef.current.equals(camera.projectionMatrix),
       rotationDelta,
       fovDelta,
     });
@@ -652,6 +656,7 @@ export function Tile({
       visibilityDirtyRef.current = false;
       lastVisibilityQuaternionRef.current.copy(camera.quaternion);
       lastVisibilityFovRef.current = camera.fov;
+      lastVisibilityProjectionRef.current.copy(camera.projectionMatrix);
       lastViewportRef.current = {
         width: size.width,
         height: size.height,

@@ -1,6 +1,7 @@
 export type SceneRuntimePhase =
   | "idle"
   | "preloading"
+  | "enteringPortal"
   | "capturing"
   | "recapturing"
   | "awaitingDetail"

@@ -4,7 +4,8 @@ import { PLAYGROUND_ROUTES } from "../routes";
 const related: Partial<Record<PlaygroundPath, readonly PlaygroundPath[]>> = {
   "/basics": ["/controls", "/hotspots", "/project"],
   "/controls": ["/basics", "/hotspots", "/webvr"],
-  "/scene-transitions": ["/background-audio", "/scene-menu", "/project"],
+  "/scene-transitions": ["/portals", "/scene-menu", "/project"],
+  "/portals": ["/scene-transitions", "/hotspots", "/editor"],
   "/scene-menu": ["/scene-transitions", "/map", "/vr-scene-menu"],
   "/map": ["/project", "/scene-menu", "/editor"],
   "/hotspots": ["/controls", "/overlays", "/editor"],

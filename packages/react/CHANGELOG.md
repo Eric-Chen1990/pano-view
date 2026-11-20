@@ -1,5 +1,13 @@
 # @ericchen1990/pano-view
 
+## 5.11.0
+
+### Minor Changes
+
+- Add `PortalHotspot` for a doorway into another panorama. The opening follows the surface, previews the destination while panning, and can be a rectangle, circle, or ellipse with a solid or image frame. Enter by clicking, or by aiming and zooming when `enterOnZoom` is set. In a project, store the doorway as `type: "portal"` and point `events.click` at another scene.
+
+  Keep the tiled sphere's base layer, then spend the remaining texture budget on the sharpest visible level instead of filling it with intermediate layers. Refresh tile detail when the camera projection changes.
+
 ## 5.10.0
 
 ### Minor Changes
