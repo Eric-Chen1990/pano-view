@@ -35,8 +35,9 @@ const STONE_PORTAL = {
   position: { yaw: -10, pitch: -7 },
   width: 25,
   height: 37,
+  scale: 1.5,
   shape: "ellipse",
-  frame: { src: "/fixtures/hotspots/medieval-stone-portal-v1.webp", thickness: 0.14 },
+  frame: { src: "/fixtures/hotspots/medieval-stone-portal-v2.webp", thickness: 0.14 },
 } as const;
 
 function buildSceneTransitionSnippet(preset: SceneTransitionPreset): string {
@@ -65,6 +66,7 @@ const [activeSceneId, setActiveSceneId] = useState("sphere-1");
           targetSceneId="tile-3"
           width={${STONE_PORTAL.width}}
           height={${STONE_PORTAL.height}}
+          scale={${STONE_PORTAL.scale}}
           shape="${STONE_PORTAL.shape}"
           frame={{ src: "${STONE_PORTAL.frame.src}", thickness: ${STONE_PORTAL.frame.thickness} }}
         />

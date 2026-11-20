@@ -75,6 +75,9 @@ test("project portal uses a scene action and rejects invalid destinations on exp
   });
   const parsed = parsePanoProject(project("b"));
   assert.deepEqual(parsePanoProject(JSON.parse(JSON.stringify(parsed))), parsed);
+  const withOldGlow = project("b");
+  Object.assign(withOldGlow.scenes[0]!.hotspots![0]!.frame, { glow: { color: "#ffc37b" } });
+  assert.deepEqual(parsePanoProject(withOldGlow), parsed);
   const resolved = resolveProjectHotspotAssets(parsed.scenes[0]!.hotspots![0]!, "https://example.com/rooms/", "a");
   assert.equal(resolved.type === "portal" && resolved.frame?.src, "https://example.com/rooms/door.webp");
   assert.equal(parsePanoProject(project(), { draft: true }).scenes[0]!.hotspots![0]!.type, "portal");
