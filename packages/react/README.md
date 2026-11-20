@@ -27,6 +27,8 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoCompare](#panocompare)
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
+- [PanoWeather](#panoweather)
+- [PanoSun](#panosun)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -2048,6 +2050,77 @@ Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enab
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
+
+## PanoWeather
+
+Mount `PanoWeather` inside `PanoViewer` alongside `Sphere`, `Tile`, `SphereTile`, `PanoVideo`, or `Scenes`. It renders falling particles around the viewer in world space on both WebGPU and WebGL. Mobile stereo and WebXR share the same particle field between eyes.
+
+```tsx
+import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
+
+<PanoViewer style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+  <PanoWeather
+    type="snow"
+    preset="crystal"
+    intensity={0.6}
+    wind={[0.2, 0]}
+    sizeRange={[0.15, 0.65]}
+    groundY={-8}
+  />
+</PanoViewer>
+```
+
+| `type` | `preset` | Appearance |
+| --- | --- | --- |
+| `rain` | `drizzle` | Short, fine, faint streaks |
+| `rain` | `steady` (default) | Moderate rain with varied streak lengths |
+| `rain` | `downpour` | Faster, thicker, denser streaks |
+| `snow` | `powder` | Small, soft specks with light drift |
+| `snow` | `crystal` (default) | Slowly spinning six-branched flakes |
+| `snow` | `fluffy` | Large, loose clusters with a slower fall and wider sway |
+| `snow` | `star` | Broad, six-pointed ice crystals with faceted tips |
+| `snow` | `fern` | Large flakes with feathery branches and fine offshoots |
+| `snow` | `needles` | Small, tumbling clusters of thin ice needles |
+
+The optional `intensity` (default `0.6`) controls density within the selected preset, from `0` to `1`. Density rises more quickly near full intensity, leaving room for light precipitation at the bottom of the range. The optional `wind` tuple defaults to `[0, 0]` and controls drift along the viewer's world X and Z axes. Each axis accepts `-1` to `1`. Finite numbers outside these ranges clamp to the nearest endpoint. Non-finite values and unrecognized presets use their defaults. Import `PANO_RAIN_PRESETS` or `PANO_SNOW_PRESETS` to build a preset picker.
+
+Snow accepts an optional `sizeRange={[min, max]}` for the flake size in Three.js world units. Sizes clamp to `0.02–2`, reversed bounds are sorted, and equal bounds give a single size. By default each preset uses its own size range. Set `groundY` to make flakes fade out as they reach a horizontal plane in the viewer's world coordinates. It accepts `-100–0`, where `0` is the panorama center height and negative values are below it. Omit `groundY` to use the default particle volume. For example, `groundY={-8}` places the cutoff eight world units below the panorama center.
+
+Set `enabled={false}` or `intensity={0}` to turn off the effect. The component also honors the system's reduced-motion preference. For tours, update the component props from `Scenes.onSceneReady`. The outgoing scene snapshot includes its current weather, and the newly active scene uses the updated props. The particles cover the full panorama, so enable them on scenes where precipitation should be visible.
+
+Try all nine presets in the [weather Playground](https://pano-view-playground.vercel.app/weather).
+
+## PanoSun
+
+Place `PanoSun` beside a `Sphere`, `Tile`, `SphereTile`, `PanoVideo`, or `Scenes` inside `PanoViewer`. The disc, glow, and rays stay fixed to a panorama direction on WebGPU and WebGL. The lens flare follows the camera in the standard view and fades as the sun leaves the frame. Stereo modes show the three sky layers.
+
+```tsx
+import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+// Add a sun to the sky.
+<PanoViewer style={{ height: 480 }}>
+  <Sphere src="/outdoors.webp" />
+  <PanoSun position={{ yaw: 140, pitch: 55 }} angularSize={0.55}
+    glowAngularSize={22} raysAngularSize={14} />
+</PanoViewer>
+
+// Enhance an existing sun using its photographed disc.
+<PanoSun position={{ yaw: -81, pitch: 63 }} disc={0}
+  glowAngularSize={26} glow={0.3} />
+```
+
+| Prop | Default | Meaning |
+| --- | --- | --- |
+| `position` | Required | Panorama `{ yaw, pitch }` in degrees, using hotspot coordinates |
+| `angularSize` | `1.2` | Disc diameter in degrees, from `0.2` to `6` |
+| `glowAngularSize` | `angularSize × 18`, capped at `42` | Glow diameter in degrees, from `1` to `60` |
+| `raysAngularSize` | `angularSize × 13`, capped at `34` | Ray span in degrees, from `1` to `50` |
+| `disc`, `glow`, `rays`, `flare` | `1`, `0.55`, `0.18`, `0.22` | Individual layer strengths, from `0` to `1` |
+| `enabled`, `intensity` | `true`, `1` | Master switch and strength from `0` to `1` |
+| `color` | `"#fff4de"` | Hex tint for the glow, rays, and flare |
+
+In the [sunlight Playground](https://pano-view-playground.vercel.app/sun), choose **Edit sun** to zoom in. Click the image or drag the center marker to align the sun, then adjust **Disc size** until the outline fits and select **Done**. Use **Preview light** to compare the effect with the photo, then copy the generated props. With an overexposed photo, align the center and set the glow width independently. For a tour, update the sun props in `Scenes.onSceneReady`. Use `enabled` or `intensity` to control visibility when the photographed sky contains occluders. Shadows and reflections come from the source panorama.
 
 ## BackgroundAudio
 

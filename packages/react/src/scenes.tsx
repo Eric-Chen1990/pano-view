@@ -480,6 +480,23 @@ function ScenesController({
     }
     if (
       phaseRef.current === "preloading" &&
+      liveScene?.id === requested.id &&
+      readySceneRef.current === liveScene &&
+      pendingSlot !== null
+    ) {
+      requestedSceneIdRef.current = requested.id;
+      clearDetailWait(true);
+      setSlots((current) => pendingSlot === 0 ? [null, current[1]] : [current[0], null]);
+      setSnapshot(null);
+      snapshot?.dispose();
+      setPendingSlot(null);
+      setActiveSlot(liveSlotRef.current);
+      setPhase("idle");
+      releaseInteraction();
+      return;
+    }
+    if (
+      phaseRef.current === "preloading" &&
       pendingSlot !== null &&
       slotsRef.current[pendingSlot]?.id === requested.id
     ) {
@@ -502,7 +519,7 @@ function ScenesController({
       return;
     }
     startPreload(requested);
-  }, [activeSceneId, clearDetailWait, pendingSlot, reportError, sceneMap, startPreload]);
+  }, [activeSceneId, clearDetailWait, pendingSlot, releaseInteraction, reportError, sceneMap, snapshot, startPreload]);
 
   const notifySceneReady = useCallback((scene: Scene | null) => {
     if (!scene || readySceneRef.current === scene) return;
@@ -520,15 +537,20 @@ function ScenesController({
       notifySceneReady(slotsRef.current[slot]);
       return;
     }
-    if (slot !== pendingSlot || phaseRef.current !== "preloading") {
+    if (
+      slot !== pendingSlot ||
+      phaseRef.current !== "preloading" ||
+      slotsRef.current[slot]?.id !== activeSceneId
+    ) {
       return;
     }
     if (transition.preset === "none" && waitForDetailMsRef.current === 0) {
-      const previousScene = slotsRef.current[liveSlotRef.current];
+      const previousSlot = liveSlotRef.current;
+      const previousScene = slotsRef.current[previousSlot];
       const nextScene = slotsRef.current[slot];
       setSlots((current) => {
         const next: [Scene | null, Scene | null] = [...current] as [Scene | null, Scene | null];
-        next[liveSlotRef.current] = null;
+        next[previousSlot] = null;
         return next;
       });
       setLiveSlot(slot);
@@ -550,7 +572,7 @@ function ScenesController({
     captureReasonRef.current = "start";
     setPhase("capturing");
     setCaptureRequestId((current) => current + 1);
-  }, [controlsRef, notifySceneReady, onTransitionEnd, pendingSlot, transition.preset]);
+  }, [activeSceneId, controlsRef, notifySceneReady, onTransitionEnd, pendingSlot, transition.preset]);
 
   const finishTransition = useCallback(() => {
     const nextSlot = pendingSlot;

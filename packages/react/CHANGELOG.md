@@ -1,5 +1,15 @@
 # @ericchen1990/pano-view
 
+## 5.10.0
+
+### Minor Changes
+
+- Add `PanoWeather` for rain and snow around the viewer on WebGPU and WebGL. Choose rain presets `drizzle`, `steady`, and `downpour`, or snow presets `powder`, `crystal`, `fluffy`, `star`, `fern`, and `needles`. Control density with `intensity`, drift with `wind`, snowflake size with `sizeRange`, and an optional fade plane with `groundY`.
+
+  Add `PanoSun` for placing a sun in a panorama or enhancing a photographed sun. Size the disc, glow, and rays independently, and add an optional lens flare that follows the camera in the standard view.
+
+  Show a panorama preview before the full image or tiles, and keep that preview until the detailed texture is ready. During a scene change, wait for the incoming tiled sphere's base level to cover the view before replacing the previous panorama. Cancel a scene preload that targets the panorama already on screen.
+
 ## 5.9.0
 
 ### Minor Changes

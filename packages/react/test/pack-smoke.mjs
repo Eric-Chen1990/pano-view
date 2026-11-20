@@ -30,6 +30,7 @@ try {
   assert.ok(!main.includes("@radix-ui/react-dialog"), "Core must not load Dialog code");
   for (const entry of [main, await readFile(join(destination, "dist/index.cjs"), "utf8")]) {
     assert.match(entry, /import\(["']three\/webgpu["']\)/, "WebGPU must load only when requested");
+    assert.match(entry, /\bPanoSun\b/, "PanoSun must be exported from the core package");
   }
   for (const extension of ["mjs", "cjs"]) {
     const ui = await readFile(join(destination, `dist/ui.${extension}`), "utf8");
@@ -70,7 +71,7 @@ if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrec
   run(process.execPath, ["consumer.mjs"]);
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type PanoViewLimits,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
-import type {ProjectScenesProps} from "@ericchen1990/pano-view";
+import type {PanoSunProps,ProjectScenesProps} from "@ericchen1990/pano-view";
 import type {PanoDialogProps,PanoDialogContentProps,ProjectPopupDialogProps} from "@ericchen1990/pano-view/ui";
 import type {PanoMediaController,PanoControlAction,PanoSpatialControlsProps,PanoOverlayRenderContext,PanoViewerProps,PanoViewerHandle,PanoRendererBackend} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
@@ -79,6 +80,7 @@ const action:PanoControlAction={id:"custom",label:"Custom",update:seconds=>{void
 const spatial:PanoSpatialControlsProps={children:null,position:{yaw:0,pitch:-20}};
 void [action,spatial];
 const viewer:PanoViewerProps={viewLimits:limits,renderer:"auto"};
+const sun:PanoSunProps={position:{yaw:140,pitch:55},angularSize:0.55,glowAngularSize:22,raysAngularSize:14}; void sun;
 declare const handle:PanoViewerHandle;
 const backend:PanoRendererBackend|null=handle.getRendererBackend(); void backend;
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
