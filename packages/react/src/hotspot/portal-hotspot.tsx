@@ -133,9 +133,21 @@ export function PortalHotspot({
         <meshBasicMaterial ref={placeholder} color="#172b32" side={DoubleSide} toneMapped={false} />
       </mesh>
       {frameImage ? (
-        <mesh key="frame-image" position-z={0.01} raycast={() => {}}>
+        <mesh key="frame-image" raycast={() => {}}>
           <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial map={frameImage} transparent alphaTest={0.01} depthWrite={false} side={DoubleSide} toneMapped={false} />
+          {/* The image intentionally overlaps the coplanar aperture. Bias its
+              depth so the two surfaces stay ordered at panorama distances. */}
+          <meshBasicMaterial
+            map={frameImage}
+            transparent
+            alphaTest={0.01}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-4}
+            side={DoubleSide}
+            toneMapped={false}
+          />
         </mesh>
       ) : geometry.hasBorder ? (
         <mesh key="frame-solid" geometry={geometry.frame} raycast={() => {}}>

@@ -31,6 +31,14 @@ const PORTAL_TARGETS: Record<string, string> = {
   "sphere-1": "tile-3", "tile-3": "sphere-tiles", "sphere-tiles": "sphere-1",
 };
 
+const STONE_PORTAL = {
+  position: { yaw: -10, pitch: -7 },
+  width: 25,
+  height: 37,
+  shape: "ellipse",
+  frame: { src: "/fixtures/hotspots/medieval-stone-portal-v1.webp", thickness: 0.14 },
+} as const;
+
 function buildSceneTransitionSnippet(preset: SceneTransitionPreset): string {
   return `import {
   PortalHotspot,
@@ -53,8 +61,12 @@ const [activeSceneId, setActiveSceneId] = useState("sphere-1");
       scene.id === "sphere-1" ? (
         <PortalHotspot
           id="door"
-          position={{ yaw: 0, pitch: 0 }}
+          position={{ yaw: ${STONE_PORTAL.position.yaw}, pitch: ${STONE_PORTAL.position.pitch} }}
           targetSceneId="tile-3"
+          width={${STONE_PORTAL.width}}
+          height={${STONE_PORTAL.height}}
+          shape="${STONE_PORTAL.shape}"
+          frame={{ src: "${STONE_PORTAL.frame.src}", thickness: ${STONE_PORTAL.frame.thickness} }}
         />
       ) : null
     )}
@@ -69,7 +81,7 @@ export function SceneTransitionPage() {
   const viewer = useRef<PanoViewerHandle>(null);
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState(
-    "Compare transition presets across sphere and cube scenes. Choose a scene and a blend.",
+    "Enter the stone portal or choose a scene to compare transition effects.",
   );
   const snippet = useMemo(() => buildSceneTransitionSnippet(preset), [preset]);
 
@@ -160,10 +172,15 @@ export function SceneTransitionPage() {
               }}
               renderHotspots={(scene) => PORTAL_TARGETS[scene.id] ? (
                 <>
-                  <PortalHotspot id={`portal-${scene.id}`} position={{ yaw: scene.initialView?.yaw ?? 0, pitch: 0 }}
+                  <PortalHotspot id={`portal-${scene.id}`}
                     ariaLabel={`Enter ${PORTAL_TARGETS[scene.id]}`}
-                    shape={scene.id === "tile-3" ? "circle" : "rectangle"}
-                    targetSceneId={PORTAL_TARGETS[scene.id]} width={20} height={32} />
+                    targetSceneId={PORTAL_TARGETS[scene.id]}
+                    {...(scene.id === "sphere-1" ? STONE_PORTAL : {
+                      position: { yaw: scene.initialView?.yaw ?? 0, pitch: 0 },
+                      shape: scene.id === "tile-3" ? "circle" : "rectangle",
+                      width: 20,
+                      height: 32,
+                    })} />
                   {scene.id === "tile-3" ? <PortalHotspot id="portal-return"
                     position={{ yaw: 25, pitch: 0 }} ariaLabel="Return to sphere-1"
                     targetSceneId="sphere-1" width={15} height={25} shape="ellipse"
