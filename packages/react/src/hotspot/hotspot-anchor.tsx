@@ -1,9 +1,8 @@
 import { aimComparePointer, CompareHostContext, type PanoCompareSide } from "../compare/view";
 import { pointerInput, pointerStick } from "../webvr/input";
-import { dispatchGazeHotspotClick } from "../webvr/gaze-target";
+import { dispatchGazeHotspotClick, GAZE_POINTER_ID, isGazeHotspotClick } from "../webvr/gaze-target";
 import { hotspotScaleMode, tooltipScaleMode as resolveTooltipScaleMode } from "../../../../shared/hotspot-rendering";
-import { WebVRRuntimeContext } from "../webvr/host";
-import { isGazeHotspotClick } from "../webvr/gaze-target";
+import { getWebVRHotspotView, WebVRRuntimeContext } from "../webvr/host";
 import { SpatialHostContext } from "../spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -59,7 +58,7 @@ import {
   resolveHotspotTooltipOffset,
 } from "./hotspot-tooltip";
 import { HotspotTargetRegistryContext } from "./target-registry";
-import { applyHotspotTransform, selectionFrameScale } from "./transform";
+import { applyHotspotTransform, resolveFloatingHotspotDistance, selectionFrameScale } from "./transform";
 import { HotspotStrokeLine, type HotspotStrokePoint } from "./hotspot-stroke-line";
 import {
   acceptsHotspotPointerEvents,
@@ -72,7 +71,6 @@ import {
   type HotspotTooltipTrigger,
 } from "./types";
 
-const DEFAULT_FLOATING_DISTANCE = 10;
 const PANORAMA_RADIUS = DEFAULT_PANORAMA_RADIUS;
 // Keep a stable gap from the shell; a sub-unit gap z-fights at radius 1000.
 const PANORAMA_SURFACE_INSET = 4;
@@ -164,22 +162,6 @@ function angularSizeToWorldSize(size: number, radius: number): number {
 
 function resolveScale(scale: number | undefined): number {
   return Number.isFinite(scale) && scale! > 0 ? scale! : 1;
-}
-
-function resolveDistance(
-  placement: "surface" | "floating",
-  distance: number | undefined,
-  width: number,
-  height: number,
-): number {
-  const maximumDistance = maximumHotspotDistance(width, height);
-  if (placement === "surface") {
-    return maximumDistance;
-  }
-  if (!Number.isFinite(distance)) {
-    return DEFAULT_FLOATING_DISTANCE;
-  }
-  return MathUtils.clamp(Math.abs(distance!), 0.1, maximumDistance);
 }
 
 function maximumHotspotDistance(width: number, height: number): number {
@@ -352,6 +334,9 @@ function projectLocalPointToScreen(
   viewport: ViewportSize,
 ): { x: number; y: number } | null {
   TOOLTIP_WORLD_CORNER.copy(localPoint).applyMatrix4(group.matrixWorld);
+  if (TOOLTIP_PROJECTED.copy(TOOLTIP_WORLD_CORNER).applyMatrix4(camera.matrixWorldInverse).z >= 0) {
+    return null;
+  }
   TOOLTIP_PROJECTED.copy(TOOLTIP_WORLD_CORNER).project(camera);
   if (TOOLTIP_PROJECTED.z > 1) {
     return null;
@@ -483,13 +468,10 @@ function updateTooltipAnchor(
   useAngularScale: boolean,
   camera: Camera,
   viewport: ViewportSize,
-  worldAnchored = false,
 ) {
   group.updateMatrixWorld(true);
   const bounds = resolveTooltipLocalBounds(group, anchor, useAngularScale);
   if (
-    // A VR tooltip stays on the hotspot's local edge as the head turns.
-    !worldAnchored &&
     bounds &&
     setTooltipAnchorFromScreenBounds(
       anchor,
@@ -582,6 +564,8 @@ export function HotspotAnchor({
 }: HotspotAnchorProps) {
   const spatialHost = useContext(SpatialHostContext);
   const webVRRuntime = useContext(WebVRRuntimeContext);
+  const vrMode = webVRRuntime?.mode;
+  const inVR = Boolean(vrMode);
   const controlsRef = useContext(PanoramaViewContext);
   const hotspotTargetRegistry = useContext(HotspotTargetRegistryContext);
   const eventBus = useContext(PanoEventBusContext);
@@ -638,12 +622,11 @@ export function HotspotAnchor({
   const resolvedScale = resolveScale(scale);
   const scaledWidth = width * resolvedScale;
   const scaledHeight = height * resolvedScale;
-  const resolvedDistance = resolveDistance(
-    placement,
-    distance,
-    scaledWidth,
-    scaledHeight,
-  );
+  const floatingBillboard = orientation === "billboard" && placement === "floating" && useAngularScale;
+  const maximumDistance = maximumHotspotDistance(scaledWidth, scaledHeight);
+  const resolvedDistance = placement === "surface"
+    ? maximumDistance
+    : resolveFloatingHotspotDistance(distance, maximumDistance, inVR && floatingBillboard);
   const worldPosition = useMemo(
     () => panoPositionToVector3(normalizedPosition, resolvedDistance),
     [normalizedPosition.pitch, normalizedPosition.yaw, resolvedDistance],
@@ -661,6 +644,7 @@ export function HotspotAnchor({
     return geometry;
   }, []);
   const eventHovered = useRef(false);
+  const hoverPointer = useRef<number | null>(null);
   useEffect(() => { if (!visible || !interactive || pointerEvents === "none") eventHovered.current = false; }, [visible, interactive, pointerEvents]);
   const acceptsPointer = acceptsHotspotPointerEvents(interactive, pointerEvents);
   const canActivateFromKeyboard = Boolean(
@@ -686,7 +670,17 @@ export function HotspotAnchor({
   const tooltipOpen =
     visible &&
     tooltipContent !== null &&
-    isTooltipOpen(tooltipTrigger, hovered, focused, pinned);
+    isTooltipOpen(tooltipTrigger, hovered, focused && !inVR, pinned);
+
+  useLayoutEffect(() => {
+    const clearHover = () => {
+      hoverPointer.current = null;
+      eventHovered.current = false;
+      setHovered(false);
+    };
+    clearHover();
+    if (inVR) return spatialHost?.input.onCancel(clearHover);
+  }, [vrMode, inVR, spatialHost]);
   const cursorClaimId = hotspotCursorClaimId(id);
 
   useEffect(
@@ -764,7 +758,7 @@ export function HotspotAnchor({
 
   useLayoutEffect(() => {
     const group = groupRef.current;
-    if (!group) {
+    if (!group || inVR) {
       return;
     }
     applyHotspotTransform(
@@ -789,11 +783,12 @@ export function HotspotAnchor({
         useAngularScale,
         camera,
         size,
-        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
   }, [
     camera,
+    floatingBillboard,
+    inVR,
     orientation,
     referenceFov,
     resolvedDistance,
@@ -815,9 +810,15 @@ export function HotspotAnchor({
     if (!group) {
       return;
     }
+    const vrView = webVRRuntime && getWebVRHotspotView(webVRRuntime, gl.xr.isPresenting);
+    const presenting = inVR || gl.xr.isPresenting || Boolean(vrView);
+    const readyView = vrView?.projectionScaleY ? vrView : null;
+    group.visible = visible && (!presenting || !floatingBillboard || Boolean(readyView));
+    if (presenting && !readyView) return;
+    const view = readyView?.camera ?? state.camera;
     applyHotspotTransform(
       group,
-      state.camera,
+      view,
       orientation,
       surfaceQuaternion,
       rotation,
@@ -827,6 +828,7 @@ export function HotspotAnchor({
       worldWidth,
       worldHeight,
       resolvedDistance,
+      floatingBillboard ? readyView?.projectionScaleY ?? undefined : undefined,
     );
     placeSelectionFrame(
       selectionFrameRef.current,
@@ -840,12 +842,12 @@ export function HotspotAnchor({
         group,
         tooltipPlacement,
         useAngularScale,
-        pane?.camera ?? state.camera,
+        readyView ? view : pane?.camera ?? view,
         pane?.rect ?? state.size,
-        Boolean(webVRRuntime?.host.snapshot.mode),
       );
     }
-  }, -1);
+    // Native XR pointers update at -50. For split-screen, stereo cameras update at -0.75.
+  }, vrMode === "webxr" ? -75 : -0.5);
 
   const stopPointerEvent = (event: ThreeEvent<MouseEvent | PointerEvent>) => {
     event.stopPropagation();
@@ -935,7 +937,7 @@ export function HotspotAnchor({
       position={worldPosition}
       renderOrder={renderOrder}
       scale={[worldWidth, worldHeight, 1]}
-      visible={visible}
+      visible={visible && !(floatingBillboard && inVR)}
       onClick={acceptsPointer ? (event) => {
         if (spatialHost?.mode && !isGazeHotspotClick(event.nativeEvent)) {
           if (!spatialHost.input.accept(pointerInput(event), "click")) { event.stopPropagation(); return; }
@@ -1029,12 +1031,14 @@ export function HotspotAnchor({
       onPointerOut={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
           if (!visible || event.nativeEvent.pointerType === "touch" || !eventHovered.current) return;
+          if (inVR && hoverPointer.current !== event.nativeEvent.pointerId) return;
           const inside = event.intersections.some(({ object }) => {
             for (let node: typeof object | null = object; node; node = node.parent) if (node === groupRef.current) return true;
             return false;
           });
           if (inside) return;
           eventHovered.current = false;
+          hoverPointer.current = null;
           setHovered(false);
           onHoverChange?.(
             false,
@@ -1044,7 +1048,16 @@ export function HotspotAnchor({
       } : undefined}
       onPointerOver={acceptsPointer ? (event) => {
         if (!dragStateRef.current) {
-          if (!visible || event.nativeEvent.pointerType === "touch" || eventHovered.current) return;
+          if (!visible || !groupRef.current?.visible || event.nativeEvent.pointerType === "touch") return;
+          if (inVR && spatialHost) {
+            const inputMode = spatialHost.input.getSnapshot().mode;
+            if (event.nativeEvent.pointerId === GAZE_POINTER_ID) {
+              if (inputMode !== "gaze") return;
+            } else if (inputMode !== "pointer" ||
+              !spatialHost.input.accept(pointerInput(event), "hover", !!pointerStick(pointerInput(event)))) return;
+          }
+          if (eventHovered.current) return;
+          hoverPointer.current = event.nativeEvent.pointerId;
           eventHovered.current = true;
           setHovered(true);
           onHoverChange?.(

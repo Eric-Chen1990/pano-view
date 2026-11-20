@@ -249,13 +249,14 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       }
       modeRef.current = nextMode;
       setMode(nextMode);
+      updateWebVRHost(host, { mode: nextMode });
       if (nextMode === "fake") {
         controlsRef.current?.setGyroActive(true);
       }
       eventBus.emit("vrenter", { mode: nextMode });
       callbacksRef.current.onEnterVR?.(nextMode);
     },
-    [controlsRef, eventBus],
+    [controlsRef, eventBus, host],
   );
 
   const deactivate = useCallback(
@@ -267,7 +268,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       modeRef.current = null;
       setMode(null);
       clearDetectedScreensize();
-      updateWebVRHost(host, { setupOpen: false, pointerLocked: false });
+      updateWebVRHost(host, { mode: null, setupOpen: false, pointerLocked: false });
       if (previousMode === "fake") {
         controlsRef.current?.setGyroActive(false);
       }
@@ -324,8 +325,9 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   const enterVR = useCallback(async (): Promise<boolean> => {
     if (modeRef.current) return true;
     const capabilities = capabilitiesRef.current;
+    if (host.requestingXR || host.pendingXR) return false;
+    host.hotspotReferenceHeight = Math.max(1, store.getState().size.height);
     if (capabilities.webxr) {
-      if (host.requestingXR) return false;
       host.requestingXR = true;
       let session: XRSession | null = null;
       try {
@@ -569,13 +571,12 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     updateWebVRHost(host, {
       chrome,
       detectedScreensize,
-      mode,
       settings,
       screensizeManaged: screensize !== undefined,
       profileManaged: profile !== undefined,
       profileLabel: resolvedProfile.label ?? resolvedProfile.id ?? "Custom lens profile",
     });
-  }, [chrome, detectedScreensize, host, mode, settings.screensize, settings.profileId, screensize, profile, resolvedProfile]);
+  }, [chrome, detectedScreensize, host, settings.screensize, settings.profileId, screensize, profile, resolvedProfile]);
 
   useEffect(() => {
     if (mode !== "fake" || setupOpen) {

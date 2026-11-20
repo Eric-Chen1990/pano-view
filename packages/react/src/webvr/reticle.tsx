@@ -1,5 +1,6 @@
 import { createReticleRing } from "./reticle-geometry";
-import { dispatchGazeHotspotClick, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
+import { WebVRRuntimeContext } from "./host";
+import { dispatchGazeHotspotClick, GAZE_POINTER_ID, resolveGazeTarget, type GazeTarget, type R3FObject } from "./gaze-target";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
 import { controlBindings } from "../controls/components";
 import { SpatialHostContext, type SpatialSurface } from "../spatial/host";
@@ -29,7 +30,6 @@ const CROSSHAIR_THICKNESS = 0.006;
 const RING_INNER_RADIUS = 0.05;
 const RING_OUTER_RADIUS = 0.058;
 const RING_INDICES_PER_SEGMENT = 6;
-const GAZE_POINTER_ID = 1_000_001;
 export const DEFAULT_WEBVR_CURSOR_DWELL_MS = 1_500;
 const MAX_DWELL_DELTA_MS = 48;
 
@@ -118,6 +118,7 @@ export function WebVRReticle({
   visible: boolean;
 }) {
   const spatial = useContext(SpatialHostContext);
+  const xrHeadView = useContext(WebVRRuntimeContext)?.xrHeadView;
   const spatialGaze = useRef(createGazeActionState());
   useEffect(() => {
     const stop = () => spatialGaze.current.stop();
@@ -170,7 +171,9 @@ export function WebVRReticle({
 
     group.visible = true;
     group.traverse(node => node.layers.set(SPATIAL_UI_LAYER));
-    const activeCamera = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
+    const activeCamera = gl.xr.isPresenting
+      ? xrHeadView?.projectionScaleY ? xrHeadView.camera : gl.xr.getCamera()
+      : camera;
     activeCamera.getWorldDirection(directionRef.current);
     const raycaster = raycasterRef.current;
     raycaster.layers.enable(SPATIAL_UI_LAYER);
@@ -242,9 +245,9 @@ export function WebVRReticle({
     }
 
     group.position
-      .copy(activeCamera.position)
+      .copy(raycaster.ray.origin)
       .addScaledVector(directionRef.current, HUD_DISTANCE);
-    group.quaternion.copy(activeCamera.quaternion);
+    activeCamera.getWorldQuaternion(group.quaternion);
     group.scale.setScalar(scale);
   });
 

@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
+import { Matrix4, Object3D, PerspectiveCamera, Vector3 } from "three";
 import {
   hotspotScaleMode,
   tooltipScaleMode,
 } from "../../../shared/hotspot-rendering";
 import {
   spatialTooltipWorldMatrix,
-  tooltipFacingCameraQuaternion,
   tooltipScreenMatrix,
-  tooltipTangentOffset,
   tooltipWorldMatrix,
 } from "../src/hotspot/tooltip-transform";
+import { createWebVRHotspotView, setWebVRHotspotProjection } from "../src/webvr/stereo-view";
 import { parsePanoProject } from "../src/data";
 
 test("surface scaling is mandatory; floating defaults and tooltip overrides resolve independently", () => {
@@ -144,68 +143,71 @@ test("CSS tooltip projection remains invertible and preserves pixel offsets", ()
   assert.ok(Math.abs(pixel.y - origin.y - 1) < 1e-8);
 });
 
-test("VR tooltip faces the camera when the head is off-center", () => {
-  const camera = new PerspectiveCamera(75, 1, 0.01, 2000);
-  camera.position.set(5, 0.5, 2);
-  const card = new Vector3(3, 4, -10);
-  camera.lookAt(card);
-  camera.updateMatrixWorld();
-  const rotation = tooltipFacingCameraQuaternion(new Quaternion(), card, camera);
-  const basis = new Matrix4().makeRotationFromQuaternion(rotation);
-  const towardCamera = new Vector3(0, 0, 1).transformDirection(basis);
-  const expected = camera.position.clone().sub(card).normalize();
-  assert.ok(towardCamera.dot(expected) > 0.999999);
-  // Sphere-inward would be -radial; a displaced head must not keep that normal.
-  assert.ok(towardCamera.dot(card.clone().normalize().negate()) < 0.98);
-  const cardUp = new Vector3(0, 1, 0).transformDirection(basis);
-  const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-  assert.ok(cardUp.dot(cameraUp) > 0.999);
-});
-
-test("VR tooltip tangent offset stays fixed when the camera only rotates", () => {
-  const card = new Vector3(5, 1, -8);
-  const offsetA = tooltipTangentOffset(new Vector3(), card, 12, 24);
-  const camera = new PerspectiveCamera(75, 1, 0.01, 2000);
-  camera.position.set(0.3, -0.1, 0.05);
-  camera.rotation.set(0.2, 0.8, 0.05);
-  camera.updateMatrixWorld();
-  const offsetB = tooltipTangentOffset(new Vector3(), card, 12, 24);
-  assert.ok(offsetA.distanceTo(offsetB) < 1e-12);
-  const rotated = tooltipFacingCameraQuaternion(new Quaternion(), card, camera);
-  const facing = new Vector3(0, 0, 1).applyQuaternion(rotated);
-  assert.ok(facing.dot(camera.position.clone().sub(card).normalize()) > 0.999999);
-});
-
-test("VR tooltip size and anchor gap stay stable through head rotation and mono projection updates", () => {
-  const camera = new PerspectiveCamera(80, 1.8, 0.01, 2000);
-  const stereoProjection = camera.projectionMatrix.elements[5]!;
-  const hotspot = new Object3D();
-  hotspot.position.set(2, 1, -10);
+test("VR tooltip keeps its fixed size and gap at the center and edges of an asymmetric eye projection", () => {
+  const referenceHeight = 720;
+  const view = createWebVRHotspotView();
+  const left = new PerspectiveCamera(90, 1.1, 0.01, 2000);
+  const right = new PerspectiveCamera(80, 1.1, 0.01, 2000);
+  left.projectionMatrix.elements[8] = 0.18;
+  right.projectionMatrix.elements[8] = -0.1;
+  assert.equal(setWebVRHotspotProjection(view, left, [left.projectionMatrix, right.projectionMatrix]), true);
+  assert.equal(view.projectionScaleY, (left.projectionMatrix.elements[5]! + right.projectionMatrix.elements[5]!) / 2);
+  assert.ok(view.commonWidthPerHeight < 1.1);
+  assert.equal(setWebVRHotspotProjection(view, left, []), false);
+  const { camera } = view;
   const anchor = new Object3D();
-  hotspot.add(anchor);
-  const raster = { width: 85, height: 25, textureWidth: 89, textureHeight: 29 };
-  for (const scaleMode of ["fixed", "fov"] as const) {
-    for (const placement of ["top", "right", "bottom", "left"] as const) {
-      const measure = () => {
-        const matrix = spatialTooltipWorldMatrix(new Matrix4(), anchor, camera, 720,
-          stereoProjection, { mode: "billboard", scaleMode, referenceFov: 75, placement, offset: 12 }, raster);
-        return {
-          size: new Vector3().setFromMatrixScale(matrix),
-          gap: new Vector3().setFromMatrixPosition(matrix).distanceTo(anchor.getWorldPosition(new Vector3())),
-        };
-      };
-      camera.rotation.set(0, 0, 0);
-      camera.fov = 80;
-      camera.updateProjectionMatrix();
-      anchor.position.set(0, 1, 0);
-      const before = measure();
-      camera.rotation.set(0.12, 0.32, 0.05);
-      camera.fov = 75;
-      camera.updateProjectionMatrix();
-      anchor.position.set(0, 0.95, 0.15);
-      const after = measure();
-      assert.ok(before.size.distanceTo(after.size) < 1e-10);
-      assert.ok(Math.abs(before.gap - after.gap) < 1e-10);
+  const raster = { width: 85, height: 32, textureWidth: 117, textureHeight: 64 };
+  const project = (point: Vector3) => point.project(camera).multiplyScalar(referenceHeight / 2);
+  const unitX = camera.projectionMatrix.elements[0]! / camera.projectionMatrix.elements[5]!;
+  for (const roll of [0, 0.35]) {
+    camera.rotation.z = roll;
+    camera.updateMatrixWorld();
+    for (const offsetX of [0, 9.5, -9.5]) {
+      anchor.position.set(offsetX, 0.8, -10).applyQuaternion(camera.quaternion);
+      const edge = project(anchor.position.clone());
+      for (const placement of ["top", "right", "bottom", "left"] as const) {
+        const matrix = spatialTooltipWorldMatrix(new Matrix4(), anchor, camera, referenceHeight,
+          { mode: "billboard", scaleMode: "fixed", referenceFov: 75, placement, offset: 12 }, raster);
+        assert.ok(matrix);
+        const corner = (x: number, y: number) => project(new Vector3(
+          x * raster.width / raster.textureWidth, y * raster.height / raster.textureHeight, 0,
+        ).applyMatrix4(matrix));
+        const min = corner(-0.5, -0.5);
+        const max = corner(0.5, 0.5);
+        assert.ok(Math.abs(max.y - min.y - 32) < 1e-8);
+        assert.ok(Math.abs((max.x - min.x) / unitX - 85) < 1e-8);
+        const gap = placement === "top" ? min.y - edge.y
+          : placement === "bottom" ? edge.y - max.y
+          : placement === "right" ? (min.x - edge.x) / unitX : (edge.x - max.x) / unitX;
+        assert.ok(Math.abs(gap - 12) < 1e-8, `${placement}: ${gap}`);
+      }
     }
   }
+  anchor.position.set(0, 0, 10);
+  assert.equal(spatialTooltipWorldMatrix(new Matrix4(), anchor, camera, referenceHeight,
+    { mode: "billboard", scaleMode: "fixed", referenceFov: 75, placement: "top", offset: 12 }, raster), null);
+});
+
+test("VR tooltip preserves FOV scaling and inward surface orientation", () => {
+  const camera = new PerspectiveCamera(80, 1, 0.01, 2000);
+  const anchor = new Object3D();
+  anchor.position.set(1, 2, -10);
+  const raster = { width: 85, height: 32, textureWidth: 89, textureHeight: 36 };
+  const matrix = new Matrix4();
+  const render = (mode: "billboard" | "surface") => {
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    assert.ok(spatialTooltipWorldMatrix(matrix, anchor, camera, 720,
+      { mode, scaleMode: "fov", referenceFov: 75, placement: "top", offset: 12 }, raster));
+  };
+  render("billboard");
+  const height = () => new Vector3(0, 1, 0).applyMatrix4(matrix).project(camera).y
+    - new Vector3().applyMatrix4(matrix).project(camera).y;
+  const before = height();
+  camera.fov = 45;
+  render("billboard");
+  assert.ok(height() > before);
+  render("surface");
+  const normal = new Vector3(0, 0, 1).transformDirection(matrix);
+  assert.ok(normal.dot(anchor.position.clone().normalize().negate()) > 0.999999);
 });

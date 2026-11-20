@@ -138,6 +138,7 @@ type ActiveNavigation = {
 
 type PanoramaViewRuntimeProps = {
   initialView: PanoViewerState;
+  fallbackStereo: boolean;
   resumeView: RefObject<PanoViewerState | null>;
   viewLimits?: PanoViewLimits;
   minFov: number;
@@ -210,7 +211,7 @@ export const PanoramaViewRuntime = forwardRef<
   PanoramaViewRuntimeHandle,
   PanoramaViewRuntimeProps
 >(function PanoramaViewRuntime(
-  { initialView, resumeView, viewLimits, minFov, maxFov, options, eventBus },
+  { initialView, fallbackStereo, resumeView, viewLimits, minFov, maxFov, options, eventBus },
   ref,
 ) {
   const { camera, gl } = useThree();
@@ -979,7 +980,8 @@ export const PanoramaViewRuntime = forwardRef<
     }
 
     dirtyRef.current = !hasSettled;
-  });
+    // In fallback VR, commit the gyro pose before preparing the stereo cameras.
+  }, fallbackStereo ? -0.9 : 0);
 
   return null;
 });

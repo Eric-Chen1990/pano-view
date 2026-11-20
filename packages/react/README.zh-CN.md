@@ -2019,7 +2019,7 @@ export function WebVRExample() {
 
 句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；右键释放鼠标但保留 VR，左键点击画面重新锁定（该次点击只恢复锁定）。解锁时隐藏准星并停止注视动作，重新锁定后重新计时。桌面十字及进度环为头显尺寸的 60%。保留浏览器原有 Esc 行为；锁定被拒绝或不支持时保留普通鼠标，可再次左键重试。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
-WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
+WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 内容和视频控件在支持时使用空间界面。热点及其 tooltip 在沉浸式 VR 中作为场景对象呈现，并响应配置的凝视或控制器输入。
 
 ### 属性
 
@@ -2355,9 +2355,11 @@ import {
 
 点热点可使用 `draggable`、`onDragStart`、`onPositionChange`、`onDragEnd`；宿主须将报告的位置写回状态。多边形与折线热点通过 `onVerticesChange` 报告受控 `vertices`。
 
-每个热点可在锚点显示 DOM tooltip。将字符串或 `{ text?, image?, imageAlt? }` 作为 `tooltip` 传入。默认 `tooltipTrigger` 为 `"always"`：有内容且热点可见时气泡常驻屏幕。点击热点不会切换显示。可选 `tooltipTrigger="hover"` 在指针悬停或键盘焦点时显示；`"click"` 固定显示直至再次点击热点或点击空白全景。hover 与 click 触发需要 `interactive` 且 `pointerEvents` 不为 `"none"`。
+每个热点可在锚点显示 tooltip。将字符串或 `{ text?, image?, imageAlt? }` 作为 `tooltip` 传入。默认 `tooltipTrigger` 为 `"always"`：有内容且热点可见时气泡常驻屏幕。点击热点不会切换显示。可选 `tooltipTrigger="hover"` 在指针悬停或键盘焦点时显示；`"click"` 固定显示直至再次点击热点或点击空白全景。hover 与 click 触发需要 `interactive` 且 `pointerEvents` 不为 `"none"`。
 
 `tooltipPlacement` 为 `"top"`（默认）、`"bottom"`、`"left"`、`"right"`。均为屏幕方向：气泡位于热点投影边界该侧之外，避免遮挡旋转后的图形（如箭头）。`tooltipOffset` 为屏幕空间间距（CSS 像素，默认 `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`）。
+
+VR 中，气泡沿双眼中心视图里的热点投影边缘定位。固定尺寸和间距以进入 VR 前的查看器高度为基准。气泡在双眼中使用同一空间位置，`tooltipMode="surface"` 使用朝向球心的贴面姿态。气泡超过两眼共同可用宽度的 80% 时换行，悬停跟随当前启用的 VR 输入。
 
 `tooltipMode` 默认 `"billboard"`（悬浮），可设为 `"surface"`（贴合球面）。`tooltipScaleMode` 默认 `"inherit"`，跟随热点实际缩放规则；悬浮提示可独立设为 `"fov"` 或 `"fixed"`，贴合提示始终随 FOV 缩放。气泡字号和样式以热点 `referenceFov`（默认 `75`）为基准，间距继续使用屏幕像素。多边形、折线本体始终贴合球面，不支持悬浮、距离或缩放模式；其提示默认悬浮并随 FOV 缩放，也支持独立配置。新旧项目省略配置均采用这些默认值。
 
@@ -2498,6 +2500,7 @@ import { GraphicHotspot } from "@ericchen1990/pano-view";
 - `mode="surface"` 将平面附着于局部全景表面。
 - `mode="billboard"` 使平面始终朝向相机并浮于壳层前方。`distance` 是热点到相机的距离（世界单位，默认 `10`），减小该值可将热点移近相机。内置全景壳层约在 `1000` 单位；距离会自动限制在允许范围内，避免热点角点穿过壳层。
 - 悬浮热点默认 `scaleMode="fixed"`，保持固定屏幕大小；可用 `scaleMode="fov"` 随视角缩放。贴合热点始终使用 `fov`，显式的 `fixed` 不生效。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
+- VR 中，悬浮热点朝向双眼中心，最近距离为 2 个世界单位。`fixed` 以普通模式在 `referenceFov` 下的画面高度占比为基准，使用实际双眼投影补偿尺寸。
 - `rotation` 绕自身法线旋转（度）；正值顺时针，负值逆时针。`scale` 为角向 width/height 的整体正倍率，默认 `1`。
 
 ```tsx

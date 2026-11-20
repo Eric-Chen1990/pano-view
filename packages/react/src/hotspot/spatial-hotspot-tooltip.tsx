@@ -1,193 +1,110 @@
-import { tooltipPadding, tooltipBaseline, tooltipLines } from "./tooltip-layout";
-import { spatialTooltipWorldMatrix } from "./tooltip-transform";
-import { WebVRRuntimeContext } from "../webvr/host";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import {
-  CanvasTexture,
-  LinearFilter,
-  SRGBColorSpace,
-  Mesh,
-  Matrix4,
-} from "three";
-import type {
-  HotspotMode,
-  HotspotScaleMode,
-  HotspotTooltipAppearance,
-  HotspotTooltipContent,
-  HotspotTooltipPlacement,
-} from "./types";
+import { CanvasTexture, LinearFilter, LinearMipmapLinearFilter, Matrix4, Mesh, SRGBColorSpace } from "three";
+import { getMaxTextureSize, getTextureAnisotropy } from "../renderer-capabilities";
+import { getWebVRHotspotView, WebVRRuntimeContext } from "../webvr/host";
+import { rasterizeTooltip } from "./tooltip-raster";
+import { tooltipRasterScale } from "./tooltip-layout";
+import { spatialTooltipWorldMatrix, tooltipReferenceSlope } from "./tooltip-transform";
+import type { HotspotMode, HotspotScaleMode, HotspotTooltipContent, HotspotTooltipPlacement } from "./types";
 
-function number(value: string | number, fallback: number) {
-  const parsed = typeof value === "number" ? value : parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
+type Raster = NonNullable<ReturnType<typeof rasterizeTooltip>> & { texture: CanvasTexture };
+type RasterLayout = { width: number; resolution: number };
 
-/** Spatial plane: both eyes, depth ordering, and the final lens mask apply. */
 export function SpatialHotspotTooltip(props: {
   mode: HotspotMode;
   scaleMode: HotspotScaleMode;
   referenceFov: number;
   content: HotspotTooltipContent;
-  appearance: Required<HotspotTooltipAppearance>;
+  style: CSSProperties;
   placement: HotspotTooltipPlacement;
   offset: number;
 }) {
-  const { content, appearance } = props;
+  const { content, style } = props;
   const mesh = useRef<Mesh>(null);
-  const { camera, gl, size } = useThree();
-  const stereoView = useContext(WebVRRuntimeContext)?.stereoView;
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const world = useRef(new Matrix4());
+  const gl = useThree(state => state.gl);
+  const eventsTarget = useThree(state => state.events.connected);
+  const runtime = useContext(WebVRRuntimeContext);
+  const [loaded, setLoaded] = useState<{ src: string; image: HTMLImageElement } | null>(null);
+  const [raster, setRaster] = useState<Raster | null>(null);
+  const layoutRef = useRef<RasterLayout | null>(null);
+  const [layout, setLayout] = useState<RasterLayout | null>(null);
+  const image = loaded?.src === content.image ? loaded?.image ?? null : null;
+  const fixed = props.mode === "billboard" && props.scaleMode === "fixed";
+  const referenceSlope = tooltipReferenceSlope(props.referenceFov);
+
   useEffect(() => {
-    setImage(null);
-    if (!content.image) return;
-    let disposed = false;
-    const resource = new Image();
-    resource.crossOrigin = "anonymous";
-    resource.onload = () => {
-      if (!disposed) setImage(resource);
-    };
-    resource.src = content.image;
+    const src = content.image;
+    if (!src) return;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => setLoaded({ src, image });
+    image.onerror = () => setLoaded(null);
+    image.src = src;
     return () => {
-      disposed = true;
-      resource.onload = null;
+      image.onload = null;
+      image.onerror = null;
     };
   }, [content.image]);
-  const raster = useMemo(() => {
-    const fontSize = Math.max(1, number(appearance.fontSize, 12));
-    const [pt, pr, pb, pl] = tooltipPadding(appearance.padding);
-    const padding = Math.max(pl, pr);
-    const letterSpacing = appearance.letterSpacing === "normal" ? 0 : number(appearance.letterSpacing ?? 0, 0);
-    const leading = appearance.lineHeight;
-    const lineHeight =
-      typeof leading === "string" && leading.endsWith("px")
-        ? number(leading, fontSize * 1.4)
-        : (fontSize * number(leading, 1.4)) /
-          (typeof leading === "string" && leading.endsWith("%") ? 100 : 1);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d")!;
-    const font = `${fontSize}px ${appearance.fontFamily}`;
-    ctx.font = font;
-    const measure = (text: string) => (letterSpacing ? [...text].reduce((width, char) => width + ctx.measureText(char).width, 0) : ctx.measureText(text).width) + Math.max(0, [...text].length - 1) * letterSpacing;
-    const lines = tooltipLines(content.text ?? "", 220 - pl - pr, measure);
-    const imageWidth = image
-      ? Math.min(
-          220 - padding * 2,
-          (120 * image.naturalWidth) / image.naturalHeight
-        )
-      : 0;
-    const imageHeight = image
-      ? (imageWidth * image.naturalHeight) / image.naturalWidth
-      : 0;
-    const width = Math.ceil(
-      Math.max(
-        imageWidth,
-        ...lines.map(measure),
-        1
-      ) +
-        pl + pr
-    );
-    const height = Math.ceil(
-      pt + pb +
-        imageHeight +
-        (image && lines.length ? padding : 0) +
-        lines.length * lineHeight
-    );
-    const border = /^(\d+(?:\.\d+)?)px\s+solid\s+(.+)$/.exec(appearance.border);
-    const borderWidth = Math.min(number(border?.[1] ?? 0, 1), 2 * Math.max(width, height));
-    // Leave transparent texels beyond the centered stroke for linear filtering.
-    const gutter = Math.max(2, Math.ceil(borderWidth / 2) + 1);
-    const textureWidth = width + 2 * gutter;
-    const textureHeight = height + 2 * gutter;
-    canvas.width = textureWidth * 2;
-    canvas.height = textureHeight * 2;
-    ctx.scale(2, 2);
-    ctx.translate(gutter, gutter);
-    ctx.beginPath();
-    ctx.roundRect(
-      0,
-      0,
-      width,
-      height,
-      Math.max(0, number(appearance.borderRadius, 8))
-    );
-    ctx.fillStyle = appearance.background;
-    ctx.fill();
-    if (border) {
-      ctx.strokeStyle = border[2]!;
-      ctx.lineWidth = borderWidth;
-      ctx.stroke();
-    }
-    ctx.save();
-    ctx.clip();
-    let top = pt;
-    if (image) {
-      ctx.drawImage(image, pl, top, imageWidth, imageHeight);
-      top += imageHeight + padding;
-    }
-    ctx.font = font;
-    ctx.fillStyle = appearance.color;
-    ctx.textBaseline = "alphabetic";
-    lines.forEach((line, i) => {
-      const metrics = ctx.measureText(line || "Mg");
-      const ascent = metrics.actualBoundingBoxAscent || fontSize * .8;
-      const descent = metrics.actualBoundingBoxDescent ?? fontSize * .2;
-      let x = pl;
-      const y = tooltipBaseline(top + i * lineHeight, lineHeight, ascent, descent);
-      if (!letterSpacing) ctx.fillText(line, x, y);
-      else for (const char of line) { ctx.fillText(char, x, y); x += ctx.measureText(char).width + letterSpacing; }
-    });
-    ctx.restore();
-    const texture = new CanvasTexture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.minFilter = LinearFilter;
-    texture.generateMipmaps = false;
-    return { texture, width, height, textureWidth, textureHeight };
-  }, [appearance, content.text, image]);
-  useEffect(() => () => raster.texture.dispose(), [raster]);
-  const scratch = useMemo(
-    () => ({
-      world: new Matrix4(),
-      local: new Matrix4(),
-    }),
-    [],
-  );
-  useFrame(() => {
-    const node = mesh.current;
-    if (!node?.parent) return;
-    const presenting = gl.xr.isPresenting;
-    const view = presenting ? gl.xr.getCamera() : camera;
-    const projectionScaleY = !presenting && stereoView?.active
-      ? stereoView.projectionScaleY ?? view.projectionMatrix.elements[5]!
-      : view.projectionMatrix.elements[5]!;
-    spatialTooltipWorldMatrix(
-      scratch.world,
-      node.parent,
-      view,
-      size.height,
-      projectionScaleY,
-      props,
-      raster,
-    );
-    scratch.local
-      .copy(node.parent.matrixWorld)
-      .invert()
-      .multiply(scratch.world);
-    node.matrixAutoUpdate = false;
-    node.matrix.copy(scratch.local);
-    node.matrixWorldNeedsUpdate = true;
-  });
 
+  useLayoutEffect(() => {
+    const parent = eventsTarget instanceof HTMLElement ? eventsTarget : gl.domElement.parentElement;
+    if (!parent || !layout) return;
+    const label = content.text ?? "";
+    const update = () => {
+      const next = rasterizeTooltip(parent, style, label, image, layout.width, layout.resolution, getMaxTextureSize(gl));
+      if (next) {
+        const texture = new CanvasTexture(next.canvas);
+        texture.colorSpace = SRGBColorSpace;
+        texture.magFilter = LinearFilter;
+        texture.minFilter = LinearMipmapLinearFilter;
+        texture.generateMipmaps = true;
+        texture.anisotropy = Math.min(4, getTextureAnisotropy(gl));
+        setRaster({ ...next, texture });
+      } else {
+        setRaster(null);
+      }
+      return next?.font;
+    };
+    const font = update();
+    const fonts = document.fonts;
+    fonts?.addEventListener("loadingdone", update);
+    if (label && font) void fonts?.load(font, label).catch(() => {});
+    return () => {
+      fonts?.removeEventListener("loadingdone", update);
+    };
+  }, [layout, content.text, eventsTarget, gl, image, style]);
+  useEffect(() => () => raster?.texture.dispose(), [raster]);
+
+  useFrame(() => {
+    const view = runtime && getWebVRHotspotView(runtime, gl.xr.isPresenting);
+    const height = runtime?.host.hotspotReferenceHeight ?? 1;
+    if (view?.projectionScaleY) {
+      const zoom = fixed ? 1 : view.projectionScaleY * referenceSlope;
+      const width = Math.max(1, Math.floor(0.8 * height * view.commonWidthPerHeight / zoom));
+      const resolution = tooltipRasterScale(view.renderHeight, height, zoom);
+      if (layoutRef.current?.width !== width || layoutRef.current.resolution !== resolution) {
+        const next = { width, resolution };
+        layoutRef.current = next;
+        setLayout(next);
+      }
+    }
+    const node = mesh.current;
+    if (!node?.parent || !raster) return;
+    node.visible = Boolean(view?.projectionScaleY && spatialTooltipWorldMatrix(
+      world.current, node.parent, view.camera, height, props, raster,
+    ));
+    if (!node.visible) return;
+    node.matrix.copy(node.parent.matrixWorld).invert().multiply(world.current);
+    node.updateMatrixWorld(true);
+  }, runtime?.mode === "webxr" ? -70 : -0.25);
+
+  if (!raster) return null;
   return (
-    <mesh ref={mesh} renderOrder={1000} raycast={() => {}}>
+    <mesh ref={mesh} matrixAutoUpdate={false} visible={false} renderOrder={1000} raycast={() => {}}>
       <planeGeometry />
-      <meshBasicMaterial
-        map={raster.texture}
-        transparent
-        depthTest={false}
-        depthWrite={false}
-        toneMapped={false}
-      />
+      <meshBasicMaterial map={raster.texture} transparent depthTest={false} depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }

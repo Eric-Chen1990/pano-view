@@ -142,8 +142,8 @@ import {
   subscribeWebVRHost,
   WebVRRuntimeContext,
 } from "./webvr/host";
-import { createWebVRStereoView } from "./webvr/stereo-view";
-import { PanoramaXROrigin } from "./webvr/xr-origin";
+import { createWebVRStereoView, isFallbackStereoMode } from "./webvr/stereo-view";
+import { createWebXRHeadView, PanoramaXROrigin } from "./webvr/xr-origin";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
@@ -401,6 +401,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     );
     const [mediaActivated, setMediaActivated] = useState(false);
     const stereoView = useMemo(() => createWebVRStereoView(), []);
+    const xrHeadView = useMemo(createWebXRHeadView, []);
     const xrStore = useMemo(
       () =>
         createXRStore({
@@ -419,6 +420,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           planeDetection: false,
         }),
       [],
+    );
+    const vrRuntime = useMemo(
+      () => ({ host: webVRHost, xrStore, mode: vrMode, stereoView, xrHeadView }),
+      [webVRHost, xrStore, vrMode, stereoView, xrHeadView],
     );
     const mediaActivationControls = useMemo<PanoMediaActivationControls>(
       () => ({
@@ -945,10 +950,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           {rendererRuntime.runtime && <WebGPUFrame passes={rendererRuntime.runtime.passes} />}
           <XR store={xrStore}>
           <WebVRRuntimeContext.Provider
-            value={{ host: webVRHost, xrStore, stereoView }}
+            value={vrRuntime}
           >
           <SpatialHostContext.Provider value={spatialHost}>
-          <PanoramaXROrigin />
+          <PanoramaXROrigin headView={xrHeadView} />
           <HotspotAccessibilityContext.Provider value={registry}>
             <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
             <PanoEventBusContext.Provider value={eventBus}>
@@ -972,6 +977,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     ref={setControlsRuntime}
                     eventBus={eventBus}
                     initialView={normalizedInitialView}
+                    fallbackStereo={isFallbackStereoMode(vrMode)}
                     resumeView={resumeView}
                     viewLimits={parsedLimits}
                     maxFov={normalizedMaxFov}

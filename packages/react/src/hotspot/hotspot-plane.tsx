@@ -108,6 +108,7 @@ function hotspotPlaneRaycast(
   raycaster: Raycaster,
   intersects: Intersection[],
 ) {
+  if (!this.visible || this.parent?.visible === false) return;
   const material = Array.isArray(this.material)
     ? this.material[0]
     : this.material;

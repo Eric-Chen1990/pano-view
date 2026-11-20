@@ -2290,9 +2290,9 @@ video on browsers that lack it.
 WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
 HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
 appropriate `xr-spatial-tracking`, `gyroscope`, and `accelerometer` permissions.
-DOM overlays such as iframe hotspots, tooltips, and video controls are not
-visible inside an immersive headset session; mesh-based hotspots remain
-interactive through the default WebXR controller rays.
+Iframe content and video controls use their spatial presentation where available.
+Hotspots and their tooltips render as scene geometry in immersive VR and
+respond to the configured gaze or controller input.
 
 ### Props
 
@@ -2691,7 +2691,7 @@ Point hotspots can use `draggable`, `onDragStart`, `onPositionChange`, and
 Polygon and polyline hotspots report controlled `vertices` through
 `onVerticesChange`.
 
-Every hotspot can show a DOM tooltip at its anchor. Pass a string or
+Every hotspot can show a tooltip at its anchor. Pass a string or
 `{ text?, image?, imageAlt? }` as `tooltip`. The default `tooltipTrigger` is
 `"always"`: if content is present and the hotspot is visible, the bubble stays
 on screen. Clicking the hotspot does not toggle it. Optional
@@ -2707,6 +2707,12 @@ These are screen directions: the bubble sits outside the hotspot's projected
 screen bounds on that edge, so rotated graphics such as arrows are not covered.
 `tooltipOffset` is the screen-space gap in CSS pixels (default `12` /
 `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
+
+In VR, the tooltip follows the hotspot edge as projected from the center of
+the two eyes. Fixed sizes and gaps use the viewer height from before entering
+VR. The bubble is rendered at the hotspot depth in both eyes, with an inward
+facing surface when using `tooltipMode="surface"`. Text wraps when the bubble
+would exceed 80% of the common eye width. Hover follows the active VR input.
 
 Optional `tooltipAppearance` overrides the bubble paint. Unset fields keep the
 library default theme (`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`): background, text
@@ -2880,6 +2886,9 @@ Point hotspots use `mode` to configure orientation and placement together:
 - Floating hotspots default to `scaleMode="fixed"`; choose `"fov"` to scale with zoom. Surface hotspots always use `"fov"`, even when `"fixed"` was saved.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
+- In VR, floating hotspots face the midpoint between the eyes and stay at least
+  2 world units away. Fixed size uses the actual eye projections to match the
+  fraction of the view's height at the monoscopic `referenceFov`.
 - `rotation` rotates the hotspot around its own normal in degrees; positive
   values rotate clockwise and negative values rotate counterclockwise.
   `scale` applies an overall positive multiplier to its angular width and

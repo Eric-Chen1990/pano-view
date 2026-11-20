@@ -34,7 +34,7 @@ import {
   computeStereoLayout,
   type StereoLayout,
 } from "./stereo-layout";
-import { createWebVRStereoView, isFallbackStereoMode, type WebVRStereoView } from "./stereo-view";
+import { createWebVRStereoView, isFallbackStereoMode, setWebVRHotspotProjection, type WebVRStereoView } from "./stereo-view";
 import type { WebVRMode, WebVRProfile } from "./types";
 
 const TOE_IN = new Matrix4();
@@ -142,26 +142,26 @@ export function syncStereoCameras(
   screensize: number | "auto",
   oversampling: number,
   size: Vector2,
-  gl: WebGLRenderer | WebGPURenderer,
+  gl: Pick<WebGLRenderer | WebGPURenderer, "getSize" | "getPixelRatio">,
 ): { layout: StereoLayout; centers: ReturnType<typeof computeStereoLensCenters> } {
   gl.getSize(size);
+  const pixelRatio = gl.getPixelRatio();
   const layout = computeStereoLayout(
     size.x,
     size.y,
-    gl.getPixelRatio(),
+    pixelRatio,
     oversampling,
   );
   const displayAspect = layout.fullWidth / layout.fullHeight;
   const { fov, centers } = computeStereoCalibration(profile, screensize, displayAspect);
   camera.fov = fov;
   camera.updateProjectionMatrix();
-  stereoView.projectionScaleY = camera.projectionMatrix.elements[5]!;
   camera.updateMatrixWorld();
   const { stereo } = stereoView;
   stereo.aspect = layout.stereoAspect;
-  // Keep both eyes on the panorama center. A metric IPD is invisible on the
-  // radius-1000 shell; the toe-in below is the disparity the headset fuses.
-  stereo.eyeSep = 0;
+  // Toe-in applies to the whole view. Eye separation adds distance-dependent
+  // disparity for nearby objects while barely shifting the panorama shell.
+  stereo.eyeSep = profile.ipdMm / 1000;
   stereo.cameraL.coordinateSystem = camera.coordinateSystem;
   stereo.cameraR.coordinateSystem = camera.coordinateSystem;
   stereo.update(camera);
@@ -175,6 +175,21 @@ export function syncStereoCameras(
 
   applyEyeViewOffset(stereo.cameraL, layout.left, centers.left);
   applyEyeViewOffset(stereo.cameraR, layout.right, centers.right);
+  const { hotspotView } = stereoView;
+  if (setWebVRHotspotProjection(hotspotView, camera, [
+    stereo.cameraL.projectionMatrix, stereo.cameraR.projectionMatrix,
+  ])) {
+    const displayHeight = layout.fullHeight * pixelRatio;
+    hotspotView.renderHeight = profile.k1 || profile.k2
+      ? Math.max(displayHeight, layout.renderTargetHeight)
+      : displayHeight;
+    // The source camera can be parented. Keep the layout camera in world space.
+    const layoutCamera = hotspotView.camera;
+    camera.matrixWorld.decompose(
+      layoutCamera.position, layoutCamera.quaternion, layoutCamera.scale,
+    );
+    layoutCamera.updateMatrixWorld();
+  }
   stereo.cameraL.updateMatrixWorld(true);
   stereo.cameraR.updateMatrixWorld(true);
   return { layout, centers };
@@ -201,6 +216,7 @@ export function WebVRStereoRenderer(props: StereoProps) {
     runtime.stereoView.active = true;
     return () => {
       runtime.stereoView.active = false;
+      runtime.stereoView.hotspotView.projectionScaleY = null;
       camera.fov = fov;
       camera.updateProjectionMatrix();
     };
@@ -209,7 +225,7 @@ export function WebVRStereoRenderer(props: StereoProps) {
     if (!active || !gpu || !runtime || !(camera instanceof PerspectiveCamera)) return;
     syncStereoCameras(runtime.stereoView, camera, options.current.profile, options.current.screensize,
       options.current.oversampling, size.current, gpu.renderer);
-  }, -0.5);
+  }, -0.75);
   if (!gpu) return <WebGLStereo {...props} />;
   return active && runtime ? <WebGPUStereo passes={gpu} stereoView={runtime.stereoView} options={options} /> : null;
 }
@@ -363,8 +379,10 @@ function WebGLStereo({
     stereoActiveRef.current = fallback;
     if (runtime) {
       runtime.stereoView.active = fallback;
+      if (!fallback) runtime.stereoView.hotspotView.projectionScaleY = null;
     }
     if (fallback && camera instanceof PerspectiveCamera) {
+      originalFovRef.current ??= camera.fov;
       syncStereoCameras(
         stereoViewRef.current,
         camera,
@@ -384,7 +402,7 @@ function WebGLStereo({
       camera.updateProjectionMatrix();
       originalFovRef.current = null;
     }
-  });
+  }, -0.75);
 
   return null;
 }

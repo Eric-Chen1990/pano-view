@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { allowsAutomaticMediaControls, controlGroupLayout, shouldPauseSurfaceMedia } from "../src/controls/layout";
-import { tooltipBaseline, tooltipLines, tooltipPadding } from "../src/hotspot/tooltip-layout";
-test("tooltip uses CSS padding shorthand and balanced glyph space without adding a line", () => {
-  assert.deepEqual(tooltipPadding("5px 10px"), [5, 10, 5, 10]);
-  assert.deepEqual(tooltipPadding("1px 2px 3px 4px"), [1, 2, 3, 4]);
+import { tooltipBaseline, tooltipLines, tooltipRasterScale } from "../src/hotspot/tooltip-layout";
+
+test("VR tooltip density follows eye render resolution and zoom within its texture budget", () => {
+  assert.equal(tooltipRasterScale(560, 560, 1), 3);
+  assert.equal(tooltipRasterScale(1120, 560, 1), 4);
+  assert.equal(tooltipRasterScale(1500, 560, 1), 6);
+  assert.equal(tooltipRasterScale(1120, 560, 1.5), 6);
+  assert.equal(tooltipRasterScale(4000, 560, 1), 8);
+});
+test("tooltip wraps at word boundaries and balances glyph space", () => {
   assert.deepEqual(tooltipLines("text", 200, text => text.length * 10), ["text"]);
   assert.deepEqual(tooltipLines("中文测试", 40, text => text.length * 20), ["中文", "测试"]);
-  assert.deepEqual(tooltipLines("first\nsecond", 200, text => text.length * 10), ["first", "second"]);
+  assert.deepEqual(tooltipLines("first\nsecond", 200, text => text.length * 10), ["first second"]);
+  assert.deepEqual(tooltipLines("first second", 70, text => text.length * 10), ["first", "second"]);
   assert.deepEqual(tooltipLines("", 200, () => 0), []);
   const baseline = tooltipBaseline(5, 27, 14, 4);
   assert.equal(baseline - 14 - 5, 5 + 27 - (baseline + 4));

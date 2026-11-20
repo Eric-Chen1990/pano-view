@@ -5,6 +5,7 @@ import type { GazeAction } from "../spatial/gaze-action";
 import type { SpatialSurface } from "../spatial/host";
 
 const hotspotClicks = new WeakSet<Event>();
+export const GAZE_POINTER_ID = 1_000_001;
 
 export function isGazeHotspotClick(event: Event): boolean {
   return hotspotClicks.has(event);

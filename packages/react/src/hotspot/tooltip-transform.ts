@@ -15,73 +15,9 @@ const right = new Vector3();
 const scale = new Vector3();
 const rotation = new Quaternion();
 const basis = new Matrix4();
+const cameraRight = new Vector3();
 const cameraUp = new Vector3();
-const tangentOffset = new Vector3();
-
-function setSphereTangentBasis(worldPosition: Vector3) {
-  const radiusSq = worldPosition.lengthSq();
-  if (radiusSq < 1e-12) {
-    right.set(1, 0, 0);
-    up.set(0, 1, 0);
-    return;
-  }
-  normal.copy(worldPosition).multiplyScalar(1 / Math.sqrt(radiusSq));
-  up.set(0, 1, 0).addScaledVector(normal, -normal.y);
-  if (up.lengthSq() < 1e-8) {
-    up.set(0, 0, 1).addScaledVector(normal, -normal.z);
-  }
-  up.normalize();
-  // Match surface tooltip handedness: right = radial × up.
-  right.crossVectors(normal, up).normalize();
-}
-
-/**
- * Plane +Z points at the camera. Camera up projected onto that plane keeps the
- * card upright when the gaze is centered; falls back to world up near poles.
- * Avoid Object3D.lookAt: it aims -Z and would flip the plane away from the viewer.
- */
-export function tooltipFacingCameraQuaternion(
-  target: Quaternion,
-  worldPosition: Vector3,
-  camera: Camera,
-): Quaternion {
-  camera.getWorldPosition(normal);
-  normal.sub(worldPosition);
-  if (normal.lengthSq() < 1e-12) {
-    camera.getWorldDirection(normal).negate();
-  } else {
-    normal.normalize();
-  }
-  camera.getWorldQuaternion(rotation);
-  cameraUp.set(0, 1, 0).applyQuaternion(rotation);
-  up.copy(cameraUp).addScaledVector(normal, -cameraUp.dot(normal));
-  if (up.lengthSq() < 1e-8) {
-    up.set(0, 1, 0).addScaledVector(normal, -normal.y);
-    if (up.lengthSq() < 1e-8) {
-      up.set(0, 0, 1).addScaledVector(normal, -normal.z);
-    }
-  }
-  up.normalize();
-  right.crossVectors(up, normal).normalize();
-  return target.setFromRotationMatrix(basis.makeBasis(right, up, normal));
-}
-
-/**
- * Screen-pixel placement offset in a stable sphere-tangent basis so head
- * rotation does not orbit the tooltip around the hotspot.
- */
-export function tooltipTangentOffset(
-  target: Vector3,
-  worldPosition: Vector3,
-  offsetX: number,
-  offsetY: number,
-): Vector3 {
-  setSphereTangentBasis(worldPosition);
-  return target
-    .copy(right)
-    .multiplyScalar(offsetX)
-    .addScaledVector(up, offsetY);
-}
+const cameraRotation = new Quaternion();
 
 function setTooltipAnchorPoint(anchor: Object3D, mode: HotspotMode) {
   anchor.getWorldPosition(point);
@@ -89,9 +25,37 @@ function setTooltipAnchorPoint(anchor: Object3D, mode: HotspotMode) {
   if (mode === "surface" && radius > 0) point.multiplyScalar(990 / radius);
 }
 
-function referenceSlope(referenceFov: number) {
+export function tooltipReferenceSlope(referenceFov: number) {
   const fov = MathUtils.clamp(Number.isFinite(referenceFov) ? referenceFov : 75, 1, 179);
   return Math.tan(MathUtils.degToRad(fov) / 2);
+}
+
+function setTooltipWorldFrame(
+  anchor: Object3D,
+  camera: Camera,
+  height: number,
+  mode: HotspotMode,
+  scaleMode: HotspotScaleMode,
+  referenceFov: number,
+) {
+  setTooltipAnchorPoint(anchor, mode);
+  const distance = point.distanceTo(camera.getWorldPosition(normal));
+  const depth = -normal.copy(point).applyMatrix4(camera.matrixWorldInverse).z;
+  const unit =
+    mode === "billboard" && scaleMode === "fixed"
+      ? (2 * Math.max(0, depth)) /
+        (Math.max(1, height) * camera.projectionMatrix.elements[5]!)
+      : (2 * distance * tooltipReferenceSlope(referenceFov)) / Math.max(1, height);
+  if (mode === "surface") {
+    normal.copy(point).normalize().negate();
+    up.set(0, 1, 0).addScaledVector(normal, -normal.y);
+    if (up.lengthSq() < 1e-8)
+      up.set(0, 0, 1).addScaledVector(normal, -normal.z);
+    up.normalize();
+    right.crossVectors(up, normal).normalize();
+    rotation.setFromRotationMatrix(basis.makeBasis(right, up, normal));
+  } else camera.getWorldQuaternion(rotation);
+  return { depth, unit };
 }
 
 /** A tooltip owns its world transform; hotspot aspect ratio and rotation never leak in. */
@@ -104,24 +68,8 @@ export function tooltipWorldMatrix(
   scaleMode: HotspotScaleMode,
   referenceFov: number,
 ): Matrix4 {
-  setTooltipAnchorPoint(anchor, mode);
-  const distance = point.distanceTo(camera.getWorldPosition(normal));
-  const depth = -normal.copy(point).applyMatrix4(camera.matrixWorldInverse).z;
-  const unit =
-    mode === "billboard" && scaleMode === "fixed"
-      ? (2 * Math.max(0, depth)) /
-        (Math.max(1, height) * camera.projectionMatrix.elements[5]!)
-      : (2 * distance * referenceSlope(referenceFov)) / Math.max(1, height);
-  if (mode === "surface") {
-    normal.copy(point).normalize().negate();
-    up.set(0, 1, 0).addScaledVector(normal, -normal.y);
-    if (up.lengthSq() < 1e-8)
-      up.set(0, 0, 1).addScaledVector(normal, -normal.z);
-    up.normalize();
-    right.crossVectors(up, normal).normalize();
-    rotation.setFromRotationMatrix(basis.makeBasis(right, up, normal));
-  } else camera.getWorldQuaternion(rotation);
-  return target.compose(point, rotation, scale.set(unit, unit, unit));
+  const { unit } = setTooltipWorldFrame(anchor, camera, height, mode, scaleMode, referenceFov);
+  return target.compose(point, rotation, scale.setScalar(unit));
 }
 
 export function spatialTooltipWorldMatrix(
@@ -129,7 +77,6 @@ export function spatialTooltipWorldMatrix(
   anchor: Object3D,
   camera: Camera,
   viewportHeight: number,
-  projectionScaleY: number,
   { mode, scaleMode, referenceFov, placement, offset }: {
     mode: HotspotMode;
     scaleMode: HotspotScaleMode;
@@ -143,24 +90,23 @@ export function spatialTooltipWorldMatrix(
     textureWidth: number;
     textureHeight: number;
   },
-): Matrix4 {
-  // Measure from the hotspot center. Its edge follows the billboard's changing
-  // scale and orientation as the head turns.
-  setTooltipAnchorPoint(anchor.parent ?? anchor, mode);
-  const distanceScale = (2 * point.distanceTo(camera.getWorldPosition(normal))) /
-    Math.max(1, viewportHeight);
-  setTooltipAnchorPoint(anchor, mode);
-  const pixelUnit = distanceScale / projectionScaleY;
-  const gap = offset * pixelUnit;
-  const unit = mode === "billboard" && scaleMode === "fixed"
-    ? pixelUnit
-    : distanceScale * referenceSlope(referenceFov);
-  const x = placement === "left" ? -(width * unit / 2 + gap)
-    : placement === "right" ? width * unit / 2 + gap : 0;
-  const y = placement === "bottom" ? -(height * unit / 2 + gap)
-    : placement === "top" ? height * unit / 2 + gap : 0;
-  point.add(tooltipTangentOffset(tangentOffset, point, x, y));
-  tooltipFacingCameraQuaternion(rotation, point, camera);
+): Matrix4 | null {
+  // The anchor has already been placed at the center view's projected edge.
+  const { depth, unit } = setTooltipWorldFrame(anchor, camera, viewportHeight, mode, scaleMode, referenceFov);
+  const projectionY = camera.projectionMatrix.elements[5]!;
+  if (!Number.isFinite(depth) || depth <= 0 || !Number.isFinite(projectionY) || projectionY <= 0) {
+    return null;
+  }
+  const gap = offset * (2 * depth) / (Math.max(1, viewportHeight) * projectionY);
+  const x = placement === "left" ? -1 : placement === "right" ? 1 : 0;
+  const y = placement === "bottom" ? -1 : placement === "top" ? 1 : 0;
+  camera.getWorldQuaternion(cameraRotation);
+  cameraRight.set(x, 0, 0).applyQuaternion(cameraRotation);
+  cameraUp.set(0, y, 0).applyQuaternion(cameraRotation);
+  right.set(x, 0, 0).applyQuaternion(rotation);
+  up.set(0, y, 0).applyQuaternion(rotation);
+  point.addScaledVector(cameraRight, gap).addScaledVector(cameraUp, gap);
+  point.addScaledVector(right, width * unit / 2).addScaledVector(up, height * unit / 2);
   return target.compose(point, rotation, scale.set(textureWidth * unit, textureHeight * unit, 1));
 }
 
