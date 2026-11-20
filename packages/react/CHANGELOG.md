@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.9.0
+
+### Minor Changes
+
+- Place VR hotspot tooltips on the hotspot edge from the midpoint between the eyes, using the pre-VR viewer height for fixed sizes and gaps. Floating hotspots face that midpoint, stay at least 2 world units away, and match their monoscopic screen fraction from the actual eye projections. Export `hotspotSurfaceDistance` for the world distance from the panorama origin to a `mode="surface"` hotspot plane.
+
 ## 5.8.1
 
 ### Patch Changes
