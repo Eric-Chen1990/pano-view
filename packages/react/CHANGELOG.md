@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.8.1
+
+### Patch Changes
+
+- Keep spatial hotspot tooltips a stable size and offset in simulated stereo and immersive VR when the head turns or the monoscopic field of view changes. Ignore mouse-wheel zoom while WebVR is presenting, and multisample the offscreen stereo eye buffers on WebGL and WebGPU when antialiasing is enabled.
+
 ## 5.8.0
 
 ### Minor Changes
