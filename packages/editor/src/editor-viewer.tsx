@@ -35,6 +35,7 @@ import {
 } from "@ericchen1990/pano-view/data";
 import { SceneSources, projectRoot } from "./sources";
 import { LocalFiles, LOCAL_ROOT } from "./local-files";
+import { audioExtension } from "./local-media";
 import type { HotspotGeometryPatch } from "./document";
 import { HotspotLayer } from "./hotspot-layer";
 import type { PanoEditorProps } from "./types";
@@ -74,6 +75,7 @@ export function EditorViewer({
   project,
   local,
   directories,
+  media,
   options,
   activeId,
   selectedId,
@@ -102,6 +104,7 @@ export function EditorViewer({
   project: PanoProjectDefinition;
   local?: LocalFiles;
   directories: readonly LocalFiles[];
+  media: readonly LocalFiles[];
   options: PanoEditorProps;
   activeId?: string;
   selectedId?: string;
@@ -212,12 +215,13 @@ export function EditorViewer({
   const runtime = useMemo(() => {
     const issues: string[] = [];
     const scenes: LoadedProjectScene[] = [];
+    const assetFiles = (path: string) =>
+      media.find((files) => files.containsPath(path))
+      ?? directories.find((files) => files.containsPath(path)) ?? local;
     for (const definition of project.scenes) {
       const scene = sources.get(definition.id);
       if (!scene) continue;
       const hotspots: LoadedProjectScene["hotspots"] = [];
-      const assetFiles = (path: string) =>
-        directories.find((files) => files.containsPath(path)) ?? local;
       for (const hotspot of definition.hotspots ?? []) {
         try {
           const resolved = resolveProjectHotspotAssets(
@@ -272,9 +276,7 @@ export function EditorViewer({
                   "flac",
                 ].includes(extension)
                 ? extension
-                : mime === "mpeg"
-                  ? "mp3"
-                  : (mime ?? "mp3");
+                : (audioExtension(file.type) ?? mime ?? "mp3");
             });
           }
           hotspots.push(resolved);
@@ -295,8 +297,8 @@ export function EditorViewer({
     for (const popup of project.popups ?? []) {
       try {
         popups.push(resolveProjectPopupAssets(popup, local ? LOCAL_ROOT : projectRoot(options.baseUrl), (path, context) => {
-          const files = directories.find((entry) => entry.containsPath(path)) ?? local;
-          return files ? files.resolveFrom(path, context, LOCAL_ROOT)
+          const files = assetFiles(path);
+          return files ? files.resolveFrom(path, { ...context, defaultUrl: new URL(path, LOCAL_ROOT).href }, LOCAL_ROOT)
             : (options.resolvePopupAssetUrl?.(path, context) ?? context.defaultUrl);
         }));
       } catch (error) { issues.push(`${popup.title || popup.id}: ${errorMessage(error)}`); }
@@ -308,7 +310,7 @@ export function EditorViewer({
           project.map,
           local ? LOCAL_ROOT : projectRoot(options.baseUrl),
           (path, context) => {
-            const files = directories.find((entry) => entry.containsPath(path)) ?? local;
+            const files = assetFiles(path);
             return files
               ? files.resolve(path, {
                   ...context,
@@ -329,7 +331,7 @@ export function EditorViewer({
       ...(map === undefined ? {} : { map }),
     };
     return { loaded, issues };
-  }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
+  }, [project, sources, local, directories, media, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map((entry) => entry.scene),
     [runtime.loaded.scenes],

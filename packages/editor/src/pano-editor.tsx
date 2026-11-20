@@ -50,6 +50,7 @@ import {
   type HotspotGeometryPatch,
 } from "./document";
 import { LocalFiles } from "./local-files";
+import { hotspotAssetPicker, popupAssetPicker } from "./local-media";
 import { SceneSources } from "./sources";
 import { ImportTask } from "./import-task";
 import { translator } from "./i18n";
@@ -90,10 +91,12 @@ export function PanoEditor(props: PanoEditorProps) {
   );
   const [local, setLocal] = useState<LocalFiles>();
   const [directories, setDirectories] = useState<LocalFiles[]>([]);
-  const retainedDirectories = useRef<LocalFiles[]>([]);
+  const [media, setMedia] = useState<LocalFiles[]>([]);
+  const retainedFiles = useRef<LocalFiles[]>([]);
   const activeLocal =
     directories.find((files) => active && files.containsSource(active.source)) ?? local;
   const localSession = Boolean(local || directories.length);
+  const localMediaEnabled = localSession || !hostManaged;
   const [preview, setPreview] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<"scenes" | "popups" | "map">("scenes");
   const [selectedPopupId, setSelectedPopupId] = useState<string>();
@@ -149,7 +152,7 @@ export function PanoEditor(props: PanoEditorProps) {
       operation.current++;
       task.cancel();
       exportController.current?.abort();
-      for (const files of retainedDirectories.current) files.dispose();
+      for (const files of retainedFiles.current) files.dispose();
     };
   }, [task]);
   useEffect(() => () => local?.dispose(), [local]);
@@ -184,7 +187,7 @@ export function PanoEditor(props: PanoEditorProps) {
         ? document.activeElement
         : null;
     dialogRef.current
-      ?.querySelector<HTMLElement>("button, input, select, textarea")
+      ?.querySelector<HTMLElement>("button, input:not([hidden]), select, textarea")
       ?.focus();
     return () => focusBeforeDialog.current?.focus();
   }, [dialog?.kind]);
@@ -259,7 +262,14 @@ export function PanoEditor(props: PanoEditorProps) {
         if (url && alive.current && token === pickerOperation.current && documentToken === generation.current)
           setPopupResource(popupId, blockId, field, url);
       } catch (cause) { report(cause); }
-    } else setDialog({ kind: "asset", popupId, blockId, field, selected: field === "poster" && block.type === "video" ? block.poster ?? "" : block.src });
+    } else {
+      const { title, mediaKind } = popupAssetPicker(field, block.type);
+      setDialog({
+        kind: "asset", title, popupId, blockId, field,
+        selected: field === "poster" && block.type === "video" ? block.poster ?? "" : block.src,
+        mediaKind: localMediaEnabled ? mediaKind : undefined,
+      });
+    }
   }
   function updateScene(
     id: string,
@@ -337,9 +347,10 @@ export function PanoEditor(props: PanoEditorProps) {
     setProgress(undefined);
     history.replace(next);
     setLocal(files);
-    for (const directory of retainedDirectories.current) directory.dispose();
-    retainedDirectories.current = [];
+    for (const files of retainedFiles.current) files.dispose();
+    retainedFiles.current = [];
     setDirectories([]);
+    setMedia([]);
     setSaved(JSON.stringify(next));
     navigate(next.initialSceneId ?? next.scenes[0]?.id ?? "");
     setPreview(false);
@@ -436,8 +447,9 @@ export function PanoEditor(props: PanoEditorProps) {
         });
         navigate(additions[0]!.id);
       }
-      retainedDirectories.current.push(selectedFiles);
-      setDirectories([...retainedDirectories.current]);
+      const imported = selectedFiles;
+      retainedFiles.current.push(imported);
+      setDirectories((current) => [...current, imported]);
       selectedFiles = undefined;
       setDialog(undefined);
     } catch (cause) {
@@ -544,26 +556,42 @@ export function PanoEditor(props: PanoEditorProps) {
         if (!alive.current || token !== generation.current) return;
         addScene(source, "Scene", dialog.replace);
       } else if (dialog.kind === "asset") {
-        if (!dialog.selected.trim()) throw new Error("Choose a resource path");
-        const assetLocal = directories.find((files) => files.containsPath(dialog.selected)) ?? local;
-        if (assetLocal) assetLocal.file(dialog.selected);
+        const imported = dialog.file && LocalFiles.imported(dialog.file, `assets/media/${newId()}/`);
+        let path = dialog.selected;
+        if (imported) {
+          path = LocalFiles.reference(imported.files.keys().next().value!);
+        } else {
+          if (!path.trim()) throw new Error("Choose a resource path");
+          const assetLocal = media.find((files) => files.containsPath(path))
+            ?? directories.find((files) => files.containsPath(path)) ?? local;
+          if (assetLocal) assetLocal.file(path);
+        }
         if (dialog.popupId && dialog.blockId) {
-          setPopupResource(dialog.popupId, dialog.blockId, dialog.field as "src" | "poster", dialog.selected);
+          setPopupResource(dialog.popupId, dialog.blockId, dialog.field as "src" | "poster", path);
         } else if (dialog.hotspotId && active) {
           const hotspot = active.hotspots?.find(
             (item) => item.id === dialog.hotspotId,
           );
-          if (hotspot)
-            updateHotspot(assetHotspot(hotspot, dialog.field, dialog.selected));
+          if (hotspot) {
+            const updated = assetHotspot(hotspot, dialog.field, path);
+            // A format override belongs to the old source list.
+            updateHotspot(imported && updated.type === "audio" && dialog.field === "src"
+              ? { ...updated, format: undefined }
+              : updated);
+          }
         } else if (dialog.hotspotKind) {
           setPlacement(
             newHotspot(
               dialog.hotspotKind,
               { yaw: 0, pitch: 0 },
-              dialog.selected,
+              path,
             ),
           );
           setTool(dialog.hotspotKind);
+        }
+        if (imported) {
+          retainedFiles.current.push(imported);
+          setMedia((current) => [...current, imported]);
         }
       } else if (dialog.kind === "delete") {
         if (dialog.target === "scene") {
@@ -687,14 +715,18 @@ export function PanoEditor(props: PanoEditorProps) {
       } catch (cause) {
         report(cause);
       }
-    } else
+    } else {
+      const { title, mediaKind } = hotspotAssetPicker(field, hotspotKind ?? selected?.type);
       setDialog({
         kind: "asset",
+        title,
         field,
         hotspotId: hotspotKind ? undefined : selectedId,
         hotspotKind,
         selected: "",
+        mediaKind: localMediaEnabled ? mediaKind : undefined,
       });
+    }
   }
   function applyMapAsset(path: string, field: "image" | "icon") {
     const current = history.current.map;
@@ -750,7 +782,7 @@ export function PanoEditor(props: PanoEditorProps) {
       const files = LocalFiles.imported(file, `assets/map/${newId()}/`);
       const path = LocalFiles.reference([...files.files.keys()][0]!);
       if (!alive.current || generation.current !== token) return;
-      retainedDirectories.current.push(files);
+      retainedFiles.current.push(files);
       setDirectories((current) => [...current, files]);
       applyMapAsset(path, field);
       setError("");
@@ -788,7 +820,7 @@ export function PanoEditor(props: PanoEditorProps) {
             : hotspot,
         ),
       }));
-      retainedDirectories.current.push(files);
+      retainedFiles.current.push(files);
       setDirectories((current) => [...current, files]);
       setError("");
     } catch (cause) {
@@ -922,12 +954,13 @@ export function PanoEditor(props: PanoEditorProps) {
     if (dialog) {
       if (event.key === "Escape" && !busy) {
         setDialog(undefined);
+        if (dialog.kind === "asset") setError("");
         event.stopPropagation();
       }
       if (event.key === "Tab") {
         const nodes = Array.from(
           dialogRef.current?.querySelectorAll<HTMLElement>(
-            "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex='0']",
+            "button:not(:disabled), input:not(:disabled):not([hidden]), select:not(:disabled), textarea:not(:disabled), [tabindex='0']",
           ) ?? [],
         );
         const index = nodes.indexOf(document.activeElement as HTMLElement);
@@ -1030,7 +1063,7 @@ export function PanoEditor(props: PanoEditorProps) {
           resolveAssetUrl: props.resolveAssetUrl,
           resolvePopupAssetUrl: props.resolvePopupAssetUrl,
           local,
-          directories,
+          directories: [...directories, ...media],
           signal: controller.signal,
           onProgress: (value) => {
             if (
@@ -1247,7 +1280,7 @@ export function PanoEditor(props: PanoEditorProps) {
         </span>
         <span>{t(dirty ? "Unsaved changes" : "No pending changes")}</span>
       </div>
-      {error ? (
+      {error && dialog?.kind !== "asset" ? (
         <div className="pne-alert" role="alert">
           <span>{error}</span>
           <button
@@ -1376,6 +1409,7 @@ export function PanoEditor(props: PanoEditorProps) {
             project={project}
             local={local}
             directories={directories}
+            media={media}
             options={props}
             activeId={active?.id}
             selectedId={selectedId}
@@ -1565,6 +1599,7 @@ export function PanoEditor(props: PanoEditorProps) {
             setDialog(next);
           }}
           onConfirm={confirmDialog}
+          onError={setError}
           onDirectory={addDirectory}
           onChooseHotspot={(kind) => {
             setDialog(undefined);

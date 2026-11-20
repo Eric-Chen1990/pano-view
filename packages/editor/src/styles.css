@@ -670,6 +670,15 @@
   color: var(--pne-muted);
   font-size: 12px;
 }
+.pne-local-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .pne-source-method {
   display: flex;
   gap: 8px;

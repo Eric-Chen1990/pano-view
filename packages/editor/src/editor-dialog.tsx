@@ -1,20 +1,32 @@
-import { useId, useRef, useState, type RefObject } from "react";
+import { useId, useRef, useState, type DragEvent, type RefObject } from "react";
 import { LocalFiles } from "./local-files";
 import { droppedDirectoryFiles } from "./dropped-files";
 import { hotspotKinds, type HotspotKind } from "./document";
 import type { Translate } from "./i18n";
+import { errorMessage } from "./errors";
+import { matchesLocalMedia, mediaAccept, selectLocalMedia, type LocalMediaKind } from "./local-media";
+
+const mediaDropLabels: Record<LocalMediaKind, string> = {
+  image: "Drop an image here",
+  video: "Drop a video here",
+  audio: "Drop an audio file here",
+  svg: "Drop an SVG image here",
+};
 
 export type EditorDialogState =
   | { kind: "hotspot" }
   | { kind: "scenes"; paths: string[]; selected: string[]; replace?: string }
   | {
       kind: "asset";
+      title: string;
       field: string;
       hotspotId?: string;
       popupId?: string;
       blockId?: string;
       hotspotKind?: HotspotKind;
       selected: string;
+      mediaKind?: LocalMediaKind;
+      file?: File;
     }
   | { kind: "source"; replace?: string; url: string; root: string }
   | { kind: "delete"; target: "scene"; id: string; title: string; hotspotCount: number }
@@ -29,6 +41,7 @@ export function EditorDialog({
   titleId,
   elementRef,
   onChange,
+  onError,
   onConfirm,
   onDirectory,
   onChooseHotspot,
@@ -42,18 +55,36 @@ export function EditorDialog({
   titleId: string;
   elementRef: RefObject<HTMLDivElement | null>;
   onChange: (dialog: EditorDialogState | undefined) => void;
+  onError: (message: string) => void;
   onConfirm: () => Promise<void>;
   onDirectory: (files: File[] | Promise<File[]>) => Promise<void>;
   onChooseHotspot: (kind: HotspotKind) => void;
   t: Translate;
 }) {
   const directoryRef = useRef<HTMLInputElement>(null);
+  const mediaRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [sourceMode, setSourceMode] = useState<"local" | "online">("local");
   const helpId = useId();
   const online = dialog.kind === "source" && sourceMode === "online";
+  const mediaKind = dialog.kind === "asset" ? dialog.mediaKind : undefined;
+  function chooseMedia(files: File[], directory = false) {
+    if (busy || dialog.kind !== "asset" || !mediaKind) return;
+    try {
+      onChange({ ...dialog, file: selectLocalMedia(files, mediaKind, directory) });
+    } catch (cause) {
+      onError(t(errorMessage(cause)));
+    }
+  }
+  function isFileDrag(event: DragEvent) {
+    return event.dataTransfer.types.includes("Files");
+  }
   return (
-    <div className="pne-modal-backdrop">
+    <div
+      className="pne-modal-backdrop"
+      onDragOver={mediaKind ? (event) => { if (isFileDrag(event)) event.preventDefault(); } : undefined}
+      onDrop={mediaKind ? (event) => { if (isFileDrag(event)) event.preventDefault(); } : undefined}
+    >
       <div
         ref={elementRef}
         className="pne-modal"
@@ -61,6 +92,23 @@ export function EditorDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={dialog.kind === "delete" ? `${helpId}-delete` : undefined}
+        onDragOver={mediaKind ? (event) => {
+          if (!isFileDrag(event)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = busy ? "none" : "copy";
+          setDragging(!busy);
+        } : undefined}
+        onDragLeave={mediaKind ? (event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+        } : undefined}
+        onDrop={mediaKind ? (event) => {
+          if (!isFileDrag(event)) return;
+          event.preventDefault();
+          setDragging(false);
+          const { files, items } = event.dataTransfer;
+          const directory = Array.from(items).some((item) => item.webkitGetAsEntry?.()?.isDirectory);
+          chooseMedia(Array.from(files), directory);
+        } : undefined}
       >
         <h2 id={titleId}>
           {t(
@@ -69,7 +117,7 @@ export function EditorDialog({
               : dialog.kind === "scenes"
               ? "Choose scenes"
               : dialog.kind === "asset"
-                ? "Browse assets"
+                ? dialog.title
                 : dialog.kind === "delete"
                   ? (dialog.target === "scene" ? "Delete scene?" : "Delete hotspot?")
                   : "Scene source",
@@ -210,25 +258,58 @@ export function EditorDialog({
                     onChange({
                       ...dialog,
                       selected: event.currentTarget.value,
+                      file: undefined,
                     })
                   }
                 />
               </label>
+              {mediaKind ? (
+                <div className={`pne-directory-drop${dragging ? " pne-dragging" : ""}`}>
+                  <strong>{t(mediaDropLabels[mediaKind])}</strong>
+                  <button type="button" disabled={busy} onClick={() => mediaRef.current?.click()}>
+                    {t("Choose local file")}
+                  </button>
+                  <input
+                    ref={mediaRef}
+                    type="file"
+                    accept={mediaAccept[mediaKind]}
+                    hidden
+                    aria-label={t("Choose local file")}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const files = Array.from(event.currentTarget.files ?? []);
+                      event.currentTarget.value = "";
+                      if (files.length) chooseMedia(files);
+                    }}
+                  />
+                  {dialog.file ? (
+                    <div className="pne-local-file">
+                      <span role="status">{dialog.file.name}</span>
+                      <button type="button" disabled={busy}
+                        onClick={() => onChange({ ...dialog, file: undefined })}>
+                        {t("Clear file selection")}
+                      </button>
+                    </div>
+                  ) : null}
+                  <p>{t("Files stay on your computer. Export a project package to keep them.")}</p>
+                </div>
+              ) : null}
               {local ? (
                 <div className="pne-file-list">
-                  {[...local.files.keys()]
-                    .filter((path) => !path.endsWith(".json"))
-                    .map((path) => (
+                  {[...local.files]
+                    .filter(([path, file]) => mediaKind ? matchesLocalMedia(file, mediaKind) : !path.endsWith(".json"))
+                    .map(([path]) => (
                       <button
                         type="button"
                         key={path}
                         aria-pressed={
-                          dialog.selected === LocalFiles.reference(path)
+                          !dialog.file && dialog.selected === LocalFiles.reference(path)
                         }
                         onClick={() =>
                           onChange({
                             ...dialog,
                             selected: LocalFiles.reference(path),
+                            file: undefined,
                           })
                         }
                       >
@@ -304,6 +385,7 @@ export function EditorDialog({
               disabled={
                 busy ||
                 (dialog.kind === "scenes" && !dialog.selected.length) ||
+                (dialog.kind === "asset" && !dialog.file && !dialog.selected.trim()) ||
                 (dialog.kind === "source" && !dialog.url.trim())
               }
               onClick={() => void onConfirm()}

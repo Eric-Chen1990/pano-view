@@ -13,6 +13,7 @@ import {
 import { validateViewerConfig } from "../../../shared/viewer-config";
 import { mapCursorAssets } from "../../../shared/cursor-assets";
 import { LocalFiles, LOCAL_ROOT } from "./local-files";
+import { audioExtension } from "./local-media";
 import { projectRoot } from "./sources";
 import { exportDocument } from "./document";
 
@@ -31,14 +32,13 @@ function extension(url: string, type = ""): string {
   )?.[1];
   return (
     suffix?.toLowerCase() ??
+    audioExtension(type) ??
     (
       {
         "image/png": "png",
         "image/jpeg": "jpg",
         "image/webp": "webp",
         "image/svg+xml": "svg",
-        "audio/mpeg": "mp3",
-        "audio/ogg": "ogg",
         "video/mp4": "mp4",
         "video/webm": "webm",
         "text/html": "html",

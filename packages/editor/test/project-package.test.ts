@@ -75,7 +75,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
     file("a/tiles/1/002_01.png", "right"),
     file("media/image #1.png", "image"),
     file("media/movie.webm", "video", "video/webm"),
-    file("media/audio.mp3", "audio", "audio/mpeg"),
+    file("media/audio", "audio", "audio/wav"),
     file("media/cursor.png", "cursor"),
     file("media/card.html", "<!doctype html><h1>Guide</h1>", "text/html"),
     file(
@@ -133,7 +133,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
             id: "audio",
             type: "audio",
             ...point,
-            src: ["media/audio.mp3"],
+            src: ["media/audio"],
             icon: "media/icon.svg",
             playingIcon: "media/image%20%231.png",
           },
@@ -188,6 +188,11 @@ test("local package contains every sphere tile and media, preserves metadata, an
     project.scenes[0]!.initialView,
   );
   assert.equal(saved.scenes[0]!.hotspots!.length, 9);
+  const audio = saved.scenes[0]!.hotspots!.find((hotspot) => hotspot.type === "audio");
+  assert.ok(audio && Array.isArray(audio.src));
+  const audioPath = audio.src[0]!;
+  assert.match(audioPath, /^assets\/\d+\.wav$/);
+  assert.equal(strFromU8(archive[audioPath]!), "audio");
   assert.equal(strFromU8(archive["panoramas/1/tiles/1/1_1.png"]!), "left");
   assert.equal(strFromU8(archive["panoramas/1/tiles/1/1_2.png"]!), "right");
   assert.equal(
