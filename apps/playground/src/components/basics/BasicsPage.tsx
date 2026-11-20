@@ -1,5 +1,5 @@
 import fullSource from "./BasicsPage.tsx?raw";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PanoViewer,
   Sphere,
@@ -29,9 +29,12 @@ const tile = {
 
 function SourceExample({ source, renderer }: { source: "sphere" | "tile"; renderer: "auto" | "webgl" }) {
   const viewer = usePanoViewer();
+  const [displayed, setDisplayed] = useState(source);
   const [error, setError] = useState<string>();
   const [progress, setProgress] = useState<TileLoadProgress>();
   const [level, setLevel] = useState(1);
+  useEffect(() => setError(undefined), [source]);
+
   return (
     <>
       {error ? (
@@ -40,28 +43,38 @@ function SourceExample({ source, renderer }: { source: "sphere" | "tile"; render
         </p>
       ) : null}
       <PanoViewer ref={viewer.ref} renderer={renderer} aria-label="Panorama basics viewer" style={{ height: 540 }}>
-        {source === "sphere" ? (
+        {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
+            visible={displayed === "sphere"}
+            onReady={() => {
+              if (source === "sphere") setDisplayed("sphere");
+            }}
             onError={() =>
-              setError("Full image could not load. Reload to retry.")
+              source === "sphere" && setError("Full image could not load. Reload to retry.")
             }
           />
-        ) : (
+        ) : null}
+        {source === "tile" || displayed === "tile" ? (
           <Tile
             {...tile}
+            visible={displayed === "tile"}
+            loadMode={displayed === "tile" ? "full" : "base"}
+            onReady={() => {
+              if (source === "tile") setDisplayed("tile");
+            }}
             onPreviewError={() =>
-              setError("Preview could not load. Reload to retry.")
+              source === "tile" && setError("Preview could not load. Reload to retry.")
             }
             onTileError={() =>
-              setError(
+              source === "tile" && setError(
                 "Some tiles could not load; the preview remains available.",
               )
             }
             onLoadProgress={setProgress}
             onLevelChange={setLevel}
           />
-        )}
+        ) : null}
       </PanoViewer>
       {source === "tile" ? (
         <p className="px-6 text-sm" aria-live="polite">
@@ -127,7 +140,7 @@ ${Object.entries(props)
           </button>
         ))}
       </div>
-      <SourceExample key={`${source}:${renderer}`} source={source} renderer={renderer} />
+      <SourceExample key={renderer} source={source} renderer={renderer} />
       <p className="px-6 text-sm text-muted-2">
         Sphere previews resolve beside the image. Tile previews and tile
         templates resolve below baseUrl. Use the template and multires values

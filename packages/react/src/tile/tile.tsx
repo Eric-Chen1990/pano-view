@@ -40,7 +40,8 @@ import { TileTextureManager } from "./texture-manager";
 import { useSharedTileTextureManager } from "./texture-manager-context";
 import type { CubeFaceCode, TileAddress, TileProps } from "./types";
 
-import { useManagedTexture, usePreviewTexture } from "./texture-hooks";
+import { configureTilePreviewTexture, useManagedTexture } from "./texture-hooks";
+import { usePreviewTexture } from "../preview-texture";
 
 const MAX_LOD_UPDATE_INTERVAL_MS = 100;
 const FAST_ROTATION_THRESHOLD_RADIANS = Math.PI / 180;
@@ -455,10 +456,11 @@ export function Tile({
   );
   const anisotropy = getTextureAnisotropy(gl);
   const effectivePreviewUrl = resolveAssetUrl(baseUrl, previewUrl);
-  const previewTexture = usePreviewTexture(
+  const { texture: previewTexture, showDetail } = usePreviewTexture(
     effectivePreviewUrl,
-    anisotropy,
+    configureTilePreviewTexture,
     onPreviewError,
+    { showPreviewFirst: visible && !compareSide },
   );
   const sharedManager = useSharedTileTextureManager();
   const progressRef = useRef(onLoadProgress);
@@ -668,7 +670,7 @@ export function Tile({
     publishSceneDetail(
       detailReporterRef.current,
       detailTokenRef,
-      loadMode === "full" &&
+      showDetail && loadMode === "full" &&
         viewTilesAreDrawable(
           targetKeysRef.current.map((key) => manager.getSnapshot(key).texture),
         ),
@@ -680,14 +682,16 @@ export function Tile({
       {previewTexture ? (
         <PreviewCube texture={previewTexture} faceOrder={previewFaceOrder} />
       ) : null}
-      {layers.map((layer) => (
-        <TileLayerMeshes
-          key={layer.level}
-          layer={layer}
-          manager={manager}
-          resolveUrl={resolveUrl}
-        />
-      ))}
+      <group visible={showDetail}>
+        {layers.map((layer) => (
+          <TileLayerMeshes
+            key={layer.level}
+            layer={layer}
+            manager={manager}
+            resolveUrl={resolveUrl}
+          />
+        ))}
+      </group>
     </group>
   );
 }

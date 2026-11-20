@@ -1,65 +1,12 @@
-import { useThree } from "@react-three/fiber";
-import { fitImageTexture } from "../renderer-capabilities";
-import { useEffect, useRef, useState } from "react";
-import { Texture, TextureLoader } from "three";
+import type { RootState } from "@react-three/fiber";
+import { useEffect, useState } from "react";
+import type { Texture } from "three";
+import { getTextureAnisotropy } from "../renderer-capabilities";
 import type { TextureEntrySnapshot } from "./types";
-import {
-  configureMipmappedTexture,
-  type TileTextureManager,
-} from "./texture-manager";
+import { configureMipmappedTexture, type TileTextureManager } from "./texture-manager";
 
-export function usePreviewTexture(
-  url: string | null,
-  anisotropy: number,
-  onError?: (error: unknown) => void,
-) {
-  const gl = useThree((state) => state.gl);
-  const [texture, setTexture] = useState<Texture | null>(null);
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-
-  useEffect(() => {
-    if (!url) {
-      setTexture(null);
-      return;
-    }
-
-    let active = true;
-    const loader = new TextureLoader();
-    setTexture(null);
-    loader.load(
-      url,
-      (loadedTexture) => {
-        if (!active) {
-          loadedTexture.dispose();
-          return;
-        }
-        fitImageTexture(gl, loadedTexture);
-        configureMipmappedTexture(loadedTexture, anisotropy);
-        setTexture(loadedTexture);
-      },
-      undefined,
-      (error) => {
-        if (active) {
-          setTexture(null);
-          onErrorRef.current?.(error);
-        }
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [anisotropy, gl, url]);
-
-  useEffect(
-    () => () => {
-      texture?.dispose();
-    },
-    [texture],
-  );
-
-  return texture;
+export function configureTilePreviewTexture(texture: Texture, gl: RootState["gl"]) {
+  configureMipmappedTexture(texture, getTextureAnisotropy(gl));
 }
 
 export function useManagedTexture<

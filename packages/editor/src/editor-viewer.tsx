@@ -43,12 +43,17 @@ import type { Translate } from "./i18n";
 import { errorMessage } from "./errors";
 
 class ViewerBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; sceneId?: string },
   { error?: string }
 > {
   state: { error?: string } = {};
   static getDerivedStateFromError(error: unknown) {
     return { error: errorMessage(error) };
+  }
+  componentDidUpdate(previous: Readonly<{ sceneId?: string }>) {
+    if (this.state.error && previous.sceneId !== this.props.sceneId) {
+      this.setState({ error: undefined });
+    }
   }
   render() {
     return this.state.error ? (
@@ -339,12 +344,16 @@ export function EditorViewer({
   const active = runtime.loaded.scenes.find(
     (entry) => entry.scene.id === activeId,
   );
+  const viewerSceneId = active?.scene.id ??
+    (activeId && scenes.some((scene) => scene.id === readyId) ? readyId : undefined);
+  const canEditScene = activeId !== undefined && readyId === activeId;
   const ready = (id: string) => {
-    setReadyId(undefined);
-    const initialView = project.scenes.find(
-      (scene) => scene.id === id,
-    )?.initialView;
-    if (initialView) viewerRef.current?.setView(initialView, { immediate: true });
+    setReadyId(id);
+    const initialView = runtime.loaded.scenes.find(({ scene }) => scene.id === id)?.initialView;
+    // ProjectScenes already applies configured views in preview mode.
+    if (!preview || !initialView) {
+      viewerRef.current?.setView(initialView ?? { yaw: 0, pitch: 0, fov: 75 }, { immediate: true });
+    }
     onReady?.(id);
   };
   return (
@@ -358,7 +367,7 @@ export function EditorViewer({
           )}
         </div>
       ) : null}
-      {!active ? (
+      {!viewerSceneId ? (
         <p className="pne-empty" role="status">
           {t(
             errors.some((message) => message.startsWith(`${activeId}:`))
@@ -369,7 +378,7 @@ export function EditorViewer({
           )}
         </p>
       ) : (
-        <ViewerBoundary key={`${activeId}:${sourceKey}`}>
+        <ViewerBoundary key={sourceKey} sceneId={activeId}>
           <PanoViewer
             ref={viewerRef}
             className="pne-viewer"
@@ -380,7 +389,7 @@ export function EditorViewer({
                 : { keyboard: { enabled: false } }
             }
             onPanoramaClick={({ position }) => {
-              if (!preview) onPlace(position);
+              if (!preview && canEditScene) onPlace(position);
             }}
           >
             {!preview ? (
@@ -391,10 +400,10 @@ export function EditorViewer({
             {preview ? (
               <ProjectScenes
                 project={runtime.loaded}
-                activeSceneId={activeId}
+                activeSceneId={viewerSceneId}
                 onActiveSceneIdChange={onActive}
                 transition="none"
-                onSceneReady={(id) => { setReadyId(id); onReady?.(id); }}
+                onSceneReady={ready}
                 onTransitionError={({ error }) => onError(errorMessage(error))}
                 onCustomAction={event => {
                   const issue = customActionIssue(event.action, options.customActions);
@@ -425,11 +434,12 @@ export function EditorViewer({
             ) : (
               <Scenes
                 scenes={scenes}
-                activeSceneId={activeId}
+                activeSceneId={viewerSceneId}
+                onActiveSceneIdChange={onActive}
                 transition="none"
                 onSceneReady={ready}
                 onTransitionError={({ error }) => onError(String(error))}
-                renderHotspots={() => (
+                renderHotspots={(scene) => active?.scene.id === scene.id && canEditScene ? (
                   <HotspotLayer
                     hotspots={active.hotspots}
                     selectedId={selectedId}
@@ -444,7 +454,7 @@ export function EditorViewer({
                     onError={onError}
                     t={t}
                   />
-                )}
+                ) : null}
               />
             )}
             <PanoOverlay>

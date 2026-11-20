@@ -1,5 +1,5 @@
 import {
-  PanoSun, PanoViewer, Sphere, WebVR, usePanoViewer,
+  PanoSun, PanoViewer, Scenes, WebVR, usePanoViewer,
   type HotspotPosition, type PanoSunProps,
 } from "@ericchen1990/pano-view";
 import { useState, useSyncExternalStore } from "react";
@@ -46,6 +46,13 @@ type SunSettings = typeof SCENARIOS.add.settings;
 type SunPlacement = Pick<SunSettings, "position" | "angularSize">;
 type SunEdit = SunPlacement & { preview: boolean };
 
+const SUN_SCENES = Object.entries(SCENARIOS).map(([id, { src }]) => ({
+  id,
+  type: "sphere" as const,
+  src,
+  previewUrl: "preview.webp",
+}));
+
 function SunSlider({ label, value, min, max, step, suffix = "", onChange }: {
   label: string;
   value: number;
@@ -77,7 +84,8 @@ const STRENGTHS = [
 ] as const;
 
 function SunExample({ scenario }: { scenario: Scenario }) {
-  const { label, src, initialView, settings: defaults } = SCENARIOS[scenario];
+  const [displayedScenario, setDisplayedScenario] = useState(scenario);
+  const { label, src, initialView, settings: defaults } = SCENARIOS[displayedScenario];
   const [settings, setSettings] = useState<SunSettings>(defaults);
   const [enabled, setEnabled] = useState(true);
   const [edit, setEdit] = useState<SunEdit | null>(null);
@@ -161,7 +169,20 @@ ${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("
         style={{ height: "min(550px, 65dvh)" }}
       >
         <WebVR />
-        <Sphere src={src} previewUrl="preview.webp" />
+        <Scenes
+          scenes={SUN_SCENES}
+          activeSceneId={scenario}
+          transition="none"
+          onSceneReady={(id) => {
+            if (id !== scenario || id === displayedScenario) return;
+            const next = SCENARIOS[scenario];
+            viewer.setView(next.initialView, { immediate: true });
+            setDisplayedScenario(scenario);
+            setSettings(next.settings);
+            setEnabled(true);
+            setEdit(null);
+          }}
+        />
         <PanoSun {...layers} position={position} enabled={editing ? edit.preview : enabled} />
         {editing && <SunGuide position={position} angularSize={layers.angularSize} onMove={moveSun} />}
       </PanoViewer>
@@ -211,7 +232,7 @@ export function SunPage() {
             </button>
           ))}
         </div>
-        <SunExample key={scenario} scenario={scenario} />
+        <SunExample scenario={scenario} />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · Panorama sunlight" />
     </main>

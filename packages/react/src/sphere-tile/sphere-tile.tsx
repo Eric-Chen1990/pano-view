@@ -15,7 +15,8 @@ import {
   TileTextureManager,
 } from "../tile/texture-manager";
 import { useSharedTileTextureManager } from "../tile/texture-manager-context";
-import { useManagedTexture, usePreviewTexture } from "../tile/texture-hooks";
+import { configureTilePreviewTexture, useManagedTexture } from "../tile/texture-hooks";
+import { usePreviewTexture } from "../preview-texture";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import {
   parseSphereMultires,
@@ -91,13 +92,13 @@ const ManagedPatch = memo(function ManagedPatch({
   manager,
   resolveUrl,
   yawOffset,
-  ready,
+  onPaintable,
 }: {
   address: SphereTileAddress;
   manager: Pick<TileTextureManager<SphereTileAddress>, "acquire" | "getSnapshot">;
   resolveUrl: (address: SphereTileAddress) => string;
   yawOffset: number;
-  ready: () => void;
+  onPaintable: (address: SphereTileAddress) => (() => void) | undefined;
 }) {
   const url = resolveUrl(address);
   const snapshot = useManagedTexture(
@@ -107,8 +108,8 @@ const ManagedPatch = memo(function ManagedPatch({
     address,
   );
   useEffect(() => {
-    if (snapshot.texture) ready();
-  }, [snapshot.texture, ready]);
+    if (snapshot.texture) return onPaintable(address);
+  }, [address, snapshot.texture, onPaintable]);
   return snapshot.texture ? (
     <SpherePatch
       address={address}
@@ -142,10 +143,11 @@ function SphereTileSource({
   const compareHost = useContext(CompareHostContext);
   const compareSide = useContext(CompareSourceSideContext);
   const anisotropy = getTextureAnisotropy(gl);
-  const preview = usePreviewTexture(
+  const { texture: preview, showDetail } = usePreviewTexture(
     resolveAssetUrl(baseUrl, previewUrl),
-    anisotropy,
+    configureTilePreviewTexture,
     onPreviewError,
+    { showPreviewFirst: visible && !compareSide },
   );
   const callbacks = useRef({
     onReady,
@@ -225,12 +227,33 @@ function SphereTileSource({
       ),
     [config, yawOffset],
   );
+  const paintedBase = useRef(new Set<string>());
+  const handedOffWithBase = useRef(false);
+  const baseTileCount = candidates[0]!.length;
+  const detailReporter = useSceneDetailReporter();
+  // Scenes uses this readiness signal to replace an entire outgoing panorama.
+  const requireFullCoverage = detailReporter !== null;
+  const onPaintable = useCallback((address: SphereTileAddress) => {
+    if (!showDetail) return;
+    if (!requireFullCoverage) {
+      ready();
+      return;
+    }
+    if (address.level !== 0 || readyRef.current) return;
+    const key = sphereTileKey(address);
+    const painted = paintedBase.current;
+    painted.add(key);
+    if (painted.size === baseTileCount) {
+      handedOffWithBase.current = true;
+      ready();
+    }
+    return () => { painted.delete(key); };
+  }, [baseTileCount, ready, requireFullCoverage, showDetail]);
   const previewAddress = useMemo(
     () => sphereTileAddresses({ width: 2, height: 1 }, 0, 2)[0]!,
     [],
   );
   const [layers, setLayers] = useState<Layer[]>([]);
-  const detailReporter = useSceneDetailReporter();
   const detailReporterRef = useRef(detailReporter);
   detailReporterRef.current = detailReporter;
   const detailTokenRef = useRef("");
@@ -314,8 +337,11 @@ function SphereTileSource({
       const next: Layer[] = [];
       let residentBytes = 0;
       for (let index = 0; index <= level; index++) {
+        // The incoming camera can jump at handoff. Retain the complete base until
+        // the preview supplies coverage outside the original frustum.
+        const keepBase = index === 0 && handedOffWithBase.current && !preview;
         const addresses = candidates[index]!.filter(({ bounds }) =>
-          scratch.frustum.intersectsBox(bounds),
+          keepBase || scratch.frustum.intersectsBox(bounds),
         ).map(({ address }) => address);
         const bytes = addresses.reduce(
           (total, address) =>
@@ -350,7 +376,7 @@ function SphereTileSource({
     publishSceneDetail(
       detailReporterRef.current,
       detailTokenRef,
-      loadMode === "full" &&
+      showDetail && loadMode === "full" &&
         viewTilesAreDrawable(
           targetKeysRef.current.map((key) => manager.getSnapshot(key).texture),
         ),
@@ -366,20 +392,20 @@ function SphereTileSource({
           preview
         />
       ) : null}
-      {loadMode !== "preview"
-        ? layers.flatMap((layer) =>
-            layer.addresses.map((address) => (
-              <ManagedPatch
-                key={sphereTileKey(address)}
-                address={address}
-                manager={manager}
-                resolveUrl={resolveUrl}
-                yawOffset={yawOffset}
-                ready={ready}
-              />
-            )),
-          )
-        : null}
+      <group visible={showDetail}>
+        {loadMode !== "preview" && layers.flatMap((layer) =>
+          layer.addresses.map((address) => (
+            <ManagedPatch
+              key={sphereTileKey(address)}
+              address={address}
+              manager={manager}
+              resolveUrl={resolveUrl}
+              yawOffset={yawOffset}
+              onPaintable={onPaintable}
+            />
+          )),
+        )}
+      </group>
     </group>
   );
 }

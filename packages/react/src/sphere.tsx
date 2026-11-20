@@ -1,6 +1,6 @@
 import { getTextureAnisotropy, fitImageTexture } from "./renderer-capabilities";
 import { useThree, type RootState } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BackSide,
   LinearFilter,
@@ -15,6 +15,8 @@ import { resolveUrlAgainstFile } from "./asset-url";
 import { PanoBasicMaterial } from "./pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 import { useSceneDetailReporter } from "./scene-detail";
+import { usePreviewTexture } from "./preview-texture";
+import { CompareSourceSideContext } from "./compare/view";
 
 export type SphereProps = {
   src: string;
@@ -37,28 +39,44 @@ export type SphereProps = {
   visible?: boolean;
 };
 
-function useEquirectTexture(
-  url: string | null,
+function configureEquirectTexture(
+  texture: Texture,
   gl: RootState["gl"],
   generateMipmaps: boolean,
+) {
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.repeat.x = -1;
+  texture.offset.x = 1;
+  texture.anisotropy = getTextureAnisotropy(gl);
+  texture.magFilter = LinearFilter;
+  texture.minFilter = generateMipmaps ? LinearMipmapLinearFilter : LinearFilter;
+  texture.generateMipmaps = generateMipmaps;
+  texture.needsUpdate = true;
+}
+
+function configureSpherePreview(texture: Texture, gl: RootState["gl"]) {
+  configureEquirectTexture(texture, gl, false);
+}
+
+function useEquirectTexture(
+  url: string,
+  gl: RootState["gl"],
   onLoad?: (texture: Texture) => void,
   onError?: (error: unknown) => void,
 ) {
-  const [texture, setTexture] = useState<Texture | null>(null);
+  const [loaded, setLoaded] = useState<{ url: string; gl: RootState["gl"]; texture: Texture }>();
   const onLoadRef = useRef(onLoad);
   const onErrorRef = useRef(onError);
   onLoadRef.current = onLoad;
   onErrorRef.current = onError;
 
   useEffect(() => {
-    if (!url) {
-      setTexture(null);
-      return;
-    }
+    if (!url) return;
 
     let active = true;
     const loader = new TextureLoader();
-    setTexture(null);
+    setLoaded(undefined);
 
     loader.load(
       url,
@@ -69,24 +87,13 @@ function useEquirectTexture(
         }
 
         fitImageTexture(gl, loadedTexture);
-        loadedTexture.colorSpace = SRGBColorSpace;
-        loadedTexture.wrapS = RepeatWrapping;
-        loadedTexture.repeat.x = -1;
-        loadedTexture.offset.x = 1;
-        loadedTexture.anisotropy = getTextureAnisotropy(gl);
-        loadedTexture.magFilter = LinearFilter;
-        loadedTexture.minFilter = generateMipmaps
-          ? LinearMipmapLinearFilter
-          : LinearFilter;
-        loadedTexture.generateMipmaps = generateMipmaps;
-        loadedTexture.needsUpdate = true;
-        setTexture(loadedTexture);
+        configureEquirectTexture(loadedTexture, gl, true);
+        setLoaded({ url, gl, texture: loadedTexture });
         onLoadRef.current?.(loadedTexture);
       },
       undefined,
       (error) => {
         if (active) {
-          setTexture(null);
           onErrorRef.current?.(error);
         }
       },
@@ -95,16 +102,16 @@ function useEquirectTexture(
     return () => {
       active = false;
     };
-  }, [gl, generateMipmaps, url]);
+  }, [gl, url]);
 
   useEffect(
     () => () => {
-      texture?.dispose();
+      loaded?.texture.dispose();
     },
-    [texture],
+    [loaded],
   );
 
-  return texture;
+  return loaded?.url === url && loaded.gl === gl ? loaded.texture : null;
 }
 
 export function Sphere({
@@ -118,25 +125,20 @@ export function Sphere({
   visible = true,
 }: SphereProps) {
   const gl = useThree((state) => state.gl);
+  const compareSide = useContext(CompareSourceSideContext);
   const resolvedPreviewUrl = useMemo(
     () => resolveUrlAgainstFile(src, previewUrl),
     [previewUrl, src],
   );
-  const texture = useEquirectTexture(
-    src,
-    gl,
-    true,
-    onLoad,
-    onError,
-  );
-  const previewTexture = useEquirectTexture(
-    texture ? null : resolvedPreviewUrl,
-    gl,
-    false,
-    undefined,
+  const texture = useEquirectTexture(src, gl, onLoad, onError);
+  const { texture: previewTexture, showDetail } = usePreviewTexture(
+    resolvedPreviewUrl,
+    configureSpherePreview,
     onPreviewError,
+    { showPreviewFirst: visible && !compareSide, discardPreview: texture !== null },
   );
-  const displayTexture = texture ?? previewTexture;
+  const showFullTexture = showDetail && texture !== null;
+  const displayTexture = showFullTexture ? texture : previewTexture;
   const readyRef = useRef(false);
   const detailReporter = useSceneDetailReporter();
 
@@ -148,11 +150,11 @@ export function Sphere({
     if (!detailReporter) {
       return;
     }
-    detailReporter.report(texture != null);
+    detailReporter.report(showFullTexture);
     return () => {
       detailReporter.report(false);
     };
-  }, [detailReporter, texture]);
+  }, [detailReporter, showFullTexture]);
 
   useEffect(() => {
     if (!displayTexture || readyRef.current) {
