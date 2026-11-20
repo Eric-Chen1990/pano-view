@@ -126,6 +126,7 @@ export function parseFieldInput(
 export function Field({
   spec,
   value,
+  displayFractionDigits,
   onChange,
   onBegin,
   onEnd,
@@ -135,6 +136,7 @@ export function Field({
 }: {
   spec: FieldSpec;
   value: unknown;
+  displayFractionDigits?: number;
   onChange: (value: unknown) => void;
   onBegin: () => void;
   onEnd: () => void;
@@ -219,9 +221,12 @@ export function Field({
       </select>
     );
   else {
+    const restingText = displayFractionDigits !== undefined && typeof resolvedValue === "number"
+      ? String(Number(resolvedValue.toFixed(displayFractionDigits)))
+      : display(resolvedValue);
     const props = {
       ...accessibility,
-      value: editing ? text : display(resolvedValue),
+      value: editing ? text : restingText,
       onFocus: () => {
         setText(display(resolvedValue));
         setEditing(true);

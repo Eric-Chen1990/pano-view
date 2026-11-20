@@ -203,6 +203,8 @@ const zh: Record<string, string> = {
   "Top right": "右上角",
   "Bottom right": "右下角",
   "Bottom left": "左下角",
+  "Yaw (°)": "水平（°）",
+  "Pitch (°)": "垂直（°）",
   "Rotate hotspot": "旋转热点",
   "Rotate by (° clockwise)": "本次旋转角度（°，顺时针为正）",
   "Apply rotation": "应用旋转",

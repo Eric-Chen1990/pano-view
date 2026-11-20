@@ -553,6 +553,47 @@
   display: grid;
   gap: 8px;
 }
+.pne-corner-coordinates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 8px;
+  width: 100%;
+  max-width: 22rem;
+  padding: 10px;
+  border: 1px solid var(--pne-border);
+  border-radius: 6px;
+  background: var(--pne-bg);
+}
+.pne-inspector .pne-corner-coordinates fieldset {
+  gap: 5px;
+  padding: 0;
+  border: 0;
+}
+.pne-corner-coordinates legend {
+  padding: 0;
+  font-weight: 600;
+}
+.pne-corner-center {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc((100% - 8px) / 2);
+}
+.pne-corner-center legend {
+  color: var(--pne-accent);
+}
+.pne-corner-coordinates .pne-field-heading {
+  margin-bottom: 2px;
+}
+.pne-root .pne-corner-coordinates button.pne-help-button {
+  width: 20px;
+  min-height: 20px;
+  padding: 1px;
+}
+.pne-root .pne-corner-coordinates .pne-field input[type="number"] {
+  padding: 4px 6px;
+  background: var(--pne-panel);
+  font-variant-numeric: tabular-nums;
+}
 .pne-inspector textarea {
   font-family: ui-monospace, monospace;
   font-size: 11px;

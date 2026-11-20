@@ -14,6 +14,14 @@ import { hotspotFieldSpec } from "./hotspot-field-specs";
 import { errorMessage } from "./errors";
 import type { Translate } from "./i18n";
 
+const coordinateSpecs = (["yaw", "pitch"] as const).map((axis) => ({
+  axis,
+  spec: {
+    ...hotspotFieldSpec({ name: axis, type: "number" }),
+    label: axis === "yaw" ? "Yaw (°)" : "Pitch (°)",
+  },
+}));
+
 export function CornerFields({ hotspot, getRectangleCorners, onChange, onBegin, onEnd, t }: {
   hotspot: Extract<ProjectHotspotDefinition, { type: "image" | "video" }>;
   getRectangleCorners: (id: string) => HotspotCorners | null;
@@ -34,11 +42,12 @@ export function CornerFields({ hotspot, getRectangleCorners, onChange, onBegin, 
     setError("");
   };
   const coordinates = (point: HotspotPosition, update: (point: HotspotPosition) => void) =>
-    (["yaw", "pitch"] as const).map((axis) => (
+    coordinateSpecs.map(({ axis, spec }) => (
       <Field
         key={axis}
-        spec={hotspotFieldSpec({ name: axis, type: "number" })}
+        spec={spec}
         value={point[axis]}
+        displayFractionDigits={4}
         onBegin={onBegin}
         onEnd={onEnd}
         onChange={(value) => {
@@ -48,6 +57,12 @@ export function CornerFields({ hotspot, getRectangleCorners, onChange, onBegin, 
         t={t}
       />
     ));
+  const corner = (points: HotspotCorners, index: 0 | 1 | 2 | 3) => (
+    <fieldset>
+      <legend>{t(cornerLabels[index])}</legend>
+      {coordinates(points[index], (point) => apply(updateCorner(points, index, point)))}
+    </fieldset>
+  );
   const rotate = () => {
     if (!corners || angle.trim() === "") return;
     apply(rotateHotspotCorners(corners, Number(angle)));
@@ -75,16 +90,16 @@ export function CornerFields({ hotspot, getRectangleCorners, onChange, onBegin, 
       {error ? <p role="alert">{error}</p> : null}
       {corners && center ? (
         <>
-          <fieldset>
-            <legend>{t("Hotspot center")}</legend>
-            {coordinates(center, (point) => apply(moveHotspotCorners(corners, center, point)))}
-          </fieldset>
-          {corners.map((corner, index) => (
-            <fieldset key={index}>
-              <legend>{t(cornerLabels[index]!)}</legend>
-              {coordinates(corner, (point) => apply(updateCorner(corners, index, point)))}
+          <div className="pne-corner-coordinates">
+            {corner(corners, 0)}
+            {corner(corners, 1)}
+            <fieldset className="pne-corner-center">
+              <legend>{t("Hotspot center")}</legend>
+              {coordinates(center, (point) => apply(moveHotspotCorners(corners, center, point)))}
             </fieldset>
-          ))}
+            {corner(corners, 3)}
+            {corner(corners, 2)}
+          </div>
           <div className="pne-field">
             <label htmlFor={angleId}>{t("Rotate by (° clockwise)")}</label>
             <input
