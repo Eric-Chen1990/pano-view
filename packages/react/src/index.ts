@@ -301,6 +301,7 @@ export {
   rotateHotspotCorners,
   validateHotspotCorners,
 } from "./hotspot/corners";
+export { hotspotSurfaceDistance } from "./hotspot/hotspot-anchor";
 export { MAX_HOTSPOT_PITCH } from "./hotspot/types";
 export type {
   HotspotDragEvent,

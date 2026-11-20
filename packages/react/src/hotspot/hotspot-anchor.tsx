@@ -183,6 +183,11 @@ function maximumHotspotDistance(width: number, height: number): number {
   return (PANORAMA_RADIUS - PANORAMA_SURFACE_INSET) / cornerFactor;
 }
 
+/** World distance from the panorama origin to a `mode="surface"` hotspot plane. */
+export function hotspotSurfaceDistance(width: number, height: number): number {
+  return maximumHotspotDistance(width, height);
+}
+
 export function createSurfaceQuaternion(position: HotspotPosition): Quaternion {
   const outward = panoPositionToVector3(position).normalize();
   const inward = outward.clone().negate();
