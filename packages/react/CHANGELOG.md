@@ -1,5 +1,12 @@
 # @ericchen1990/pano-view
 
+## 5.8.0
+
+### Minor Changes
+
+- Add a native WebGPU renderer with automatic WebGL fallback. `PanoViewer` defaults to `renderer="auto"` and exposes `getRendererBackend()`. WebGPU covers filters including clarity, comparisons, scene transitions, simulated stereo, and immersive VR when the browser supports `XRGPUBinding`.
+- c0d8a0f: Add four-corner placement for image and video hotspots. Anchor each texture corner to a panorama position, reshape and rotate the hotspot in the editor, and preserve the final corners in project JSON and ZIP files.
+
 ## 5.7.0
 
 ### Minor Changes
