@@ -8,6 +8,7 @@ import { SceneMenuPage } from "./components/scene-menu/SceneMenuPage";
 import { SceneTransitionPage } from "./components/scene-transitions/SceneTransitionPage";
 import { VideoPage } from "./components/video/VideoPage";
 import { WeatherPage } from "./components/weather/WeatherPage";
+import { SunPage } from "./components/sun/SunPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { BasicsPage } from "./components/basics/BasicsPage";
@@ -126,6 +127,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "360° weather",
     group: "scenes",
     Component: WeatherPage,
+  },
+  {
+    path: "/sun",
+    navLabel: "Panorama sunlight",
+    group: "scenes",
+    Component: SunPage,
   },
   {
     path: "/scene-menu",

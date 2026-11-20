@@ -69,6 +69,11 @@ export const PAGE_META = {
     description:
       "Try nine spatial rain and snow effects in a panoramic viewer with adjustable intensity and wind.",
   },
+  "/sun": {
+    title: "Panorama Sunlight Demo | Pano View",
+    description:
+      "Add sunlight to a 360° panorama or enhance an existing sun with adjustable glow, rays, and lens flare.",
+  },
   "/scene-menu": {
     title: "Panorama Scene Menu Demo | Pano View",
     description:

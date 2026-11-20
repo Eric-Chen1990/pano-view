@@ -28,6 +28,7 @@
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
+- [PanoSun](#panosun)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -1882,6 +1883,37 @@ import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
 设置 `enabled={false}` 或 `intensity={0}` 可关闭效果。组件也遵循系统的减少动态效果偏好。多场景项目可通过 `Scenes.onSceneReady` 更新天气属性，离场快照会保留当时的天气，新场景采用更新后的属性。粒子覆盖整个全景，适合按室内外场景控制开关。
 
 在 [天气 Playground](https://pano-view-playground.vercel.app/weather) 体验九种预设。
+
+## PanoSun
+
+在 `PanoViewer` 内将 `PanoSun` 与 `Sphere`、`Tile`、`SphereTile`、`PanoVideo` 或 `Scenes` 同级挂载。日盘、泛光和射线固定在全景中的指定方向，支持 WebGPU 和 WebGL。普通视图的镜头光斑随相机移动，太阳出画时逐渐淡出。双目模式显示固定在天空中的三层光效。
+
+```tsx
+import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+// 在天空中添加太阳。
+<PanoViewer style={{ height: 480 }}>
+  <Sphere src="/outdoors.webp" />
+  <PanoSun position={{ yaw: 140, pitch: 55 }} angularSize={0.55}
+    glowAngularSize={22} raysAngularSize={14} />
+</PanoViewer>
+
+// 保留照片中的日盘，增强周围的光效。
+<PanoSun position={{ yaw: -81, pitch: 63 }} disc={0}
+  glowAngularSize={26} glow={0.3} />
+```
+
+| 属性 | 默认值 | 说明 |
+| --- | --- | --- |
+| `position` | 必填 | 与热点相同的全景 `{ yaw, pitch }` 角度坐标 |
+| `angularSize` | `1.2` | 日盘角直径，范围为 `0.2°–6°` |
+| `glowAngularSize` | `angularSize × 18`，上限 `42` | 泛光角直径，范围为 `1°–60°` |
+| `raysAngularSize` | `angularSize × 13`，上限 `34` | 射线覆盖角直径，范围为 `1°–50°` |
+| `disc`、`glow`、`rays`、`flare` | `1`、`0.55`、`0.18`、`0.22` | 各层强度，范围为 `0–1` |
+| `enabled`、`intensity` | `true`、`1` | 总开关和整体强度，强度范围为 `0–1` |
+| `color` | `"#fff4de"` | 泛光、射线和镜头光斑的十六进制颜色 |
+
+在 [太阳光效 Playground](https://pano-view-playground.vercel.app/sun) 选择 **Edit sun** 放大。点击画面或拖动中心标记对齐太阳，用 **Disc size** 调整日盘轮廓，确认后复制生成的参数。可用 **Preview light** 对比原图与光效。照片过曝时可只对准中心，独立调节泛光宽度。多场景项目可在 `Scenes.onSceneReady` 更新太阳参数。照片中的遮挡可通过 `enabled` 或 `intensity` 控制，阴影和反光来自全景源。
 
 ## BackgroundAudio
 

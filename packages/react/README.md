@@ -28,6 +28,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
+- [PanoSun](#panosun)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -2089,6 +2090,37 @@ Snow accepts an optional `sizeRange={[min, max]}` for the flake size in Three.js
 Set `enabled={false}` or `intensity={0}` to turn off the effect. The component also honors the system's reduced-motion preference. For tours, update the component props from `Scenes.onSceneReady`. The outgoing scene snapshot includes its current weather, and the newly active scene uses the updated props. The particles cover the full panorama, so enable them on scenes where precipitation should be visible.
 
 Try all nine presets in the [weather Playground](https://pano-view-playground.vercel.app/weather).
+
+## PanoSun
+
+Place `PanoSun` beside a `Sphere`, `Tile`, `SphereTile`, `PanoVideo`, or `Scenes` inside `PanoViewer`. The disc, glow, and rays stay fixed to a panorama direction on WebGPU and WebGL. The lens flare follows the camera in the standard view and fades as the sun leaves the frame. Stereo modes show the three sky layers.
+
+```tsx
+import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+
+// Add a sun to the sky.
+<PanoViewer style={{ height: 480 }}>
+  <Sphere src="/outdoors.webp" />
+  <PanoSun position={{ yaw: 140, pitch: 55 }} angularSize={0.55}
+    glowAngularSize={22} raysAngularSize={14} />
+</PanoViewer>
+
+// Enhance an existing sun using its photographed disc.
+<PanoSun position={{ yaw: -81, pitch: 63 }} disc={0}
+  glowAngularSize={26} glow={0.3} />
+```
+
+| Prop | Default | Meaning |
+| --- | --- | --- |
+| `position` | Required | Panorama `{ yaw, pitch }` in degrees, using hotspot coordinates |
+| `angularSize` | `1.2` | Disc diameter in degrees, from `0.2` to `6` |
+| `glowAngularSize` | `angularSize × 18`, capped at `42` | Glow diameter in degrees, from `1` to `60` |
+| `raysAngularSize` | `angularSize × 13`, capped at `34` | Ray span in degrees, from `1` to `50` |
+| `disc`, `glow`, `rays`, `flare` | `1`, `0.55`, `0.18`, `0.22` | Individual layer strengths, from `0` to `1` |
+| `enabled`, `intensity` | `true`, `1` | Master switch and strength from `0` to `1` |
+| `color` | `"#fff4de"` | Hex tint for the glow, rays, and flare |
+
+In the [sunlight Playground](https://pano-view-playground.vercel.app/sun), choose **Edit sun** to zoom in. Click the image or drag the center marker to align the sun, then adjust **Disc size** until the outline fits and select **Done**. Use **Preview light** to compare the effect with the photo, then copy the generated props. With an overexposed photo, align the center and set the glow width independently. For a tour, update the sun props in `Scenes.onSceneReady`. Use `enabled` or `intensity` to control visibility when the photographed sky contains occluders. Shadows and reflections come from the source panorama.
 
 ## BackgroundAudio
 

@@ -3,7 +3,7 @@ import { SpatialHostContext } from "./spatial/host";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useThree } from "@react-three/fiber";
 import { useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
-import { BackSide, Raycaster, Vector2, Vector3 } from "three";
+import { BackSide, Mesh, Raycaster, Sphere, Vector2, Vector3, type Intersection } from "three";
 import { vector3ToPanoPosition } from "./hotspot/coordinates";
 import type { PanoramaPointerEvent } from "./hotspot/types";
 import { PanoEventBusContext } from "./pano-event-bus";
@@ -12,6 +12,24 @@ import { PanoVideoHostContext, subscribePanoVideoHost } from "./video/host";
 import { createPanoramaTap } from "./video/panorama-tap";
 
 const EVENT_SURFACE_RADIUS = DEFAULT_PANORAMA_RADIUS - 1;
+const EVENT_SPHERE = new Sphere(new Vector3(), EVENT_SURFACE_RADIUS);
+const eventSurfaceHit = new Vector3();
+
+export function raycastPanoramaEventSurface(this: Mesh, raycaster: Raycaster, hits: Intersection[]) {
+  const { ray, near, far } = raycaster;
+  if (!EVENT_SPHERE.containsPoint(ray.origin)) {
+    Mesh.prototype.raycast.call(this, raycaster, hits);
+    return;
+  }
+
+  // The event surface is centered at the viewer origin. Intersect the sphere
+  // directly so rays along triangle edges still register panorama clicks.
+  const point = ray.intersectSphere(EVENT_SPHERE, eventSurfaceHit);
+  if (!point) return;
+  const distance = ray.origin.distanceTo(point);
+  if (distance < near || distance > far) return;
+  hits.push({ distance, object: this, point: point.clone() });
+}
 
 function makePanoramaPointerEvent(
   event: ThreeEvent<MouseEvent | PointerEvent>,
@@ -153,6 +171,7 @@ export function PanoramaEventSurface({
   return (
     <mesh
       renderOrder={-200}
+      raycast={raycastPanoramaEventSurface}
       onClick={handleClick}
       onDoubleClick={(event) => emit("doubleclick", event)}
       onPointerDown={(event) => {

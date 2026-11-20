@@ -44,6 +44,8 @@ export type { PanoColorMatrix, PanoFilterPreset } from "./pano-filter/presets";
 export { PanoWeather } from "./weather/pano-weather";
 export { PANO_RAIN_PRESETS, PANO_SNOW_PRESETS } from "./weather/presets";
 export type { PanoRainPreset, PanoSnowPreset, PanoWeatherProps } from "./weather/presets";
+export { PanoSun } from "./sun/pano-sun";
+export type { PanoSunProps } from "./sun/sun-settings";
 export { Gyro } from "./gyro";
 export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
 export { WebVR } from "./webvr/webvr";
