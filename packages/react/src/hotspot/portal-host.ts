@@ -14,6 +14,7 @@ export type PortalWindow = {
   preview: ThreeScene;
   visible: () => boolean;
   ready: () => boolean;
+  enterOnZoom?: (event: WheelEvent | PointerEvent) => void;
   requestDetail: (active: boolean) => void;
   show: (aperture: PortalAperture | null, texture?: Texture) => void;
 };

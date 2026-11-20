@@ -61,7 +61,7 @@ export type ImageHotspotDefinition = PointHotspotDefinitionBase & {
 
 export type PortalHotspotDefinition = Omit<
   PointHotspotDefinitionBase, "mode" | "distance" | "scaleMode" | "referenceFov" | "opacity"
-> & { type: "portal"; shape?: PortalHotspotShape; frame?: PortalHotspotFrame };
+> & { type: "portal"; shape?: PortalHotspotShape; frame?: PortalHotspotFrame; enterOnZoom?: boolean };
 
 export type GraphicHotspotDefinition = PointHotspotDefinitionBase & {
   type: "graphic";

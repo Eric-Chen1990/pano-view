@@ -94,7 +94,7 @@ const point = [
 ];
 const fields = {
   image: ["src", "corners"],
-  portal: ["shape", "frame"],
+  portal: ["shape", "frame", "enterOnZoom"],
   graphic: ["graphic"],
   sequence: ["src", "frameCount", "frameDirection", "playing", "fps", "loop"],
   video: [
@@ -171,6 +171,7 @@ const fields = {
   ],
 } satisfies Record<HotspotDefinition["type"], string[]>;
 const booleanFields = new Set([
+  "enterOnZoom",
   "visible",
   "interactive",
   "playing",

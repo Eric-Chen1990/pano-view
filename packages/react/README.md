@@ -2902,13 +2902,16 @@ cubemap tile scene, or sphere tile scene.
 />
 ```
 
-The doorway follows the panorama surface. Its preview responds to panning and
-zooming and loads detail for up to two visible doors. A portal arrives at the
+The doorway follows the panorama surface. Its preview responds to panning.
+Zooming the current scene changes the size of the opening while the destination
+keeps its field of view. Detail loads for up to two visible doors. A portal arrives at the
 destination scene’s `initialView`, with yaw `0`, pitch `0`, and FOV `75`
 as defaults before applying view limits. Portal clicks use a dedicated
 animation in WebGL and WebGPU. Reduced motion, WebXR and stereo use a direct
 cut once the target is ready. A custom React `onClick` replaces the built-in
 activation. Project callbacks can cancel it with `preventDefault()`.
+Set `enterOnZoom` to enter when the visitor aims at the opening and zooms in
+with a wheel or pinch gesture. The editor also saves this option for Preview mode.
 
 Set `shape` to `"rectangle"`, `"circle"`, or `"ellipse"`. A circle uses
 `width` as its angular diameter. Set `frame={{ color: "#f5c984", thickness: 0.06 }}`

@@ -8,7 +8,7 @@ import { WebGPURuntimeContext } from "../pano-renderer";
 import { isPerspectiveCamera, OVERLAY_RENDER_ORDER } from "../scene-transitions/overlay-utils";
 import type { PanoViewerState } from "../types";
 import type { PortalWindow } from "./portal-host";
-import { portalCameraRotation, portalPreviewFov, portalTargetSize, portalViewRotation, projectPortal, type PortalAperture } from "./portal-projection";
+import { portalCameraRotation, portalTargetSize, portalViewRotation, projectPortal, setPortalCameraProjection, type PortalAperture } from "./portal-projection";
 import { createPortalTarget, renderPortalTarget } from "./portal-rendering";
 import { portalFanIndices } from "./portal-geometry";
 
@@ -52,7 +52,7 @@ export function PortalEntry({ window, destination, maxPixels, onTakeover, onFini
   const sourceMesh = useRef<Mesh>(null);
   const destinationMesh = useRef<Mesh>(null);
   const frame = useRef<{
-    started: number; aperture: PortalAperture; fov: number; rotation: Quaternion;
+    started: number; aperture: PortalAperture; rotation: Quaternion;
     takenOverAt?: number;
   } | null>(null);
   const done = useRef(false);
@@ -93,12 +93,12 @@ export function PortalEntry({ window, destination, maxPixels, onTakeover, onFini
       resources.destination.setSize(width, height);
       renderPortalTarget(gl, gpu, resources.source, scene, camera);
       frame.current = {
-        started: now, aperture, fov: portalPreviewFov(camera.fov, destination.fov),
+        started: now, aperture,
         rotation: portalCameraRotation(camera.quaternion, window.position, destination, new Quaternion()),
       };
     }
 
-    const { aperture, started, rotation, fov, takenOverAt } = frame.current;
+    const { aperture, started, rotation, takenOverAt } = frame.current;
     const elapsed = now - started;
     const progress = Math.min(1, elapsed / 0.5);
     const eased = MathUtils.smootherstep(progress, 0, 1);
@@ -111,8 +111,7 @@ export function PortalEntry({ window, destination, maxPixels, onTakeover, onFini
       const targetCamera = resources.camera;
       targetCamera.copy(camera, false);
       targetCamera.quaternion.copy(rotation).slerp(resources.landing, eased);
-      targetCamera.fov = MathUtils.lerp(fov, destination.fov, eased);
-      targetCamera.clearViewOffset();
+      setPortalCameraProjection(targetCamera, destination.fov, size);
       targetCamera.updateMatrixWorld(true);
       renderPortalTarget(gl, gpu, resources.destination, window.preview, targetCamera);
       placeOverlay(resources.sourceQuad, camera, point => point, crop, screenQuad, Boolean(gpu));

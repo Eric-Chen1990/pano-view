@@ -4,7 +4,7 @@ import { Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import { parsePanoProject, resolveProjectHotspotAssets } from "../src/data";
 import { portalFrameGeometry } from "../src/hotspot/portal-geometry";
 import { matchesPortalSelection } from "../src/hotspot/portal-host";
-import { portalCameraRotation, portalPreviewFov, portalTargetSize, portalViewRotation, projectPortal } from "../src/hotspot/portal-projection";
+import { portalCameraRotation, portalReadyForZoomEntry, portalTargetSize, portalViewRotation, projectPortal, setPortalCameraProjection } from "../src/hotspot/portal-projection";
 
 test("a stationary aperture samples a different sightline as the viewer pans", () => {
   const door = { yaw: 179, pitch: 0 };
@@ -18,8 +18,33 @@ test("a stationary aperture samples a different sightline as the viewer pans", (
 
   assert.ok(sample(centered).distanceTo(arrival) < 1e-9);
   assert.ok(Math.abs(sample(centered).angleTo(sample(turned)) - 6.5 * Math.PI / 180) < 1e-8);
-  assert.ok(Math.abs(portalPreviewFov(75, 60) - 60) < 1e-9);
-  assert.ok(portalPreviewFov(40, 75) < 40);
+});
+
+test("source zoom enlarges the aperture without magnifying destination landmarks", () => {
+  const viewport = { width: 800, height: 500 };
+  const source = new PerspectiveCamera(75, viewport.width / viewport.height, 0.1, 100);
+  const destination = new PerspectiveCamera();
+  const door = new Object3D();
+  door.position.set(0.3, 0, -3);
+  const landmarks = [new Vector3(0, 0, -4), new Vector3(0.25, 0, -4)];
+  const sample = (fov: number) => {
+    source.fov = fov;
+    source.updateProjectionMatrix();
+    const { bounds } = projectPortal(door, source)!;
+    destination.copy(source);
+    setPortalCameraProjection(destination, 60, viewport, bounds);
+    const pixels = landmarks.map(point => bounds.x + (point.clone().project(destination).x + 1) / 2 * bounds.width);
+    setPortalCameraProjection(destination, 60, viewport);
+    for (const [i, point] of landmarks.entries()) {
+      assert.ok(Math.abs(pixels[i]! - (point.clone().project(destination).x + 1) / 2) < 1e-9);
+    }
+    return { width: bounds.width, pixels };
+  };
+
+  const wide = sample(75);
+  const zoomed = sample(40);
+  assert.ok(zoomed.width > wide.width);
+  assert.ok(Math.abs(zoomed.pixels[1]! - wide.pixels[1]!) < 1e-9);
 });
 
 test("projection clips a rotated door to screen and bounds the preview buffer", () => {
@@ -36,6 +61,19 @@ test("projection clips a rotated door to screen and bounds the preview buffer", 
   assert.ok(width * height <= 512 * 512);
   mesh.position.z = 5;
   assert.equal(projectPortal(mesh, camera), null);
+});
+
+test("zoom entry needs a close door with the camera aimed at its center", () => {
+  const camera = new PerspectiveCamera(75, 1.8, 0.1, 100);
+  const door = new Object3D();
+  door.position.z = -3;
+  door.scale.set(1, 1.5, 1);
+  assert.equal(portalReadyForZoomEntry(projectPortal(door, camera)!), false);
+  camera.fov = 30;
+  camera.updateProjectionMatrix();
+  assert.equal(portalReadyForZoomEntry(projectPortal(door, camera)!), true);
+  door.position.x = 0.35;
+  assert.equal(portalReadyForZoomEntry(projectPortal(door, camera)!), false);
 });
 
 test("portal borders join at the corners and rounded apertures project their actual outline", () => {
@@ -65,7 +103,7 @@ test("only matching, fresh selection can start a portal navigation", () => {
 test("project portal uses a scene action and rejects invalid destinations on export", () => {
   const source = { viewerUrl: "viewer.json" };
   const door = { type: "portal", id: "door", position: { yaw: 12, pitch: 5 }, width: 10, height: 16,
-    shape: "ellipse", frame: { src: "door.webp", color: "#ffaa99", thickness: 0.06 } };
+    shape: "ellipse", enterOnZoom: true, frame: { src: "door.webp", color: "#ffaa99", thickness: 0.06 } };
   const project = (sceneId?: string) => ({
     schemaVersion: 1,
     scenes: [
@@ -74,6 +112,8 @@ test("project portal uses a scene action and rejects invalid destinations on exp
     ],
   });
   const parsed = parsePanoProject(project("b"));
+  const parsedDoor = parsed.scenes[0]!.hotspots![0]!;
+  assert.ok(parsedDoor.type === "portal" && parsedDoor.enterOnZoom);
   assert.deepEqual(parsePanoProject(JSON.parse(JSON.stringify(parsed))), parsed);
   const withOldGlow = project("b");
   Object.assign(withOldGlow.scenes[0]!.hotspots![0]!.frame, { glow: { color: "#ffc37b" } });

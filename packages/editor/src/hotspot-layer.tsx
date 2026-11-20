@@ -133,6 +133,7 @@ export const HotspotLayer = memo(function HotspotLayer({
           case "portal": {
             const action = hotspotAction(hotspot, "click");
             return <PortalHotspot key={hotspot.id} {...renderProps(hotspot)} {...point}
+              enterOnZoom={false}
               targetSceneId={action?.type === "scene" ? action.sceneId : ""}
               onError={(error) => onError(`${hotspot.id}: ${String(error)}`)} />;
           }

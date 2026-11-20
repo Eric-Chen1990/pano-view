@@ -467,6 +467,8 @@ export const contentFields: Record<string, FieldSpec[]> = {
   polygon: [{ name: "fill" }, ...numbers("fillOpacity"), ...stroke],
   polyline: stroke,
   portal: [
+    { name: "enterOnZoom", label: "Enter on zoom", type: "boolean",
+      help: "In Preview, aim at the portal and zoom in to enter it." },
     { name: "shape", label: "Portal shape", options: ["rectangle", "circle", "ellipse"],
       optionLabels: { rectangle: "Rectangle", circle: "Circle", ellipse: "Ellipse" } },
     { name: "frame.color", label: "Frame color" },

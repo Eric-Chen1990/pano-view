@@ -2525,11 +2525,14 @@ import { ImageHotspot, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 `targetSceneId`。编辑器和项目 JSON 使用 `type: "portal"`，点击目标写为
 `events.click: { type: "scene", sceneId: "hall" }`。目标支持球面全景、立方体瓦片和球面瓦片。
 
-门框贴在全景表面，默认宽 `10°`、高 `16°`。转动和缩放会更新门内视角，
+门框贴在全景表面，默认宽 `10°`、高 `16°`。转动会更新门内朝向。
+缩放当前全景时，门框改变大小，门内预览保持目标场景的视野范围。
 面积最大的两扇可见门会逐步加载清晰图层。进入后沿用目标场景的 `initialView`，
 默认视角为 yaw `0`、pitch `0`、FOV `75`，并应用目标场景的视角限制。
 WebGL 和 WebGPU 均支持穿门动画。减少动态效果、WebXR 和双眼模式会在目标就绪后直切。
 React 的自定义 `onClick` 可替换默认进入行为，项目的热点事件可用 `preventDefault()` 取消。
+开启 `enterOnZoom` 后，对准门洞中心并用滚轮或双指放大到近处即可进入。
+编辑器可保存此选项，并在预览模式中试走。
 
 `shape` 支持 `rectangle`、`circle` 和 `ellipse`。圆形以 `width` 作为角直径。
 `frame.color` 设置边框颜色，`frame.thickness` 按短边比例设置粗细，取值为 `0` 到 `0.25`。

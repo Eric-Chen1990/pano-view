@@ -1,15 +1,17 @@
 import { useFrame } from "@react-three/fiber";
 import { useContext, useEffect, useMemo } from "react";
 import { WebGPURuntimeContext } from "../pano-renderer";
+import { PanoramaViewContext } from "../panorama-view-runtime";
 import { isPerspectiveCamera } from "../scene-transitions/overlay-utils";
 import { type PortalHost, type PortalWindow } from "./portal-host";
-import { PORTAL_PREVIEW_PIXELS, portalCameraRotation, portalPreviewFov, portalTargetSize, projectPortal } from "./portal-projection";
+import { PORTAL_PREVIEW_PIXELS, portalCameraRotation, portalReadyForZoomEntry, portalTargetSize, projectPortal, setPortalCameraProjection } from "./portal-projection";
 import { createPortalTarget, renderPortalTarget } from "./portal-rendering";
 
 export function PortalPreviewPass({ host, windows }: {
   host: PortalHost; windows: Map<string, PortalWindow>;
 }) {
   const gpu = useContext(WebGPURuntimeContext)?.passes;
+  const controls = useContext(PanoramaViewContext);
   const buffers = useMemo(() => [createPortalTarget(gpu), createPortalTarget(gpu)], [gpu]);
   useEffect(() => () => buffers.forEach((target) => target.dispose()), [buffers]);
 
@@ -38,7 +40,7 @@ export function PortalPreviewPass({ host, windows }: {
     }
     for (const [index, { window, scene, aperture }] of active.entries()) {
       const { camera } = window;
-      const { x, y, width, height } = aperture.bounds;
+      const { width, height } = aperture.bounds;
       const target = buffers[index]!;
       const dpr = gl.getPixelRatio();
       // Quantize allocations while keeping the exact optical crop.
@@ -50,13 +52,16 @@ export function PortalPreviewPass({ host, windows }: {
       camera.copy(source, false);
       const destination = host.destinationView(scene);
       portalCameraRotation(source.quaternion, window.position, destination, camera.quaternion);
-      camera.fov = portalPreviewFov(source.fov, destination.fov);
-      camera.setViewOffset(size.width, size.height,
-        x * size.width, (1 - y - height) * size.height, width * size.width, height * size.height);
+      setPortalCameraProjection(camera, destination.fov, size, aperture.bounds);
       camera.updateMatrixWorld(true);
       if (!window.ready()) continue;
       renderPortalTarget(gl, gpu, target, window.preview, camera);
       window.show(aperture, target.texture);
+    }
+    const entrance = projected.find(({ window, aperture }) => window.enterOnZoom && portalReadyForZoomEntry(aperture));
+    if (entrance) {
+      const input = controls?.current?.takePortalZoomInput();
+      if (input) entrance.window.enterOnZoom?.(input);
     }
   });
   return null;

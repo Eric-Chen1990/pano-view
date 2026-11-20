@@ -16,6 +16,8 @@ export type PortalHotspotProps = Omit<
   HotspotCommonProps, "mode" | "distance" | "scaleMode" | "referenceFov" | "opacity"
 > & {
   targetSceneId: string;
+  /** Enter when the visitor aims at the opening and zooms in. Defaults to false. */
+  enterOnZoom?: boolean;
   shape?: PortalHotspotShape;
   frame?: PortalHotspotFrame;
   onError?: (error: unknown) => void;
@@ -67,7 +69,7 @@ function useWindowMaterial() {
 }
 
 export function PortalHotspot({
-  targetSceneId, width, height, shape = "rectangle", frame, visible = true, ariaLabel,
+  targetSceneId, width, height, shape = "rectangle", frame, visible = true, ariaLabel, enterOnZoom = false,
   onClick, onError, ...anchor
 }: PortalHotspotProps) {
   const host = useContext(PortalHostContext);
@@ -89,12 +91,10 @@ export function PortalHotspot({
   const geometry = useMemo(() =>
     portalFrameGeometry(shape, outerWidth * (anchor.scale ?? 1), outerHeight * (anchor.scale ?? 1), thickness),
   [shape, outerWidth, outerHeight, anchor.scale, thickness]);
-  useEffect(() => () => {
-    geometry.window.dispose();
-    geometry.frame.dispose();
-  }, [geometry]);
   const frameImage = useHotspotImageTexture(frame?.src ?? "", undefined, onError);
   const position = anchor.position;
+  const activate = onClick ?? (target && host ? () => host.enter(anchor.id, targetSceneId) : undefined);
+  const autoEntry = enterOnZoom && anchor.interactive !== false && anchor.pointerEvents !== "none" && activate;
   useLayoutEffect(() => {
     readiness.current = false;
   }, [preview, canPreview]);
@@ -106,6 +106,7 @@ export function PortalHotspot({
       targetId: targetSceneId, position, mesh: mesh.current, outline: geometry.inner, preview, camera,
       visible: () => visible && canPreview,
       ready: () => readiness.current,
+      enterOnZoom: autoEntry ? (nativeEvent) => autoEntry({ id: anchor.id, position, nativeEvent, source: "pointer" }) : undefined,
       requestDetail(active) {
         if (active === detailRequested.current) return;
         detailRequested.current = active;
@@ -121,15 +122,21 @@ export function PortalHotspot({
         }
       },
     });
-  }, [host, target, preview, camera, geometry, anchor.id, position, targetSceneId, visible, canPreview, visual]);
+  }, [host, target, preview, camera, geometry, anchor.id, position, targetSceneId, visible, canPreview, visual, autoEntry]);
 
   return (
     <HotspotAnchor
       {...anchor} visible={visible} width={outerWidth} height={outerHeight} mode="surface"
       ariaLabel={ariaLabel ?? targetSceneId}
-      onClick={onClick ?? (target && host ? () => host.enter(anchor.id, targetSceneId) : undefined)}
+      onClick={activate}
     >
-      <mesh ref={mesh} geometry={geometry.window}>
+      <mesh ref={mesh}>
+        {/* Fiber owns the mounted geometry so StrictMode effect replay does not release its GPU buffers. */}
+        <bufferGeometry
+          key={geometry.window.uuid}
+          index={geometry.window.index}
+          attributes={geometry.window.attributes}
+        />
         <meshBasicMaterial ref={placeholder} color="#172b32" side={DoubleSide} toneMapped={false} />
       </mesh>
       {frameImage ? (
@@ -150,7 +157,12 @@ export function PortalHotspot({
           />
         </mesh>
       ) : geometry.hasBorder ? (
-        <mesh key="frame-solid" geometry={geometry.frame} raycast={() => {}}>
+        <mesh key="frame-solid" raycast={() => {}}>
+          <bufferGeometry
+            key={geometry.frame.uuid}
+            index={geometry.frame.index}
+            attributes={geometry.frame.attributes}
+          />
           <meshBasicMaterial color={frame?.color ?? DEFAULT_PORTAL_FRAME_COLOR} side={DoubleSide} toneMapped={false} />
         </mesh>
       ) : null}

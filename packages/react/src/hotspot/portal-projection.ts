@@ -77,11 +77,37 @@ export function portalCameraRotation(
   ).multiply(relative);
 }
 
-export function portalPreviewFov(sourceFov: number, destinationFov: number) {
-  const focalRatio = Math.tan(MathUtils.degToRad(sourceFov / 2)) /
-    Math.tan(MathUtils.degToRad(DEFAULT_PORTAL_VIEW.fov / 2));
-  const tangent = Math.tan(MathUtils.degToRad(destinationFov / 2)) * (focalRatio ** 1.5);
-  return MathUtils.clamp(MathUtils.radToDeg(2 * Math.atan(tangent)), 1, 179);
+export function setPortalCameraProjection(
+  camera: PerspectiveCamera, fov: number, viewport: { width: number; height: number },
+  crop?: PortalAperture["bounds"],
+): void {
+  // Zooming the source panorama moves the mask, while the destination keeps its lens.
+  camera.fov = fov;
+  camera.zoom = 1;
+  const width = Math.max(1, viewport.width);
+  const height = Math.max(1, viewport.height);
+  if (crop) {
+    camera.setViewOffset(width, height,
+      crop.x * width, (1 - crop.y - crop.height) * height, crop.width * width, crop.height * height);
+  } else {
+    camera.aspect = width / height;
+    camera.clearViewOffset();
+  }
+}
+
+export function portalReadyForZoomEntry({ bounds, corners }: PortalAperture): boolean {
+  if (Math.max(bounds.width, bounds.height) < 0.82) return false;
+  const center = corners.reduce((sum, point) => sum.add(point), new Vector2()).divideScalar(corners.length);
+  // Testing against a doubled displacement puts the viewport center in the inner half of the door.
+  const aim = new Vector2(1 - center.x, 1 - center.y);
+  return corners.every((corner, i) => {
+    const next = corners[(i + 1) % corners.length]!;
+    const edgeX = next.x - corner.x;
+    const edgeY = next.y - corner.y;
+    const centerSide = edgeX * (center.y - corner.y) - edgeY * (center.x - corner.x);
+    const aimSide = edgeX * (aim.y - corner.y) - edgeY * (aim.x - corner.x);
+    return centerSide * aimSide >= 0;
+  });
 }
 
 export function portalTargetSize(width: number, height: number, maxPixels: number) {

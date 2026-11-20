@@ -51,6 +51,7 @@ const DEFAULT_NAVIGATION_DURATION = 700;
 export const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
 export type ApplyViewDeltaOptions = {
+  zoomEvent?: WheelEvent | PointerEvent;
   /** When true, records yaw/pitch/fov velocity for post-drag inertia. */
   recordVelocity?: boolean;
   /**
@@ -73,6 +74,7 @@ export type PanoramaViewRuntimeHandle = {
   constrainSceneView: (view: PanoViewerState, sceneLimits?: PanoViewLimits) => PanoViewerState;
   /** Target view used by drag/zoom input before camera smoothing. */
   getTargetView: () => PanoViewerState;
+  takePortalZoomInput: () => WheelEvent | PointerEvent | undefined;
   setView: (
     view: Partial<PanoViewerState>,
     options?: SetPanoViewerOptions,
@@ -234,6 +236,11 @@ export const PanoramaViewRuntime = forwardRef<
   const touchActiveRef = useRef(false);
   const spatialHost = useContext(SpatialHostContext);
   const interactionLockCountRef = useRef(0);
+  const portalZoomInput = useRef<{
+    event: WheelEvent | PointerEvent;
+    at: number;
+    consumed: boolean;
+  } | null>(null);
   const keyboardActiveRef = useRef(false);
   const gyroActiveRef = useRef(false);
   /** True only after a real device pose was applied; fake VR stays on rotateDamping. */
@@ -350,6 +357,7 @@ export const PanoramaViewRuntime = forwardRef<
 
   const acquireInteractionLock = () => {
     cancelNavigation();
+    portalZoomInput.current = null;
     pointerRevisionRef.current += 1;
     interactionLockCountRef.current += 1;
     stopVelocity();
@@ -402,6 +410,7 @@ export const PanoramaViewRuntime = forwardRef<
     setOptions?: SetPanoViewerOptions,
   ) => {
     cancelNavigation();
+    portalZoomInput.current = null;
     pointerRevisionRef.current += 1;
     const nextView = hardConstrainView(view);
     if (gyroActiveRef.current) {
@@ -423,6 +432,7 @@ export const PanoramaViewRuntime = forwardRef<
     options?: PanoViewNavigationOptions,
   ): Promise<PanoViewNavigationResult> => {
     cancelNavigation();
+    portalZoomInput.current = null;
     if (
       xrSessionRef.current != null ||
       gyroActiveRef.current ||
@@ -556,6 +566,16 @@ export const PanoramaViewRuntime = forwardRef<
       delta.fov !== undefined && Number.isFinite(delta.fov)
         ? current.fov + delta.fov
         : current.fov;
+    if (applyOptions?.zoomEvent && nextFov < current.fov) {
+      const at = performance.now();
+      const previous = portalZoomInput.current;
+      portalZoomInput.current = {
+        event: applyOptions.zoomEvent, at,
+        consumed: Boolean(previous?.consumed && at - previous.at < 400),
+      };
+    } else {
+      portalZoomInput.current = null;
+    }
 
     targetViewRef.current = softConstrainView({
       yaw: nextYaw,
@@ -630,6 +650,12 @@ export const PanoramaViewRuntime = forwardRef<
           legacyFovRef.current.minFov, legacyFovRef.current.maxFov),
       ),
       getTargetView: () => ({ ...targetViewRef.current }),
+      takePortalZoomInput: () => {
+        const input = portalZoomInput.current;
+        if (!input || input.consumed || performance.now() - input.at > 400) return;
+        input.consumed = true;
+        return input.event;
+      },
       setView,
       reset: () => setView(initialViewRef.current),
       lookTo,

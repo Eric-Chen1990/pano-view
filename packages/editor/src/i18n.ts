@@ -250,6 +250,8 @@ const zh: Record<string, string> = {
   "Place a doorway to another panorama": "放置通往另一个全景的门",
   "Select a target scene": "选择目标场景",
   "Portal shape": "门洞形状",
+  "Enter on zoom": "放大进入",
+  "In Preview, aim at the portal and zoom in to enter it.": "在预览模式中对准门洞并放大，即可进入。",
   "Ellipse": "椭圆",
   "Frame color": "边框颜色",
   "Frame thickness": "边框粗细",

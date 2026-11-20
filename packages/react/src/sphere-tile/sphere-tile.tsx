@@ -337,6 +337,7 @@ function SphereTileSource({
       visibleFrustum: new Frustum(),
       paddedFrustum: new Frustum(),
       matrix: new Matrix4(),
+      projection: new Matrix4(),
       quaternion: camera.quaternion.clone(),
       fov: NaN,
       width: 0,
@@ -364,6 +365,7 @@ function SphereTileSource({
     const loadModeChanged = scratch.loadMode !== loadMode;
     const viewUnchanged =
       scratch.fov === camera.fov &&
+      scratch.projection.equals(camera.projectionMatrix) &&
       scratch.width === size.width &&
       scratch.height === size.height &&
       scratch.dpr === dpr &&
@@ -379,6 +381,7 @@ function SphereTileSource({
       const reset = managerChanged || loadModeChanged;
       scratch.time = now;
       scratch.fov = camera.fov;
+      scratch.projection.copy(camera.projectionMatrix);
       scratch.width = size.width;
       scratch.height = size.height;
       scratch.dpr = dpr;
