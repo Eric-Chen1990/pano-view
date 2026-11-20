@@ -52,8 +52,8 @@ export const TRANSITION_SCENES = [
   {
     id: "sphere-tiles",
     type: "sphereTile",
-    baseUrl: "/fixtures/panorama/sphere-tiles/",
-    multires: "512,512x256,1536x768",
+    baseUrl: "/fixtures/panorama/sphere-tiles-v2/",
+    multires: "512,512x256,2048x1024,4096x2048,8000x4000",
     previewUrl: "previews/400.webp",
     urlTemplate: "tiles/%l/%h_%v.webp",
     yawOffset: 30,
