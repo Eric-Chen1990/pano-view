@@ -12,7 +12,7 @@ import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
 
-const sampleProjectUrl = "/fixtures/projects/editor/v3/project.json";
+const sampleProjectUrl = "/fixtures/projects/editor/v4/project.json";
 
 function buildEditorSnippet(locale: "en" | "zh-CN"): string {
   return `import { PanoEditor } from "@ericchen1990/pano-editor";
@@ -109,7 +109,7 @@ export function EditorPage() {
       </p>
       <a
         className="mt-2 inline-block text-xs text-accent underline"
-        href="/fixtures/editor-demo-v3.zip"
+        href="/fixtures/editor-demo-v4.zip"
         download
       >
         {locale === "en"

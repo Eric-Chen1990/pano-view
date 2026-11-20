@@ -31,7 +31,7 @@ export function cloneDemoPolylines(): EditorPolyline[] {
   return [{
     id: "runtime-polyline-example",
     label: "Garden path",
-    vertices: [{ yaw: -24, pitch: -20 }, { yaw: -8, pitch: -12 }, { yaw: 12, pitch: -16 }],
+    vertices: [{ yaw: -13, pitch: -31 }, { yaw: 0, pitch: -26 }, { yaw: 16, pitch: -30 }],
     stroke: "#75cbd3",
     strokeWidth: 3,
     strokeOpacity: 1,
