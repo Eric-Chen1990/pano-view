@@ -27,6 +27,7 @@
 - [PanoCompare](#panocompare)
 - [PanoSceneMenu](#panoscenemenu)
 - [PanoFilter](#panofilter)
+- [PanoWeather](#panoweather)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -1841,6 +1842,46 @@ export function Tour() {
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```
+
+## PanoWeather
+
+在 `PanoViewer` 内将 `PanoWeather` 与 `Sphere`、`Tile`、`SphereTile`、`PanoVideo` 或 `Scenes` 同级挂载。雨雪粒子在世界坐标中环绕相机飘落，支持 WebGPU 和 WebGL。手机双目和 WebXR 的两眼共享同一组粒子。
+
+```tsx
+import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
+
+<PanoViewer style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+  <PanoWeather
+    type="snow"
+    preset="crystal"
+    intensity={0.6}
+    wind={[0.2, 0]}
+    sizeRange={[0.15, 0.65]}
+    groundY={-8}
+  />
+</PanoViewer>
+```
+
+| `type` | `preset` | 效果 |
+| --- | --- | --- |
+| `rain` | `drizzle` | 短、细、淡的毛毛雨 |
+| `rain` | `steady`（默认） | 长短有变化、落速适中的常规雨 |
+| `rain` | `downpour` | 更快、更粗、更密的暴雨 |
+| `snow` | `powder` | 随风轻摆的细小柔边雪点 |
+| `snow` | `crystal`（默认） | 缓慢旋转的六角雪花 |
+| `snow` | `fluffy` | 落得更慢、摆幅更大的鹅毛雪 |
+| `snow` | `star` | 有棱面的宽片六角星冰晶 |
+| `snow` | `fern` | 主枝长有细小分叉的蕨枝雪花 |
+| `snow` | `needles` | 边落边翻转的细针状冰晶簇 |
+
+`intensity` 范围为 `0–1`，默认 `0.6`，控制当前预设的粒子密度。强度越接近满值，密度增加越明显，低段可以调出零星雨雪。`wind` 是沿 Viewer 世界坐标 X 和 Z 轴的水平风力，默认 `[0, 0]`，每轴范围为 `-1–1`。有限的越界数值取最近的端点，非有限数值和无法识别的预设采用默认值。可导入 `PANO_RAIN_PRESETS` 或 `PANO_SNOW_PRESETS` 构建选择器。
+
+雪预设支持用 `sizeRange={[最小值, 最大值]}` 设置雪花在 Three.js 世界坐标中的尺寸范围。每个值取 `0.02–2`，顺序颠倒时会排序，两值相同则使用固定大小。默认使用当前预设的范围。`groundY` 可指定雪花淡出消失的水平面，范围为 `-100–0`，其中 `0` 是全景中心的高度，负数在其下方。省略时使用默认粒子空间。例如 `groundY={-8}` 表示在全景中心下方八个世界单位处消失。
+
+设置 `enabled={false}` 或 `intensity={0}` 可关闭效果。组件也遵循系统的减少动态效果偏好。多场景项目可通过 `Scenes.onSceneReady` 更新天气属性，离场快照会保留当时的天气，新场景采用更新后的属性。粒子覆盖整个全景，适合按室内外场景控制开关。
+
+在 [天气 Playground](https://pano-view-playground.vercel.app/weather) 体验九种预设。
 
 ## BackgroundAudio
 

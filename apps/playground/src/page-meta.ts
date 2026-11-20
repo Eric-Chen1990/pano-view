@@ -64,6 +64,11 @@ export const PAGE_META = {
     description:
       "Try panorama scene transitions in React. Move between equirectangular images and multiresolution cube tiles with configurable visual effects.",
   },
+  "/weather": {
+    title: "360° Rain and Snow Demo | Pano View",
+    description:
+      "Try nine spatial rain and snow effects in a panoramic viewer with adjustable intensity and wind.",
+  },
   "/scene-menu": {
     title: "Panorama Scene Menu Demo | Pano View",
     description:
