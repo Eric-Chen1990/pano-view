@@ -2,7 +2,7 @@ import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
 import type { PanoViewerState } from "../types";
-import { validateHotspotCorners } from "../hotspot/corners";
+import { validateHotspotCorners } from "../hotspot/corner-geometry";
 import type { HotspotCorners, HotspotPosition } from "../hotspot/types";
 import { PanoDataError } from "./errors";
 import { mapResource, resolveResource, type AssetUrlResolver } from "./viewer";

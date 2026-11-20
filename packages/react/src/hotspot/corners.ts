@@ -1,37 +1,18 @@
 import { MathUtils, Quaternion, Vector3 } from "three";
-import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { panoPositionToVector3, vector3ToPanoPosition } from "./coordinates";
-import { MAX_HOTSPOT_PITCH, type HotspotCorners, type HotspotPosition } from "./types";
+import { solveHotspotCorners } from "./corner-geometry";
+import type { HotspotCorners, HotspotPosition } from "./types";
 
-const CORNER_RADIUS = DEFAULT_PANORAMA_RADIUS - 10;
-const MIN_PLANE_DEPTH = 1;
+export { validateHotspotCorners } from "./corner-geometry";
 
-/** Solve for a planar parallelogram with one vertex on each corner ray. */
 export function fitHotspotCorners(corners: HotspotCorners) {
-  if (!Array.isArray(corners) || corners.length !== 4) return null;
-  for (const corner of corners) {
-    if (!Number.isFinite(corner?.yaw) || !Number.isFinite(corner?.pitch) ||
-      Math.abs(corner.pitch) > MAX_HOTSPOT_PITCH) return null;
-  }
-  const [a, b, c, d] = corners.map((corner) => panoPositionToVector3(corner)) as [Vector3, Vector3, Vector3, Vector3];
-  const cross = new Vector3();
-  const determinant = (u: Vector3, v: Vector3, w: Vector3) =>
-    u.dot(cross.crossVectors(v, w));
-  // The alternating cofactors give a*w0 + c*w2 = b*w1 + d*w3.
-  // Positive weights also enforce convex, clockwise winding on the viewing side.
-  const weights = [determinant(b, c, d), determinant(a, c, d), determinant(a, b, d), determinant(a, b, c)];
-  if (weights.some((weight) => weight <= 1e-12)) return null;
-  const scale = CORNER_RADIUS / Math.max(...weights);
-  const vertices = [a.multiplyScalar(weights[0]! * scale), b.multiplyScalar(weights[1]! * scale),
-    c.multiplyScalar(weights[2]! * scale), d.multiplyScalar(weights[3]! * scale)] as const;
-  const center = a.clone().add(c).multiplyScalar(0.5);
-  const normal = cross.crossVectors(b.clone().sub(a), d.clone().sub(a)).normalize();
-  if (Math.abs(normal.dot(center)) < MIN_PLANE_DEPTH) return null;
-  return { vertices, center };
-}
-
-export function validateHotspotCorners(corners: HotspotCorners): boolean {
-  return fitHotspotCorners(corners) !== null;
+  const fit = solveHotspotCorners(corners);
+  if (!fit) return null;
+  const [a, b, c, d] = fit.vertices;
+  return {
+    vertices: [new Vector3(...a), new Vector3(...b), new Vector3(...c), new Vector3(...d)] as const,
+    center: new Vector3(...fit.center),
+  };
 }
 
 export function getHotspotCornerCenter(corners: HotspotCorners): HotspotPosition | null {

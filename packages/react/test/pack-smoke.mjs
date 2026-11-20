@@ -48,19 +48,24 @@ const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",sour
 if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
 if(project.scenes[0].scene.viewLimits.yaw.min!==170)throw Error("Limits missing from packed loader");
 const marker={id:"custom",type:"text",text:"Hi",position:{yaw:0,pitch:0},events:{pointerenter:{type:"custom",actionId:"show",params:{src:"blob:business"}}}};
-const parsed=api.parsePanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},hotspots:[marker]}]});
-if(api.hotspotAction(parsed.scenes[0].hotspots[0],"pointerenter").params.src!=="blob:business")throw Error("Missing custom action parameters");
+const corners=[{yaw:175,pitch:8},{yaw:-176,pitch:10},{yaw:-171,pitch:-7},{yaw:172,pitch:-9}];
+const image={id:"image",type:"image",src:"image.webp",position:{yaw:180,pitch:0},corners};
+const parseHotspots=(hotspots)=>api.parsePanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},hotspots}]}).scenes[0].hotspots;
+const [parsedMarker,parsedImage]=parseHotspots([marker,image]);
+if(api.hotspotAction(parsedMarker,"pointerenter").params.src!=="blob:business")throw Error("Missing custom action parameters");
+assert.deepEqual(parsedImage.corners,corners);
+assert.throws(()=>parseHotspots([{...image,corners:[corners[0],corners[2],corners[1],corners[3]]}]),/corners: expected a convex, clockwise quadrilateral/);
 const popup=api.resolveProjectPopupAssets({id:"story",title:"Story",blocks:[{id:"photo",type:"image",src:"photo.jpg"}]},"https://cdn.test/tour/");
 if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrect popup URL");
 `;
   // The extracted package has no React, Three.js or Sharp installation.
   await writeFile(
     join(directory, "consumer.mjs"),
-    `import * as api from "@ericchen1990/pano-view/data";\n${example}`
+    `import assert from "node:assert/strict";\nimport * as api from "@ericchen1990/pano-view/data";\n${example}`
   );
   await writeFile(
     join(directory, "consumer.cjs"),
-    `const api=require("@ericchen1990/pano-view/data");\n(async()=>{${example}})().catch(e=>{console.error(e);process.exitCode=1});`
+    `const assert=require("node:assert/strict");\nconst api=require("@ericchen1990/pano-view/data");\n(async()=>{${example}})().catch(e=>{console.error(e);process.exitCode=1});`
   );
   run(process.execPath, ["consumer.mjs"]);
   run(process.execPath, ["consumer.cjs"]);
