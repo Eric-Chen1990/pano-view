@@ -18,7 +18,7 @@ export type ImageHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   onError?: (error: unknown) => void;
 };
 
-function useHotspotImageTexture(
+export function useHotspotImageTexture(
   src: string,
   onLoad: ImageHotspotProps["onLoad"],
   onError: ImageHotspotProps["onError"],

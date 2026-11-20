@@ -94,6 +94,7 @@ const point = [
 ];
 const fields = {
   image: ["src", "corners"],
+  portal: ["shape", "frame"],
   graphic: ["graphic"],
   sequence: ["src", "frameCount", "frameDirection", "playing", "fps", "loop"],
   video: [
@@ -216,6 +217,7 @@ const positiveFields = new Set([
   "lineHeight",
 ]);
 const enums: Record<string, readonly string[]> = {
+  shape: ["rectangle", "circle", "ellipse"],
   pointerEvents: ["auto", "none"],
   tooltipTrigger: ["always", "hover", "click"],
   tooltipPlacement: ["top", "bottom", "left", "right"],
@@ -249,6 +251,19 @@ function finite(value: unknown, field: string): number {
   if (typeof value !== "number" || !Number.isFinite(value))
     throw new Error(`${field}: expected a finite number`);
   return value;
+}
+
+function parsePortalFrame(value: unknown) {
+  if (!isRecord(value) || Array.isArray(value)) throw new Error("frame: expected an object");
+  const { color, src, thickness: rawThickness } = value;
+  const thickness = rawThickness === undefined ? undefined : finite(rawThickness, "frame.thickness");
+  if (thickness !== undefined && (thickness < 0 || thickness > 0.25))
+    throw new Error("frame.thickness: expected 0 to 0.25");
+  return {
+    ...(color === undefined ? {} : { color: requiredString(color, "frame.color") }),
+    ...(src === undefined ? {} : { src: requiredString(src, "frame.src") }),
+    ...(thickness === undefined ? {} : { thickness }),
+  };
 }
 
 export function parsePosition(value: unknown, field: string): HotspotPosition {
@@ -366,7 +381,8 @@ export function parseHotspot(
       id: requiredString(value.id, "id"),
     };
     const isPath = kind === "polygon" || kind === "polyline";
-    const allowed = [...common, ...(isPath ? [] : point), ...fields[kind]];
+    const placement = kind === "portal" ? ["position", "width", "height", "scale", "rotation"] : point;
+    const allowed = [...common, ...(isPath ? [] : placement), ...fields[kind]];
     for (const key of allowed) {
       const item = value[key];
       if (item === undefined) continue;
@@ -388,6 +404,7 @@ export function parseHotspot(
           throw new Error("vertices: not enough points");
         result[key] = item.map((p, i) => parsePosition(p, `vertices[${i}]`));
       } else if (key === "graphic") result[key] = parseGraphic(item);
+      else if (key === "frame") result[key] = parsePortalFrame(item);
       else if (key === "tooltip") result[key] = parseTooltip(item);
       else if (key === "tooltipAppearance") result[key] = parseAppearance(item);
       else if (booleanFields.has(key)) {
@@ -504,6 +521,8 @@ export function resolveHotspotAssets(
   }
   if (result.type === "graphic" && result.graphic.kind === "svg")
     result.graphic = { ...result.graphic, src: resolve(result.graphic.src) };
+  if (result.type === "portal" && result.frame?.src)
+    result.frame = { ...result.frame, src: resolve(result.frame.src) };
   if (typeof result.tooltip === "object")
     result.tooltip = {
       ...result.tooltip,

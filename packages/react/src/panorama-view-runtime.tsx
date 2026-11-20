@@ -70,6 +70,7 @@ export type PanoramaViewRuntimeHandle = {
   getPointerDragState: () => { revision: number; anchored: boolean };
   /** Internal scene override, applied before the incoming initial view. */
   setSceneViewLimits: (limits: PanoViewLimits | undefined) => void;
+  constrainSceneView: (view: PanoViewerState, sceneLimits?: PanoViewLimits) => PanoViewerState;
   /** Target view used by drag/zoom input before camera smoothing. */
   getTargetView: () => PanoViewerState;
   setView: (
@@ -281,8 +282,8 @@ export const PanoramaViewRuntime = forwardRef<
   const hardConstrainView = (
     view: Partial<PanoViewerState>,
     current: PanoViewerState = targetViewRef.current,
+    limits = limitsRef.current,
   ): PanoViewerState => {
-    const limits = limitsRef.current;
     return {
       yaw: constrainViewYaw(Number.isFinite(view.yaw) ? view.yaw! : current.yaw, limits.yaw),
       pitch: clampViewAxis(Number.isFinite(view.pitch) ? view.pitch! : current.pitch, limits.pitch),
@@ -624,6 +625,10 @@ export const PanoramaViewRuntime = forwardRef<
         sceneLimitsRef.current = parseViewLimits(limits);
         refreshLimits();
       },
+      constrainSceneView: (view, sceneLimits) => hardConstrainView(
+        view, view, resolveViewLimits(baseLimitsRef.current, sceneLimits,
+          legacyFovRef.current.minFov, legacyFovRef.current.maxFov),
+      ),
       getTargetView: () => ({ ...targetViewRef.current }),
       setView,
       reset: () => setView(initialViewRef.current),

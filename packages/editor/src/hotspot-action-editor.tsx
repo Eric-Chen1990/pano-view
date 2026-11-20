@@ -143,5 +143,25 @@ function EventActionEditor({
 }
 
 export function HotspotActionEditor(props: Omit<Parameters<typeof EventActionEditor>[0], "trigger">) {
+  if (props.hotspot.type === "portal") {
+    const { hotspot, scenes, onChange, onTest, t } = props;
+    const action = hotspotAction(hotspot, "click");
+    const target = action?.type === "scene" ? action.sceneId : "";
+    return <section aria-label={t("Target scene")}>
+      <div className="pne-fields">
+        <label>{t("Target scene")}
+          <select value={target} onChange={({ currentTarget }) => {
+            onChange(setHotspotAction(hotspot, "click", currentTarget.value
+              ? { type: "scene", sceneId: currentTarget.value } : undefined));
+          }}>
+            <option value="">{t("Select a target scene")}</option>
+            {scenes.map((scene) => <option key={scene.id} value={scene.id}>{scene.title ?? scene.id}</option>)}
+          </select>
+        </label>
+        {onTest ? <button type="button" disabled={!target || hotspot.visible === false || hotspot.interactive === false || hotspot.pointerEvents === "none"}
+          onClick={() => onTest("click")}>{t("Test this event")}</button> : null}
+      </div>
+    </section>;
+  }
   return <section aria-label={props.t("Interaction events")}><h3>{props.t("Interaction events")}</h3>{projectHotspotTriggers.map(trigger => <EventActionEditor key={trigger} {...props} trigger={trigger} />)}</section>;
 }

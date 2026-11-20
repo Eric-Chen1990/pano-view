@@ -1537,7 +1537,7 @@ export function PanoEditor(props: PanoEditorProps) {
                   customActions={props.customActions}
                   key={selected.id}
                   hotspot={selected}
-                  scenes={project.scenes}
+                  scenes={selected.type === "portal" ? project.scenes.filter((scene) => scene.id !== active?.id) : project.scenes}
                   popups={project.popups}
                   getView={() => viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 }}
                   onCreatePopup={(trigger) => createPopup(true, trigger)}

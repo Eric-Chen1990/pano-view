@@ -15,6 +15,7 @@ import { TextHotspot } from "../src/hotspot/text-hotspot";
 import { IframeHotspot } from "../src/hotspot/iframe-hotspot";
 import { PolygonHotspot } from "../src/hotspot/polygon-hotspot";
 import { PolylineHotspot } from "../src/hotspot/polyline-hotspot";
+import { PortalHotspot } from "../src/hotspot/portal-hotspot";
 
 const position = { yaw: 0, pitch: 0 };
 const point = { id: "marker", position, label: "Marker" };
@@ -33,6 +34,7 @@ const interaction = (): HotspotInteractionEvent => ({
 test("default project renderer reuses every hotspot component and strips project-only properties", () => {
   const items: Array<[ProjectHotspotDefinition, unknown]> = [
     [{ ...point, type: "image", src: "image.webp" }, ImageHotspot],
+    [{ ...point, type: "portal" }, PortalHotspot],
     [{ ...point, type: "graphic", graphic: { kind: "arrow" } }, GraphicHotspot],
     [
       { ...point, type: "sequence", src: "sprite.webp", frameCount: 8 },
@@ -76,6 +78,7 @@ test("default project renderer reuses every hotspot component and strips project
     assert.equal(element.props.action, undefined);
     assert.equal(element.props.type, undefined);
     assert.equal(element.props.label, undefined);
+    if (hotspot.type === "portal") assert.equal(element.props.targetSceneId, "next");
     if (["sequence", "video", "audio"].includes(hotspot.type)) {
       assert.equal(element.props.playing, true);
       assert.equal(element.props.onEnded, onEnded);

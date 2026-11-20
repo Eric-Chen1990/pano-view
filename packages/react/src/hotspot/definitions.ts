@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
+import type { PortalHotspotFrame, PortalHotspotShape } from "./portal-geometry";
 import type { TextHotspotStyle } from "./text-hotspot";
 import type {
   HotspotCorners,
@@ -57,6 +58,10 @@ export type ImageHotspotDefinition = PointHotspotDefinitionBase & {
   src: string;
   corners?: HotspotCorners;
 };
+
+export type PortalHotspotDefinition = Omit<
+  PointHotspotDefinitionBase, "mode" | "distance" | "scaleMode" | "referenceFov" | "opacity"
+> & { type: "portal"; shape?: PortalHotspotShape; frame?: PortalHotspotFrame };
 
 export type GraphicHotspotDefinition = PointHotspotDefinitionBase & {
   type: "graphic";
@@ -146,6 +151,7 @@ export type PolylineHotspotDefinition = HotspotDefinitionBase & {
 
 export type PointHotspotDefinition =
   | ImageHotspotDefinition
+  | PortalHotspotDefinition
   | GraphicHotspotDefinition
   | SequenceHotspotDefinition
   | VideoHotspotDefinition

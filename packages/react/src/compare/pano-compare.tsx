@@ -161,7 +161,7 @@ export function PanoCompare({
   const groups = useRef<PairGroups | null>(null);
   const transitioning = useRef(false);
   const isTransitioning = useCallback(() => transitioning.current, []);
-  const selectedId = useSceneSelection({
+  const { resolvedId: selectedId } = useSceneSelection({
     scenes, controlledId: activeSceneId, defaultActiveSceneId, onActiveSceneIdChange, isTransitioning,
     fallbackToFirst: true,
   });

@@ -195,6 +195,9 @@ export type {
 export type { ScenesController } from "./scenes-host";
 export { ImageHotspot } from "./hotspot/image-hotspot";
 export type { ImageHotspotProps } from "./hotspot/image-hotspot";
+export { PortalHotspot } from "./hotspot/portal-hotspot";
+export type { PortalHotspotProps } from "./hotspot/portal-hotspot";
+export type { PortalHotspotFrame, PortalHotspotShape } from "./hotspot/portal-geometry";
 export { PolygonHotspot } from "./hotspot/polygon-hotspot";
 export type {
   PolygonHotspotProps,
@@ -334,6 +337,7 @@ export type {
   HotspotDefinitionBase,
   IframeHotspotDefinition,
   ImageHotspotDefinition,
+  PortalHotspotDefinition,
   PointHotspotDefinition,
   PointHotspotDefinitionBase,
   PolygonHotspotDefinition,

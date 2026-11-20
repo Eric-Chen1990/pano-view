@@ -466,4 +466,13 @@ export const contentFields: Record<string, FieldSpec[]> = {
   ],
   polygon: [{ name: "fill" }, ...numbers("fillOpacity"), ...stroke],
   polyline: stroke,
+  portal: [
+    { name: "shape", label: "Portal shape", options: ["rectangle", "circle", "ellipse"],
+      optionLabels: { rectangle: "Rectangle", circle: "Circle", ellipse: "Ellipse" } },
+    { name: "frame.color", label: "Frame color" },
+    { name: "frame.thickness", label: "Frame thickness", type: "number",
+      help: "Fraction of the shorter side, from 0 to 0.25." },
+    { name: "frame.src", label: "Frame image", asset: true,
+      help: "Choose a PNG or WebP with a transparent opening. Match the portal shape to the opening." },
+  ],
 };

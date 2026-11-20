@@ -28,6 +28,10 @@ const content: Record<
   Record<string, unknown>
 > = {
   image: { width: 12, height: 8 },
+  portal: {
+    width: 10, height: 16, mode: "surface", scaleMode: "fov", shape: "rectangle",
+    "frame.color": "#87ddd4", "frame.thickness": 0.04,
+  },
   graphic: {
     width: 10,
     height: 10,
@@ -102,7 +106,8 @@ export function hotspotFieldDefault(
   hotspot: ProjectHotspotDefinition,
   name: string
 ): unknown {
-  if (name === "scaleMode" && "position" in hotspot) return hotspotScaleMode(hotspot.mode, hotspot.scaleMode);
+  if (name === "scaleMode" && "position" in hotspot)
+    return hotspot.type === "portal" ? "fov" : hotspotScaleMode(hotspot.mode, hotspot.scaleMode);
   if (name === "renderOrder") return "vertices" in hotspot ? 10 : 0;
   return content[hotspot.type][name] ?? common[name];
 }

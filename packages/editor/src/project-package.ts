@@ -228,6 +228,8 @@ export async function buildProjectPackage(
     }
     if (hotspot.type === "graphic" && hotspot.graphic.kind === "svg")
       hotspot.graphic.src = await copy(hotspot.graphic.src);
+    if (hotspot.type === "portal" && hotspot.frame?.src)
+      hotspot.frame.src = await copy(hotspot.frame.src);
     if (typeof hotspot.tooltip === "object" && hotspot.tooltip.image)
       hotspot.tooltip.image = await copy(hotspot.tooltip.image);
     const copyCss = async (css: string) => {

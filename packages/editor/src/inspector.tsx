@@ -63,8 +63,10 @@ export function HotspotInspector({
 }) {
   const [advanced, setAdvanced] = useState("");
   const [advancedError, setAdvancedError] = useState("");
+  const surface = hotspot.type === "portal" || ("position" in hotspot && hotspot.mode === "surface");
   const update = (name: string, value: unknown) => {
     if (name === "cursor" && value === "custom-image") { onPick("cursor"); return; }
+    if (hotspot.type === "portal" && (name === "frame.src" || name === "frame.color") && value === "") value = undefined;
     let next = hotspot;
     if (name === "graphic.kind" && hotspot.type === "graphic") {
       const kind = value ?? "circle";
@@ -86,15 +88,15 @@ export function HotspotInspector({
         key={spec.name}
         spec={hotspotFieldSpec({
           ...spec,
-          disabled: spec.name === "distance" ? "position" in hotspot && hotspot.mode === "surface"
-            : spec.name === "scaleMode" ? "position" in hotspot && hotspot.mode === "surface"
+          disabled: spec.name === "distance" ? surface
+            : spec.name === "scaleMode" ? surface
             : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
         })}
         value={
           spec.name === "tooltip.text" && typeof hotspot.tooltip === "string"
             ? hotspot.tooltip
-            : spec.name === "scaleMode" && "position" in hotspot && hotspot.mode === "surface" ? "fov"
+            : spec.name === "scaleMode" && surface ? "fov"
             : spec.name === "tooltipScaleMode" && hotspot.tooltipMode === "surface" ? "fov"
             : getField(hotspot, spec.name)
         }
@@ -203,7 +205,10 @@ export function HotspotInspector({
             />
           ) : null}
           <div className="pne-fields">
-            {fields("corners" in hotspot && hotspot.corners ? pointFields.filter(({ name }) => name === "opacity") : pointFields)}
+            {fields(hotspot.type === "portal"
+              ? pointFields.filter(({ name }) => ["position.yaw", "position.pitch", "width", "height", "scale", "rotation"].includes(name) &&
+                (name !== "height" || hotspot.shape !== "circle"))
+              : "corners" in hotspot && hotspot.corners ? pointFields.filter(({ name }) => name === "opacity") : pointFields)}
           </div>
         </details>
       ) : (

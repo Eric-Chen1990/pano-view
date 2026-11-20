@@ -98,5 +98,5 @@ export function useSceneSelection({
     };
   }, [host, isTransitioning, requestSceneChange]);
 
-  return resolvedId;
+  return { resolvedId, requestSceneChange };
 }

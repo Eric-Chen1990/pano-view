@@ -49,6 +49,17 @@ export const TRANSITION_SCENES = [
     urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
     previewUrl: "previews/cube-vertical.webp",
   },
+  {
+    id: "sphere-tiles",
+    type: "sphereTile",
+    baseUrl: "/fixtures/panorama/sphere-tiles/",
+    multires: "512,512x256,1536x768",
+    previewUrl: "previews/400.webp",
+    urlTemplate: "tiles/%l/%h_%v.webp",
+    yawOffset: 30,
+    initialView: { yaw: 10, pitch: 0, fov: 62 },
+    viewLimits: { fov: { min: 65, max: 100 } },
+  },
 ] satisfies readonly Scene[];
 
 export const TRANSITION_PRESET_GROUPS: Array<{

@@ -17,6 +17,8 @@ export type {
   LoadPanoProjectOptions,
 } from "./data/project";
 export type { ProjectHotspotDefinition, ProjectHotspotAction, ProjectHotspotTrigger, ProjectCustomHotspotAction, JsonObject, JsonValue } from "./data/hotspots";
+export type { PortalHotspotDefinition } from "./hotspot/definitions";
+export type { PortalHotspotFrame, PortalHotspotShape } from "./hotspot/portal-geometry";
 export { resolveHotspotAssets as resolveProjectHotspotAssets } from "./data/hotspots";
 export type {
   ViewerConfig,

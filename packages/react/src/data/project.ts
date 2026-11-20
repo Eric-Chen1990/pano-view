@@ -199,6 +199,16 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
       );
     for (const [index, scene] of scenes.entries()) {
       for (const [i, hotspot] of (scene.hotspots ?? []).entries()) {
+        if (hotspot.type === "portal") {
+          const target = hotspotAction(hotspot, "click");
+          const field = `scenes[${index}].hotspots[${i}].events.click`;
+          if (target?.type !== "scene" && (target || !options.draft)) {
+            throw new PanoDataError("INVALID_REFERENCE", "Portal requires a target scene", { sceneId: scene.id, field });
+          }
+          if (target?.type === "scene" && target.sceneId === scene.id) {
+            throw new PanoDataError("INVALID_REFERENCE", "Portal target must be a different scene", { sceneId: scene.id, field });
+          }
+        }
         for (const trigger of projectHotspotTriggers) {
           const action = hotspotAction(hotspot, trigger);
           if (action?.type === "popup" && !popups?.some((popup) => popup.id === action.popupId))

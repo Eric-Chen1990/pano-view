@@ -332,6 +332,10 @@ export function hotspotFieldSpec(spec: FieldSpec): FieldSpec {
       number.min = -90;
       number.max = 90;
     }
+    if (name === "frame.thickness") {
+      number.min = 0;
+      number.max = 0.25;
+    }
     if (name === "frameCount") {
       number.integer = true;
       number.required = true;

@@ -1,7 +1,6 @@
 import type { PanoViewLimits } from "./view-limits";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
-  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -47,7 +46,12 @@ import {
   ScenesHostContext,
 } from "./scenes-host";
 import { TransitionOverlay } from "./scene-transitions/transition-overlay";
-import { Sphere } from "./sphere";
+import { SphereSource } from "./sphere";
+import { matchesPortalSelection, PortalHostContext, type PortalHost, type PortalRequest, type PortalWindow } from "./hotspot/portal-host";
+import { PortalPreviewPass } from "./hotspot/portal-preview-pass";
+import { PortalEntry } from "./hotspot/portal-entry";
+import { DEFAULT_PORTAL_VIEW, PORTAL_LOAD_TIMEOUT_MS } from "./hotspot/portal-projection";
+import type { PanoViewerState } from "./types";
 import { SphereTile } from "./sphere-tile/sphere-tile";
 import type { SphereTileProps } from "./sphere-tile/types";
 import {
@@ -59,7 +63,7 @@ import type { TileProps } from "./tile/types";
 
 export type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
 
-type SceneViewOptions = { viewLimits?: PanoViewLimits };
+type SceneViewOptions = { viewLimits?: PanoViewLimits; initialView?: Partial<PanoViewerState> };
 
 export type SphereScene = SceneViewOptions & {
   id: string;
@@ -177,20 +181,22 @@ export function SceneSource({
   }
 
   switch (scene.type) {
-    case "sphere":
+    case "sphere": {
       return (
-        <Sphere
+        <SphereSource
           src={scene.src}
           previewUrl={scene.previewUrl}
           yawOffset={scene.yawOffset}
           visible={visible}
+          previewOnly={previewOnly}
           onReady={onReady}
           onError={onError}
-          onPreviewError={onPreviewError}
+          onPreviewError={onPreviewError ?? (previewOnly ? onError : undefined)}
         />
       );
+    }
     case "tile": {
-      const { id: _id, type: _type, viewLimits: _limits, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, ...tileProps } = scene;
       return (
         <Tile
           {...tileProps}
@@ -202,7 +208,7 @@ export function SceneSource({
       );
     }
     case "sphereTile": {
-      const { id: _id, type: _type, viewLimits: _limits, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, ...tileProps } = scene;
       return (
         <SphereTile
           {...tileProps}
@@ -337,6 +343,7 @@ type ScenesControllerProps = Omit<
 > & {
   activeSceneId: string;
   phaseRef?: MutableRefObject<Phase>;
+  requestSceneChange: (id: string) => void;
 };
 
 function ScenesController({
@@ -350,6 +357,7 @@ function ScenesController({
   snapshotMaxPixels = 3_686_400,
   transitionWaitForDetailMs,
   phaseRef: externalPhaseRef,
+  requestSceneChange,
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const scenesHost = useContext(ScenesHostContext);
@@ -383,6 +391,12 @@ function ScenesController({
   const [transitionRunId, setTransitionRunId] = useState(0);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [recoveryKey, setRecoveryKey] = useState(0);
+  const [portalRequest, setPortalRequest] = useState<PortalRequest | null>(null);
+  const [portalEntry, setPortalEntry] = useState<{ window: PortalWindow; view: PanoViewerState } | null>(null);
+  const portalRun = useRef<PortalRequest | null>(null);
+  const portalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const failedPortalId = useRef<string | null>(null);
+  const portalWindows = useMemo(() => new Map<string, PortalWindow>(), []);
   const requestedSceneIdRef = useRef(activeSceneId);
   const captureReasonRef = useRef<"start" | "interrupt">("start");
   const interactionReleaseRef = useRef<(() => void) | null>(null);
@@ -418,6 +432,41 @@ function ScenesController({
     interactionReleaseRef.current?.();
     interactionReleaseRef.current = null;
   }, []);
+
+  const clearPortalTimer = useCallback(() => {
+    if (portalTimer.current !== null) clearTimeout(portalTimer.current);
+    portalTimer.current = null;
+  }, []);
+
+  const cancelPortal = useCallback(() => {
+    clearPortalTimer();
+    portalRun.current = null;
+    setPortalEntry(null);
+    releaseInteraction();
+  }, [clearPortalTimer, releaseInteraction]);
+
+  const destinationView = useCallback((scene: Scene) => {
+    const view = { ...DEFAULT_PORTAL_VIEW, ...scene.initialView };
+    return controlsRef?.current?.constrainSceneView(view, scene.viewLimits) ?? view;
+  }, [controlsRef]);
+
+  const portalHost = useMemo<PortalHost>(() => ({
+    scenes: sceneMap, destinationView, spatial: mode !== null,
+    register(id, window) {
+      portalWindows.set(id, window);
+      return () => {
+        if (portalWindows.get(id) === window) portalWindows.delete(id);
+      };
+    },
+    enter(hotspotId, targetId) {
+      const source = slotsRef.current[liveSlotRef.current];
+      if (!source || phaseRef.current !== "idle" || source.id === targetId ||
+          !sceneMap.has(targetId)) return;
+      failedPortalId.current = null;
+      setPortalRequest({ sourceId: source.id, targetId, hotspotId, requestedAt: performance.now() });
+      requestSceneChange(targetId);
+    },
+  }), [destinationView, mode, portalWindows, requestSceneChange, sceneMap]);
 
   const reportError = useCallback((sceneId: string, error: unknown) => {
     onTransitionError?.({ sceneId, error });
@@ -466,14 +515,52 @@ function ScenesController({
     setPhase("preloading");
   }, [clearDetailWait]);
 
+  const failPortal = useCallback((run: PortalRequest) => {
+    if (portalRun.current !== run) return;
+    failedPortalId.current = run.targetId;
+    cancelPortal();
+    setPortalRequest(null);
+    const live = liveSlotRef.current;
+    setSlots((current) => live === 0 ? [current[0], null] : [null, current[1]]);
+    setPendingSlot(null);
+    setActiveSlot(live);
+    setPhase("idle");
+    reportError(run.targetId, run.error ?? new Error("Portal destination took too long to load"));
+  }, [cancelPortal, reportError]);
+
   useEffect(() => {
     const requested = sceneMap.get(activeSceneId);
+    const liveScene = slotsRef.current[liveSlotRef.current];
+    const portal = portalRun.current;
+    if (portal && requested?.id === portal.targetId) return;
+    if (portal) {
+      cancelPortal();
+      setPortalRequest(null);
+      if (requested?.id === liveScene?.id || !requested) {
+        setSlots((current) => liveSlotRef.current === 0 ? [current[0], null] : [null, current[1]]);
+        setActiveSlot(liveSlotRef.current);
+        setPendingSlot(null);
+        setPhase("idle");
+        if (!requested) reportError(activeSceneId, new Error(`Unknown panorama scene: ${activeSceneId}`));
+        return;
+      }
+      startPreload(requested);
+      return;
+    }
     if (!requested) {
       reportError(activeSceneId, new Error(`Unknown panorama scene: ${activeSceneId}`));
       return;
     }
 
-    const liveScene = slotsRef.current[liveSlotRef.current];
+    if (failedPortalId.current === requested.id) return;
+    failedPortalId.current = null;
+    if (portalRequest && phaseRef.current === "idle" &&
+        matchesPortalSelection(portalRequest, liveScene?.id, requested.id, performance.now())) {
+      portalRun.current = portalRequest;
+      startPreload(requested);
+      portalTimer.current = setTimeout(() => failPortal(portalRequest), PORTAL_LOAD_TIMEOUT_MS);
+      return;
+    }
     if (phaseRef.current === "idle" && liveScene?.id === requested.id) {
       requestedSceneIdRef.current = requested.id;
       return;
@@ -519,18 +606,41 @@ function ScenesController({
       return;
     }
     startPreload(requested);
-  }, [activeSceneId, clearDetailWait, pendingSlot, releaseInteraction, reportError, sceneMap, snapshot, startPreload]);
+  }, [activeSceneId, cancelPortal, clearDetailWait, failPortal, pendingSlot, portalRequest, releaseInteraction, reportError, sceneMap, snapshot, startPreload]);
 
-  const notifySceneReady = useCallback((scene: Scene | null) => {
+  const notifySceneReady = useCallback((scene: Scene | null, landing?: PanoViewerState) => {
     if (!scene || readySceneRef.current === scene) return;
     readySceneRef.current = scene;
-    controlsRef?.current?.setSceneViewLimits(sceneMap.get(scene.id)?.viewLimits);
+    const metadata = sceneMap.get(scene.id) ?? scene;
+    const controls = controlsRef?.current;
+    controls?.setSceneViewLimits(metadata.viewLimits);
+    const view = landing ?? (scenesHost?.recovery?.id !== scene.id ? metadata.initialView : undefined);
+    if (view) controls?.setView(view, { immediate: true });
     if (scenesHost) {
       scenesHost.recovery = null;
       markSceneVisited(scenesHost, scene.id);
     }
     onSceneReady?.(scene.id);
   }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
+
+  const finishPortal = useCallback(() => {
+    const run = portalRun.current;
+    if (!run || pendingSlot === null) return;
+    const previousSlot = 1 - pendingSlot;
+    cancelPortal();
+    setPortalRequest(null);
+    setSlots((current) => previousSlot === 0 ? [null, current[1]] : [current[0], null]);
+    setActiveSlot(pendingSlot);
+    setPendingSlot(null);
+    setPhase("idle");
+    onTransitionEnd?.({ previousSceneId: run.sourceId, sceneId: run.targetId, preset: "none" });
+  }, [cancelPortal, onTransitionEnd, pendingSlot]);
+
+  const takeOverPortal = useCallback((view: PanoViewerState) => {
+    if (!portalRun.current || pendingSlot === null) return;
+    setLiveSlot(pendingSlot);
+    notifySceneReady(slotsRef.current[pendingSlot], view);
+  }, [notifySceneReady, pendingSlot]);
 
   const handleReady = useCallback((slot: number) => {
     if (slot === liveSlotRef.current && pendingSlot === null && phaseRef.current === "idle") {
@@ -542,6 +652,22 @@ function ScenesController({
       phaseRef.current !== "preloading" ||
       slotsRef.current[slot]?.id !== activeSceneId
     ) {
+      return;
+    }
+    const run = portalRun.current;
+    const nextScene = slotsRef.current[slot];
+    if (run && nextScene) {
+      clearPortalTimer();
+      const view = destinationView(sceneMap.get(nextScene.id) ?? nextScene);
+      const window = portalWindows.get(run.hotspotId);
+      if (!window?.ready() || mode !== null || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+        takeOverPortal(view);
+        finishPortal();
+      } else {
+        interactionReleaseRef.current ??= controlsRef?.current?.acquireInteractionLock() ?? null;
+        setPortalEntry({ window, view });
+        setPhase("enteringPortal");
+      }
       return;
     }
     if (transition.preset === "none" && waitForDetailMsRef.current === 0) {
@@ -572,7 +698,13 @@ function ScenesController({
     captureReasonRef.current = "start";
     setPhase("capturing");
     setCaptureRequestId((current) => current + 1);
-  }, [activeSceneId, controlsRef, notifySceneReady, onTransitionEnd, pendingSlot, transition.preset]);
+  }, [activeSceneId, clearPortalTimer, controlsRef, destinationView, finishPortal, mode, notifySceneReady, onTransitionEnd, pendingSlot, portalWindows, sceneMap, takeOverPortal, transition.preset]);
+
+  useLayoutEffect(() => {
+    if (mode === null || !portalEntry || phase !== "enteringPortal") return;
+    takeOverPortal(portalEntry.view);
+    finishPortal();
+  }, [finishPortal, mode, phase, portalEntry, takeOverPortal]);
 
   const finishTransition = useCallback(() => {
     const nextSlot = pendingSlot;
@@ -601,7 +733,7 @@ function ScenesController({
   }, [onTransitionEnd, pendingSlot, releaseInteraction, snapshot, transition.preset]);
 
   useLayoutEffect(() => {
-    if (!nativeXR || phaseRef.current === "idle" || phaseRef.current === "preloading") return;
+    if (!nativeXR || phaseRef.current === "idle" || phaseRef.current === "preloading" || phaseRef.current === "enteringPortal") return;
     clearDetailWait(true);
     setCaptureRequestId(0);
     if (phaseRef.current === "recapturing") {
@@ -749,18 +881,21 @@ function ScenesController({
   const snapshotRef = useRef<Snapshot | null>(snapshot);
   snapshotRef.current = snapshot;
   useEffect(() => () => {
+    clearPortalTimer();
     // Snapshot identity changes while the blend or detail wait is still running.
     // Releasing here would unlock the camera as soon as the outgoing frame is stored.
     releaseInteraction();
     snapshotRef.current?.dispose();
     snapshotRef.current = null;
-  }, [releaseInteraction]);
+  }, [clearPortalTimer, releaseInteraction]);
 
   const { gl } = useThree();
   useEffect(() => {
     const canvas = gl.domElement;
     const onContextLost = (event: Event) => {
       event.preventDefault();
+      cancelPortal();
+      setPortalRequest(null);
       releaseInteraction();
       clearDetailWait(true);
       manager?.dispose();
@@ -780,7 +915,7 @@ function ScenesController({
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [clearDetailWait, gl, manager, releaseInteraction, snapshot]);
+  }, [cancelPortal, clearDetailWait, gl, manager, releaseInteraction, snapshot]);
 
   const renderedScene = slots[liveSlot];
   const snapshotVisible = snapshot !== null && (
@@ -808,7 +943,8 @@ function ScenesController({
   }, [consumeDetailSignal, detailGeneration, slotSceneKey]);
 
   return (
-    <Fragment>
+    <PortalHostContext.Provider value={portalHost}>
+      <PortalPreviewPass host={portalHost} windows={portalWindows} />
       <SnapshotCapture
         requestId={nativeXR ? 0 : captureRequestId}
         maxPixels={Math.max(1, snapshotMaxPixels)}
@@ -830,6 +966,10 @@ function ScenesController({
               onReady={() => handleReady(slot)}
               onError={(error) => {
                 if (source) {
+                  if (portalRun.current?.targetId === source.id) {
+                    portalRun.current.error = error;
+                    return;
+                  }
                   reportError(source.id, error);
                 }
               }}
@@ -861,8 +1001,12 @@ function ScenesController({
           onFinish={finishTransition}
         />
       ) : null}
-      {phase === "idle" && renderedScene ? renderHotspots?.(renderedScene) : null}
-    </Fragment>
+      {(phase === "idle" || portalRun.current?.sourceId === renderedScene?.id) && renderedScene
+        ? renderHotspots?.(renderedScene) : null}
+      {portalEntry ? <PortalEntry window={portalEntry.window} destination={portalEntry.view}
+        maxPixels={Math.max(1, snapshotMaxPixels)} onTakeover={() => takeOverPortal(portalEntry.view)}
+        onFinish={finishPortal} /> : null}
+    </PortalHostContext.Provider>
   );
 }
 
@@ -877,7 +1021,7 @@ export function Scenes({
 }: ScenesProps) {
   const phaseRef = useRef<Phase>("idle");
   const isTransitioning = useCallback(() => phaseRef.current !== "idle", []);
-  const resolvedId = useSceneSelection({
+  const { resolvedId, requestSceneChange } = useSceneSelection({
     scenes, controlledId, defaultActiveSceneId, onActiveSceneIdChange, isTransitioning,
   });
 
@@ -890,6 +1034,7 @@ export function Scenes({
         {...rest}
         scenes={scenes}
         activeSceneId={resolvedId}
+        requestSceneChange={requestSceneChange}
         phaseRef={phaseRef}
       />
     </TileTextureManagerProvider>
