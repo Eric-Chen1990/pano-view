@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 3.1.1
+
+### Patch Changes
+
+- Keep the editor viewer mounted across scene changes and clear a viewer error when the scene changes. In preview, leave the project's initial view to `ProjectScenes`. Place and edit hotspots only after the active scene is ready.
+
 ## 3.1.0
 
 ### Minor Changes
