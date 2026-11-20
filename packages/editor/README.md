@@ -6,7 +6,7 @@ An embeddable React tour editor for scenes, all nine pano-view hotspot types, in
 
 ## Local browser editor
 
-Run the workspace with `pnpm dev` and open `/editor` to edit a ready-made two-scene tour with text, audio and scene-link hotspots. Download and unzip the prepared sample ZIP to try opening or dropping a directory without running the converter first.
+Run the workspace with `pnpm dev` and open `/editor` to edit a ready-made two-scene tour. In Entrance, select the image or video hotspot to adjust its corners or rotate it. Download and unzip the prepared sample ZIP to try opening or dropping a directory without running the converter first.
 
 For your own panoramas, prepare them with `pano-convert` locally first, then select a project root:
 
@@ -26,7 +26,7 @@ Add scene and Replace source distinguish Local folder from Online URL. The onlin
 
 The local option accepts a dropped or selected directory containing `viewer.json`, previews and tiles, alongside the existing URL entry. Adding imports every scene in the directory and preserves current edits; replacing requires exactly one `viewer.json`. Added directories use separate `imports/<id>/<directory-name>/` paths to avoid filename collisions. JSON export does not package assets: when hosting the result, place added directories at the exported source paths.
 
-Files are read through the directory picker and temporary object URLs, without uploading them. The local session does not write localStorage, IndexedDB, source files, or server-side drafts. Export a project package before leaving to keep configuration and resources together; refreshing clears the session. Unzip the package and serve its directory over HTTP with your existing player. JSON-only export is also available: put that JSON in the selected root and keep the existing resource structure, since JSON-only export does not copy assets.
+The browser reads selected local files and previews them with temporary object URLs. The local session does not upload files or write localStorage, IndexedDB, source files, or server-side drafts. Export a project package before leaving to keep configuration and resources together; refreshing clears the session. Unzip the package and serve its directory over HTTP with your existing player. JSON-only export is also available: put that JSON in the selected root and keep the existing resource structure, since JSON-only export does not copy assets.
 
 The hosted editor is intended for desktop browsers with directory selection. It does not convert original panorama images in the browser. It supports local `tile` and `sphereTile` configurations produced by the converter.
 
@@ -119,6 +119,10 @@ The left sidebar nests each hotspot list under its scene, with per-hotspot edit 
 Run `pnpm --filter @ericchen1990/pano-editor test`, `typecheck`, `build`, and (after building the viewer and editor) `pack:check`. No publication happens during these checks.
 
 ### Portable project packages
+
+In a browser or local project session, open **Browse assets** to drop or choose one image, video, or audio file for the selected field, then confirm. The picker title identifies the field, such as a hotspot video poster or popup audio. For a new hotspot, click the panorama to place it. You can also enter a resource path or select a file from the project directory. Local files stay in the current session. Export a project package to keep them with the project. Media playback depends on browser codec support.
+
+Select an image or video hotspot and choose **Enable corner placement** in **Position and size**. Drag individual corners, drag the media to move it, or drag the round rotation handle to rotate it. The inspector also accepts exact coordinates and a clockwise rotation amount. **Restore rectangle** restores the original placement. Each drag, rotation, or mode change can be undone. Project JSON and ZIP exports keep the four anchors.
 
 **Export project package** downloads `panorama-project.zip` containing `project.json`, per-scene `panoramas/<number>/viewer.json`, all preview/tile levels, and referenced hotspot media, tooltip images, cursor images, the floor-plan image, and spot icons under `assets/`. Both local and online resources are copied and references rewritten relative to the package. Unzip it before using Open directory; serve the extracted directory over HTTP with your existing viewer. The package does not include a player page. **Export JSON** remains configuration-only.
 

@@ -2,7 +2,8 @@ import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
 import type { PanoViewerState } from "../types";
-import type { HotspotPosition } from "../hotspot/types";
+import { validateHotspotCorners } from "../hotspot/corner-geometry";
+import type { HotspotCorners, HotspotPosition } from "../hotspot/types";
 import { PanoDataError } from "./errors";
 import { mapResource, resolveResource, type AssetUrlResolver } from "./viewer";
 
@@ -92,11 +93,12 @@ const point = [
   "opacity",
 ];
 const fields = {
-  image: ["src"],
+  image: ["src", "corners"],
   graphic: ["graphic"],
   sequence: ["src", "frameCount", "frameDirection", "playing", "fps", "loop"],
   video: [
     "src",
+    "corners",
     "poster",
     "playing",
     "loop",
@@ -369,7 +371,19 @@ export function parseHotspot(
       const item = value[key];
       if (item === undefined) continue;
       if (key === "position") result[key] = parsePosition(item, key);
-      else if (key === "vertices") {
+      else if (key === "corners") {
+        if (!Array.isArray(item) || item.length !== 4)
+          throw new Error("corners: expected four points");
+        const corners: HotspotCorners = [
+          parsePosition(item[0], "corners[0]"),
+          parsePosition(item[1], "corners[1]"),
+          parsePosition(item[2], "corners[2]"),
+          parsePosition(item[3], "corners[3]"),
+        ];
+        if (!validateHotspotCorners(corners))
+          throw new Error("corners: expected a convex, clockwise quadrilateral");
+        result[key] = corners;
+      } else if (key === "vertices") {
         if (!Array.isArray(item) || item.length < (kind === "polygon" ? 3 : 2))
           throw new Error("vertices: not enough points");
         result[key] = item.map((p, i) => parsePosition(p, `vertices[${i}]`));

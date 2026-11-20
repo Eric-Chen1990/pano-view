@@ -1,3 +1,4 @@
+import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
 import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -284,7 +285,7 @@ function updateVisibilityFrustum(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
   );
-  frustum.setFromProjectionMatrix(projectionMatrix);
+  frustum.setFromProjectionMatrix(projectionMatrix, camera.coordinateSystem, camera.reversedDepth);
 }
 
 function addAddress(
@@ -452,7 +453,7 @@ export function Tile({
     () => buildTileCandidates(levels, tileSize),
     [levels, tileSize],
   );
-  const anisotropy = gl.capabilities.getMaxAnisotropy();
+  const anisotropy = getTextureAnisotropy(gl);
   const effectivePreviewUrl = resolveAssetUrl(baseUrl, previewUrl);
   const previewTexture = usePreviewTexture(
     effectivePreviewUrl,
@@ -471,6 +472,7 @@ export function Tile({
     () =>
       new TileTextureManager({
         anisotropy,
+        fitTexture: (texture) => fitImageTexture(gl, texture),
         maxBytes: Math.max(1, maxTextureMemoryMb) * 1024 * 1024,
         concurrency: Math.max(1, Math.floor(maxConcurrentLoads)),
         retryCount: Math.max(0, Math.floor(retryCount)),
@@ -478,7 +480,7 @@ export function Tile({
         onError: (event) => errorRef.current?.(event),
       }),
     [
-      anisotropy,
+      anisotropy, gl,
       baseUrl,
       maxConcurrentLoads,
       maxTextureMemoryMb,

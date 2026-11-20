@@ -1,3 +1,4 @@
+import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Howl } from "howler";
 import { useEffect, useRef, useState } from "react";
@@ -181,13 +182,14 @@ function useIconTexture(
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         loadedTexture.colorSpace = SRGBColorSpace;
         loadedTexture.wrapS = ClampToEdgeWrapping;
         loadedTexture.wrapT = ClampToEdgeWrapping;
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = LinearMipmapLinearFilter;
         loadedTexture.generateMipmaps = true;
-        loadedTexture.anisotropy = gl.capabilities.getMaxAnisotropy();
+        loadedTexture.anisotropy = getTextureAnisotropy(gl);
         loadedTexture.needsUpdate = true;
         setTexture(loadedTexture);
       },

@@ -1,6 +1,6 @@
 import type { BackgroundAudioController } from "./background-audio-host";
 import type { KeyboardControlsProps } from "./keyboard-controls";
-import type { HotspotPosition } from "./hotspot/types";
+import type { HotspotCorners, HotspotPosition } from "./hotspot/types";
 import type { PanoVideoController } from "./video/types";
 import type { WebVRMode, WebVRState } from "./webvr/types";
 
@@ -56,7 +56,11 @@ export type PanoViewNavigationResult = {
   status: "completed" | "cancelled" | "not-found";
 };
 
+export type PanoRendererBackend = "webgpu" | "webgl";
+
 export type PanoViewerHandle = {
+  /** The active canvas backend, or null while no renderer is ready. */
+  getRendererBackend: () => PanoRendererBackend | null;
   // -- View --
   getView: () => PanoViewerState;
   setView: (
@@ -79,6 +83,8 @@ export type PanoViewerHandle = {
     fov: number,
     options?: Omit<PanoViewNavigationOptions, "shortestPath">,
   ) => Promise<PanoViewNavigationResult>;
+  /** Read the displayed rectangle corners of a mounted image or video hotspot. */
+  getHotspotCorners: (id: string) => HotspotCorners | null;
   /** Animate to the representative position of a mounted hotspot. */
   lookToHotspot: (
     id: string,

@@ -1,3 +1,5 @@
+import { WebGPUClarityPass } from "./webgpu-clarity";
+import { WebGPURuntimeContext } from "../pano-renderer";
 import { useContext, useLayoutEffect, useMemo } from "react";
 import type { PanoColorAdjustments } from "./adjustments";
 import { PanoClarityPass } from "./clarity-pass";
@@ -59,6 +61,8 @@ export function PanoFilter({
     [enabled, intensity, preset, colorMatrix, colorMatrixScope, adjustments],
   );
 
+  const gpu = useContext(WebGPURuntimeContext);
+
   useLayoutEffect(() => {
     claimPanoFilter(host);
     return () => {
@@ -70,7 +74,7 @@ export function PanoFilter({
     setPanoFilterSnapshot(host, snapshot);
   }, [host, snapshot]);
 
-  return snapshot.enabled && snapshot.adjustments?.clarity
-    ? <PanoClarityPass views={host.clarityViews} />
-    : null;
+  if (!snapshot.enabled || !snapshot.adjustments?.clarity) return null;
+  return gpu ? <WebGPUClarityPass host={host} passes={gpu.passes} />
+    : <PanoClarityPass views={host.clarityViews} />;
 }

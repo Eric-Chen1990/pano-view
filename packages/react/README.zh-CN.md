@@ -838,6 +838,36 @@ import "@ericchen1990/pano-view/styles.css";
 
 ## PanoViewer
 
+### 渲染后端
+
+`PanoViewer` 默认使用 `renderer="auto"`。浏览器可用时优先使用原生 WebGPU，
+初始化失败或 GPU 设备丢失时回退到 WebGL。原生 WebGPU 支持滤镜（含清晰度调整）、
+`PanoCompare`、全部 `Scenes` 转场预设，以及手机双目和桌面模拟 VR。
+
+沉浸式 VR 在浏览器提供 `XRGPUBinding` 且能启动带 `webgpu` 特性的会话时使用
+WebGPU，否则使用 WebGL。如果浏览器拒绝 `webgpu` 特性或原生绑定失败，
+Viewer 会切换到 WebGL，并通过 `onDenied` 提示可以再次点击进入 VR。本次 Viewer 挂载期间会继续使用 WebGL。
+切换后端会重建画布，场景和媒体可能重新加载。
+
+原生 WebGPU XR 会话内，`Scenes` 在目标场景可绘制时直接切换，并报告
+`preset: "none"`。Three.js r185 在原生 WebGPU XR 中关闭 MSAA 和 multiview，
+其投影层也不应用 XR 帧缓冲超采样设置。宿主使用自定义 GLSL 或调用 WebGL 专用
+API 时，可设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射以保留全景原始色彩。
+
+```tsx
+const viewer = usePanoViewer();
+
+<PanoViewer ref={viewer.ref} renderer="auto" style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>;
+
+// 在交互处理或加载完成回调中读取当前后端。
+const backend = viewer.getRendererBackend(); // "webgpu"、"webgl" 或 null
+```
+
+`PanoViewerHandle` 也提供 `getRendererBackend()`。该方法返回画布实际使用的后端，
+画布 renderer 尚未就绪时返回 `null`。
+
 `PanoViewer` 负责画布、透视相机与控件。为其容器指定明确尺寸，并在内部放置一个全景源。
 
 公开 API 中的角度以度为单位。偏航（yaw）为正表示向右看，俯仰（pitch）为正表示向上看。
@@ -1989,7 +2019,7 @@ export function WebVRExample() {
 
 句柄暴露 `enterVR()`、`exitVR()`、`toggleVR()`、`isAvailable()`、`isEnabled()`、`getMode()`、`getState()`、`subscribe()`、`requestPermission()` 与 `resetSettings()`。模式为 `"webxr"`、`"mobilevr"`、`"fake"`。`profile` 接受 `"none"`、`"cardboard-v1"`、`"cardboard-v2"`、`"gear-vr"`、`"daydream"`，或自定义 `{ fov, ipdMm, k1, k2, screenToLensMm?, trayDistanceMm? }` 镜头配置。在已知物理屏幕尺寸时，MobileVR 会用瞳距与可选的托盘到镜片高度（`trayDistanceMm`；Cardboard V1 为 `35`）放置每只眼睛的光轴；`0` 或省略则保持垂直方向居中。当 `screensize` 为 `"auto"` 时，MobileVR 会加载 Cardboard Device Parameter Database（`databaseUrl`，默认 Google 公开 DPDB）估算对角线英寸；传 `""` 或 `null` 可跳过请求。无法识别时触发 `onUnknownDevice`，并继续使用镜头预设 FOV（尺寸未知前不做托盘偏移）。MobileVR 设置值会版本化并保存在当前源的 `localStorage` 中；`resetSettings()` 会清除该存储并恢复 props 或内置默认（Setup 面板也有 Reset）。VR 中中心准星显示十字；注视可交互热点时绘制顺时针填充环，经 `cursorDwellMs`（默认 1500）后触发热点点击。设 `cursorDwellMs={0}` 可保留准星但不自动点击。模拟桌面 VR（`fake` 模式）默认请求指针锁定（`mousePointerLock`），隐藏光标并用鼠标环视；右键释放鼠标但保留 VR，左键点击画面重新锁定（该次点击只恢复锁定）。解锁时隐藏准星并停止注视动作，重新锁定后重新计时。桌面十字及进度环为头显尺寸的 60%。保留浏览器原有 Esc 行为；锁定被拒绝或不支持时保留普通鼠标，可再次左键重试。回退会话通过 Screen Wake Lock API 或在不支持时的循环隐藏视频保持屏幕常亮（`wakelock`）。
 
-WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 热点、tooltip、视频控件等 DOM 叠加层在沉浸式头戴会话中不可见；基于 mesh 的热点仍可通过默认 WebXR 控制器射线交互。
+WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，iOS 可能需显式权限提示。嵌入查看器需要适当的 `xr-spatial-tracking`、`gyroscope`、`accelerometer` 权限。iframe 内容和视频控件在支持时使用空间界面。热点及其 tooltip 在沉浸式 VR 中作为场景对象呈现，并响应配置的凝视或控制器输入。
 
 ### 属性
 
@@ -2325,9 +2355,11 @@ import {
 
 点热点可使用 `draggable`、`onDragStart`、`onPositionChange`、`onDragEnd`；宿主须将报告的位置写回状态。多边形与折线热点通过 `onVerticesChange` 报告受控 `vertices`。
 
-每个热点可在锚点显示 DOM tooltip。将字符串或 `{ text?, image?, imageAlt? }` 作为 `tooltip` 传入。默认 `tooltipTrigger` 为 `"always"`：有内容且热点可见时气泡常驻屏幕。点击热点不会切换显示。可选 `tooltipTrigger="hover"` 在指针悬停或键盘焦点时显示；`"click"` 固定显示直至再次点击热点或点击空白全景。hover 与 click 触发需要 `interactive` 且 `pointerEvents` 不为 `"none"`。
+每个热点可在锚点显示 tooltip。将字符串或 `{ text?, image?, imageAlt? }` 作为 `tooltip` 传入。默认 `tooltipTrigger` 为 `"always"`：有内容且热点可见时气泡常驻屏幕。点击热点不会切换显示。可选 `tooltipTrigger="hover"` 在指针悬停或键盘焦点时显示；`"click"` 固定显示直至再次点击热点或点击空白全景。hover 与 click 触发需要 `interactive` 且 `pointerEvents` 不为 `"none"`。
 
 `tooltipPlacement` 为 `"top"`（默认）、`"bottom"`、`"left"`、`"right"`。均为屏幕方向：气泡位于热点投影边界该侧之外，避免遮挡旋转后的图形（如箭头）。`tooltipOffset` 为屏幕空间间距（CSS 像素，默认 `12` / `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`）。
+
+VR 中，气泡沿双眼中心视图里的热点投影边缘定位。固定尺寸和间距以进入 VR 前的查看器高度为基准。气泡在双眼中使用同一空间位置，`tooltipMode="surface"` 使用朝向球心的贴面姿态。气泡超过两眼共同可用宽度的 80% 时换行，悬停跟随当前启用的 VR 输入。
 
 `tooltipMode` 默认 `"billboard"`（悬浮），可设为 `"surface"`（贴合球面）。`tooltipScaleMode` 默认 `"inherit"`，跟随热点实际缩放规则；悬浮提示可独立设为 `"fov"` 或 `"fixed"`，贴合提示始终随 FOV 缩放。气泡字号和样式以热点 `referenceFov`（默认 `75`）为基准，间距继续使用屏幕像素。多边形、折线本体始终贴合球面，不支持悬浮、距离或缩放模式；其提示默认悬浮并随 FOV 缩放，也支持独立配置。新旧项目省略配置均采用这些默认值。
 
@@ -2468,6 +2500,7 @@ import { GraphicHotspot } from "@ericchen1990/pano-view";
 - `mode="surface"` 将平面附着于局部全景表面。
 - `mode="billboard"` 使平面始终朝向相机并浮于壳层前方。`distance` 是热点到相机的距离（世界单位，默认 `10`），减小该值可将热点移近相机。内置全景壳层约在 `1000` 单位；距离会自动限制在允许范围内，避免热点角点穿过壳层。
 - 悬浮热点默认 `scaleMode="fixed"`，保持固定屏幕大小；可用 `scaleMode="fov"` 随视角缩放。贴合热点始终使用 `fov`，显式的 `fixed` 不生效。`scaleMode="fixed"` 补偿 FOV 变化，屏幕尺寸接近 `referenceFov`（默认 `75`）时的大小。
+- VR 中，悬浮热点朝向双眼中心，最近距离为 2 个世界单位。`fixed` 以普通模式在 `referenceFov` 下的画面高度占比为基准，使用实际双眼投影补偿尺寸。
 - `rotation` 绕自身法线旋转（度）；正值顺时针，负值逆时针。`scale` 为角向 width/height 的整体正倍率，默认 `1`。
 
 ```tsx
@@ -2571,6 +2604,8 @@ import { SequenceHotspot } from "@ericchen1990/pano-view";
 序列加载使用 `onLoadProgress`（`{ id, total, loaded, failed }`）与 `onError`（`{ id, src, error }`）。另有 `onFrameChange`（`{ id, index, src }`）与 `onPlaybackStateChange`（`"playing" | "paused" | "ended"`，无 `"blocked"`）。组件不会自行改变 `playing`：请在 UI、点击处理、`onEnded` 或播放错误中更新该 prop。
 
 ## VideoHotspot
+
+为 `VideoHotspot` 或 `ImageHotspot` 传入 `corners`，可将源画面的左上、右上、右下、左下固定到四个全景 yaw/pitch 角度。锚点需按顺时针顺序组成凸四边形，平移或缩放视角时仍贴在同一场景位置。省略 `corners` 时，使用 `position`、尺寸、放置方式和 `rotation` 定义矩形。调用 `rotateHotspotCorners(corners, degrees)` 可绕中心顺时针旋转四角。启用 `draggable` 后，使用 `onCornersChange` 提供的四角更新整个热点。viewer handle 的 `getHotspotCorners(id)` 可读取已挂载的矩形图片或视频热点在当前画面中的四角。
 
 `VideoHotspot` 使用 `HTMLVideoElement` 与 `VideoTexture`。其 `playing` prop 同样受控：手动播放时初始化为 `false`，在点击处理或应用状态中切换。源变更或卸载时元素暂停并释放纹理。`playsInline` 默认 `true`，并使用与 `PanoVideo` 相同的内联播放属性。元素会隐藏挂在查看器内，以便移动端浏览器把它留在页面中。`muted` 默认 `false`，`loop` 默认 `false`，`preload` 默认 `"metadata"`（另可 `"none"` | `"auto"`），`volume` 默认 `1`（0–1）。省略尺寸时默认 `16×9`。非同源资源可设 `crossOrigin`（`""` | `"anonymous"` | `"use-credentials"`）。
 

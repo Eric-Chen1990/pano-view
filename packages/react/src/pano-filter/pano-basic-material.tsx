@@ -1,3 +1,5 @@
+import { WebGPUPanoBasicMaterial } from "./webgpu-material";
+import { WebGPURuntimeContext } from "../pano-renderer";
 import { useContext, useLayoutEffect, useMemo } from "react";
 import {
   Matrix4,
@@ -60,6 +62,16 @@ function matrixUniforms(matrix: PanoColorMatrix) {
 /** Artistic presets affect panoramas; display-space matrices can also affect hotspot textures. */
 export function PanoBasicMaterial({
   target = "panorama",
+  ...props
+}: PanoBasicMaterialProps) {
+  const gpu = useContext(WebGPURuntimeContext);
+  return gpu
+    ? <WebGPUPanoBasicMaterial modules={gpu.passes.modules} target={target} {...props} />
+    : <WebGLPanoBasicMaterial target={target} {...props} />;
+}
+
+function WebGLPanoBasicMaterial({
+  target,
   ...props
 }: PanoBasicMaterialProps) {
   const host = useContext(PanoFilterHostContext);

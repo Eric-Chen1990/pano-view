@@ -1,5 +1,12 @@
 # @ericchen1990/pano-editor
 
+## 3.1.0
+
+### Minor Changes
+
+- Let a local editor session attach one image, video, or audio file to a hotspot or popup field. Chosen files stay in the session and are included when the project package is exported.
+- c0d8a0f: Add four-corner placement for image and video hotspots. Anchor each texture corner to a panorama position, reshape and rotate the hotspot in the editor, and preserve the final corners in project JSON and ZIP files.
+
 ## 3.0.0
 
 ### Minor Changes

@@ -28,6 +28,7 @@ type TextureEntry<TAddress extends TextureAddress> = TextureEntrySnapshot & {
 
 type TextureManagerOptions<TAddress extends TextureAddress> = {
   anisotropy: number;
+  fitTexture?: (texture: Texture) => void;
   maxBytes: number;
   concurrency: number;
   retryCount: number;
@@ -268,6 +269,7 @@ export class TileTextureManager<TAddress extends TextureAddress = TileAddress> {
   }
 
   private configureTexture(texture: Texture) {
+    this.options.fitTexture?.(texture);
     configureMipmappedTexture(texture, this.options.anisotropy);
   }
 

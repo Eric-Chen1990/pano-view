@@ -15,6 +15,7 @@ import {
   emptyProject,
 } from "../src/document";
 import { DocumentHistory } from "../src/history";
+import type { HotspotCorners } from "@ericchen1990/pano-view";
 
 const config: ViewerConfig = {
   type: "tile",
@@ -156,6 +157,23 @@ test("all nine hotspot types roundtrip unchanged and exported JSON loads as a st
   );
   assert.equal(loaded.scenes[0]!.hotspots.length, 9);
   assert.ok(!exportDocument(original).includes("pano-editor.invalid"));
+});
+
+test("image and video anchors roundtrip through project JSON and reject invalid shapes", () => {
+  const corners: HotspotCorners = [
+    { yaw: 174, pitch: 8 }, { yaw: -176, pitch: 9 },
+    { yaw: -172, pitch: -6 }, { yaw: 170, pitch: -8 },
+  ];
+  const original = project();
+  original.scenes[0]!.hotspots = [
+    { id: "image", type: "image", ...point, src: "media/image.webp", corners },
+    { id: "video", type: "video", ...point, src: "media/movie.mp4", poster: "media/poster.webp", corners },
+  ];
+  assert.deepEqual(readDocument(JSON.parse(exportDocument(original))).scenes[0]!.hotspots, original.scenes[0]!.hotspots);
+  const [a, b, c, d] = corners;
+  const image = original.scenes[0]!.hotspots[0]!;
+  original.scenes[0]!.hotspots[0] = { ...image, type: "image", src: "media/image.webp", corners: [a, c, b, d] };
+  assert.throws(() => readDocument(original), /hotspots\[0\]\.corners/);
 });
 
 test("scene deletion clears incoming actions atomically and undo restores them", () => {

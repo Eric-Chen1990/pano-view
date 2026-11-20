@@ -75,7 +75,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
     file("a/tiles/1/002_01.png", "right"),
     file("media/image #1.png", "image"),
     file("media/movie.webm", "video", "video/webm"),
-    file("media/audio.mp3", "audio", "audio/mpeg"),
+    file("media/audio", "audio", "audio/wav"),
     file("media/cursor.png", "cursor"),
     file("media/card.html", "<!doctype html><h1>Guide</h1>", "text/html"),
     file(
@@ -133,7 +133,7 @@ test("local package contains every sphere tile and media, preserves metadata, an
             id: "audio",
             type: "audio",
             ...point,
-            src: ["media/audio.mp3"],
+            src: ["media/audio"],
             icon: "media/icon.svg",
             playingIcon: "media/image%20%231.png",
           },
@@ -188,6 +188,11 @@ test("local package contains every sphere tile and media, preserves metadata, an
     project.scenes[0]!.initialView,
   );
   assert.equal(saved.scenes[0]!.hotspots!.length, 9);
+  const audio = saved.scenes[0]!.hotspots!.find((hotspot) => hotspot.type === "audio");
+  assert.ok(audio && Array.isArray(audio.src));
+  const audioPath = audio.src[0]!;
+  assert.match(audioPath, /^assets\/\d+\.wav$/);
+  assert.equal(strFromU8(archive[audioPath]!), "audio");
   assert.equal(strFromU8(archive["panoramas/1/tiles/1/1_1.png"]!), "left");
   assert.equal(strFromU8(archive["panoramas/1/tiles/1/1_2.png"]!), "right");
   assert.equal(
@@ -542,8 +547,13 @@ test("shared and unused popup media are packaged once and reopen with the origin
     file("a/tiles/1/001_01.png", "left"), file("a/tiles/1/002_01.png", "right"),
     file("media/image.png", "image"), file("media/audio.mp3", "audio", "audio/mpeg"), file("media/video.mp4", "video", "video/mp4"),
   ]);
+  const corners = [
+    { yaw: -12, pitch: 7 }, { yaw: 9, pitch: 9 },
+    { yaw: 13, pitch: -7 }, { yaw: -10, pitch: -5 },
+  ] as const;
   const project: PanoProjectDefinition = { schemaVersion: 1, scenes: [{ id: "a", source: { viewerUrl: "a/viewer.json" }, hotspots: [
-    { id: "one", type: "image", ...point, src: "media/image.png", action: { type: "popup", popupId: "shared" } },
+    { id: "one", type: "image", ...point, src: "media/image.png", corners, action: { type: "popup", popupId: "shared" } },
+    { id: "video", type: "video", ...point, src: "media/video.mp4", poster: "media/image.png", corners },
     { id: "two", type: "text", ...point, text: "Two", action: { type: "popup", popupId: "shared" } },
   ] }], popups: [
     { id: "shared", title: "Shared", blocks: [
@@ -558,6 +568,9 @@ test("shared and unused popup media are packaged once and reopen with the origin
   assertPortable(archive);
   const saved = parsePanoProject(JSON.parse(strFromU8(archive["project.json"]!)));
   assert.equal(saved.popups?.length, 2);
+  const [image, video] = saved.scenes[0]!.hotspots!;
+  assert.deepEqual(image?.type === "image" && image.corners, corners);
+  assert.deepEqual(video?.type === "video" && video.corners, corners);
   assert.equal(JSON.stringify(project), before);
   const reopened = new LocalFiles(Object.entries(archive).map(([path, bytes]) => file(path, bytes)));
   assert.deepEqual(await reopened.project(), saved);

@@ -74,7 +74,7 @@ const PARTICLE_FRAGMENT_SHADER = `
   }
 `;
 
-function createParticleGeometry(): InstancedBufferGeometry {
+export function createParticleGeometry(): InstancedBufferGeometry {
   const quad = new PlaneGeometry(1, 1);
   const geometry = new InstancedBufferGeometry();
   if (quad.index) {

@@ -1,3 +1,4 @@
+import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -8,11 +9,10 @@ import {
   Texture,
   TextureLoader,
 } from "three";
-import { HotspotAnchor } from "./hotspot-anchor";
-import { HotspotPlane } from "./hotspot-plane";
-import type { HotspotCommonProps } from "./types";
+import { HotspotMediaPlane } from "./hotspot-media-plane";
+import type { HotspotCommonProps, HotspotCornerProps } from "./types";
 
-export type ImageHotspotProps = HotspotCommonProps & {
+export type ImageHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   src: string;
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
@@ -47,13 +47,14 @@ function useHotspotImageTexture(
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         loadedTexture.colorSpace = SRGBColorSpace;
         loadedTexture.wrapS = ClampToEdgeWrapping;
         loadedTexture.wrapT = ClampToEdgeWrapping;
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = LinearMipmapLinearFilter;
         loadedTexture.generateMipmaps = true;
-        loadedTexture.anisotropy = gl.capabilities.getMaxAnisotropy();
+        loadedTexture.anisotropy = getTextureAnisotropy(gl);
         loadedTexture.needsUpdate = true;
         setTexture(loadedTexture);
         onLoadRef.current?.(loadedTexture);
@@ -93,8 +94,6 @@ export function ImageHotspot({
   const texture = useHotspotImageTexture(src, onLoad, onError);
 
   return (
-    <HotspotAnchor {...anchorProps} height={height} width={width}>
-      <HotspotPlane map={texture} opacity={opacity} />
-    </HotspotAnchor>
+    <HotspotMediaPlane {...anchorProps} height={height} width={width} map={texture} opacity={opacity} />
   );
 }

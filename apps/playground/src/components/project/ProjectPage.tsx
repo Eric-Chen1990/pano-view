@@ -22,6 +22,8 @@ import {
 } from "../../ui";
 import { cn } from "../../cn";
 
+const projectUrl = "/fixtures/projects/tour/project-v2.json";
+
 const PROJECT_SNIPPET = `import { useEffect, useState } from "react";
 import {
   PanoOverlay,
@@ -87,7 +89,7 @@ export function ProjectPage() {
   const [status, setStatus] = useState("Loading project.json…");
   useEffect(() => {
     const controller = new AbortController();
-    loadPanoProject("/fixtures/projects/tour/project.json", {
+    loadPanoProject(projectUrl, {
       requestInit: { signal: controller.signal },
     })
       .then((loaded) => {
@@ -177,7 +179,7 @@ export function ProjectPage() {
         ) : null}
         <a
           className="mt-4 inline-block text-sm text-cyan-300 underline"
-          href="/fixtures/projects/tour/project.json"
+          href={projectUrl}
         >
           View project.json
         </a>

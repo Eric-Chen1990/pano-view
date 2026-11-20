@@ -1,3 +1,4 @@
+import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -140,7 +141,7 @@ function SphereTileSource({
   const { camera, gl } = root;
   const compareHost = useContext(CompareHostContext);
   const compareSide = useContext(CompareSourceSideContext);
-  const anisotropy = gl.capabilities.getMaxAnisotropy();
+  const anisotropy = getTextureAnisotropy(gl);
   const preview = usePreviewTexture(
     resolveAssetUrl(baseUrl, previewUrl),
     anisotropy,
@@ -165,6 +166,7 @@ function SphereTileSource({
     () =>
       new TileTextureManager<SphereTileAddress>({
         anisotropy,
+        fitTexture: (texture) => fitImageTexture(gl, texture),
         maxBytes: ownedBudget,
         concurrency: Math.max(
           1,
@@ -179,7 +181,7 @@ function SphereTileSource({
         onProgress: (progress) => callbacks.current.onLoadProgress?.(progress),
         onError: (error) => callbacks.current.onTileError?.(error),
       }),
-    [anisotropy, ownedBudget, maxConcurrentLoads, retryCount],
+    [anisotropy, gl, ownedBudget, maxConcurrentLoads, retryCount],
   );
   const manager = sharedManager ?? ownedManager;
   const budget = manager.memoryBudgetBytes;
@@ -294,7 +296,9 @@ function SphereTileSource({
         scratch.camera.projectionMatrix,
         scratch.camera.matrixWorldInverse,
       );
-      scratch.frustum.setFromProjectionMatrix(scratch.matrix);
+      scratch.frustum.setFromProjectionMatrix(
+        scratch.matrix, scratch.camera.coordinateSystem, scratch.camera.reversedDepth,
+      );
       let level =
         loadMode === "preview"
           ? -1

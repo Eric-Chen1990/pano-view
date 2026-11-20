@@ -1,3 +1,4 @@
+import { getTextureAnisotropy } from "../renderer-capabilities";
 import { resolveSurfaceModelAdapter } from "./model-controls";
 import {
   applySpatialAxes,
@@ -102,7 +103,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     t.minFilter = LinearFilter;
     t.magFilter = LinearFilter;
     t.generateMipmaps = false;
-    t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    t.anisotropy = Math.min(8, getTextureAnisotropy(gl));
     return t;
   }, [canvas, gl]);
   type Contact = {

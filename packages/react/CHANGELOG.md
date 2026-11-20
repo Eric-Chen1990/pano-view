@@ -1,5 +1,24 @@
 # @ericchen1990/pano-view
 
+## 5.9.0
+
+### Minor Changes
+
+- Place VR hotspot tooltips on the hotspot edge from the midpoint between the eyes, using the pre-VR viewer height for fixed sizes and gaps. Floating hotspots face that midpoint, stay at least 2 world units away, and match their monoscopic screen fraction from the actual eye projections. Export `hotspotSurfaceDistance` for the world distance from the panorama origin to a `mode="surface"` hotspot plane.
+
+## 5.8.1
+
+### Patch Changes
+
+- Keep spatial hotspot tooltips a stable size and offset in simulated stereo and immersive VR when the head turns or the monoscopic field of view changes. Ignore mouse-wheel zoom while WebVR is presenting, and multisample the offscreen stereo eye buffers on WebGL and WebGPU when antialiasing is enabled.
+
+## 5.8.0
+
+### Minor Changes
+
+- Add a native WebGPU renderer with automatic WebGL fallback. `PanoViewer` defaults to `renderer="auto"` and exposes `getRendererBackend()`. WebGPU covers filters including clarity, comparisons, scene transitions, simulated stereo, and immersive VR when the browser supports `XRGPUBinding`.
+- c0d8a0f: Add four-corner placement for image and video hotspots. Anchor each texture corner to a panorama position, reshape and rotate the hotspot in the editor, and preserve the final corners in project JSON and ZIP files.
+
 ## 5.7.0
 
 ### Minor Changes

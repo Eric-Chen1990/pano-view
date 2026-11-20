@@ -5,9 +5,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { MutableRefObject, ReactNode } from "react";
 import {
@@ -24,6 +26,11 @@ import {
 import type { Snapshot } from "./scene-transitions/overlay-utils";
 import { resolveTransition } from "./scene-transitions/presets";
 import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
+import { WebGPURuntimeContext } from "./pano-renderer";
+import { createWebGPUTarget, withWebGPUState } from "./webgpu-frame";
+import { SPATIAL_UI_MASK } from "./spatial/render-layer";
+import { WebVRRuntimeContext, subscribeWebVRHost } from "./webvr/host";
+import { WebGPUSnapshotOverlay } from "./scene-transitions/webgpu-snapshot-overlay";
 import { SnapshotHold } from "./scene-transitions/snapshot-hold";
 import {
   acceptDetailWait,
@@ -224,13 +231,13 @@ function SnapshotCapture({
   onCaptured: (snapshot: Snapshot) => void;
 }) {
   const { camera, gl, scene, size } = useThree();
+  const gpu = useContext(WebGPURuntimeContext)?.passes;
   const capturedRequestRef = useRef(0);
-  const renderTargetRef = useRef<WebGLRenderTarget | null>(null);
+  const capture = useRef<Snapshot | null>(null);
 
   useEffect(
     () => () => {
-      renderTargetRef.current?.dispose();
-      renderTargetRef.current = null;
+      capture.current?.dispose();
     },
     [],
   );
@@ -246,39 +253,77 @@ function SnapshotCapture({
     const scale = Math.min(1, Math.sqrt(maxPixels / (sourceWidth * sourceHeight)));
     const width = Math.max(1, Math.floor(sourceWidth * scale));
     const height = Math.max(1, Math.floor(sourceHeight * scale));
+    if (gpu) {
+      if (gpu.renderer.xr.isPresenting) return;
+      const eyes = gpu.stereoEyes?.();
+      const targets = (eyes ?? [camera]).map(() => createWebGPUTarget());
+      try {
+        withWebGPUState(gpu.renderer, () => {
+          gpu.renderer.setScissorTest(false);
+          gpu.renderer.autoClear = true;
+          (eyes ?? [camera]).forEach((view, index) => {
+            const target = targets[index];
+            target.setSize(eyes ? Math.max(1, Math.floor(width / 2)) : width, height);
+            gpu.renderer.setRenderTarget(target);
+            const mask = view.layers.mask;
+            if (eyes) view.layers.mask &= ~SPATIAL_UI_MASK;
+            try { gpu.render(scene, view); }
+            finally { view.layers.mask = mask; }
+          });
+        });
+      } catch (error) {
+        targets.forEach((target) => target.dispose());
+        throw error;
+      }
+      const [left, right] = targets;
+      publishCapture({
+        texture: left.texture,
+        eyeTextures: right ? [left.texture, right.texture] : undefined,
+        dispose: () => targets.forEach((target) => target.dispose()),
+      });
+      return;
+    }
     const nextTarget = new WebGLRenderTarget(width, height, {
       depthBuffer: false,
       stencilBuffer: false,
     });
-    // WebGLRenderer renders non-XR targets in its linear working color space.
-    // Keep this metadata accurate so the snapshot is not treated as display-encoded.
+    // Both renderers write offscreen snapshots in the linear working space.
     nextTarget.texture.colorSpace = LinearSRGBColorSpace;
     nextTarget.texture.generateMipmaps = false;
     nextTarget.texture.minFilter = LinearFilter;
     nextTarget.texture.magFilter = LinearFilter;
 
-    // This one-off render keeps the transfer entirely on the GPU and permits
-    // downscaling the snapshot before its texture is retained for blending.
     const previousTarget = gl.getRenderTarget();
-    gl.setRenderTarget(nextTarget);
-    gl.clear();
-    gl.render(scene, camera);
-    gl.setRenderTarget(previousTarget);
+    try {
+      gl.setRenderTarget(nextTarget);
+      gl.clear();
+      gl.render(scene, camera);
+    } catch (error) {
+      nextTarget.dispose();
+      throw error;
+    } finally {
+      gl.setRenderTarget(previousTarget);
+    }
 
-    capturedRequestRef.current = requestId;
-    const previous = renderTargetRef.current;
-    renderTargetRef.current = nextTarget;
-    previous?.dispose();
-    onCaptured({
-      texture: nextTarget.texture,
-      dispose: () => {
-        if (renderTargetRef.current === nextTarget) {
-          renderTargetRef.current = null;
-        }
-        nextTarget.dispose();
-      },
-    });
+    publishCapture({ texture: nextTarget.texture, dispose: () => nextTarget.dispose() });
   });
+
+  function publishCapture(snapshot: Snapshot) {
+    capturedRequestRef.current = requestId;
+    let disposed = false;
+    const next = {
+      ...snapshot,
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        if (capture.current === next) capture.current = null;
+        snapshot.dispose();
+      },
+    };
+    capture.current?.dispose();
+    capture.current = next;
+    onCaptured(next);
+  }
 
   return null;
 }
@@ -308,10 +353,18 @@ function ScenesController({
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const scenesHost = useContext(ScenesHostContext);
+  const gpu = useContext(WebGPURuntimeContext);
+  const vrHost = useContext(WebVRRuntimeContext)?.host;
+  const mode = useSyncExternalStore(
+    (listener) => vrHost ? subscribeWebVRHost(vrHost, listener) : () => {},
+    () => vrHost?.snapshot.mode ?? null,
+    () => null,
+  );
+  const nativeXR = Boolean(gpu && mode === "webxr");
   const manager = useSharedTileTextureManager();
   const transition = useMemo(
-    () => resolveTransition(transitionInput),
-    [transitionInput],
+    () => resolveTransition(nativeXR ? "none" : transitionInput),
+    [nativeXR, transitionInput],
   );
   const sceneMap = useMemo(
     () => new Map(scenes.map((scene) => [scene.id, scene])),
@@ -344,7 +397,7 @@ function ScenesController({
   const [detailGeneration, setDetailGeneration] = useState(0);
   const mountedRef = useRef(true);
   const waitForDetailMsRef = useRef(0);
-  waitForDetailMsRef.current = normalizeTransitionWaitMs(transitionWaitForDetailMs);
+  waitForDetailMsRef.current = nativeXR ? 0 : normalizeTransitionWaitMs(transitionWaitForDetailMs);
   slotsRef.current = slots;
   phaseRef.current = phase;
   if (externalPhaseRef) {
@@ -455,7 +508,10 @@ function ScenesController({
     if (!scene || readySceneRef.current === scene) return;
     readySceneRef.current = scene;
     controlsRef?.current?.setSceneViewLimits(sceneMap.get(scene.id)?.viewLimits);
-    if (scenesHost) markSceneVisited(scenesHost, scene.id);
+    if (scenesHost) {
+      scenesHost.recovery = null;
+      markSceneVisited(scenesHost, scene.id);
+    }
     onSceneReady?.(scene.id);
   }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
 
@@ -521,6 +577,23 @@ function ScenesController({
       });
     }
   }, [onTransitionEnd, pendingSlot, releaseInteraction, snapshot, transition.preset]);
+
+  useLayoutEffect(() => {
+    if (!nativeXR || phaseRef.current === "idle" || phaseRef.current === "preloading") return;
+    clearDetailWait(true);
+    setCaptureRequestId(0);
+    if (phaseRef.current === "recapturing") {
+      snapshot?.dispose();
+      setSnapshot(null);
+      releaseInteraction();
+      const requested = sceneMap.get(activeSceneId);
+      if (requested) startPreload(requested);
+    } else {
+      if (pendingSlot !== null) notifySceneReady(slotsRef.current[pendingSlot]);
+      finishTransition();
+    }
+  }, [activeSceneId, clearDetailWait, finishTransition, nativeXR, notifySceneReady, pendingSlot,
+    releaseInteraction, sceneMap, snapshot, startPreload]);
 
   const finishTransitionRef = useRef(finishTransition);
   finishTransitionRef.current = finishTransition;
@@ -715,7 +788,7 @@ function ScenesController({
   return (
     <Fragment>
       <SnapshotCapture
-        requestId={captureRequestId}
+        requestId={nativeXR ? 0 : captureRequestId}
         maxPixels={Math.max(1, snapshotMaxPixels)}
         onCaptured={handleCaptured}
       />
@@ -742,10 +815,22 @@ function ScenesController({
           </SceneDetailContext.Provider>
         );
       })}
-      {snapshot !== null && phase === "awaitingDetail" ? (
+      {gpu && !nativeXR && snapshot && (snapshotVisible || phase === "awaitingDetail") ? (
+        <WebGPUSnapshotOverlay
+          passes={gpu.passes}
+          key={`${transitionRunId}:${snapshot.texture.id}`}
+          snapshot={snapshot}
+          transition={transition}
+          running={phase === "transitioning"}
+          holding={phase === "awaitingDetail" || phase === "preloading"}
+          runId={transitionRunId}
+          onFinish={finishTransition}
+        />
+      ) : null}
+      {!gpu && snapshot !== null && phase === "awaitingDetail" ? (
         <SnapshotHold snapshot={snapshot} />
       ) : null}
-      {snapshotVisible ? (
+      {!gpu && snapshotVisible ? (
         <TransitionOverlay
           snapshot={snapshot}
           transition={transition}

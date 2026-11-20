@@ -1,7 +1,10 @@
 import { useFrame, useThree, type RootState } from "@react-three/fiber";
-import { useCallback, useContext, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { Vector4, type Group } from "three";
 import { CompareHostContext, type CompareFrameConfig, type createCompareHost } from "./view";
+
+import { WebGPURuntimeContext } from "../pano-renderer";
+import { createWebGPUComparison } from "./webgpu-renderer";
 
 const LAYOUT_FADE_MS = 240;
 const SEPARATION_MS = 360;
@@ -116,6 +119,10 @@ function captureComparison(
 
 export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | null> }) {
   const host = useContext(CompareHostContext);
+  const gpu = useContext(WebGPURuntimeContext)?.passes;
+  const gpuCompare = useMemo(() => gpu && createWebGPUComparison(gpu), [gpu]);
+  const gpuFadeStart = useRef<number | null>(null);
+  useEffect(() => () => gpuCompare?.dispose(), [gpuCompare]);
   const element = useThree((state) => state.gl.domElement);
   const viewport = useMemo(() => new Vector4(), []);
   const scissor = useMemo(() => new Vector4(), []);
@@ -124,12 +131,14 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
   const fade = useRef<Fade | null>(null);
   const separation = useRef<Separation | null>(null);
   const clearFade = useCallback(() => {
+    gpuFadeStart.current = null;
+    gpuCompare?.clear();
     const current = fade.current;
     if (!current) return;
     fade.current = null;
     current.animation.cancel();
     current.canvas.remove();
-  }, []);
+  }, [gpuCompare]);
   const clearSeparation = useCallback(() => {
     if (!separation.current) return;
     separation.current = null;
@@ -149,7 +158,7 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
     };
   }, [clearFade, clearSeparation, element]);
 
-  useFrame((state) => {
+  const renderFrame = (state: RootState) => {
     const { gl, camera, scene, size } = state;
     const config = host?.getFrameConfig();
     const pair = groups.current;
@@ -157,7 +166,8 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
       lastFrame.current = null;
       clearFade();
       clearSeparation();
-      gl.render(scene, camera);
+      if (gpu) gpu.render(scene, camera);
+      else gl.render(scene, camera);
       return;
     }
 
@@ -173,6 +183,10 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
     if (!samePair || !sameFrameSize || reducedMotion) {
       clearFade();
       clearSeparation();
+    } else if (layoutChanged && gpuCompare) {
+      gpuCompare.render(state, host, pair, previous.config, fadeOpacity(now), MAX_SNAPSHOT_PIXELS);
+      clearSeparation();
+      gpuFadeStart.current = now;
     } else if (layoutChanged) {
       if (layer) {
         renderComparison(state, host, pair, previous.config, viewport, scissor);
@@ -220,7 +234,11 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
       }
     }
 
-    renderComparison(state, host, pair, config, viewport, scissor);
+    if (gpuCompare) {
+      const opacity = fadeOpacity(now);
+      if (opacity === 0 && gpuFadeStart.current !== null) clearFade();
+      gpuCompare.render(state, host, pair, config, opacity);
+    } else renderComparison(state, host, pair, config, viewport, scissor);
     const chrome = host.chrome;
     if (chrome && (chrome !== dividerChrome.current || config.split !== previous?.config.split)) {
       chrome.style.setProperty("--pano-compare-split", `${config.split * 100}%`);
@@ -229,6 +247,18 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
     if (previous?.config !== config || !samePair || !sameFrameSize) {
       lastFrame.current = { config, pair, width: size.width, height: size.height };
     }
-  }, 1);
+  };
+  const latest = useRef(renderFrame);
+  latest.current = renderFrame;
+  function fadeOpacity(now: number) {
+    return gpuFadeStart.current === null ? 0 :
+      Math.max(0, 1 - (now - gpuFadeStart.current) / LAYOUT_FADE_MS) ** 2;
+  }
+  useLayoutEffect(() => {
+    if (!gpu) return;
+    gpu.compare = (state) => latest.current(state);
+    return () => { delete gpu.compare; };
+  }, [gpu]);
+  useFrame((state) => { if (!gpu) renderFrame(state); }, gpu ? 0 : 1);
   return null;
 }

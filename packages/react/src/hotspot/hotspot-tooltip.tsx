@@ -1,6 +1,6 @@
-import { WebVRRuntimeContext, subscribeWebVRHost } from "../webvr/host";
+import { WebVRRuntimeContext } from "../webvr/host";
 import { SpatialHotspotTooltip } from "./spatial-hotspot-tooltip";
-import { useContext, useSyncExternalStore, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import type {
@@ -11,8 +11,6 @@ import type {
   HotspotTooltipPlacement,
 } from "./types";
 
-const TOOLTIP_MAX_WIDTH = 220;
-const TOOLTIP_IMAGE_MAX_HEIGHT = 120;
 
 export const DEFAULT_HOTSPOT_TOOLTIP_OFFSET = 12;
 
@@ -114,8 +112,7 @@ export function HotspotTooltip({
   offset?: number;
   appearance?: HotspotTooltipAppearance;
 }) {
-  const vr = useContext(WebVRRuntimeContext);
-  const inVR = useSyncExternalStore(fn => vr ? subscribeWebVRHost(vr.host, fn) : () => {}, () => Boolean(vr?.host.snapshot.mode), () => false);
+  const inVR = Boolean(useContext(WebVRRuntimeContext)?.mode);
 
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => {
@@ -138,21 +135,20 @@ export function HotspotTooltip({
       lineHeight: resolvedAppearance.lineHeight,
       letterSpacing: resolvedAppearance.letterSpacing,
       padding: toCssLength(resolvedAppearance.padding),
-      transform: tooltipBubbleTransform(
-        placement,
-        0,
-      ),
     }),
-    [offset, placement, resolvedAppearance],
+    [resolvedAppearance],
   );
+  if (inVR) {
+    return <SpatialHotspotTooltip mode={mode} scaleMode={scaleMode} referenceFov={referenceFov}
+      content={content} style={bubbleStyle} placement={placement} offset={resolveHotspotTooltipOffset(offset)} />;
+  }
   if (!showImage && !content.text) {
     return null;
   }
 
-  if (inVR) return <SpatialHotspotTooltip mode={mode} scaleMode={scaleMode} referenceFov={referenceFov} content={content} appearance={resolvedAppearance} placement={placement} offset={resolveHotspotTooltipOffset(offset)} />;
   return (
     <PanoHtml mode={mode} scaleMode={scaleMode} referenceFov={referenceFov} offset={placement === "top" ? [0, -resolveHotspotTooltipOffset(offset)] : placement === "bottom" ? [0, resolveHotspotTooltipOffset(offset)] : placement === "left" ? [-resolveHotspotTooltipOffset(offset), 0] : [resolveHotspotTooltipOffset(offset), 0]} pointerEvents="none" style={WRAPPER_STYLE} zIndexRange={[20, 10]}>
-      <div className="pano-hotspot-tooltip" role="tooltip" style={bubbleStyle}>
+      <div className="pano-hotspot-tooltip" role="tooltip" style={{ ...bubbleStyle, transform: tooltipBubbleTransform(placement, 0) }}>
         {showImage ? (
           <img
             alt={content.imageAlt ?? content.text ?? ""}

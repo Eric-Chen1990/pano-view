@@ -28,6 +28,9 @@ try {
   assert.ok(!data.includes("../../../shared/"));
   const main = await readFile(join(destination, "dist/index.mjs"), "utf8");
   assert.ok(!main.includes("@radix-ui/react-dialog"), "Core must not load Dialog code");
+  for (const entry of [main, await readFile(join(destination, "dist/index.cjs"), "utf8")]) {
+    assert.match(entry, /import\(["']three\/webgpu["']\)/, "WebGPU must load only when requested");
+  }
   for (const extension of ["mjs", "cjs"]) {
     const ui = await readFile(join(destination, `dist/ui.${extension}`), "utf8");
     assert.ok(ui.includes(`./index.${extension}`), "UI must share the core runtime");
@@ -45,32 +48,39 @@ const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",sour
 if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
 if(project.scenes[0].scene.viewLimits.yaw.min!==170)throw Error("Limits missing from packed loader");
 const marker={id:"custom",type:"text",text:"Hi",position:{yaw:0,pitch:0},events:{pointerenter:{type:"custom",actionId:"show",params:{src:"blob:business"}}}};
-const parsed=api.parsePanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},hotspots:[marker]}]});
-if(api.hotspotAction(parsed.scenes[0].hotspots[0],"pointerenter").params.src!=="blob:business")throw Error("Missing custom action parameters");
+const corners=[{yaw:175,pitch:8},{yaw:-176,pitch:10},{yaw:-171,pitch:-7},{yaw:172,pitch:-9}];
+const image={id:"image",type:"image",src:"image.webp",position:{yaw:180,pitch:0},corners};
+const parseHotspots=(hotspots)=>api.parsePanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},hotspots}]}).scenes[0].hotspots;
+const [parsedMarker,parsedImage]=parseHotspots([marker,image]);
+if(api.hotspotAction(parsedMarker,"pointerenter").params.src!=="blob:business")throw Error("Missing custom action parameters");
+assert.deepEqual(parsedImage.corners,corners);
+assert.throws(()=>parseHotspots([{...image,corners:[corners[0],corners[2],corners[1],corners[3]]}]),/corners: expected a convex, clockwise quadrilateral/);
 const popup=api.resolveProjectPopupAssets({id:"story",title:"Story",blocks:[{id:"photo",type:"image",src:"photo.jpg"}]},"https://cdn.test/tour/");
 if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrect popup URL");
 `;
   // The extracted package has no React, Three.js or Sharp installation.
   await writeFile(
     join(directory, "consumer.mjs"),
-    `import * as api from "@ericchen1990/pano-view/data";\n${example}`
+    `import assert from "node:assert/strict";\nimport * as api from "@ericchen1990/pano-view/data";\n${example}`
   );
   await writeFile(
     join(directory, "consumer.cjs"),
-    `const api=require("@ericchen1990/pano-view/data");\n(async()=>{${example}})().catch(e=>{console.error(e);process.exitCode=1});`
+    `const assert=require("node:assert/strict");\nconst api=require("@ericchen1990/pano-view/data");\n(async()=>{${example}})().catch(e=>{console.error(e);process.exitCode=1});`
   );
   run(process.execPath, ["consumer.mjs"]);
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type PanoViewLimits,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
 import type {ProjectScenesProps} from "@ericchen1990/pano-view";
 import type {PanoDialogProps,PanoDialogContentProps,ProjectPopupDialogProps} from "@ericchen1990/pano-view/ui";
-import type {PanoMediaController,PanoControlAction,PanoSpatialControlsProps,PanoOverlayRenderContext,PanoViewerProps} from "@ericchen1990/pano-view";
+import type {PanoMediaController,PanoControlAction,PanoSpatialControlsProps,PanoOverlayRenderContext,PanoViewerProps,PanoViewerHandle,PanoRendererBackend} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
 const limits:PanoViewLimits={yaw:{min:170,max:-170},fov:{min:60,max:60}};
 const action:PanoControlAction={id:"custom",label:"Custom",update:seconds=>{void seconds;}};
 const spatial:PanoSpatialControlsProps={children:null,position:{yaw:0,pitch:-20}};
 void [action,spatial];
-const viewer:PanoViewerProps={viewLimits:limits};
+const viewer:PanoViewerProps={viewLimits:limits,renderer:"auto"};
+declare const handle:PanoViewerHandle;
+const backend:PanoRendererBackend|null=handle.getRendererBackend(); void backend;
 const scene=sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/"});
 const loaded:Promise<LoadedPanoProject>=loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/"});
 declare const project:LoadedPanoProject;

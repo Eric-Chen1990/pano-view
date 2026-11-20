@@ -359,7 +359,7 @@ export function ImmersiveTourPage() {
           style={{ height: 560 }}
         >
           <WebVR />
-          <SceneMovie onController={setMovieController} />
+          <SceneMovie mode="surface" onController={setMovieController} />
           <AutoRotate enabled={autoRotate} speed={8} />
           {project ? (
             <ProjectScenes
@@ -383,7 +383,7 @@ export function ImmersiveTourPage() {
             />
           ) : null}
           <PanoOverlay>
-            <SceneMovieControls controller={movieController} />
+            <SceneMovieControls mode="surface" controller={movieController} />
             <OverlayChrome
               activeSceneId={activeSceneId}
               mode={mode}
@@ -439,7 +439,8 @@ export function ImmersiveTourPage() {
         </section>
         <p className="p-4 text-sm">
           In VR, hold your gaze to operate icons. Translucent arrows appear at
-          the edges where content can scroll. Look right for the scene video.
+          the edges where content can scroll. Look right for the scene video,
+          which stays on the panorama surface.
           Outside VR, drag the model and scroll to zoom.
         </p>
         <p className="p-4 text-sm">

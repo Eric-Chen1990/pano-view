@@ -1,6 +1,8 @@
+import { WebGPURuntimeContext } from "../pano-renderer";
+import { connectWebGPUXR, endWebXRSession, handOffWebXRSession, requestWebVRSession } from "./webgpu-xr";
 import { WebVRInputBridge } from "./input-bridge";
 import { bindEmulatedXRViewport } from "./emulated-viewport";
-import { useThree } from "@react-three/fiber";
+import { useStore, useThree } from "@react-three/fiber";
 import {
   forwardRef,
   useCallback,
@@ -108,6 +110,13 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   ref,
 ) {
   const runtime = useContext(WebVRRuntimeContext);
+  const gpu = useContext(WebGPURuntimeContext);
+  const store = useStore();
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const controlsRef = useContext(PanoramaViewContext);
   const eventBus = useContext(PanoEventBusContext);
   const gl = useThree((state) => state.gl);
@@ -240,13 +249,14 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       }
       modeRef.current = nextMode;
       setMode(nextMode);
+      updateWebVRHost(host, { mode: nextMode });
       if (nextMode === "fake") {
         controlsRef.current?.setGyroActive(true);
       }
       eventBus.emit("vrenter", { mode: nextMode });
       callbacksRef.current.onEnterVR?.(nextMode);
     },
-    [controlsRef, eventBus],
+    [controlsRef, eventBus, host],
   );
 
   const deactivate = useCallback(
@@ -258,7 +268,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       modeRef.current = null;
       setMode(null);
       clearDetectedScreensize();
-      updateWebVRHost(host, { setupOpen: false, pointerLocked: false });
+      updateWebVRHost(host, { mode: null, setupOpen: false, pointerLocked: false });
       if (previousMode === "fake") {
         controlsRef.current?.setGyroActive(false);
       }
@@ -274,54 +284,79 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   }, []);
 
   const applyWebXRQuality = useCallback(() => {
-    const scale = oversamplingRef.current;
-    if (typeof gl.xr.setFramebufferScaleFactor === "function") {
-      gl.xr.setFramebufferScaleFactor(scale);
-    }
     const nextFoveation = foveationRef.current;
-    if (
-      nextFoveation !== undefined &&
-      typeof gl.xr.setFoveation === "function"
-    ) {
+    if (nextFoveation !== undefined && typeof gl.xr.setFoveation === "function") {
       gl.xr.setFoveation(nextFoveation);
     }
-    const frameRateOption = resolveWebVRFrameRateOption(frameRateRef.current);
-    if (frameRateOption !== undefined) {
-      xrStore.setFrameRate(frameRateOption);
-    }
+    xrStore.setFrameRate(resolveWebVRFrameRateOption(frameRateRef.current) ?? "high");
   }, [gl.xr, xrStore]);
 
-  const enterVR = useCallback(async (): Promise<boolean> => {
-    if (modeRef.current) {
-      return true;
+  const activateXR = useCallback((session: XRSession) => {
+    if (!mounted.current || xrStore.getState().session !== session || !gl.xr.isPresenting) {
+      throw new Error("The WebXR session did not start.");
     }
-    const capabilities = capabilitiesRef.current;
-    if (capabilities.webxr) {
+    webXRSessionRef.current = session;
+    applyWebXRQuality();
+    session.addEventListener("end", () => {
+      webXRSessionRef.current = null;
+      deactivate("webxr");
+    }, { once: true });
+    activate("webxr");
+  }, [activate, applyWebXRQuality, deactivate, gl.xr, xrStore]);
+
+  useEffect(() => {
+    const pending = host.pendingXR;
+    if (gpu || !pending || pending.connecting) return;
+    pending.connecting = true;
+    void (async () => {
       try {
-        // Framebuffer scale must be set before the session starts presenting.
-        if (typeof gl.xr.setFramebufferScaleFactor === "function") {
+        gl.xr.setFramebufferScaleFactor(oversamplingRef.current);
+        await gl.xr.setSession(pending.session);
+        if (host.pendingXR !== pending) return;
+        activateXR(pending.session);
+        pending.finish(true);
+      } catch (error) {
+        pending.finish(false);
+        if (mounted.current) reportDenied(error);
+      }
+    })();
+  }, [activateXR, gl.xr, gpu, host, reportDenied]);
+
+  const enterVR = useCallback(async (): Promise<boolean> => {
+    if (modeRef.current) return true;
+    const capabilities = capabilitiesRef.current;
+    if (host.requestingXR || host.pendingXR) return false;
+    host.hotspotReferenceHeight = Math.max(1, store.getState().size.height);
+    if (capabilities.webxr) {
+      host.requestingXR = true;
+      let session: XRSession | null = null;
+      try {
+        if (!gpu) {
           gl.xr.setFramebufferScaleFactor(oversamplingRef.current);
+          session = (await xrStore.enterVR()) ?? null;
+        } else {
+          session = await requestWebVRSession(gpu.nativeXR);
+          if (!mounted.current) {
+            await endWebXRSession(session);
+            return false;
+          }
+          if (!gpu.nativeXR) return await handOffWebXRSession(host, session, gpu.fallback);
+          await connectWebGPUXR(gpu.passes.renderer, session, store.getState);
         }
-        await xrStore.enterVR();
-        const session = xrStore.getState().session;
-        if (!session) {
-          throw new Error("The WebXR session did not start.");
-        }
-        webXRSessionRef.current = session;
-        applyWebXRQuality();
-        session.addEventListener(
-          "end",
-          () => {
-            webXRSessionRef.current = null;
-            deactivate("webxr");
-          },
-          { once: true },
-        );
-        activate("webxr");
+        if (!session) throw new Error("The WebXR session did not start.");
+        activateXR(session);
         return true;
       } catch (error) {
-        reportDenied(error);
+        const installed = gl.xr.getSession();
+        if (installed && (!session || installed === session)) await endWebXRSession(installed).catch(() => {});
+        if (!mounted.current) return false;
+        if (gpu?.nativeXR && (session || (error instanceof DOMException && error.name === "NotSupportedError"))) {
+          reportDenied(Object.assign(new Error("WebGPU XR could not start. Select Enter VR again to use WebGL."), { cause: error }));
+          gpu.fallback();
+        } else reportDenied(error);
         return false;
+      } finally {
+        host.requestingXR = false;
       }
     }
 
@@ -366,18 +401,20 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return false;
   }, [
     activate,
-    applyWebXRQuality,
-    deactivate,
+    activateXR,
     desktopSupport,
     eventBus,
     fakeSupport,
     gl.domElement,
     gl.xr,
+    gpu,
+    host,
     mobileVr,
     mousePointerLock,
     reportDenied,
     requestPermission,
     resolveAutoScreensize,
+    store,
     wakelock,
     xrStore,
   ]);
@@ -387,7 +424,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
       const session =
         webXRSessionRef.current ?? xrStore.getState().session ?? null;
       if (session) {
-        await session.end();
+        await endWebXRSession(session);
       } else {
         deactivate("webxr");
       }
@@ -534,13 +571,12 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     updateWebVRHost(host, {
       chrome,
       detectedScreensize,
-      mode,
       settings,
       screensizeManaged: screensize !== undefined,
       profileManaged: profile !== undefined,
       profileLabel: resolvedProfile.label ?? resolvedProfile.id ?? "Custom lens profile",
     });
-  }, [chrome, detectedScreensize, host, mode, settings.screensize, settings.profileId, screensize, profile, resolvedProfile]);
+  }, [chrome, detectedScreensize, host, settings.screensize, settings.profileId, screensize, profile, resolvedProfile]);
 
   useEffect(() => {
     if (mode !== "fake" || setupOpen) {
@@ -574,7 +610,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     () => () => {
       const session = webXRSessionRef.current;
       if (session) {
-        void session.end();
+        void endWebXRSession(session).catch(() => {});
       }
       if (modeRef.current === "fake") {
         controlsRef.current?.setGyroActive(false);

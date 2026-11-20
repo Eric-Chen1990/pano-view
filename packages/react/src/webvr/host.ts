@@ -2,7 +2,7 @@ import { NATIVE_IFRAME_SUPPORT, SPATIAL_IFRAME_SUPPORT } from "../types";
 import { DEFAULT_WEBVR_SETTINGS } from "./profiles";
 import type { XRStore } from "@react-three/xr";
 import { createContext } from "react";
-import type { WebVRStereoView } from "./stereo-view";
+import type { WebVRHotspotView, WebVRStereoView } from "./stereo-view";
 import type {
   WebVRChrome,
   WebVRMode,
@@ -39,6 +39,9 @@ export type WebVRHostSnapshot = {
 
 export type WebVRHost = {
   controller: WebVRController | null;
+  pendingXR: { session: XRSession; connecting: boolean; finish: (entered: boolean) => void } | null;
+  requestingXR: boolean;
+  hotspotReferenceHeight: number;
   revision: number;
   snapshot: WebVRHostSnapshot;
   /** Stable reference for useSyncExternalStore when available/mode are unchanged. */
@@ -49,10 +52,17 @@ export type WebVRHost = {
 export type WebVRRuntimeApi = {
   host: WebVRHost;
   xrStore: XRStore;
+  mode: WebVRMode | null;
   stereoView: WebVRStereoView;
+  xrHeadView: WebVRHotspotView;
 };
 
 export const WebVRRuntimeContext = createContext<WebVRRuntimeApi | null>(null);
+
+export function getWebVRHotspotView(runtime: WebVRRuntimeApi, presenting: boolean) {
+  if (presenting) return runtime.xrHeadView;
+  return runtime.stereoView.active ? runtime.stereoView.hotspotView : null;
+}
 
 export const EMPTY_WEBVR_STATE: WebVRState = Object.freeze({
   available: false,
@@ -74,6 +84,9 @@ function createWebVRState(
 export function createWebVRHost(): WebVRHost {
   return {
     controller: null,
+    pendingXR: null,
+    requestingXR: false,
+    hotspotReferenceHeight: 1,
     revision: 0,
     snapshot: {
       available: false,

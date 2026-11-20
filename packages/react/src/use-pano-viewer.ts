@@ -12,6 +12,7 @@ function createPanoViewerHandle(
   ref: RefObject<PanoViewerHandle | null>,
 ): PanoViewerHandle {
   return {
+    getRendererBackend: () => ref.current?.getRendererBackend() ?? null,
     getView: () => ref.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 },
     setView: (view, options) => {
       ref.current?.setView(view, options);
@@ -28,6 +29,7 @@ function createPanoViewerHandle(
     zoomTo: (fov, options) =>
       ref.current?.zoomTo(fov, options) ??
       Promise.resolve({ status: "cancelled" }),
+    getHotspotCorners: (id) => ref.current?.getHotspotCorners(id) ?? null,
     lookToHotspot: (id, options) =>
       ref.current?.lookToHotspot(id, options) ??
       Promise.resolve({ status: "not-found" }),

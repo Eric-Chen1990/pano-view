@@ -1,7 +1,10 @@
+import { WebGPURuntimeContext } from "../pano-renderer";
+import { WebGPUStereo } from "./webgpu-stereo";
+import type { WebGPURenderer } from "three/webgpu";
 import { stereoLensMappingGlsl, stereoLensMaskFragmentShader } from "./lens-mask";
 import { renderSpatialEye } from "../spatial/render-layer";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   Matrix4,
   Mesh,
@@ -31,7 +34,7 @@ import {
   computeStereoLayout,
   type StereoLayout,
 } from "./stereo-layout";
-import { isFallbackStereoMode } from "./stereo-view";
+import { createWebVRStereoView, isFallbackStereoMode, setWebVRHotspotProjection, type WebVRStereoView } from "./stereo-view";
 import type { WebVRMode, WebVRProfile } from "./types";
 
 const TOE_IN = new Matrix4();
@@ -71,10 +74,11 @@ type DistortionResources = {
   target: WebGLRenderTarget;
 };
 
-function createDistortionResources(): DistortionResources {
+function createDistortionResources(samples: number): DistortionResources {
   const target = new WebGLRenderTarget(1, 1, {
     depthBuffer: true,
     stencilBuffer: false,
+    samples,
   });
   const geometry = new PlaneGeometry(2, 2);
   const material = new ShaderMaterial({
@@ -131,20 +135,21 @@ function applyEyeViewOffset(
 
 type StereoEyeViewportLike = StereoLayout["left"];
 
-function syncStereoCameras(
-  stereo: StereoCamera,
+export function syncStereoCameras(
+  stereoView: WebVRStereoView,
   camera: PerspectiveCamera,
   profile: WebVRProfile,
   screensize: number | "auto",
   oversampling: number,
   size: Vector2,
-  gl: WebGLRenderer,
+  gl: Pick<WebGLRenderer | WebGPURenderer, "getSize" | "getPixelRatio">,
 ): { layout: StereoLayout; centers: ReturnType<typeof computeStereoLensCenters> } {
   gl.getSize(size);
+  const pixelRatio = gl.getPixelRatio();
   const layout = computeStereoLayout(
     size.x,
     size.y,
-    gl.getPixelRatio(),
+    pixelRatio,
     oversampling,
   );
   const displayAspect = layout.fullWidth / layout.fullHeight;
@@ -152,10 +157,13 @@ function syncStereoCameras(
   camera.fov = fov;
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
+  const { stereo } = stereoView;
   stereo.aspect = layout.stereoAspect;
-  // Keep both eyes on the panorama center. A metric IPD is invisible on the
-  // radius-1000 shell; the toe-in below is the disparity the headset fuses.
-  stereo.eyeSep = 0;
+  // Toe-in applies to the whole view. Eye separation adds distance-dependent
+  // disparity for nearby objects while barely shifting the panorama shell.
+  stereo.eyeSep = profile.ipdMm / 1000;
+  stereo.cameraL.coordinateSystem = camera.coordinateSystem;
+  stereo.cameraR.coordinateSystem = camera.coordinateSystem;
   stereo.update(camera);
   const halfAngle = panoramaStereoHalfAngle(profile.ipdMm);
   TOE_IN.makeRotationY(panoramaStereoToeInYaw("left", halfAngle));
@@ -167,12 +175,62 @@ function syncStereoCameras(
 
   applyEyeViewOffset(stereo.cameraL, layout.left, centers.left);
   applyEyeViewOffset(stereo.cameraR, layout.right, centers.right);
+  const { hotspotView } = stereoView;
+  if (setWebVRHotspotProjection(hotspotView, camera, [
+    stereo.cameraL.projectionMatrix, stereo.cameraR.projectionMatrix,
+  ])) {
+    const displayHeight = layout.fullHeight * pixelRatio;
+    hotspotView.renderHeight = profile.k1 || profile.k2
+      ? Math.max(displayHeight, layout.renderTargetHeight)
+      : displayHeight;
+    // The source camera can be parented. Keep the layout camera in world space.
+    const layoutCamera = hotspotView.camera;
+    camera.matrixWorld.decompose(
+      layoutCamera.position, layoutCamera.quaternion, layoutCamera.scale,
+    );
+    layoutCamera.updateMatrixWorld();
+  }
   stereo.cameraL.updateMatrixWorld(true);
   stereo.cameraR.updateMatrixWorld(true);
   return { layout, centers };
 }
 
-export function WebVRStereoRenderer({
+type StereoProps = {
+  mode: WebVRMode | null;
+  oversampling?: number;
+  profile: WebVRProfile;
+  screensize: number | "auto";
+};
+
+export function WebVRStereoRenderer(props: StereoProps) {
+  const gpu = useContext(WebGPURuntimeContext)?.passes;
+  const runtime = useContext(WebVRRuntimeContext);
+  const camera = useThree((state) => state.camera);
+  const active = Boolean(gpu && runtime && isFallbackStereoMode(props.mode));
+  const options = useRef({ profile: props.profile, screensize: props.screensize, oversampling: props.oversampling ?? 1 });
+  options.current = { profile: props.profile, screensize: props.screensize, oversampling: props.oversampling ?? 1 };
+  const size = useRef(new Vector2());
+  useLayoutEffect(() => {
+    if (!active || !runtime || !(camera instanceof PerspectiveCamera)) return;
+    const fov = camera.fov;
+    runtime.stereoView.active = true;
+    return () => {
+      runtime.stereoView.active = false;
+      runtime.stereoView.hotspotView.projectionScaleY = null;
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    };
+  }, [active, camera, runtime]);
+  useFrame(() => {
+    if (!active || !gpu || !runtime || !(camera instanceof PerspectiveCamera)) return;
+    syncStereoCameras(runtime.stereoView, camera, options.current.profile, options.current.screensize,
+      options.current.oversampling, size.current, gpu.renderer);
+  }, -0.75);
+  if (!gpu) return <WebGLStereo {...props} />;
+  return active && runtime ? <WebGPUStereo passes={gpu} stereoView={runtime.stereoView} options={options} /> : null;
+}
+
+function WebGLStereo({
   mode,
   oversampling = 1,
   profile,
@@ -185,14 +243,13 @@ export function WebVRStereoRenderer({
 }) {
   const { camera, gl } = useThree();
   const runtime = useContext(WebVRRuntimeContext);
-  const fallbackStereoRef = useRef<StereoCamera | null>(null);
-  if (!fallbackStereoRef.current) {
-    fallbackStereoRef.current = new StereoCamera();
-  }
-  const stereo = runtime?.stereoView.stereo ?? fallbackStereoRef.current;
-  const stereoRef = useRef(stereo);
-  stereoRef.current = stereo;
-  const resources = useMemo(createDistortionResources, []);
+  const fallbackView = useMemo(createWebVRStereoView, []);
+  const stereoView = runtime?.stereoView ?? fallbackView;
+  const stereoViewRef = useRef(stereoView);
+  stereoViewRef.current = stereoView;
+  const resources = useMemo(() => createDistortionResources(
+    gl.getContextAttributes()?.antialias ? Math.min(4, gl.capabilities.maxSamples) : 0,
+  ), [gl]);
   const sizeRef = useRef(new Vector2());
   const viewportRef = useRef(new Vector4());
   const scissorRef = useRef(new Vector4());
@@ -231,8 +288,9 @@ export function WebVRStereoRenderer({
       if (originalFovRef.current === null) {
         originalFovRef.current = cameraToRender.fov;
       }
+      const view = stereoViewRef.current;
       const { layout, centers } = syncStereoCameras(
-        stereoRef.current,
+        view,
         cameraToRender,
         currentProfile,
         currentScreensize,
@@ -293,8 +351,8 @@ export function WebVRStereoRenderer({
         });
       };
 
-      renderEye(stereoRef.current.cameraL, layout.left, centers.left);
-      renderEye(stereoRef.current.cameraR, layout.right, centers.right);
+      renderEye(view.stereo.cameraL, layout.left, centers.left);
+      renderEye(view.stereo.cameraR, layout.right, centers.right);
 
       gl.setRenderTarget(previousTarget);
       gl.setViewport(viewportRef.current);
@@ -321,10 +379,12 @@ export function WebVRStereoRenderer({
     stereoActiveRef.current = fallback;
     if (runtime) {
       runtime.stereoView.active = fallback;
+      if (!fallback) runtime.stereoView.hotspotView.projectionScaleY = null;
     }
     if (fallback && camera instanceof PerspectiveCamera) {
+      originalFovRef.current ??= camera.fov;
       syncStereoCameras(
-        stereoRef.current,
+        stereoViewRef.current,
         camera,
         profileRef.current,
         screensizeRef.current,
@@ -342,7 +402,7 @@ export function WebVRStereoRenderer({
       camera.updateProjectionMatrix();
       originalFovRef.current = null;
     }
-  });
+  }, -0.75);
 
   return null;
 }

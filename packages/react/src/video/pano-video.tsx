@@ -1,3 +1,4 @@
+import { getTextureAnisotropy, getMaxTextureSize, fitImageTexture } from "../renderer-capabilities";
 import { probeMediaHasAudio, subscribeMediaAudio } from "../controls/media-audio";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -230,9 +231,10 @@ function usePosterTexture(
           loadedTexture.dispose();
           return;
         }
+        fitImageTexture(gl, loadedTexture);
         applyEquirectangularLayout(
           loadedTexture,
-          gl.capabilities.getMaxAnisotropy(),
+          getTextureAnisotropy(gl),
         );
         loadedTexture.wrapT = RepeatWrapping;
         loadedTexture.magFilter = LinearFilter;
@@ -399,12 +401,12 @@ export function PanoVideo({
   const failedSource = useRef(false);
   const fallbackAttempted = useRef(false);
   const meshRef = useRef<Mesh>(null);
-  const maxTextureSize = gl.capabilities.maxTextureSize;
+  const maxTextureSize = getMaxTextureSize(gl);
   const [textureRevision, setTextureRevision] = useState(0);
   const videoTexture = useMemo(() => {
     if (!video || !ready) return null;
     const texture = new VideoTexture(video);
-    applyEquirectangularLayout(texture, gl.capabilities.getMaxAnisotropy());
+    applyEquirectangularLayout(texture, getTextureAnisotropy(gl));
     texture.magFilter = LinearFilter;
     texture.minFilter = LinearFilter;
     texture.generateMipmaps = false;

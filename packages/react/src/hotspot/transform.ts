@@ -10,6 +10,18 @@ import type { HotspotScaleMode } from "./types";
 
 const LOCAL_FORWARD = new Vector3(0, 0, 1);
 const CAMERA_POSITION = new Vector3();
+const PARENT_ROTATION = new Quaternion();
+
+export function resolveFloatingHotspotDistance(
+  distance: number | undefined,
+  maximumDistance: number,
+  inVR: boolean,
+): number {
+  if (distance === undefined || !Number.isFinite(distance)) {
+    return inVR ? Math.min(10, maximumDistance) : 10;
+  }
+  return MathUtils.clamp(Math.abs(distance), inVR ? 2 : 0.1, maximumDistance);
+}
 
 export function applyHotspotTransform(
   group: Object3D,
@@ -23,22 +35,32 @@ export function applyHotspotTransform(
   worldWidth: number,
   worldHeight: number,
   distance: number,
+  eyeProjectionScaleY?: number,
 ) {
   if (orientation === "billboard") {
-    group.quaternion.copy(camera.quaternion);
+    if (eyeProjectionScaleY === undefined) {
+      group.quaternion.copy(camera.quaternion);
+    } else {
+      camera.getWorldQuaternion(group.quaternion);
+      if (group.parent) {
+        group.quaternion.premultiply(group.parent.getWorldQuaternion(PARENT_ROTATION).invert());
+      }
+    }
   } else {
     group.quaternion.copy(surfaceQuaternion);
   }
   group.rotateOnAxis(LOCAL_FORWARD, MathUtils.degToRad(-rotation));
-  let scaleFactor =
-    scaleMode === "fixed" && camera instanceof PerspectiveCamera
-      ? fixedScaleFactor(camera.fov, referenceFov)
-      : 1;
+  const fixedScale = scaleMode === "fixed";
+  const focalLength = eyeProjectionScaleY ??
+    (camera instanceof PerspectiveCamera ? 1 / fovSlope(camera.fov) : undefined);
+  let scaleFactor = fixedScale && focalLength !== undefined
+    ? 1 / (focalLength * fovSlope(MathUtils.clamp(referenceFov, 1, 179)))
+    : 1;
   if (
-    scaleMode === "fixed" &&
+    fixedScale &&
     orientation === "billboard" &&
     useAngularScale &&
-    camera instanceof PerspectiveCamera
+    focalLength !== undefined
   ) {
     group.updateWorldMatrix(true, false);
     CAMERA_POSITION.setFromMatrixPosition(group.matrixWorld).applyMatrix4(
@@ -55,12 +77,8 @@ export function applyHotspotTransform(
   group.updateMatrixWorld();
 }
 
-function fixedScaleFactor(cameraFov: number, referenceFov: number): number {
-  const safeReferenceFov = MathUtils.clamp(referenceFov, 1, 179);
-  return (
-    Math.tan(MathUtils.degToRad(cameraFov) / 2) /
-    Math.tan(MathUtils.degToRad(safeReferenceFov) / 2)
-  );
+function fovSlope(fov: number): number {
+  return Math.tan(MathUtils.degToRad(fov) / 2);
 }
 
 /**

@@ -6,9 +6,11 @@ import {
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view/data";
 import {
+  validateHotspotCorners,
   validatePolygonVertices,
   validatePolylineVertices,
   DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+  type HotspotCorners,
   type HotspotPosition,
 } from "@ericchen1990/pano-view";
 import { translator, type Translate } from "./i18n";
@@ -33,9 +35,17 @@ export function readDocument(value: unknown): PanoProjectDefinition {
   } : parsed;
 }
 
+export type HotspotGeometryPatch = {
+  position?: HotspotPosition;
+  vertices?: HotspotPosition[];
+  corners?: HotspotCorners;
+};
+
 export function geometryIssue(
   hotspot: ProjectHotspotDefinition,
 ): string | undefined {
+  if ((hotspot.type === "image" || hotspot.type === "video") && hotspot.corners && !validateHotspotCorners(hotspot.corners))
+    return "Corners must form a convex, clockwise quadrilateral";
   if (hotspot.type === "polygon")
     return validatePolygonVertices(hotspot.vertices)[0]?.message;
   if (hotspot.type === "polyline")

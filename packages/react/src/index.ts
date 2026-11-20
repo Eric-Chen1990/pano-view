@@ -276,6 +276,7 @@ export type {
   PanoViewNavigationOptions,
   PanoViewNavigationResult,
   PanoramaControlsOptions,
+  PanoRendererBackend,
   PanoViewerHandle,
   PanoViewerState,
   SetPanoViewerOptions,
@@ -292,12 +293,24 @@ export {
   DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
   DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
 } from "./hotspot/hotspot-tooltip";
+export {
+  getHotspotCornerCenter,
+  getHotspotCornerRotation,
+  getHotspotRotationHandle,
+  moveHotspotCorners,
+  rotateHotspotCorners,
+  validateHotspotCorners,
+} from "./hotspot/corners";
+export { hotspotSurfaceDistance } from "./hotspot/hotspot-anchor";
 export { MAX_HOTSPOT_PITCH } from "./hotspot/types";
 export type {
   HotspotDragEvent,
   HotspotInputSource,
   HotspotInteractionEvent,
   HotspotCommonProps,
+  HotspotCornerProps,
+  HotspotCorners,
+  HotspotCornersChangeEvent,
   HotspotMode,
   HotspotPointerEvents,
   HotspotScaleMode,

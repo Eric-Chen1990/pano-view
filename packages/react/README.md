@@ -875,6 +875,40 @@ Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custo
 
 ## PanoViewer
 
+### Rendering backend
+
+`PanoViewer` defaults to `renderer="auto"`. It uses native WebGPU when available
+and switches to WebGL if initialization fails or the GPU device is lost. Native
+WebGPU supports filters (including clarity), `PanoCompare`, all `Scenes` transition
+presets, and the mobile and desktop simulated stereo modes.
+
+Immersive VR uses WebGPU when the browser exposes `XRGPUBinding` and can start a
+session with the `webgpu` feature. Otherwise it uses WebGL. If the browser
+rejects the `webgpu` feature as unsupported or native binding fails, the viewer
+switches to WebGL and reports through `onDenied` that Enter VR can be tried again. The renderer stays on WebGL for
+that viewer mount. A switch recreates the canvas and may reload the scene and media.
+
+In an immersive WebGPU session, `Scenes` switches as soon as the destination
+scene can draw and reports `preset: "none"`. Three.js r185 disables XR MSAA and
+multiview and does not apply the XR framebuffer oversampling setting to its
+native WebGPU projection layer. For custom GLSL or integrations that call
+WebGL-specific APIs, set `renderer="webgl"`. The WebGPU path disables
+frame-wide tone mapping to preserve panorama colors.
+
+```tsx
+const viewer = usePanoViewer();
+
+<PanoViewer ref={viewer.ref} renderer="auto" style={{ height: 480 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>;
+
+// Read from an event handler or a readiness callback.
+const backend = viewer.getRendererBackend(); // "webgpu", "webgl", or null
+```
+
+`getRendererBackend()` is also available on `PanoViewerHandle`. It returns the
+active renderer's backend and returns `null` while no canvas renderer is ready.
+
 `PanoViewer` owns the canvas, perspective camera, and controls. Give its container an explicit size and place one panorama source inside it.
 
 Angles in the public API are measured in degrees. Positive yaw looks right and positive pitch looks up.
@@ -2256,9 +2290,9 @@ video on browsers that lack it.
 WebXR requires HTTPS and a user gesture. Mobile sensor access also requires
 HTTPS and may require an explicit iOS permission prompt. Embedded viewers need
 appropriate `xr-spatial-tracking`, `gyroscope`, and `accelerometer` permissions.
-DOM overlays such as iframe hotspots, tooltips, and video controls are not
-visible inside an immersive headset session; mesh-based hotspots remain
-interactive through the default WebXR controller rays.
+Iframe content and video controls use their spatial presentation where available.
+Hotspots and their tooltips render as scene geometry in immersive VR and
+respond to the configured gaze or controller input.
 
 ### Props
 
@@ -2657,7 +2691,7 @@ Point hotspots can use `draggable`, `onDragStart`, `onPositionChange`, and
 Polygon and polyline hotspots report controlled `vertices` through
 `onVerticesChange`.
 
-Every hotspot can show a DOM tooltip at its anchor. Pass a string or
+Every hotspot can show a tooltip at its anchor. Pass a string or
 `{ text?, image?, imageAlt? }` as `tooltip`. The default `tooltipTrigger` is
 `"always"`: if content is present and the hotspot is visible, the bubble stays
 on screen. Clicking the hotspot does not toggle it. Optional
@@ -2673,6 +2707,12 @@ These are screen directions: the bubble sits outside the hotspot's projected
 screen bounds on that edge, so rotated graphics such as arrows are not covered.
 `tooltipOffset` is the screen-space gap in CSS pixels (default `12` /
 `DEFAULT_HOTSPOT_TOOLTIP_OFFSET`).
+
+In VR, the tooltip follows the hotspot edge as projected from the center of
+the two eyes. Fixed sizes and gaps use the viewer height from before entering
+VR. The bubble is rendered at the hotspot depth in both eyes, with an inward
+facing surface when using `tooltipMode="surface"`. Text wraps when the bubble
+would exceed 80% of the common eye width. Hover follows the active VR input.
 
 Optional `tooltipAppearance` overrides the bubble paint. Unset fields keep the
 library default theme (`DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE`): background, text
@@ -2846,6 +2886,9 @@ Point hotspots use `mode` to configure orientation and placement together:
 - Floating hotspots default to `scaleMode="fixed"`; choose `"fov"` to scale with zoom. Surface hotspots always use `"fov"`, even when `"fixed"` was saved.
   `scaleMode="fixed"` compensates for FOV changes and keeps its screen size
   close to the size at `referenceFov` (default `75`).
+- In VR, floating hotspots face the midpoint between the eyes and stay at least
+  2 world units away. Fixed size uses the actual eye projections to match the
+  fraction of the view's height at the monoscopic `referenceFov`.
 - `rotation` rotates the hotspot around its own normal in degrees; positive
   values rotate clockwise and negative values rotate counterclockwise.
   `scale` applies an overall positive multiplier to its angular width and
@@ -2983,6 +3026,8 @@ change `playing` by itself: update that prop in response to your UI, click
 handler, `onEnded`, or playback error.
 
 ## VideoHotspot
+
+Pass `corners` to `VideoHotspot` or `ImageHotspot` to pin the source top-left, top-right, bottom-right, and bottom-left to four panorama yaw/pitch positions in degrees. The anchors must form a clockwise convex quadrilateral. The texture follows those positions as the view pans and zooms. In this mode, `position`, dimensions, placement, and `rotation` describe the rectangle used when `corners` is omitted. Use `rotateHotspotCorners(corners, degrees)` to rotate all four anchors clockwise around the center. With `draggable`, apply the `corners` supplied by `onCornersChange` to move the entire hotspot. `getHotspotCorners(id)` on the viewer handle reads the displayed corners of a mounted rectangular image or video hotspot.
 
 `VideoHotspot` uses an `HTMLVideoElement` and `VideoTexture`. Its `playing`
 prop is likewise controlled: initialize it to `false` for manual playback, then toggle it from your click handler or application state. On source change or unmount, the element is paused and its texture is

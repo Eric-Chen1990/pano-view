@@ -3,6 +3,7 @@ import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
 import type { TextHotspotStyle } from "./text-hotspot";
 import type {
+  HotspotCorners,
   HotspotMode,
   HotspotPointerEvents,
   HotspotPosition,
@@ -54,6 +55,7 @@ export type PointHotspotDefinitionBase = HotspotDefinitionBase & {
 export type ImageHotspotDefinition = PointHotspotDefinitionBase & {
   type: "image";
   src: string;
+  corners?: HotspotCorners;
 };
 
 export type GraphicHotspotDefinition = PointHotspotDefinitionBase & {
@@ -74,6 +76,7 @@ export type SequenceHotspotDefinition = PointHotspotDefinitionBase & {
 export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
   type: "video";
   src: string;
+  corners?: HotspotCorners;
   poster?: string;
   playing?: boolean;
   loop?: boolean;

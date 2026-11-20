@@ -12,6 +12,8 @@ import {
 } from "react";
 import {
   PanoViewer,
+  PanoEvents,
+  getHotspotCornerCenter,
   PanoMapOverlay,
   PanoOverlay,
   Scenes,
@@ -33,6 +35,8 @@ import {
 } from "@ericchen1990/pano-view/data";
 import { SceneSources, projectRoot } from "./sources";
 import { LocalFiles, LOCAL_ROOT } from "./local-files";
+import { audioExtension } from "./local-media";
+import type { HotspotGeometryPatch } from "./document";
 import { HotspotLayer } from "./hotspot-layer";
 import type { PanoEditorProps } from "./types";
 import type { Translate } from "./i18n";
@@ -71,6 +75,7 @@ export function EditorViewer({
   project,
   local,
   directories,
+  media,
   options,
   activeId,
   selectedId,
@@ -99,6 +104,7 @@ export function EditorViewer({
   project: PanoProjectDefinition;
   local?: LocalFiles;
   directories: readonly LocalFiles[];
+  media: readonly LocalFiles[];
   options: PanoEditorProps;
   activeId?: string;
   selectedId?: string;
@@ -111,7 +117,7 @@ export function EditorViewer({
   onSelect: (id: string) => void;
   onUpdate: (
     id: string,
-    patch: { position?: HotspotPosition; vertices?: HotspotPosition[] },
+    patch: HotspotGeometryPatch,
   ) => void;
   onBegin: () => void;
   onEnd: () => void;
@@ -131,6 +137,7 @@ export function EditorViewer({
   if (popupSelection.sceneId !== activeId || popupSelection.preview !== preview)
     setPopupSelection({ sceneId: activeId, preview });
   const [readyId, setReadyId] = useState<string>();
+  const [viewportHeight, setViewportHeight] = useState(768);
   const tested = useRef<number | undefined>(undefined);
   const loader = useMemo(
     () =>
@@ -208,12 +215,13 @@ export function EditorViewer({
   const runtime = useMemo(() => {
     const issues: string[] = [];
     const scenes: LoadedProjectScene[] = [];
+    const assetFiles = (path: string) =>
+      media.find((files) => files.containsPath(path))
+      ?? directories.find((files) => files.containsPath(path)) ?? local;
     for (const definition of project.scenes) {
       const scene = sources.get(definition.id);
       if (!scene) continue;
       const hotspots: LoadedProjectScene["hotspots"] = [];
-      const assetFiles = (path: string) =>
-        directories.find((files) => files.containsPath(path)) ?? local;
       for (const hotspot of definition.hotspots ?? []) {
         try {
           const resolved = resolveProjectHotspotAssets(
@@ -268,9 +276,7 @@ export function EditorViewer({
                   "flac",
                 ].includes(extension)
                 ? extension
-                : mime === "mpeg"
-                  ? "mp3"
-                  : (mime ?? "mp3");
+                : (audioExtension(file.type) ?? mime ?? "mp3");
             });
           }
           hotspots.push(resolved);
@@ -291,8 +297,8 @@ export function EditorViewer({
     for (const popup of project.popups ?? []) {
       try {
         popups.push(resolveProjectPopupAssets(popup, local ? LOCAL_ROOT : projectRoot(options.baseUrl), (path, context) => {
-          const files = directories.find((entry) => entry.containsPath(path)) ?? local;
-          return files ? files.resolveFrom(path, context, LOCAL_ROOT)
+          const files = assetFiles(path);
+          return files ? files.resolveFrom(path, { ...context, defaultUrl: new URL(path, LOCAL_ROOT).href }, LOCAL_ROOT)
             : (options.resolvePopupAssetUrl?.(path, context) ?? context.defaultUrl);
         }));
       } catch (error) { issues.push(`${popup.title || popup.id}: ${errorMessage(error)}`); }
@@ -304,7 +310,7 @@ export function EditorViewer({
           project.map,
           local ? LOCAL_ROOT : projectRoot(options.baseUrl),
           (path, context) => {
-            const files = directories.find((entry) => entry.containsPath(path)) ?? local;
+            const files = assetFiles(path);
             return files
               ? files.resolve(path, {
                   ...context,
@@ -325,7 +331,7 @@ export function EditorViewer({
       ...(map === undefined ? {} : { map }),
     };
     return { loaded, issues };
-  }, [project, sources, local, directories, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
+  }, [project, sources, local, directories, media, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map((entry) => entry.scene),
     [runtime.loaded.scenes],
@@ -377,6 +383,11 @@ export function EditorViewer({
               if (!preview) onPlace(position);
             }}
           >
+            {!preview ? (
+              <PanoEvents onResize={({ height }) => {
+                if (height > 0) setViewportHeight(height);
+              }} />
+            ) : null}
             {preview ? (
               <ProjectScenes
                 project={runtime.loaded}
@@ -400,7 +411,9 @@ export function EditorViewer({
                   if (item.visible === false || item.interactive === false || item.pointerEvents === "none") {
                     onError(t("Show the hotspot and enable pointer interaction to test a click.")); return;
                   }
-                  const interaction = { id: item.id, position: "position" in item ? item.position : item.vertices[0]!, source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
+                  const center = (item.type === "image" || item.type === "video") && item.corners
+                    ? getHotspotCornerCenter(item.corners) : null;
+                  const interaction = { id: item.id, position: center ?? ("position" in item ? item.position : item.vertices[0]!), source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
                   const trigger = testRequest.trigger ?? "click";
                   if (trigger === "click") runtimeContext.onClick(interaction);
                   else runtimeContext.onHoverChange(trigger === "pointerenter", interaction);
@@ -420,6 +433,7 @@ export function EditorViewer({
                   <HotspotLayer
                     hotspots={active.hotspots}
                     selectedId={selectedId}
+                    viewportHeight={viewportHeight}
                     drawing={placing || Boolean(draftKind)}
                     draft={draft}
                     draftKind={draftKind}
@@ -428,6 +442,7 @@ export function EditorViewer({
                     onBegin={onBegin}
                     onEnd={onEnd}
                     onError={onError}
+                    t={t}
                   />
                 )}
               />

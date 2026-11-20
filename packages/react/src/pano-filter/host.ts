@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore } from "react";
-import type { Camera } from "three";
+import type { Camera, Material, RenderTarget, Vector2, Vector4 } from "three";
 import type { PanoClarityView } from "./clarity-pass";
 import {
   DEFAULT_PANO_FILTER_SNAPSHOT,
@@ -11,6 +11,8 @@ export type PanoFilterHost = {
   claims: number;
   revision: number;
   listeners: Set<() => void>;
+  webgpuClaritySources: WeakSet<Material>;
+  webgpuClarityViews: Map<Camera, { target: RenderTarget; viewport: Vector4; texel: Vector2 }>;
   clarityViews: Map<Camera, PanoClarityView>;
 };
 
@@ -23,6 +25,8 @@ export function createPanoFilterHost(): PanoFilterHost {
     revision: 0,
     listeners: new Set(),
     clarityViews: new Map(),
+    webgpuClaritySources: new WeakSet(),
+    webgpuClarityViews: new Map(),
   };
 }
 
