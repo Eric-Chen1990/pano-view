@@ -6,6 +6,7 @@ import {
   tooltipScaleMode,
 } from "../../../shared/hotspot-rendering";
 import {
+  spatialTooltipWorldMatrix,
   tooltipFacingCameraQuaternion,
   tooltipScreenMatrix,
   tooltipTangentOffset,
@@ -173,4 +174,38 @@ test("VR tooltip tangent offset stays fixed when the camera only rotates", () =>
   const rotated = tooltipFacingCameraQuaternion(new Quaternion(), card, camera);
   const facing = new Vector3(0, 0, 1).applyQuaternion(rotated);
   assert.ok(facing.dot(camera.position.clone().sub(card).normalize()) > 0.999999);
+});
+
+test("VR tooltip size and anchor gap stay stable through head rotation and mono projection updates", () => {
+  const camera = new PerspectiveCamera(80, 1.8, 0.01, 2000);
+  const stereoProjection = camera.projectionMatrix.elements[5]!;
+  const hotspot = new Object3D();
+  hotspot.position.set(2, 1, -10);
+  const anchor = new Object3D();
+  hotspot.add(anchor);
+  const raster = { width: 85, height: 25, textureWidth: 89, textureHeight: 29 };
+  for (const scaleMode of ["fixed", "fov"] as const) {
+    for (const placement of ["top", "right", "bottom", "left"] as const) {
+      const measure = () => {
+        const matrix = spatialTooltipWorldMatrix(new Matrix4(), anchor, camera, 720,
+          stereoProjection, { mode: "billboard", scaleMode, referenceFov: 75, placement, offset: 12 }, raster);
+        return {
+          size: new Vector3().setFromMatrixScale(matrix),
+          gap: new Vector3().setFromMatrixPosition(matrix).distanceTo(anchor.getWorldPosition(new Vector3())),
+        };
+      };
+      camera.rotation.set(0, 0, 0);
+      camera.fov = 80;
+      camera.updateProjectionMatrix();
+      anchor.position.set(0, 1, 0);
+      const before = measure();
+      camera.rotation.set(0.12, 0.32, 0.05);
+      camera.fov = 75;
+      camera.updateProjectionMatrix();
+      anchor.position.set(0, 0.95, 0.15);
+      const after = measure();
+      assert.ok(before.size.distanceTo(after.size) < 1e-10);
+      assert.ok(Math.abs(before.gap - after.gap) < 1e-10);
+    }
+  }
 });

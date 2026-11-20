@@ -7,6 +7,8 @@ export type WebVRStereoEye = "left" | "right";
 export type WebVRStereoView = {
   active: boolean;
   stereo: StereoCamera;
+  /** Center projection from lens calibration, independent of the monoscopic zoom. */
+  projectionScaleY?: number;
 };
 
 export function createWebVRStereoView(): WebVRStereoView {

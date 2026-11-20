@@ -1,9 +1,9 @@
-import { SpatialHostContext } from "./spatial/host";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
 import { createPointerDrag } from "./pointer-drag";
 import { useClaimControlChannel } from "./control-claims";
 import { PanoramaViewContext } from "./panorama-view-runtime";
+import { WebVRRuntimeContext } from "./webvr/host";
 import type { MouseControlButton, MouseControlsOptions } from "./types";
 
 const DEFAULT_ROTATE_SPEED = 0.35;
@@ -53,7 +53,7 @@ export function MouseControls({
   fovSpeed,
 }: MouseControlsProps) {
   useClaimControlChannel("mouse");
-  const spatialHost = useContext(SpatialHostContext);
+  const vrHost = useContext(WebVRRuntimeContext)?.host;
   const controlsRef = useContext(PanoramaViewContext);
   const { gl, camera } = useThree();
   const validateDragRef = useRef<((delta: number) => void) | undefined>(undefined);
@@ -207,15 +207,13 @@ export function MouseControls({
     };
 
     const onWheel = (event: WheelEvent) => {
-      if (spatialHost?.mode && spatialHost.surfaces.size) return;
       if (!optionsRef.current.wheel) {
         return;
       }
-      if (controlsRef.current?.isInteractionLocked()) {
-        event.preventDefault();
+      event.preventDefault();
+      if (vrHost?.snapshot.mode || controlsRef.current?.isInteractionLocked()) {
         return;
       }
-      event.preventDefault();
 
       const speed = resolveSpeed(
         optionsRef.current.zoomSpeed,
@@ -251,7 +249,7 @@ export function MouseControls({
       element.removeEventListener("wheel", onWheel);
       clearPointers();
     };
-  }, [buttons, controlsRef, enabled, gl, camera]);
+  }, [buttons, controlsRef, enabled, gl, camera, vrHost]);
 
   return null;
 }

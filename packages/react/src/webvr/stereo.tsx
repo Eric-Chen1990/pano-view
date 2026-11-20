@@ -34,7 +34,7 @@ import {
   computeStereoLayout,
   type StereoLayout,
 } from "./stereo-layout";
-import { isFallbackStereoMode } from "./stereo-view";
+import { createWebVRStereoView, isFallbackStereoMode, type WebVRStereoView } from "./stereo-view";
 import type { WebVRMode, WebVRProfile } from "./types";
 
 const TOE_IN = new Matrix4();
@@ -74,10 +74,11 @@ type DistortionResources = {
   target: WebGLRenderTarget;
 };
 
-function createDistortionResources(): DistortionResources {
+function createDistortionResources(samples: number): DistortionResources {
   const target = new WebGLRenderTarget(1, 1, {
     depthBuffer: true,
     stencilBuffer: false,
+    samples,
   });
   const geometry = new PlaneGeometry(2, 2);
   const material = new ShaderMaterial({
@@ -135,7 +136,7 @@ function applyEyeViewOffset(
 type StereoEyeViewportLike = StereoLayout["left"];
 
 export function syncStereoCameras(
-  stereo: StereoCamera,
+  stereoView: WebVRStereoView,
   camera: PerspectiveCamera,
   profile: WebVRProfile,
   screensize: number | "auto",
@@ -154,7 +155,9 @@ export function syncStereoCameras(
   const { fov, centers } = computeStereoCalibration(profile, screensize, displayAspect);
   camera.fov = fov;
   camera.updateProjectionMatrix();
+  stereoView.projectionScaleY = camera.projectionMatrix.elements[5]!;
   camera.updateMatrixWorld();
+  const { stereo } = stereoView;
   stereo.aspect = layout.stereoAspect;
   // Keep both eyes on the panorama center. A metric IPD is invisible on the
   // radius-1000 shell; the toe-in below is the disparity the headset fuses.
@@ -204,11 +207,11 @@ export function WebVRStereoRenderer(props: StereoProps) {
   }, [active, camera, runtime]);
   useFrame(() => {
     if (!active || !gpu || !runtime || !(camera instanceof PerspectiveCamera)) return;
-    syncStereoCameras(runtime.stereoView.stereo, camera, options.current.profile, options.current.screensize,
+    syncStereoCameras(runtime.stereoView, camera, options.current.profile, options.current.screensize,
       options.current.oversampling, size.current, gpu.renderer);
   }, -0.5);
   if (!gpu) return <WebGLStereo {...props} />;
-  return active && runtime ? <WebGPUStereo passes={gpu} stereo={runtime.stereoView.stereo} options={options} /> : null;
+  return active && runtime ? <WebGPUStereo passes={gpu} stereoView={runtime.stereoView} options={options} /> : null;
 }
 
 function WebGLStereo({
@@ -224,14 +227,13 @@ function WebGLStereo({
 }) {
   const { camera, gl } = useThree();
   const runtime = useContext(WebVRRuntimeContext);
-  const fallbackStereoRef = useRef<StereoCamera | null>(null);
-  if (!fallbackStereoRef.current) {
-    fallbackStereoRef.current = new StereoCamera();
-  }
-  const stereo = runtime?.stereoView.stereo ?? fallbackStereoRef.current;
-  const stereoRef = useRef(stereo);
-  stereoRef.current = stereo;
-  const resources = useMemo(createDistortionResources, []);
+  const fallbackView = useMemo(createWebVRStereoView, []);
+  const stereoView = runtime?.stereoView ?? fallbackView;
+  const stereoViewRef = useRef(stereoView);
+  stereoViewRef.current = stereoView;
+  const resources = useMemo(() => createDistortionResources(
+    gl.getContextAttributes()?.antialias ? Math.min(4, gl.capabilities.maxSamples) : 0,
+  ), [gl]);
   const sizeRef = useRef(new Vector2());
   const viewportRef = useRef(new Vector4());
   const scissorRef = useRef(new Vector4());
@@ -270,8 +272,9 @@ function WebGLStereo({
       if (originalFovRef.current === null) {
         originalFovRef.current = cameraToRender.fov;
       }
+      const view = stereoViewRef.current;
       const { layout, centers } = syncStereoCameras(
-        stereoRef.current,
+        view,
         cameraToRender,
         currentProfile,
         currentScreensize,
@@ -332,8 +335,8 @@ function WebGLStereo({
         });
       };
 
-      renderEye(stereoRef.current.cameraL, layout.left, centers.left);
-      renderEye(stereoRef.current.cameraR, layout.right, centers.right);
+      renderEye(view.stereo.cameraL, layout.left, centers.left);
+      renderEye(view.stereo.cameraR, layout.right, centers.right);
 
       gl.setRenderTarget(previousTarget);
       gl.setViewport(viewportRef.current);
@@ -363,7 +366,7 @@ function WebGLStereo({
     }
     if (fallback && camera instanceof PerspectiveCamera) {
       syncStereoCameras(
-        stereoRef.current,
+        stereoViewRef.current,
         camera,
         profileRef.current,
         screensizeRef.current,

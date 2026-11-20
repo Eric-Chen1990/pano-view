@@ -67,8 +67,8 @@ export function WebGPUFrame({ passes }: { passes: WebGPUFramePasses }) {
   return null;
 }
 
-export function createWebGPUTarget(depthBuffer = true): RenderTarget {
-  return new RenderTarget(1, 1, { depthBuffer, stencilBuffer: false });
+export function createWebGPUTarget(depthBuffer = true, samples = 0): RenderTarget {
+  return new RenderTarget(1, 1, { depthBuffer, stencilBuffer: false, samples });
 }
 
 export function withWebGPUState(renderer: WebGPURenderer, render: () => void): void {

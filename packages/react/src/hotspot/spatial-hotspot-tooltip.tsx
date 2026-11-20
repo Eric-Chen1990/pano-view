@@ -1,10 +1,7 @@
 import { tooltipPadding, tooltipBaseline, tooltipLines } from "./tooltip-layout";
-import {
-  tooltipFacingCameraQuaternion,
-  tooltipTangentOffset,
-  tooltipWorldMatrix,
-} from "./tooltip-transform";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { spatialTooltipWorldMatrix } from "./tooltip-transform";
+import { WebVRRuntimeContext } from "../webvr/host";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   CanvasTexture,
@@ -12,8 +9,6 @@ import {
   SRGBColorSpace,
   Mesh,
   Matrix4,
-  Quaternion,
-  Vector3,
 } from "three";
 import type {
   HotspotMode,
@@ -29,15 +24,7 @@ function number(value: string | number, fallback: number) {
 }
 
 /** Spatial plane: both eyes, depth ordering, and the final lens mask apply. */
-export function SpatialHotspotTooltip({
-  content,
-  mode,
-  scaleMode,
-  referenceFov,
-  appearance,
-  placement,
-  offset,
-}: {
+export function SpatialHotspotTooltip(props: {
   mode: HotspotMode;
   scaleMode: HotspotScaleMode;
   referenceFov: number;
@@ -46,8 +33,10 @@ export function SpatialHotspotTooltip({
   placement: HotspotTooltipPlacement;
   offset: number;
 }) {
+  const { content, appearance } = props;
   const mesh = useRef<Mesh>(null);
   const { camera, gl, size } = useThree();
+  const stereoView = useContext(WebVRRuntimeContext)?.stereoView;
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
     setImage(null);
@@ -104,9 +93,16 @@ export function SpatialHotspotTooltip({
         (image && lines.length ? padding : 0) +
         lines.length * lineHeight
     );
-    canvas.width = width * 2;
-    canvas.height = height * 2;
+    const border = /^(\d+(?:\.\d+)?)px\s+solid\s+(.+)$/.exec(appearance.border);
+    const borderWidth = Math.min(number(border?.[1] ?? 0, 1), 2 * Math.max(width, height));
+    // Leave transparent texels beyond the centered stroke for linear filtering.
+    const gutter = Math.max(2, Math.ceil(borderWidth / 2) + 1);
+    const textureWidth = width + 2 * gutter;
+    const textureHeight = height + 2 * gutter;
+    canvas.width = textureWidth * 2;
+    canvas.height = textureHeight * 2;
     ctx.scale(2, 2);
+    ctx.translate(gutter, gutter);
     ctx.beginPath();
     ctx.roundRect(
       0,
@@ -117,10 +113,9 @@ export function SpatialHotspotTooltip({
     );
     ctx.fillStyle = appearance.background;
     ctx.fill();
-    const border = /^(\d+(?:\.\d+)?)px\s+solid\s+(.+)$/.exec(appearance.border);
     if (border) {
       ctx.strokeStyle = border[2]!;
-      ctx.lineWidth = Number(border[1]);
+      ctx.lineWidth = borderWidth;
       ctx.stroke();
     }
     ctx.save();
@@ -147,60 +142,32 @@ export function SpatialHotspotTooltip({
     texture.colorSpace = SRGBColorSpace;
     texture.minFilter = LinearFilter;
     texture.generateMipmaps = false;
-    return { texture, width, height };
+    return { texture, width, height, textureWidth, textureHeight };
   }, [appearance, content.text, image]);
   useEffect(() => () => raster.texture.dispose(), [raster]);
   const scratch = useMemo(
     () => ({
       world: new Matrix4(),
       local: new Matrix4(),
-      point: new Vector3(),
-      depth: new Vector3(),
-      offset: new Vector3(),
-      rotation: new Quaternion(),
-      scale: new Vector3(),
     }),
     [],
   );
   useFrame(() => {
     const node = mesh.current;
     if (!node?.parent) return;
-    const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-    tooltipWorldMatrix(
+    const presenting = gl.xr.isPresenting;
+    const view = presenting ? gl.xr.getCamera() : camera;
+    const projectionScaleY = !presenting && stereoView?.active
+      ? stereoView.projectionScaleY ?? view.projectionMatrix.elements[5]!
+      : view.projectionMatrix.elements[5]!;
+    spatialTooltipWorldMatrix(
       scratch.world,
       node.parent,
       view,
       size.height,
-      mode,
-      scaleMode,
-      referenceFov,
-    );
-    const unit = scratch.scale.setFromMatrixScale(scratch.world).x;
-    scratch.point.setFromMatrixPosition(scratch.world);
-    const depth = -scratch.depth
-      .copy(scratch.point)
-      .applyMatrix4(view.matrixWorldInverse).z;
-    const pixel =
-      (2 * Math.max(0, depth)) /
-      (Math.max(1, size.height) * view.projectionMatrix.elements[5]!);
-    const x =
-      placement === "left"
-        ? (-raster.width * unit) / 2 - offset * pixel
-        : placement === "right"
-          ? (raster.width * unit) / 2 + offset * pixel
-          : 0;
-    const y =
-      placement === "top"
-        ? (raster.height * unit) / 2 + offset * pixel
-        : placement === "bottom"
-          ? (-raster.height * unit) / 2 - offset * pixel
-          : 0;
-    scratch.point.add(tooltipTangentOffset(scratch.offset, scratch.point, x, y));
-    tooltipFacingCameraQuaternion(scratch.rotation, scratch.point, view);
-    scratch.world.compose(
-      scratch.point,
-      scratch.rotation,
-      scratch.scale.set(raster.width * unit, raster.height * unit, 1),
+      projectionScaleY,
+      props,
+      raster,
     );
     scratch.local
       .copy(node.parent.matrixWorld)

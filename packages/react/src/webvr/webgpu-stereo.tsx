@@ -1,15 +1,17 @@
 import { useLayoutEffect, useMemo, type RefObject } from "react";
-import { PerspectiveCamera, Vector2, type StereoCamera } from "three";
+import { PerspectiveCamera, Vector2 } from "three";
 import { renderSpatialEye } from "../spatial/render-layer";
 import { createWebGPUTarget, withWebGPUState, type WebGPUFramePasses, type WebGPUShaderModules } from "../webgpu-frame";
 import { syncStereoCameras } from "./stereo";
+import type { WebVRStereoView } from "./stereo-view";
 import type { WebVRProfile } from "./types";
 
-function createResources({ three, tsl }: WebGPUShaderModules) {
+function createResources({ three, tsl }: WebGPUShaderModules, samples: number) {
   const { NodeMaterial, QuadMesh } = three;
   const { dot, screenUV, texture, uniform, vec2, vec4 } = tsl;
-  const views = [createWebGPUTarget(), createWebGPUTarget()] as const;
-  const source = createWebGPUTarget();
+  // Offscreen eye buffers need their own MSAA before the final canvas composite.
+  const views = [createWebGPUTarget(true, samples), createWebGPUTarget(true, samples)] as const;
+  const source = createWebGPUTarget(true, samples);
   const distortion = uniform(new Vector2());
   const lensCenter = uniform(new Vector2());
   const split = uniform(0.5);
@@ -45,19 +47,19 @@ function createResources({ three, tsl }: WebGPUShaderModules) {
 }
 
 export function WebGPUStereo({
-  passes, stereo, options,
+  passes, stereoView, options,
 }: {
   passes: WebGPUFramePasses;
-  stereo: StereoCamera;
+  stereoView: WebVRStereoView;
   options: RefObject<{ profile: WebVRProfile; screensize: number | "auto"; oversampling: number }>;
 }) {
-  const resources = useMemo(() => createResources(passes.modules), [passes]);
+  const resources = useMemo(() => createResources(passes.modules, passes.renderer.samples), [passes]);
   useLayoutEffect(() => () => resources.dispose(), [resources]);
   useLayoutEffect(() => {
     const renderer = passes.renderer;
     const size = new Vector2();
     const outputSize = new Vector2();
-    const eyes = [stereo.cameraL, stereo.cameraR] as const;
+    const eyes = [stereoView.stereo.cameraL, stereoView.stereo.cameraR] as const;
     passes.stereoEyes = () => eyes;
     passes.stereo = ({ camera, scene }) => {
       if (!(camera instanceof PerspectiveCamera)) {
@@ -65,7 +67,7 @@ export function WebGPUStereo({
         return;
       }
       const { profile, screensize, oversampling } = options.current;
-      const { layout, centers } = syncStereoCameras(stereo, camera, profile, screensize, oversampling, size, renderer);
+      const { layout, centers } = syncStereoCameras(stereoView, camera, profile, screensize, oversampling, size, renderer);
       renderer.getDrawingBufferSize(outputSize);
       if (outputSize.x < 2 || outputSize.y < 1) return;
       const dpr = renderer.getPixelRatio();
@@ -106,6 +108,6 @@ export function WebGPUStereo({
       delete passes.stereo;
       delete passes.stereoEyes;
     };
-  }, [options, passes, resources, stereo]);
+  }, [options, passes, resources, stereoView]);
   return null;
 }
