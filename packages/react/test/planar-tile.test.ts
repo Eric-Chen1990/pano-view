@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createCompareSplit } from "../src/compare/split";
 import {
-  FIT_VIEW, moveView, planarPaneCenter, selectLevel, viewportGeometry, viewRect, visibleTiles,
+  FIT_VIEW, moveView, planarPaneCenter, selectLevel, viewportGeometry, viewRect, visibleImageRect, visibleTiles,
 } from "../src/planar-tile/geometry";
 import { parsePlanarManifest, planarTileUrl } from "../src/planar-tile/manifest";
 import { mountPlanarSurfaces, mountPlanarView, type PlanarStatus } from "../src/planar-tile/runtime";
@@ -100,6 +100,21 @@ test("comparison panes align at the same aspect ratio and clamp independently wi
   assert.deepEqual(planarPaneCenter(view, viewport, sharedFit, landscape), { x: 0.7, y: 0.4 });
   assert.deepEqual(planarPaneCenter(view, viewport, sharedFit, portrait), { x: 0.5, y: 0.35 });
   assert.deepEqual(planarPaneCenter(FIT_VIEW, viewport, sharedFit, portrait), FIT_VIEW.center);
+});
+
+test("minimap bounds use only the part of the image visible through the viewport", () => {
+  const viewport = { width: 200, height: 200 };
+  const wide = { left: 0, top: 50, width: 200, height: 100 };
+  const tall = { left: 50, top: 0, width: 100, height: 200 };
+  assert.deepEqual(visibleImageRect(wide, viewport), { left: 0, top: 0, width: 1, height: 1 });
+  assert.deepEqual(visibleImageRect(tall, viewport), { left: 0, top: 0, width: 1, height: 1 });
+  const zoomed = { ...FIT_VIEW, zoom: 2 };
+  assert.deepEqual(visibleImageRect(viewRect(wide, zoomed), viewport),
+    { left: 0.25, top: 0, width: 0.5, height: 1 });
+  assert.deepEqual(visibleImageRect(viewRect(tall, zoomed), viewport),
+    { left: 0, top: 0.25, width: 1, height: 0.5 });
+  assert.deepEqual(visibleImageRect({ left: 50, top: -250, width: 400, height: 400 }, viewport),
+    { left: 0, top: 0.625, width: 0.375, height: 0.375 });
 });
 
 test("drag overshoots with resistance, reverses freely, and springs back to fit", () => {
@@ -326,7 +341,7 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   assert.equal(frames.size, 0);
 
   const reopened = new AbortController();
-  mountPlanarView(
+  const reopenedControls = mountPlanarView(
     viewport as unknown as HTMLElement,
     canvas as unknown as HTMLCanvasElement,
     manifest, reopened.signal, () => {}, { initialScale: 4, maxScale: 2 },
@@ -334,8 +349,98 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   requests.get("maps/thumbnail.png")!(new Response("overview"));
   await tick();
   assert.equal(overviewWidth, 128);
+  let overviewFrames = 0;
+  const unsubscribe = reopenedControls.subscribeOverview((size, image, preview) => {
+    overviewFrames++;
+    assert.equal(preview.width, 256);
+    const bounds = visibleImageRect(image, size);
+    assert.equal(bounds.left, 0);
+    assert.equal(bounds.top + bounds.height, 1);
+  });
+  reopenedControls.zoom(0.5);
+  reopenedControls.panTo({ x: -1, y: 2 });
+  await tick();
+  assert.equal(reopenedControls.getView().zoom, 2);
+  assert.equal(overviewFrames, 1);
+  unsubscribe();
+  reopenedControls.panTo(FIT_VIEW.center);
+  await tick();
+  assert.equal(overviewFrames, 1);
+
+  reducedMotion.matches = true;
+  const wheel = (deltaY: number, clientX = 30, clientY = 45) => Object.assign(new Event("wheel", { cancelable: true }), {
+    deltaMode: 0, deltaY, clientX, clientY,
+  }) as WheelEvent;
+  const { fit } = viewportGeometry(manifest, { width: 240, height: 180 }, 1);
+  function project(x: number, y: number) {
+    const image = viewRect(fit, reopenedControls.getView());
+    return [image.left + x * image.width, image.top + y * image.height];
+  }
+  const atMax = wheel(-40);
+  reopenedControls.zoomWithWheel(atMax, { x: 0.7, y: 0.7 });
+  assert.equal(atMax.defaultPrevented, true);
+  assert.equal(reopenedControls.getView().zoom, 2);
+  reopenedControls.panTo({ x: 0.55, y: 0.6 });
+  const beforeWheel = reopenedControls.getView();
+  const minimapAnchor = project(0.7, 0.7);
+  const zoomOut = wheel(40);
+  reopenedControls.zoomWithWheel(zoomOut, { x: 0.7, y: 0.7 });
+  const afterWheel = reopenedControls.getView();
+  assert.equal(zoomOut.defaultPrevented, true);
+  assert.ok(afterWheel.zoom < beforeWheel.zoom);
+  assert.ok(project(0.7, 0.7).every((value, index) => Math.abs(value - minimapAnchor[index]!) < 1e-9));
+  const mainWheel = wheel(-40);
+  viewport.dispatchEvent(mainWheel);
+  assert.equal(mainWheel.defaultPrevented, true);
+  assert.ok(reopenedControls.getView().zoom > afterWheel.zoom);
+  assert.ok(reopenedControls.getView().center.x < afterWheel.center.x);
+  assert.ok(project(0.95, 0.6)[0]! > viewport.clientWidth);
+  reopenedControls.zoomWithWheel(wheel(40), { x: 0.95, y: 0.6 });
+  assert.ok(Math.abs(project(0.95, 0.6)[0]! - viewport.clientWidth) < 1e-9);
+
+  reopenedControls.zoom(0.8);
+  reopenedControls.panTo(FIT_VIEW.center);
+  reducedMotion.matches = false;
+  const currentImage = viewRect(fit, reopenedControls.getView());
+  const nextAnchor = { x: 195, y: 135 };
+  const imageX = (nextAnchor.x - currentImage.left) / currentImage.width;
+  const imageY = (nextAnchor.y - currentImage.top) / currentImage.height;
+  viewport.dispatchEvent(wheel(-20));
+  viewport.dispatchEvent(wheel(-20, nextAnchor.x, nextAnchor.y));
+  await tick();
+  assert.ok(reopenedControls.getView().zoom * fit.width > currentImage.width);
+  assert.ok(Math.abs(project(imageX, imageY)[0]! - nextAnchor.x) < 1e-9);
+  assert.ok(Math.abs(project(imageX, imageY)[1]! - nextAnchor.y) < 1e-9);
+
+  reopenedControls.reset();
+  const duringFit = wheel(40);
+  viewport.dispatchEvent(duringFit);
+  assert.equal(duringFit.defaultPrevented, true);
+  reducedMotion.matches = true;
+  await tick();
+  const atFit = wheel(40);
+  reopenedControls.zoomWithWheel(atFit, { x: 0.7, y: 0.7 });
+  assert.equal(atFit.defaultPrevented, true);
+  assert.deepEqual(reopenedControls.getView(), FIT_VIEW);
+  reducedMotion.matches = false;
   reopened.abort();
   await tick();
+
+  const withoutPreview = new AbortController();
+  const tileOnlyStatuses: PlanarStatus[] = [];
+  const tileOnlyControls = mountPlanarView(
+    viewport as unknown as HTMLElement,
+    canvas as unknown as HTMLCanvasElement,
+    manifest, withoutPreview.signal, (status) => tileOnlyStatuses.push(status),
+  );
+  tileOnlyControls.subscribeOverview(() => assert.fail("A missing thumbnail cannot show the minimap"));
+  await tick();
+  requests.get("maps/thumbnail.png")!(new Response(null, { status: 404 }));
+  requests.get("001/01.png")!(new Response("detail without overview"));
+  await tick();
+  assert.deepEqual(tileOnlyStatuses, ["ready"]);
+  assert.ok(draw.includes("detail without overview"));
+  withoutPreview.abort();
 
   const comparison = new AbortController();
   let afterRect: number[] = [];

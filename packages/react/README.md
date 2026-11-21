@@ -709,6 +709,7 @@ import "@ericchen1990/pano-view/styles.css";
   alt="A scanned architectural drawing"
   maxScale={3}
   dragMotion={{ bounce: false }}
+  showMinimap
   style={{ height: 480 }}
 />;
 ```
@@ -719,7 +720,8 @@ The viewer accepts the converter's default Deep Zoom and custom planar
 manifest. For a cross-origin CDN, enable CORS for the manifest, thumbnail, and tiles.
 
 Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
-buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
+buttons to zoom. Move the pointer outside the viewer to scroll the page with
+the wheel. With the image focused, use the arrow keys to pan, `+` or `-`
 to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
 progressive loading and requests detail tiles for the current viewport.
 Scales use the fitted image as `1×`.
@@ -730,6 +732,7 @@ Scales use the fitted image as `1×`.
 | `initialScale` | `1` | Centered zoom when a source first opens, clamped from `1` to the maximum. Fit always returns to `1×`. |
 | `dragMotion` | `{ inertia: true, bounce: true }` | Disable either effect independently. `{ bounce: false }` clamps the image at the edges while retaining inertia. Pass `false` to disable both. |
 | `showZoomControls` | `true` | Shows the zoom and Fit buttons. Wheel, touch, and keyboard controls remain available when the buttons are hidden. |
+| `showMinimap` | `false` | Shows a thumbnail of the whole image with a rectangle marking the visible area. Drag the rectangle or focus the minimap and use the arrow keys to pan. The wheel zooms around the point under the cursor in the thumbnail. A point outside the rectangle is brought toward the nearest edge of the main view. Toggling it preserves the current view. |
 
 Finite `maxScale` values below `1` are clamped to `1`. A non-finite
 `maxScale` uses the automatic limit. Wheel and button zoom ease toward the

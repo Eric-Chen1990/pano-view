@@ -1,10 +1,10 @@
 import type { MapPoint as Point, MapRect as Rect } from "../map/geometry";
 import { clampAxis, resolveDragMotion, velocityFromSamples, type PanoDragMotion } from "../drag-motion";
 import {
-  constrainView, FIT_VIEW, moveView, normalizeScaleLimit, planarPaneCenter, viewportGeometry, viewRect,
+  anchorView, constrainView, FIT_VIEW, moveView, normalizeScaleLimit, planarPaneCenter, viewportGeometry, viewRect,
   type PlanarView, type PlanarZoomRange,
 } from "./geometry";
-import type { PlanarManifest } from "./manifest";
+import type { PlanarManifest, Size } from "./manifest";
 import type { CompareConfig } from "../compare/view";
 import { createPlanarTileLayer, type PlanarStatus } from "./tile-layer";
 import {
@@ -28,10 +28,15 @@ export type PlanarComparisonViewOptions = PlanarViewOptions & {
 };
 export type PlanarControls = {
   zoom: (factor: number) => void;
+  zoomWithWheel: (event: WheelEvent, imagePoint?: Point) => void;
   reset: () => void;
   configure: (options: PlanarViewOptions) => void;
+  getView: () => PlanarView;
+  panTo: (center: Point) => void;
+  subscribeOverview: (listener: OverviewListener) => () => void;
 };
 
+type OverviewListener = (viewport: Size, image: Rect, preview: ImageBitmap) => void;
 type GestureSample = PlanarVelocity & { t: number };
 type ViewAnimation =
   | { target: PlanarView }
@@ -77,9 +82,10 @@ export function mountPlanarSurfaces(
   let initialized = false;
   let pixelRatio = 1;
   let frame = 0;
+  let overviewListener: OverviewListener | undefined;
   const layers = surfaces.map(({ canvas, manifest, report }) => ({
     canvas, manifest, fit: EMPTY_RECT,
-    paint: createPlanarTileLayer(canvas, manifest, signal, schedule, report, surfaces.length === 2),
+    tiles: createPlanarTileLayer(canvas, manifest, signal, schedule, report, surfaces.length === 2),
   }));
   let gesturePane = 0;
   const pointers = new Map<number, Point>();
@@ -129,8 +135,13 @@ export function mountPlanarSurfaces(
     const lodZoom = clampAxis(view.zoom, range.min, range.max);
     for (const layer of layers) {
       const center = planarPaneCenter(view, viewport, fit, layer.fit);
-      painted = layer.paint(viewport, viewRect(layer.fit, { center, zoom: view.zoom }),
+      const image = viewRect(layer.fit, { center, zoom: view.zoom });
+      painted = layer.tiles.paint(viewport, image,
         viewRect(layer.fit, { center, zoom: lodZoom }), pixelRatio) && painted;
+      if (overviewListener) {
+        const preview = layer.tiles.getPreview();
+        if (preview) overviewListener(viewport, image, preview);
+      }
     }
     return painted;
   }
@@ -222,10 +233,25 @@ export function mountPlanarSurfaces(
       const center = { x: viewport.width / 2, y: viewport.height / 2 };
       move(center, center, factor);
     },
+    zoomWithWheel,
     reset() {
       setTarget({ ...FIT_VIEW, zoom: range.min });
     },
     getView: () => view,
+    panTo(center: Point) {
+      if (signal.aborted || !viewport.width || !viewport.height) return;
+      animation = undefined;
+      if (pointers.size) clearPointers();
+      view = constrainView({ center, zoom: view.zoom }, viewport, fit, range);
+      schedule();
+    },
+    subscribeOverview(listener: OverviewListener) {
+      overviewListener = listener;
+      schedule();
+      return () => {
+        if (overviewListener === listener) overviewListener = undefined;
+      };
+    },
     setView(next: PlanarView) {
       animation = undefined;
       view = constrainView(next, viewport, fit, range);
@@ -338,17 +364,39 @@ export function mountPlanarSurfaces(
     viewportElement.addEventListener(event, releasePointer, { signal });
   }
 
-  viewportElement.addEventListener("wheel", (event) => {
-    if (pointers.size || !viewport.width || !viewport.height) return;
+  function zoomWithWheel(event: WheelEvent, imagePoint?: Point) {
+    if (signal.aborted || pointers.size || !viewport.width || !viewport.height) return;
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
     const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
+    if (!delta) return;
     const target = targetView();
-    if (!delta || (delta > 0 && target.zoom <= range.min) || (delta < 0 && target.zoom >= range.max)) return;
-    event.preventDefault();
-    const point = localPoint(event);
-    const anchor = toSharedPoint(point, paneAt(point));
-    move(anchor, anchor, Math.exp(-delta * 0.004));
-  }, { passive: false, signal });
+    const atLimit = (delta > 0 && target.zoom <= range.min) || (delta < 0 && target.zoom >= range.max);
+    // Keep a wheel gesture over a single image from scrolling the page at either zoom limit.
+    if (!comparison || !atLimit) event.preventDefault();
+    if (atLimit) return;
+    const factor = Math.exp(-delta * 0.004);
+    if (comparison) {
+      const point = localPoint(event);
+      const anchor = toSharedPoint(point, paneAt(point));
+      move(anchor, anchor, factor);
+      return;
+    }
+    const zoom = clampAxis(target.zoom * factor, range.min, range.max);
+    let from: Point;
+    let to: Point;
+    if (imagePoint) {
+      const image = viewRect(fit, view);
+      from = { x: image.left + imagePoint.x * image.width, y: image.top + imagePoint.y * image.height };
+      // Bring a point outside the visible crop to the closest edge of the viewport.
+      to = { x: clampAxis(from.x, 0, viewport.width), y: clampAxis(from.y, 0, viewport.height) };
+    } else {
+      from = localPoint(event);
+      to = from;
+    }
+    // Accumulate wheel steps against the target scale while anchoring to the image on screen.
+    setTarget(constrainView(anchorView(view, fit, viewport, from, to, zoom), viewport, fit, range));
+  }
+  viewportElement.addEventListener("wheel", zoomWithWheel, { passive: false, signal });
   viewportElement.addEventListener("keydown", (event) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     switch (event.key) {
@@ -380,6 +428,7 @@ export function mountPlanarSurfaces(
   window.addEventListener("resize", resize, { signal });
   signal.addEventListener("abort", () => {
     observer.disconnect();
+    overviewListener = undefined;
     cancelAnimationFrame(frame);
     clearPointers();
   }, { once: true });

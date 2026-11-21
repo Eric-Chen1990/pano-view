@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { PlanarZoomControls } from "./zoom-controls";
-import { loadPlanarManifest } from "./manifest";
+import { loadPlanarManifest, type Size } from "./manifest";
+import { PlanarMinimap } from "./minimap";
 import { mountPlanarView, type PlanarControls, type PlanarStatus, type PlanarViewOptions } from "./runtime";
 
 export type PlanarTileViewerProps = PlanarViewOptions & {
@@ -10,6 +11,8 @@ export type PlanarTileViewerProps = PlanarViewOptions & {
   alt: string;
   /** Shows the zoom and fit buttons. Defaults to true. */
   showZoomControls?: boolean;
+  /** Shows a draggable overview of the image. Defaults to false. */
+  showMinimap?: boolean;
   className?: string;
   style?: CSSProperties;
 };
@@ -17,37 +20,39 @@ export type PlanarTileViewerProps = PlanarViewOptions & {
 /** An independently mounted, zoomable viewer for one tiled flat image. */
 export function PlanarTileViewer({
   manifestUrl, alt, maxScale, initialScale, dragMotion,
-  showZoomControls = true, className, style,
+  showZoomControls = true, showMinimap = false, className, style,
 }: PlanarTileViewerProps) {
   const viewport = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const controls = useRef<PlanarControls | null>(null);
   const options = useRef<PlanarViewOptions>({ maxScale, initialScale, dragMotion });
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<PlanarStatus>("loading");
+  const [loaded, setLoaded] = useState<{
+    url: string; attempt: number; source: Size; controls: PlanarControls;
+  } | null>(null);
+  const current = loaded?.url === manifestUrl && loaded.attempt === attempt ? loaded : null;
 
   useEffect(() => {
     options.current = { maxScale, initialScale, dragMotion };
-    controls.current?.configure(options.current);
-  }, [maxScale, initialScale, dragMotion]);
+    current?.controls.configure(options.current);
+  }, [current, maxScale, initialScale, dragMotion]);
 
   useEffect(() => {
     const viewportElement = viewport.current!;
     const canvasElement = canvas.current!;
     const controller = new AbortController();
     const { signal } = controller;
+    setLoaded(null);
     setStatus("loading");
     void loadPlanarManifest(manifestUrl, signal).then((manifest) => {
       if (!signal.aborted) {
-        controls.current = mountPlanarView(viewportElement, canvasElement, manifest, signal, setStatus, options.current);
+        const controls = mountPlanarView(viewportElement, canvasElement, manifest, signal, setStatus, options.current);
+        setLoaded({ url: manifestUrl, attempt, source: manifest.source, controls });
       }
     }).catch(() => {
       if (!signal.aborted) setStatus("error");
     });
-    return () => {
-      controller.abort();
-      controls.current = null;
-    };
+    return () => controller.abort();
   }, [manifestUrl, attempt]);
 
   return (
@@ -72,8 +77,9 @@ export function PlanarTileViewer({
         </div>
       )}
       {showZoomControls && (
-        <PlanarZoomControls controls={controls.current} ready={status === "ready"} maxScale={maxScale} />
+        <PlanarZoomControls controls={current?.controls ?? null} ready={status === "ready"} maxScale={maxScale} />
       )}
+      {showMinimap && current && <PlanarMinimap source={current.source} controls={current.controls} />}
     </div>
   );
 }

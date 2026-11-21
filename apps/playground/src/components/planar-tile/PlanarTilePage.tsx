@@ -8,17 +8,19 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const manifestUrl = "/fixtures/planar-image/manifest.json";
+const manifestUrl = "/fixtures/planar-compare/v1/image1.tiles/manifest.json";
+const alt = "Original plaza photograph";
 export function PlanarTilePage() {
   const [maxScale, setMaxScale] = useState<number>();
   const [bounce, setBounce] = useState(true);
+  const [showMinimap, setShowMinimap] = useState(false);
   const snippet = `import { PlanarTileViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 <PlanarTileViewer
   manifestUrl="${manifestUrl}"
-  alt="Museum floor plan"
-${maxScale === undefined ? "" : `  maxScale={${maxScale}}\n`}${bounce ? "" : "  dragMotion={{ bounce: false }}\n"}  style={{ height: 480 }}
+  alt="${alt}"
+${maxScale === undefined ? "" : `  maxScale={${maxScale}}\n`}${bounce ? "" : "  dragMotion={{ bounce: false }}\n"}${showMinimap ? "  showMinimap\n" : ""}  style={{ height: 480 }}
 />`;
 
   return (
@@ -46,12 +48,17 @@ ${maxScale === undefined ? "" : `  maxScale={${maxScale}}\n`}${bounce ? "" : "  
             <input type="checkbox" checked={bounce} onChange={(event) => setBounce(event.target.checked)} />
             Edge bounce
           </label>
+          <label className={checkboxLabelClassName}>
+            <input type="checkbox" checked={showMinimap} onChange={(event) => setShowMinimap(event.target.checked)} />
+            Minimap
+          </label>
         </div>
         <PlanarTileViewer
           manifestUrl={manifestUrl}
-          alt="Museum floor plan"
+          alt={alt}
           maxScale={maxScale}
           dragMotion={{ bounce }}
+          showMinimap={showMinimap}
           className="rounded-xl"
           style={{ height: "clamp(320px, 65vh, 600px)" }}
         />
