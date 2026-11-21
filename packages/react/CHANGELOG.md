@@ -1,5 +1,13 @@
 # @ericchen1990/pano-view
 
+## 5.12.0
+
+### Minor Changes
+
+- Add an optional `littlePlanetIntro` on `PanoViewer`. The first scene opens as a little planet and eases into its configured perspective view on WebGPU and WebGL. Pointer or keyboard input can end the intro early. Reduced motion, video, comparison, and VR use the regular view.
+- bcdef24: Add an opt-in minimap to `PlanarTileViewer`. Its draggable rectangle shows the visible area and pans the image at the current zoom.
+- Add `PanoSceneLoadProgress` for scene loading inside `PanoOverlay`. Choose `bar`, `ring`, `spinner`, `dots`, `wave`, or `pulse`, and show a percentage when a fixed set of required tiles can be counted. `getSceneLoadProgress` and `subscribeSceneLoadProgress` report the same progress without mounting the indicator.
+
 ## 5.11.0
 
 ### Minor Changes
