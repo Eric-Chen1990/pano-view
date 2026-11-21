@@ -154,5 +154,5 @@ export function createPlanarTileLayer(
     previewPending = false;
     schedule();
   });
-  return paint;
+  return { paint, getPreview: () => preview };
 }

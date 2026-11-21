@@ -37,6 +37,7 @@ import type {
   SetPanoViewerOptions,
 } from "./types";
 import type { HotspotPosition } from "./hotspot/types";
+import { LittlePlanetIntroContext } from "./little-planet/host";
 
 const MAX_PITCH = 90;
 const BOUNCE_OVERSHOOT_PITCH = 12;
@@ -235,6 +236,9 @@ export const PanoramaViewRuntime = forwardRef<
   const mouseActiveRef = useRef(false);
   const touchActiveRef = useRef(false);
   const spatialHost = useContext(SpatialHostContext);
+  const introHost = useContext(LittlePlanetIntroContext);
+  const introRef = useRef(introHost);
+  introRef.current = introHost;
   const interactionLockCountRef = useRef(0);
   const portalZoomInput = useRef<{
     event: WheelEvent | PointerEvent;
@@ -280,6 +284,7 @@ export const PanoramaViewRuntime = forwardRef<
     interactionLockCountRef.current > 0 ||
     xrSessionRef.current != null ||
     activeNavigationRef.current != null ||
+    introRef.current?.isPlaying() === true ||
     hasInertia() || Boolean(spatialHost?.mode && spatialHost.surfaces.size);
 
   const syncInteracting = () => {
@@ -409,6 +414,7 @@ export const PanoramaViewRuntime = forwardRef<
     view: Partial<PanoViewerState>,
     setOptions?: SetPanoViewerOptions,
   ) => {
+    if (introRef.current?.isPlaying()) introRef.current.finish();
     cancelNavigation();
     portalZoomInput.current = null;
     pointerRevisionRef.current += 1;
@@ -431,6 +437,7 @@ export const PanoramaViewRuntime = forwardRef<
     targetInput: Partial<PanoViewerState>,
     options?: PanoViewNavigationOptions,
   ): Promise<PanoViewNavigationResult> => {
+    if (introRef.current?.isPlaying()) introRef.current.finish();
     cancelNavigation();
     portalZoomInput.current = null;
     if (
@@ -534,6 +541,7 @@ export const PanoramaViewRuntime = forwardRef<
     delta: Partial<PanoViewerState>,
     applyOptions?: ApplyViewDeltaOptions,
   ): boolean => {
+    introRef.current?.finish();
     cancelNavigation();
     if (
       interactionLockCountRef.current > 0 ||
@@ -666,6 +674,7 @@ export const PanoramaViewRuntime = forwardRef<
         const wasActive = keyboardActiveRef.current;
         keyboardActiveRef.current = active;
         if (active) {
+          introRef.current?.finish();
           cancelNavigation();
         }
         if (active && !wasActive) {
@@ -689,6 +698,7 @@ export const PanoramaViewRuntime = forwardRef<
           touchActiveRef.current = active;
         }
         if (active) {
+          introRef.current?.finish();
           cancelNavigation();
         }
         syncInteracting();
@@ -717,6 +727,7 @@ export const PanoramaViewRuntime = forwardRef<
       setGyroActive: (active: boolean) => {
         if (gyroActiveRef.current !== active) pointerRevisionRef.current += 1;
         if (active) {
+          introRef.current?.finish();
           cancelNavigation();
         }
         gyroActiveRef.current = active;
@@ -792,6 +803,7 @@ export const PanoramaViewRuntime = forwardRef<
           !Number.isFinite(yawDelta) ||
           xrSessionRef.current != null ||
           activeNavigationRef.current != null ||
+          introRef.current?.isPlaying() === true ||
           gyroActiveRef.current ||
           interactionLockCountRef.current > 0 ||
           interactingRef.current ||

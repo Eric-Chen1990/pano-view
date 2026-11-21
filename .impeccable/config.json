@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "pano-load-bounce",
+        "createdAt": "2026-11-21T12:19:15.888Z",
+        "reason": "Agent: the dots loading indicator uses standard ease-in-out to animate vertical position and opacity. The keyframe name triggered the easing rule."
+      }
+    ]
+  }
+}

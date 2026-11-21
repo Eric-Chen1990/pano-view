@@ -1,3 +1,4 @@
+import { SceneLoadSourceContext } from "../scene-load-progress";
 import { createPortal } from "@react-three/fiber";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DataTexture, DoubleSide, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene as ThreeScene, ShaderMaterial, Vector4, type Texture } from "three";
@@ -167,11 +168,13 @@ export function PortalHotspot({
         </mesh>
       ) : null}
       {wanted && canPreview ? createPortal(
-        <SceneSource scene={target ?? null} visible baseOnly={false} previewOnly={!detail}
-          onReady={() => { readiness.current = true; }}
-          onError={(error) => onError?.(error)}
-          onPreviewError={(error) => onError?.(error)}
-        />, preview, { camera, events: { enabled: false } },
+        <SceneLoadSourceContext.Provider value={null}>
+          <SceneSource scene={target ?? null} visible baseOnly={false} previewOnly={!detail}
+            onReady={() => { readiness.current = true; }}
+            onError={(error) => onError?.(error)}
+            onPreviewError={(error) => onError?.(error)}
+          />
+        </SceneLoadSourceContext.Provider>, preview, { camera, events: { enabled: false } },
       ) : null}
     </HotspotAnchor>
   );

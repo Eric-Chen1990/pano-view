@@ -709,6 +709,7 @@ import "@ericchen1990/pano-view/styles.css";
   alt="A scanned architectural drawing"
   maxScale={3}
   dragMotion={{ bounce: false }}
+  showMinimap
   style={{ height: 480 }}
 />;
 ```
@@ -719,7 +720,8 @@ The viewer accepts the converter's default Deep Zoom and custom planar
 manifest. For a cross-origin CDN, enable CORS for the manifest, thumbnail, and tiles.
 
 Drag with a mouse or one finger to pan. Use the wheel, pinch gesture, or zoom
-buttons to zoom. With the image focused, use the arrow keys to pan, `+` or `-`
+buttons to zoom. Move the pointer outside the viewer to scroll the page with
+the wheel. With the image focused, use the arrow keys to pan, `+` or `-`
 to zoom, and `Home` or `0` to fit the image. The viewer shows a thumbnail during
 progressive loading and requests detail tiles for the current viewport.
 Scales use the fitted image as `1×`.
@@ -730,6 +732,7 @@ Scales use the fitted image as `1×`.
 | `initialScale` | `1` | Centered zoom when a source first opens, clamped from `1` to the maximum. Fit always returns to `1×`. |
 | `dragMotion` | `{ inertia: true, bounce: true }` | Disable either effect independently. `{ bounce: false }` clamps the image at the edges while retaining inertia. Pass `false` to disable both. |
 | `showZoomControls` | `true` | Shows the zoom and Fit buttons. Wheel, touch, and keyboard controls remain available when the buttons are hidden. |
+| `showMinimap` | `false` | Shows a thumbnail of the whole image with a rectangle marking the visible area. Drag the rectangle or focus the minimap and use the arrow keys to pan. The wheel zooms around the point under the cursor in the thumbnail. A point outside the rectangle is brought toward the nearest edge of the main view. Toggling it preserves the current view. |
 
 Finite `maxScale` values below `1` are clamped to `1`. A non-finite
 `maxScale` uses the automatic limit. Wheel and button zoom ease toward the
@@ -993,6 +996,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 ### Props
 
 - `initialView` — when omitted, yaw `0`, pitch `0`, fov `75`. Partial objects fill the rest from those defaults.
+- `littlePlanetIntro` — optional first-scene camera animation, disabled by default. See [Little Planet Intro](#little-planet-intro).
 - `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
 - `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
 - `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.
@@ -1004,6 +1008,33 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 - `onViewChange` — `{ yaw, pitch, fov }` in degrees.
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — panorama pointer events with `position` (yaw / pitch), `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
 - Other standard `div` props (`className`, `style`, `id`, …) are accepted; conflicting `onChange` and `contextMenu` are omitted from the type.
+
+### Little Planet Intro
+
+Pass `littlePlanetIntro` to enable the default animation or pass a
+`PanoLittlePlanetIntroOptions` object to set individual values.
+
+```tsx
+<PanoViewer littlePlanetIntro={{ duration: 2200, yawRotation: -120, planetScale: 1.25 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `holdDuration` | `500` | Time to hold the opening view, in milliseconds |
+| `duration` | `3000` | Transition time in milliseconds. Use `0` to cut to perspective after the hold |
+| `easing` | `"easeOutQuad"` | Also accepts `"easeInOutCubic"` and `"linear"` |
+| `yawRotation` | `180` | Signed travel in degrees, from −360 to 360. Positive values turn in the direction of increasing yaw |
+| `startPitch` | `-90` | Opening pitch in degrees, from −90 (down) to 90 (up) |
+| `planetScale` | `1` | Opening size multiplier, from 0.5 to 2 |
+
+The intro plays once per viewer mount. It begins when a complete image, 360°
+preview, or a complete base layer is drawable and ends at the scene's configured
+perspective view. It works with `Sphere`, `Tile`, and `SphereTile`, directly or in
+`Scenes` and `ProjectScenes`, on WebGPU and WebGL. Pointer or keyboard input can
+end it early. Reduced-motion preferences, video, comparison, and VR use the
+regular view. Remount the viewer to replay.
 
 ### Mobile media activation
 
@@ -1610,6 +1641,63 @@ use the default.
 `renderHotspots(scene)` mounts one set of hotspots, projected into both panes in split view. Viewer overlays, dialogs, and hotspot actions are shared. An embedded iframe has a separate document in each pane. When the viewer enters WebVR, the active pair's `before` source fills the view. Exiting restores the comparison.
 
 [Open the Playground comparison example](https://pano-view-playground.vercel.app/compare).
+
+## Scene Loading Progress
+
+Place `PanoSceneLoadProgress` inside `PanoOverlay` and import the package styles. The default text is `Loading...`. Set `label` to customize the visible text and accessible name.
+
+```tsx
+import { PanoOverlay, PanoSceneLoadProgress, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Scenes scenes={scenes} />
+  <PanoOverlay>
+    <PanoSceneLoadProgress label="Loading panorama" />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+`Scenes` and `ProjectScenes` track the incoming scene until the `onSceneReady` handoff. Standalone `Sphere`, `Tile`, `SphereTile`, and `PanoVideo` track their first drawable picture, including a video poster. The indicator appears while loading and shows a percentage when a fixed set of required tiles can be counted. Readiness reports 100%. High-resolution refinement, transitions, and ongoing video buffering have separate lifecycles.
+
+The indicator is centered within the viewer, including in fullscreen. The `variant` options are `bar` (default), `ring`, `spinner`, `dots`, `wave`, and `pulse`. Bar and ring visualize measured progress where available. The other variants animate throughout the load. Set `showPercentage={false}` on any variant to hide the number. Built-in animations respect the browser's reduced-motion setting.
+
+The panel waits 300 ms before appearing, so faster loads skip the indicator. Set `showDelayMs` to adjust the delay or pass `0` to show immediately. The delay applies to the panel. The progress methods report each update as it happens. The default background is lightly tinted and translucent. Pass `appearance={{ background: "transparent" }}` for a clear background.
+
+Use `appearance` to set `background`, `color`, `accentColor`, `trackColor`, `width`, `barHeight`, and `indicatorSize`. The three size fields use CSS pixels. Use `className` or `style` for additional panel styling.
+
+```tsx
+<PanoSceneLoadProgress
+  variant="ring"
+  showPercentage={false}
+  appearance={{ accentColor: "#ffd28f", indicatorSize: 64 }}
+/>
+```
+
+`accentColor` controls the animation and percentage text. `color` sets the loading label. `trackColor` and `background` set the track and panel. The Scene transitions Playground lets you try colors and label text with **Simulate loading**, which previews an indeterminate animation followed by a percentage without making a scene request.
+
+To display a preview or progress from another source, pass a `progress` snapshot, for example `progress={{ status: "loading", sceneId: null, percent: 42 }}`. A supplied snapshot is displayed immediately while its status is `loading`. The viewer's progress methods continue to report actual scene loading.
+
+Use `renderIndicator={(progress) => <MyAnimation percent={progress.percent} />}` to replace the visual indicator with a decorative animation. The panel keeps its label, percentage setting, and accessible progress information.
+
+Use the same progress without mounting the indicator. Pass `viewer.ref` to `PanoViewer`.
+
+```tsx
+import { useEffect } from "react";
+import { usePanoViewer, type SceneLoadProgress } from "@ericchen1990/pano-view";
+
+const viewer = usePanoViewer();
+useEffect(() => {
+  const onProgress = (progress: SceneLoadProgress) => {
+    console.log(progress.sceneId, progress.status, progress.percent);
+  };
+  const unsubscribe = viewer.subscribeSceneLoadProgress(onProgress);
+  onProgress(viewer.getSceneLoadProgress());
+  return unsubscribe;
+}, [viewer]);
+```
+
+The two methods also work with `useSyncExternalStore` or a `PanoViewerHandle` ref. A standalone source has `sceneId: null`. `percent: null` indicates an unavailable percentage. Inspect `progress.error` when `status === "error"`. During immersive VR the viewer hides the DOM overlay and continues publishing progress.
 
 ## Scenes
 

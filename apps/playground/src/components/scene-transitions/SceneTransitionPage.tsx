@@ -2,14 +2,19 @@ import fullSource from "./SceneTransitionPage.tsx?raw";
 import {
   ImageHotspot,
   Scenes,
+  PanoOverlay,
+  PanoSceneLoadProgress,
   PanoViewer,
+  type PanoSceneLoadProgressAppearance,
+  type PanoSceneLoadProgressVariant,
   type PanoViewerHandle,
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRANSITION_SCENES } from "../../constants";
 import { cn } from "../../cn";
 import {
+  controlInputClassName,
   controlLabelClassName,
   eyebrowClassName,
   pageControlsClassName,
@@ -26,11 +31,29 @@ import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-function buildSceneTransitionSnippet(preset: SceneTransitionPreset): string {
+const loadingIndicators = [
+  { value: "bar", label: "Progress bar" },
+  { value: "ring", label: "Progress ring" },
+  { value: "spinner", label: "Spinner" },
+  { value: "dots", label: "Bouncing dots" },
+  { value: "wave", label: "Wave" },
+  { value: "pulse", label: "Pulse" },
+] satisfies { value: PanoSceneLoadProgressVariant; label: string }[];
+
+function buildSceneTransitionSnippet(
+  preset: SceneTransitionPreset,
+  variant: PanoSceneLoadProgressVariant,
+  showPercentage: boolean,
+  label: string,
+  appearance: PanoSceneLoadProgressAppearance,
+): string {
   return `import {
+  PanoOverlay,
+  PanoSceneLoadProgress,
   PanoViewer,
   Scenes,
 } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
 const scenes = [/* sphere + cube scenes */];
 const [activeSceneId, setActiveSceneId] = useState("sphere-1");
@@ -44,7 +67,59 @@ const [activeSceneId, setActiveSceneId] = useState("sphere-1");
     scenes={scenes}
     transition="${preset}"
   />
+  <PanoOverlay>
+    <PanoSceneLoadProgress
+      variant="${variant}"
+      showPercentage={${showPercentage}}
+      label={${JSON.stringify(label)}}
+      appearance={{ accentColor: "${appearance.accentColor}", color: "${appearance.color}" }}
+    />
+  </PanoOverlay>
 </PanoViewer>`;
+}
+
+const DEFAULT_LOADING_LABEL = "Loading...";
+const PREVIEW_INDETERMINATE_MS = 600;
+const PREVIEW_MEASURED_MS = 3400;
+
+function LoadingIndicatorPreview({
+  label,
+  variant,
+  showPercentage,
+  appearance,
+  onFinish,
+}: {
+  label: string;
+  variant: PanoSceneLoadProgressVariant;
+  showPercentage: boolean;
+  appearance: PanoSceneLoadProgressAppearance;
+  onFinish: () => void;
+}) {
+  const [percent, setPercent] = useState<number | null>(null);
+
+  useEffect(() => {
+    const start = performance.now();
+    const timer = window.setInterval(() => {
+      const elapsed = performance.now() - start - PREVIEW_INDETERMINATE_MS;
+      if (elapsed >= PREVIEW_MEASURED_MS) {
+        window.clearInterval(timer);
+        onFinish();
+      } else if (elapsed >= 0) {
+        setPercent(Math.floor((elapsed / PREVIEW_MEASURED_MS) * 100));
+      }
+    }, 60);
+    return () => window.clearInterval(timer);
+  }, [onFinish]);
+
+  return (
+    <PanoSceneLoadProgress
+      label={label}
+      progress={{ status: "loading", sceneId: null, percent }}
+      variant={variant}
+      showPercentage={showPercentage}
+      appearance={appearance}
+    />
+  );
 }
 
 export function SceneTransitionPage() {
@@ -52,11 +127,27 @@ export function SceneTransitionPage() {
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState("");
   const viewer = useRef<PanoViewerHandle>(null);
+  const [indicator, setIndicator] = useState<PanoSceneLoadProgressVariant>("bar");
+  const [showPercentage, setShowPercentage] = useState(true);
+  const [accentColor, setAccentColor] = useState("#72f3d0");
+  const [textColor, setTextColor] = useState("#f0fffc");
+  const [loadingText, setLoadingText] = useState(DEFAULT_LOADING_LABEL);
+  const loadingLabel = loadingText.trim() || DEFAULT_LOADING_LABEL;
+  const [previewing, setPreviewing] = useState(false);
+  const stopPreview = useCallback(() => setPreviewing(false), []);
+  const selectScene = useCallback((id: string) => {
+    stopPreview();
+    setActiveSceneId(id);
+  }, [stopPreview]);
+  const appearance = useMemo(() => ({ accentColor, color: textColor }), [accentColor, textColor]);
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
   const [status, setStatus] = useState(
     "Choose a scene to compare transition effects.",
   );
-  const snippet = useMemo(() => buildSceneTransitionSnippet(preset), [preset]);
+  const snippet = useMemo(
+    () => buildSceneTransitionSnippet(preset, indicator, showPercentage, loadingLabel, appearance),
+    [preset, indicator, showPercentage, loadingLabel, appearance],
+  );
 
   return (
     <main className={shellClassName}>
@@ -90,7 +181,7 @@ export function SceneTransitionPage() {
                   activeSceneId === scene.id && segmentedButtonActiveClassName,
                 )}
                 key={scene.id}
-                onClick={() => setActiveSceneId(scene.id)}
+                onClick={() => selectScene(scene.id)}
                 type="button"
               >
                 {scene.id}
@@ -104,6 +195,7 @@ export function SceneTransitionPage() {
           <label className={controlLabelClassName}>
             Renderer
             <select value={renderer} onChange={({ currentTarget }) => {
+              stopPreview();
               setBackend("");
               setRenderer(currentTarget.value === "webgl" ? "webgl" : "auto");
             }}>
@@ -112,6 +204,49 @@ export function SceneTransitionPage() {
             </select>
           </label>
           {backend ? <output className={controlLabelClassName} aria-label="Active renderer">{backend}</output> : null}
+        </div>
+        <div className={pageControlsClassName} role="group" aria-label="Loading indicator settings">
+          <label className={controlLabelClassName}>
+            Loading indicator
+            <select value={indicator} onChange={({ currentTarget }) => {
+              const selected = loadingIndicators.find(({ value }) => value === currentTarget.value);
+              if (selected) setIndicator(selected.value);
+            }}>
+              {loadingIndicators.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className={controlLabelClassName}>
+            <input
+              type="checkbox"
+              checked={showPercentage}
+              onChange={({ currentTarget }) => setShowPercentage(currentTarget.checked)}
+            />
+            Show percentage
+          </label>
+          <label className={controlLabelClassName}>
+            Indicator color
+            <input type="color" value={accentColor} onChange={({ currentTarget }) => setAccentColor(currentTarget.value)} />
+          </label>
+          <label className={controlLabelClassName}>
+            Loading label color
+            <input type="color" value={textColor} onChange={({ currentTarget }) => setTextColor(currentTarget.value)} />
+          </label>
+          <label className={controlLabelClassName}>
+            Loading text
+            <input
+              className={cn(controlInputClassName, "w-36 focus-visible:outline-2 focus-visible:outline-brand")}
+              type="text"
+              value={loadingText}
+              onChange={({ currentTarget }) => setLoadingText(currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className={cn(segmentedButtonClassName, previewing && segmentedButtonActiveClassName)}
+            onClick={() => setPreviewing((current) => !current)}
+          >
+            {previewing ? "Stop simulation" : "Simulate loading"}
+          </button>
         </div>
         <div className="bg-[#020607] p-0">
           <PanoViewer
@@ -123,7 +258,7 @@ export function SceneTransitionPage() {
           >
             <Scenes
               activeSceneId={activeSceneId}
-              onActiveSceneIdChange={setActiveSceneId}
+              onActiveSceneIdChange={selectScene}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
               scenes={TRANSITION_SCENES}
@@ -154,10 +289,28 @@ export function SceneTransitionPage() {
                 />
               )}
             />
+            <PanoOverlay>
+              {previewing ? (
+                <LoadingIndicatorPreview
+                  label={loadingLabel}
+                  variant={indicator}
+                  showPercentage={showPercentage}
+                  appearance={appearance}
+                  onFinish={stopPreview}
+                />
+              ) : (
+                <PanoSceneLoadProgress
+                  label={loadingLabel}
+                  variant={indicator}
+                  showPercentage={showPercentage}
+                  appearance={appearance}
+                />
+              )}
+            </PanoOverlay>
           </PanoViewer>
         </div>
         <CodeSnippet
-          blurb="Set the transition preset and update the active scene to compare effects."
+          blurb="Switch scenes to compare transitions, or simulate loading to preview the selected indicator, colors, and loading text."
           code={snippet}
           label="Scenes: transition presets"
         />

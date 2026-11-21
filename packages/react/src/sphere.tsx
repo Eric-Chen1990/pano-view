@@ -1,6 +1,6 @@
 import { getTextureAnisotropy, fitImageTexture } from "./renderer-capabilities";
 import { useThree, type RootState } from "@react-three/fiber";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BackSide,
   LinearFilter,
@@ -15,8 +15,11 @@ import { resolveUrlAgainstFile } from "./asset-url";
 import { PanoBasicMaterial } from "./pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "./panorama-radius";
 import { useSceneDetailReporter } from "./scene-detail";
+import { SceneLoadSourceContext, useStandaloneSceneLoad } from "./scene-load-progress";
 import { usePreviewTexture } from "./preview-texture";
 import { CompareSourceSideContext } from "./compare/view";
+import { useLittlePlanetSource } from "./little-planet/host";
+import type { Mesh } from "three";
 
 export type SphereProps = {
   src: string;
@@ -59,11 +62,12 @@ function configureSpherePreview(texture: Texture, gl: RootState["gl"]) {
   configureEquirectTexture(texture, gl, false);
 }
 
-function SphereSurface({ texture, yawOffset, visible = true }: {
+function SphereSurface({ texture, yawOffset, visible = true, mesh }: {
   texture: Texture; yawOffset: number; visible?: boolean;
+  mesh: RefObject<Mesh | null>;
 }) {
   return (
-    <mesh rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
+    <mesh ref={mesh} rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
       <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
       <PanoBasicMaterial map={texture} side={BackSide} toneMapped={false} />
     </mesh>
@@ -77,6 +81,7 @@ function useEquirectTexture(
   onError?: (error: unknown) => void,
 ) {
   const [loaded, setLoaded] = useState<{ url: string; gl: RootState["gl"]; texture: Texture }>();
+  const [failed, setFailed] = useState<{ url: string; gl: RootState["gl"]; error: unknown }>();
   const onLoadRef = useRef(onLoad);
   const onErrorRef = useRef(onError);
   onLoadRef.current = onLoad;
@@ -88,6 +93,7 @@ function useEquirectTexture(
     let active = true;
     const loader = new TextureLoader();
     setLoaded(undefined);
+    setFailed(undefined);
 
     loader.load(
       url,
@@ -105,6 +111,7 @@ function useEquirectTexture(
       undefined,
       (error) => {
         if (active) {
+          setFailed({ url, gl, error });
           onErrorRef.current?.(error);
         }
       },
@@ -122,7 +129,10 @@ function useEquirectTexture(
     [loaded],
   );
 
-  return loaded?.url === url && loaded.gl === gl ? loaded.texture : null;
+  return {
+    texture: loaded?.url === url && loaded.gl === gl ? loaded.texture : null,
+    failure: failed?.url === url && failed.gl === gl ? failed : undefined,
+  };
 }
 
 export function SphereSource({
@@ -139,11 +149,14 @@ export function SphereSource({
   const gl = useThree((state) => state.gl);
   const compareSide = useContext(CompareSourceSideContext);
   const resolvedPreviewUrl = useMemo(
-    () => resolveUrlAgainstFile(src, previewUrl),
+    () => previewUrl ? resolveUrlAgainstFile(src, previewUrl) : "",
     [previewUrl, src],
   );
-  const texture = useEquirectTexture(previewOnly ? "" : src, gl, onLoad, onError);
-  const { texture: previewTexture, showDetail } = usePreviewTexture(
+  const loadKey = useMemo(() => ({ src, resolvedPreviewUrl, gl }), [src, resolvedPreviewUrl, gl]);
+  const load = useStandaloneSceneLoad(loadKey, visible && !previewOnly && Boolean(src || resolvedPreviewUrl));
+  const sceneLoad = useContext(SceneLoadSourceContext);
+  const { texture, failure } = useEquirectTexture(previewOnly ? "" : src, gl, onLoad, onError);
+  const { texture: previewTexture, failure: previewFailure, showDetail } = usePreviewTexture(
     resolvedPreviewUrl,
     configureSpherePreview,
     onPreviewError,
@@ -151,6 +164,8 @@ export function SphereSource({
   );
   const showFullTexture = !previewOnly && showDetail && texture !== null;
   const displayTexture = showFullTexture ? texture : previewTexture;
+  const mesh = useRef<Mesh>(null);
+  useLittlePlanetSource(visible && !previewOnly && !compareSide && sceneLoad !== null, loadKey, () => mesh.current);
   const readyRef = useRef(false);
   const detailReporter = useSceneDetailReporter();
 
@@ -176,11 +191,20 @@ export function SphereSource({
     onReady?.();
   }, [displayTexture, onReady]);
 
+  useEffect(() => {
+    if (displayTexture) {
+      load.current?.ready();
+    } else if ((!src || failure) && (!resolvedPreviewUrl || previewFailure)) {
+      const error = failure?.error ?? previewFailure?.error ?? new Error("Panorama image source is missing");
+      (sceneLoad ?? load.current)?.fail(error);
+    }
+  }, [displayTexture, failure, load, previewFailure, resolvedPreviewUrl, sceneLoad, src]);
+
   if (!displayTexture) {
     return null;
   }
 
-  return <SphereSurface texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
+  return <SphereSurface mesh={mesh} texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
 }
 
 export const Sphere: (props: SphereProps) => ReturnType<typeof SphereSource> = SphereSource;

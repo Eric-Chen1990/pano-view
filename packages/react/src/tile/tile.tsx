@@ -1,7 +1,7 @@
 import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
-import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box3,
   Frustum,
@@ -10,8 +10,10 @@ import {
   PerspectiveCamera,
   Texture,
   Vector3,
+  type Group,
 } from "three";
 import { resolveAssetUrl } from "../asset-url";
+import { useLittlePlanetSource } from "../little-planet/host";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   publishSceneDetail,
@@ -36,11 +38,12 @@ import {
   resolveRelativeTileUrl,
   resolveTemplateUrl,
 } from "./multires";
-import { TileTextureManager } from "./texture-manager";
+import { mipmappedTextureBytes, TileTextureManager } from "./texture-manager";
 import { useSharedTileTextureManager } from "./texture-manager-context";
 import type { CubeFaceCode, TileAddress, TileProps } from "./types";
 
 import { configureTilePreviewTexture, useManagedTexture } from "./texture-hooks";
+import { SceneLoadSourceContext, useStandaloneSceneLoad } from "../scene-load-progress";
 import { usePreviewTexture } from "../preview-texture";
 
 const MAX_LOD_UPDATE_INTERVAL_MS = 100;
@@ -176,11 +179,13 @@ const TileMesh = memo(function TileMesh({
   manager,
   renderOrder,
   resolveUrl,
+  onPaintable,
 }: {
   address: TileAddress;
   manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   renderOrder: number;
   resolveUrl: (address: TileAddress) => string;
+  onPaintable?: (address: TileAddress) => void | (() => void);
 }) {
   const url = resolveUrl(address);
   // A viewer-scoped manager serves multiple scenes. The tile coordinate alone
@@ -190,6 +195,10 @@ const TileMesh = memo(function TileMesh({
   const snapshot = useManagedTexture(manager, cacheKey, url, address);
   const layout = getTileLocalLayout(address);
   const transform = getFaceTransform(address.face);
+
+  useEffect(() => {
+    if (snapshot.texture) return onPaintable?.(address);
+  }, [address, onPaintable, snapshot.texture]);
 
   if (!snapshot.texture) {
     return null;
@@ -218,10 +227,12 @@ const TileLayerMeshes = memo(function TileLayerMeshes({
   layer,
   manager,
   resolveUrl,
+  onPaintable,
 }: {
   layer: TileLayer;
   manager: Pick<TileTextureManager, "acquire" | "getSnapshot">;
   resolveUrl: (address: TileAddress) => string;
+  onPaintable?: (address: TileAddress) => void | (() => void);
 }) {
   return layer.addresses.map((address) => (
     <TileMesh
@@ -230,6 +241,7 @@ const TileLayerMeshes = memo(function TileLayerMeshes({
       manager={manager}
       renderOrder={layer.renderOrder}
       resolveUrl={resolveUrl}
+      onPaintable={onPaintable}
     />
   ));
 });
@@ -457,8 +469,8 @@ export function Tile({
     [levels, tileSize],
   );
   const anisotropy = getTextureAnisotropy(gl);
-  const effectivePreviewUrl = resolveAssetUrl(baseUrl, previewUrl);
-  const { texture: previewTexture, showDetail } = usePreviewTexture(
+  const effectivePreviewUrl = previewUrl ? resolveAssetUrl(baseUrl, previewUrl) : "";
+  const { texture: previewTexture, failure: previewFailure, showDetail } = usePreviewTexture(
     effectivePreviewUrl,
     configureTilePreviewTexture,
     onPreviewError,
@@ -495,6 +507,10 @@ export function Tile({
     ],
   );
   const manager = sharedManager ?? ownedManager;
+  const loadKey = useMemo(() => ({ manager, effectivePreviewUrl, loadMode }),
+    [manager, effectivePreviewUrl, loadMode]);
+  const load = useStandaloneSceneLoad(loadKey, visible);
+  const sceneLoad = useContext(SceneLoadSourceContext);
   useEffect(() => {
     manager.resume();
     return () => {
@@ -507,16 +523,55 @@ export function Tile({
   }, [manager, ownedManager]);
 
   const readyRef = useRef(false);
+  const paintedBase = useRef(new Set<string>());
+  const previewUnavailable = !effectivePreviewUrl || !!previewFailure;
+  const useFullBase = sceneLoad != null && previewUnavailable && loadMode !== "preview";
+  const baseLayer = useMemo<TileLayer>(() => ({
+    level: 1,
+    addresses: candidatesByLevel[0]!.map(({ address }) => address),
+    renderOrder: -90,
+  }), [candidatesByLevel]);
+  const baseFits = useMemo(() => baseLayer.addresses.reduce((bytes, address) =>
+    bytes + mipmappedTextureBytes(address.width, address.height), 0) <= manager.memoryBudgetBytes,
+  [baseLayer, manager]);
+  const introRoot = useRef<Group>(null);
+  useLittlePlanetSource(visible && loadMode === "full" && !compareSide && sceneLoad !== null, loadKey, () =>
+    previewTexture || (useFullBase && paintedBase.current.size === baseLayer.addresses.length)
+      ? introRoot.current
+      : null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const ready = useCallback(() => {
+    if (readyRef.current) return;
+    readyRef.current = true;
+    onReadyRef.current?.();
+  }, []);
   useEffect(() => {
     readyRef.current = false;
-  }, [effectivePreviewUrl]);
+  }, [effectivePreviewUrl, manager]);
   useEffect(() => {
-    if (!previewTexture || readyRef.current) {
-      return;
+    if (previewTexture) {
+      load.current?.ready();
+      ready();
+    } else if (previewUnavailable && loadMode === "preview") {
+      load.current?.fail(previewFailure?.error ?? new Error("Cube panorama preview is missing"));
+    } else if (useFullBase && !baseFits) {
+      sceneLoad?.fail(new Error("The lowest-resolution panorama layer exceeds the tile texture budget"));
+    } else if (useFullBase) {
+      sceneLoad?.measure(0, baseLayer.addresses.length);
     }
-    readyRef.current = true;
-    onReady?.();
-  }, [onReady, previewTexture]);
+  }, [baseFits, baseLayer, load, loadMode, previewFailure, previewTexture, previewUnavailable, ready, sceneLoad, useFullBase]);
+  const reportDrawableTile = useCallback((address: TileAddress) => {
+    load.current?.ready();
+    if (!useFullBase || !baseFits || address.level !== 1 || readyRef.current) return;
+    const key = tileKey(address);
+    const painted = paintedBase.current;
+    painted.add(key);
+    const total = baseLayer.addresses.length;
+    sceneLoad?.measure(painted.size, total);
+    if (painted.size === total) ready();
+    return () => { painted.delete(key); };
+  }, [baseFits, baseLayer, load, ready, sceneLoad, useFullBase]);
 
   const template = urlTemplate ?? buildDefaultTileUrlTemplate();
   const resolveUrl = useMemo(
@@ -542,6 +597,7 @@ export function Tile({
   const projectionMatrixRef = useRef(new Matrix4());
   const visibilityCameraRef = useRef(new PerspectiveCamera());
   const trackedLoadModeRef = useRef(loadMode);
+  const trackedBaseOnlyRef = useRef(false);
   const targetKeysRef = useRef<string[]>([]);
   const detailTokenRef = useRef("");
   const detailReporter = useSceneDetailReporter();
@@ -600,12 +656,13 @@ export function Tile({
       lastViewport.width !== size.width ||
       lastViewport.height !== size.height ||
       lastViewport.dpr !== pixelRatio;
+    const initialBaseOnly = useFullBase && baseFits && !readyRef.current;
     const updateLod = decideTileLodUpdate({
       loadMode,
       trackedLoadMode: trackedLoadModeRef.current,
       now,
       lastUpdateAt: lastUpdateAtRef.current,
-      visibilityDirty: visibilityDirtyRef.current,
+      visibilityDirty: visibilityDirtyRef.current || trackedBaseOnlyRef.current !== initialBaseOnly,
       viewportChanged,
       projectionChanged: !lastVisibilityProjectionRef.current.equals(camera.projectionMatrix),
       rotationDelta,
@@ -614,10 +671,11 @@ export function Tile({
 
     if (updateLod) {
       trackedLoadModeRef.current = loadMode;
+      trackedBaseOnlyRef.current = initialBaseOnly;
       lastUpdateAtRef.current = now;
 
       const targetLevel =
-        loadMode === "base"
+        loadMode === "base" || initialBaseOnly
           ? 1
           : getPreferredLevel(
               levels,
@@ -645,7 +703,8 @@ export function Tile({
         frustumRef.current,
       );
 
-      const nextLayers = buildLayers(
+      const keepFullBase = useFullBase && baseFits && (initialBaseOnly || loadMode === "base");
+      const nextLayers = keepFullBase ? [baseLayer] : buildLayers(
         targetLevel,
         levels,
         tileSize,
@@ -672,6 +731,19 @@ export function Tile({
       commitLayers(nextLayers);
     }
 
+    const monitorSceneBase = initialBaseOnly && sceneLoad?.isLoading();
+    if (showDetail && previewUnavailable && (monitorSceneBase || load.current?.isLoading())) {
+      const snapshots = (initialBaseOnly ? [baseLayer] : layers).flatMap((layer) => layer.addresses.map((address) =>
+        manager.getSnapshot(`${resolveUrl(address)}\u0000${tileKey(address)}`),
+      ));
+      if (initialBaseOnly) {
+        const failed = snapshots.find(({ status }) => status === "error");
+        if (failed) sceneLoad?.fail(failed.error);
+      } else if (snapshots[0] && snapshots.every(({ status }) => status === "error")) {
+        load.current?.fail(snapshots[0].error);
+      }
+    }
+
     publishSceneDetail(
       detailReporterRef.current,
       detailTokenRef,
@@ -683,7 +755,7 @@ export function Tile({
   });
 
   return (
-    <group visible={visible}>
+    <group ref={introRoot} visible={visible}>
       {previewTexture ? (
         <PreviewCube texture={previewTexture} faceOrder={previewFaceOrder} />
       ) : null}
@@ -694,6 +766,7 @@ export function Tile({
             layer={layer}
             manager={manager}
             resolveUrl={resolveUrl}
+            onPaintable={showDetail ? reportDrawableTile : undefined}
           />
         ))}
       </group>

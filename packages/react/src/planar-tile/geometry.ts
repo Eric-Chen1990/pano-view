@@ -1,4 +1,4 @@
-import { containRect, type MapPoint as Point, type MapRect as Rect } from "../map/geometry";
+import { clamp01, containRect, type MapPoint as Point, type MapRect as Rect } from "../map/geometry";
 import type { PlanarLevel, PlanarManifest, Size } from "./manifest";
 
 export type PlanarView = { center: Point; zoom: number };
@@ -25,6 +25,15 @@ export function viewRect(fit: Rect, view: PlanarView): Rect {
     width,
     height,
   };
+}
+
+/** The part of the source image visible in the viewport, in normalized image coordinates. */
+export function visibleImageRect(image: Rect, viewport: Size): Rect {
+  const left = clamp01(-image.left / image.width);
+  const top = clamp01(-image.top / image.height);
+  const right = clamp01((viewport.width - image.left) / image.width);
+  const bottom = clamp01((viewport.height - image.top) / image.height);
+  return { left, top, width: right - left, height: bottom - top };
 }
 
 function constrainCenter(center: number, viewport: number, image: number) {

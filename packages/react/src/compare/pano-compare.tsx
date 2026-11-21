@@ -1,3 +1,4 @@
+import { SceneLoadSourceContext } from "../scene-load-progress";
 import {
   Fragment,
   memo,
@@ -82,25 +83,27 @@ function CompareSource({
   const fullFailure = useRef<{ error: unknown } | null>(null);
   return (
     <CompareSourceSideContext.Provider value={side}>
-      <SceneSource
-        scene={{ ...source, id }}
-        baseOnly={false}
-        previewOnly={!active}
-        visible
-        onReady={() => {
-          ready.current = true;
-          onReady(side);
-        }}
-        onError={(error) => {
-          if (ready.current) return;
-          if (source.type !== "sphere" || previewFailed.current) onError(side, error);
-          else fullFailure.current = { error };
-        }}
-        onPreviewError={() => {
-          previewFailed.current = true;
-          if (!ready.current && fullFailure.current) onError(side, fullFailure.current.error);
-        }}
-      />
+      <SceneLoadSourceContext.Provider value={null}>
+        <SceneSource
+          scene={{ ...source, id }}
+          baseOnly={false}
+          previewOnly={!active}
+          visible
+          onReady={() => {
+            ready.current = true;
+            onReady(side);
+          }}
+          onError={(error) => {
+            if (ready.current) return;
+            if (source.type !== "sphere" || previewFailed.current) onError(side, error);
+            else fullFailure.current = { error };
+          }}
+          onPreviewError={() => {
+            previewFailed.current = true;
+            if (!ready.current && fullFailure.current) onError(side, fullFailure.current.error);
+          }}
+        />
+      </SceneLoadSourceContext.Provider>
     </CompareSourceSideContext.Provider>
   );
 }

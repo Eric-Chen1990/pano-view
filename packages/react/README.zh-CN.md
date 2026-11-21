@@ -682,6 +682,7 @@ import "@ericchen1990/pano-view/styles.css";
   alt="扫描的建筑图纸"
   maxScale={3}
   dragMotion={{ bounce: false }}
+  showMinimap
   style={{ height: 480 }}
 />;
 ```
@@ -690,7 +691,7 @@ import "@ericchen1990/pano-view/styles.css";
 默认 Deep Zoom 和自定义平面 `manifest.json`，瓦片须无重叠。部署时保留
 清单与资源的相对路径。使用跨域 CDN 时，清单、缩略图和瓦片均需允许 CORS。
 
-用鼠标或单指拖拽平移，通过滚轮、双指捏合或按钮缩放。图片获得焦点时，
+用鼠标或单指拖拽平移，通过滚轮、双指捏合或按钮缩放。将鼠标移到查看器外即可用滚轮滚动页面。图片获得焦点时，
 可用方向键平移、`+` 或 `-` 缩放，按 `Home` 或 `0` 恢复全图。
 加载期间显示缩略图，高清瓦片按当前视口请求。
 以适应容器的全图为 `1×`，缩放倍率都相对于这个尺寸。
@@ -701,6 +702,7 @@ import "@ericchen1990/pano-view/styles.css";
 | `initialScale` | `1` | 图片打开时居中使用的倍率，限制在 `1` 到上限之间。恢复全图始终回到 `1×`。 |
 | `dragMotion` | `{ inertia: true, bounce: true }` | 可分别关闭惯性和回弹。`{ bounce: false }` 让图片在边界处直接停住，同时保留惯性。传 `false` 可关闭两种效果。 |
 | `showZoomControls` | `true` | 显示缩放和恢复全图按钮。隐藏按钮后仍可用滚轮、触控和键盘操作。 |
+| `showMinimap` | `false` | 显示整图缩略图和标出可见区域的矩形框。拖动矩形框，或聚焦小地图后按方向键，即可平移主视图。在小地图上滚动滚轮会以鼠标指向的图像位置为锚点。若鼠标在矩形框外，该位置会移向主视图最近的边缘。切换开关会保留当前视图。 |
 
 小于 `1` 的有限 `maxScale` 会按 `1` 处理，非有限值使用自动上限。滚轮
 和按钮缩放使用平滑过渡。开启系统的减少动态效果后，查看器会直接响应。
@@ -950,6 +952,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ### 属性
 
 - `initialView` — 省略时 yaw `0`、pitch `0`、fov `75`。只填部分字段时其余用上述默认值。
+- `littlePlanetIntro` — 可选的首景镜头开场，默认关闭。详见[小行星开场](#小行星开场)。
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。
@@ -961,6 +964,30 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `onViewChange` — 参数为 `{ yaw, pitch, fov }`（度）。
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — 参数为全景指针事件：`position`（yaw / pitch）、`nativeEvent`、`button`、`buttons`、`clientX`、`clientY`，以及可选的 `pointerId`。
 - 其余标准 `div` 属性（如 `className`、`style`、`id`）可原样传入；类型已去掉冲突的 `onChange` 与 `contextMenu`。
+
+### 小行星开场
+
+传入 `littlePlanetIntro` 启用默认动画，也可传入 `PanoLittlePlanetIntroOptions` 对象调整各项参数。
+
+```tsx
+<PanoViewer littlePlanetIntro={{ duration: 2200, yawRotation: -120, planetScale: 1.25 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>
+```
+
+| 参数 | 默认值 | 用途 |
+| --- | --- | --- |
+| `holdDuration` | `500` | 开场画面停留时间，单位为毫秒 |
+| `duration` | `3000` | 过渡时间，单位为毫秒。设为 `0` 时，停留结束后直接进入透视视图 |
+| `easing` | `"easeOutQuad"` | 也支持 `"easeInOutCubic"` 和 `"linear"` |
+| `yawRotation` | `180` | 开场到落点的旋转角度，范围 −360° 至 360°。正值沿 yaw 增大的方向旋转 |
+| `startPitch` | `-90` | 起始俯仰角，范围 −90° 至 90°。−90° 为正下方 |
+| `planetScale` | `1` | 开场的小行星大小倍率，范围 0.5 至 2 |
+
+每次挂载只播放一次。完整全景、360° 预览或完整基础瓦片层可绘制时开始，
+结束时落到首景配置的透视视角。WebGPU 和 WebGL 都支持 `Sphere`、`Tile`、`SphereTile`，
+包括 `Scenes` 与 `ProjectScenes` 的首景。手势和键盘操作可提前结束开场。
+系统减少动态效果、视频、对比视图和 VR 直接使用普通视图。重新挂载播放器即可重播。
 
 ### 移动端媒体激活
 
@@ -1506,6 +1533,63 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 `renderHotspots(scene)` 挂载一套共享热点，在完整双画面的两格各投影一次。操作、浮层和弹窗共用。内嵌 iframe 在两格各有独立文档。进入 WebVR 时整窗显示当前组的 `before` 来源，退出后恢复对比。
 
 [打开 Playground 对比示例](https://pano-view-playground.vercel.app/compare)。
+
+## 场景加载进度
+
+将 `PanoSceneLoadProgress` 放在 `PanoOverlay` 中，并导入包的样式。默认文案为 `Loading...`，可用 `label` 自定义可见文字和无障碍名称。
+
+```tsx
+import { PanoOverlay, PanoSceneLoadProgress, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Scenes scenes={scenes} />
+  <PanoOverlay>
+    <PanoSceneLoadProgress label="正在加载全景" />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+`Scenes` 和 `ProjectScenes` 跟踪即将进入的场景，直到 `onSceneReady` 对应的画面交接。直接挂载的 `Sphere`、`Tile`、`SphereTile` 和 `PanoVideo` 跟踪首张可绘制的画面，视频封面也算首张画面。组件在加载中显示，有固定的必需瓦片总量时显示百分比，就绪时报告 100%。高清细化、转场和视频后续缓冲有各自的生命周期。
+
+指示器在查看器内居中显示，进入全屏时也会居中。`variant` 支持 `bar`（默认横向进度条）、`ring`（环形进度）、`spinner`（旋转圆环）、`dots`（跳动圆点）、`wave`（波形）和 `pulse`（脉冲）。横条和环形会反映已知进度，其余样式在加载期间持续播放动画。所有样式都可以通过 `showPercentage={false}` 隐藏数字。内置动画遵循浏览器的减少动态效果设置。
+
+指示器默认等待 300 毫秒才显示，更快完成的加载会直接跳过提示。可以通过 `showDelayMs` 调整延迟，设为 `0` 则立即显示。延迟只作用于显示，进度接口仍实时更新。默认背景为浅淡的半透明底色，可用 `appearance={{ background: "transparent" }}` 设为完全透明。
+
+用 `appearance` 调整 `background`、`color`、`accentColor`、`trackColor`、`width`、`barHeight` 和 `indicatorSize`，三个尺寸字段均以 CSS 像素为单位。也可用 `className` 或 `style` 进一步调整面板。
+
+```tsx
+<PanoSceneLoadProgress
+  variant="ring"
+  showPercentage={false}
+  appearance={{ accentColor: "#ffd28f", indicatorSize: 64 }}
+/>
+```
+
+`accentColor` 控制动画和百分比的颜色，`color` 控制加载标签，`trackColor` 和 `background` 分别控制轨道和面板底色。Playground 的 Scene transitions 页面提供配色、文案控件和 **Simulate loading** 按钮，无需请求场景资源，即可依次预览不定进度和百分比增长效果。
+
+如需预览或显示其他来源的进度，可传入快照，例如 `progress={{ status: "loading", sceneId: null, percent: 42 }}`。传入的快照在 `loading` 状态下立即显示，查看器的进度接口仍报告实际场景加载。
+
+用 `renderIndicator={(progress) => <MyAnimation percent={progress.percent} />}` 可以替换中间的装饰动画。面板会继续提供加载标签、百分比开关和无障碍进度信息。
+
+也可以独立订阅进度。将 `viewer.ref` 传给 `PanoViewer`。
+
+```tsx
+import { useEffect } from "react";
+import { usePanoViewer, type SceneLoadProgress } from "@ericchen1990/pano-view";
+
+const viewer = usePanoViewer();
+useEffect(() => {
+  const onProgress = (progress: SceneLoadProgress) => {
+    console.log(progress.sceneId, progress.status, progress.percent);
+  };
+  const unsubscribe = viewer.subscribeSceneLoadProgress(onProgress);
+  onProgress(viewer.getSceneLoadProgress());
+  return unsubscribe;
+}, [viewer]);
+```
+
+这两个方法也可与 `useSyncExternalStore` 或 `PanoViewerHandle` ref 一起使用。单独挂载全景时，`sceneId` 为 `null`。`percent: null` 表示当前没有可用的百分比。`status === "error"` 时可从 `progress.error` 读取错误原因。沉浸式 VR 中查看器会隐藏 DOM 叠加层，进度仍可读取和订阅。
 
 ## Scenes
 

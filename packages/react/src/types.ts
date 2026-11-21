@@ -1,6 +1,7 @@
 import type { BackgroundAudioController } from "./background-audio-host";
 import type { KeyboardControlsProps } from "./keyboard-controls";
 import type { HotspotCorners, HotspotPosition } from "./hotspot/types";
+import type { SceneLoadProgress } from "./scene-load-progress";
 import type { PanoVideoController } from "./video/types";
 import type { WebVRMode, WebVRState } from "./webvr/types";
 
@@ -99,6 +100,11 @@ export type PanoViewerHandle = {
   exitFullscreen: () => Promise<void>;
   toggleFullscreen: () => Promise<void>;
   isFullscreen: () => boolean;
+
+  /** Read the latest first-picture loading snapshot, also for standalone sources. */
+  getSceneLoadProgress: () => SceneLoadProgress;
+  /** Observe changes after subscription. Read the current snapshot with getSceneLoadProgress. */
+  subscribeSceneLoadProgress: (listener: (progress: SceneLoadProgress) => void) => () => void;
 
   // -- Scenes (no-op / null without <Scenes />) --
   setScene: (id: string) => boolean;
