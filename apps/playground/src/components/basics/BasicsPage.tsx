@@ -5,10 +5,13 @@ import {
   Sphere,
   Tile,
   usePanoViewer,
+  type PanoLittlePlanetIntroOptions,
   type TileLoadProgress,
 } from "@ericchen1990/pano-view";
 import { cn } from "../../cn";
 import {
+  controlInputClassName,
+  controlLabelClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -27,7 +30,32 @@ const tile = {
   previewUrl: "previews/cube-vertical.webp",
 };
 
-function SourceExample({ source, renderer }: { source: "sphere" | "tile"; renderer: "auto" | "webgl" }) {
+const defaultIntro: Required<PanoLittlePlanetIntroOptions> = {
+  holdDuration: 500,
+  duration: 3000,
+  easing: "easeOutQuad",
+  yawRotation: 180,
+  startPitch: -90,
+  planetScale: 1,
+};
+const introFields = [
+  { key: "holdDuration", label: "Hold", unit: " ms", min: 0, max: 5000, step: 50 },
+  { key: "duration", label: "Duration", unit: " ms", min: 0, max: 10000, step: 50 },
+  { key: "yawRotation", label: "Yaw rotation", unit: "°", min: -360, max: 360, step: 1 },
+  { key: "startPitch", label: "Start pitch", unit: "°", min: -90, max: 90, step: 1 },
+  { key: "planetScale", label: "Planet size", unit: "×", min: 0.5, max: 2, step: 0.05 },
+] as const;
+const introEasings = {
+  easeOutQuad: "Ease out",
+  easeInOutCubic: "Ease in and out",
+  linear: "Linear",
+} as const;
+
+function SourceExample({ source, renderer, intro }: {
+  source: "sphere" | "tile";
+  renderer: "auto" | "webgl";
+  intro: false | PanoLittlePlanetIntroOptions;
+}) {
   const viewer = usePanoViewer();
   const [displayed, setDisplayed] = useState(source);
   const [error, setError] = useState<string>();
@@ -42,7 +70,7 @@ function SourceExample({ source, renderer }: { source: "sphere" | "tile"; render
           {error}
         </p>
       ) : null}
-      <PanoViewer ref={viewer.ref} renderer={renderer} aria-label="Panorama basics viewer" style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label="Panorama basics viewer" style={{ height: 540 }}>
         {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
@@ -90,12 +118,21 @@ function SourceExample({ source, renderer }: { source: "sphere" | "tile"; render
 export function BasicsPage() {
   const [source, setSource] = useState<"sphere" | "tile">("sphere");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
+  const [intro, setIntro] = useState(defaultIntro);
+  const [playback, setPlayback] = useState<{ key: number; options: false | PanoLittlePlanetIntroOptions }>(
+    { key: 0, options: false },
+  );
+  const introEnabled = playback.options !== false;
+  const replayIntro = () => setPlayback((current) => ({ key: current.key + 1, options: intro }));
   const props = source === "sphere" ? sphere : tile;
   const component = source === "sphere" ? "Sphere" : "Tile";
+  const introCode = introEnabled
+    ? ` littlePlanetIntro={{\n${Object.entries(intro).map(([key, value]) => `  ${key}: ${JSON.stringify(value)},`).join("\n")}\n}}`
+    : "";
   const code = `import { PanoViewer, ${component} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer renderer="${renderer}" style={{ height: 540 }}>
+<PanoViewer renderer="${renderer}"${introCode} style={{ height: 540 }}>
   <${component}
 ${Object.entries(props)
   .map(([key, value]) => `    ${key}=${JSON.stringify(value)}`)
@@ -140,7 +177,59 @@ ${Object.entries(props)
           </button>
         ))}
       </div>
-      <SourceExample key={renderer} source={source} renderer={renderer} />
+      <fieldset className={cn(pageControlsClassName, "min-w-0")}>
+        <legend className="px-6 text-sm">Little Planet Intro</legend>
+        <label className="inline-flex min-h-9 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={introEnabled}
+            className="size-4 accent-brand focus-visible:outline-2 focus-visible:outline-offset-2"
+            onChange={(event) => {
+              if (event.currentTarget.checked) replayIntro();
+              else setPlayback((current) => ({ ...current, options: false }));
+            }}
+          />
+          Enable intro
+        </label>
+        {introEnabled && (
+          <div className="flex w-full flex-wrap items-end gap-4">
+            {introFields.map(({ key, label, unit, min, max, step }) => (
+              <label className={cn(controlLabelClassName, "w-32 max-w-full")} key={key}>
+                <span>{label} <span className="font-mono normal-case">{intro[key]}{unit}</span></span>
+                <input
+                  type="range"
+                  aria-label={label}
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={intro[key]}
+                  className="h-7 w-full accent-brand focus-visible:outline-2 focus-visible:outline-offset-2"
+                  onChange={(event) => {
+                    const value = event.currentTarget.valueAsNumber;
+                    setIntro((current) => ({ ...current, [key]: value }));
+                  }}
+                />
+              </label>
+            ))}
+            <label className={controlLabelClassName}>
+              Easing
+              <select
+                aria-label="Easing"
+                value={intro.easing}
+                className={cn(controlInputClassName, "focus-visible:outline-2 focus-visible:outline-offset-2")}
+                onChange={(event) => {
+                  const easing = event.currentTarget.value as keyof typeof introEasings;
+                  setIntro((current) => ({ ...current, easing }));
+                }}
+              >
+                {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </label>
+            <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>Replay intro</button>
+          </div>
+        )}
+      </fieldset>
+      <SourceExample key={`${renderer}:${playback.key}`} source={source} renderer={renderer} intro={playback.options} />
       <p className="px-6 text-sm text-muted-2">
         Sphere previews resolve beside the image. Tile previews and tile
         templates resolve below baseUrl. Use the template and multires values

@@ -10,8 +10,10 @@ import {
   PerspectiveCamera,
   Texture,
   Vector3,
+  type Group,
 } from "three";
 import { resolveAssetUrl } from "../asset-url";
+import { useLittlePlanetSource } from "../little-planet/host";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   publishSceneDetail,
@@ -532,6 +534,11 @@ export function Tile({
   const baseFits = useMemo(() => baseLayer.addresses.reduce((bytes, address) =>
     bytes + mipmappedTextureBytes(address.width, address.height), 0) <= manager.memoryBudgetBytes,
   [baseLayer, manager]);
+  const introRoot = useRef<Group>(null);
+  useLittlePlanetSource(visible && loadMode === "full" && !compareSide && sceneLoad !== null, loadKey, () =>
+    previewTexture || (useFullBase && paintedBase.current.size === baseLayer.addresses.length)
+      ? introRoot.current
+      : null);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const ready = useCallback(() => {
@@ -748,7 +755,7 @@ export function Tile({
   });
 
   return (
-    <group visible={visible}>
+    <group ref={introRoot} visible={visible}>
       {previewTexture ? (
         <PreviewCube texture={previewTexture} faceOrder={previewFaceOrder} />
       ) : null}

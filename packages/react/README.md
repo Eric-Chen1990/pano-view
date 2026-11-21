@@ -996,6 +996,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 ### Props
 
 - `initialView` — when omitted, yaw `0`, pitch `0`, fov `75`. Partial objects fill the rest from those defaults.
+- `littlePlanetIntro` — optional first-scene camera animation, disabled by default. See [Little Planet Intro](#little-planet-intro).
 - `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
 - `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
 - `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.
@@ -1007,6 +1008,33 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 - `onViewChange` — `{ yaw, pitch, fov }` in degrees.
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — panorama pointer events with `position` (yaw / pitch), `nativeEvent`, `button`, `buttons`, `clientX`, `clientY`, and optional `pointerId`.
 - Other standard `div` props (`className`, `style`, `id`, …) are accepted; conflicting `onChange` and `contextMenu` are omitted from the type.
+
+### Little Planet Intro
+
+Pass `littlePlanetIntro` to enable the default animation or pass a
+`PanoLittlePlanetIntroOptions` object to set individual values.
+
+```tsx
+<PanoViewer littlePlanetIntro={{ duration: 2200, yawRotation: -120, planetScale: 1.25 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `holdDuration` | `500` | Time to hold the opening view, in milliseconds |
+| `duration` | `3000` | Transition time in milliseconds. Use `0` to cut to perspective after the hold |
+| `easing` | `"easeOutQuad"` | Also accepts `"easeInOutCubic"` and `"linear"` |
+| `yawRotation` | `180` | Signed travel in degrees, from −360 to 360. Positive values turn in the direction of increasing yaw |
+| `startPitch` | `-90` | Opening pitch in degrees, from −90 (down) to 90 (up) |
+| `planetScale` | `1` | Opening size multiplier, from 0.5 to 2 |
+
+The intro plays once per viewer mount. It begins when a complete image, 360°
+preview, or a complete base layer is drawable and ends at the scene's configured
+perspective view. It works with `Sphere`, `Tile`, and `SphereTile`, directly or in
+`Scenes` and `ProjectScenes`, on WebGPU and WebGL. Pointer or keyboard input can
+end it early. Reduced-motion preferences, video, comparison, and VR use the
+regular view. Remount the viewer to replay.
 
 ### Mobile media activation
 

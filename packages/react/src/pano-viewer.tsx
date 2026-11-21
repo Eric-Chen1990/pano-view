@@ -13,6 +13,7 @@ import {
   useContext,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -68,6 +69,9 @@ import {
   type KeyboardControlsProps,
 } from "./keyboard-controls";
 import { MouseControls } from "./mouse-controls";
+import { createLittlePlanetIntroHost, LittlePlanetIntroContext } from "./little-planet/host";
+import { LittlePlanetIntro } from "./little-planet/pass";
+import type { PanoLittlePlanetIntroOptions } from "./little-planet/options";
 import {
   createPanoFilterHost,
   PanoFilterHostContext,
@@ -178,6 +182,8 @@ export type PanoViewerProps = Omit<
   /** Viewer-local DOM UI, rendered outside the Three.js tree, including in fullscreen. */
   renderOverlay?: (context: PanoOverlayRenderContext) => ReactNode;
   initialView?: Partial<PanoViewerState>;
+  /** Optional first-scene camera animation. Defaults to false. */
+  littlePlanetIntro?: boolean | PanoLittlePlanetIntroOptions;
   /** Camera-center limits; scene limits override individual axes. */
   viewLimits?: PanoViewLimits;
   minFov?: number;
@@ -316,6 +322,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       renderer = "auto",
       renderOverlay,
       initialView,
+      littlePlanetIntro = false,
       viewLimits,
       minFov = 30,
       maxFov = 100,
@@ -366,8 +373,19 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
     const sceneLoadProgress = useMemo(createSceneLoadProgressStore, []);
+    const introHost = useMemo(createLittlePlanetIntroHost, []);
+    const introEnabled = littlePlanetIntro !== false;
+    useLayoutEffect(() => {
+      if (introEnabled) return;
+      const consumeIfReady = ({ status }: ReturnType<typeof sceneLoadProgress.getSnapshot>) => {
+        if (status === "ready" || status === "error") introHost.finish();
+      };
+      consumeIfReady(sceneLoadProgress.getSnapshot());
+      return sceneLoadProgress.subscribe(consumeIfReady);
+    }, [introEnabled, introHost, sceneLoadProgress]);
     const resumeView = useRef<PanoViewerState | null>(null);
     const rendererRuntime = usePanoRenderer(renderer, () => {
+      if (introHost.isPlaying()) introHost.finish();
       sceneLoadProgress.reset();
       const runtime = controlsRef.current;
       if (runtime) resumeView.current = runtime.getView();
@@ -977,6 +995,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   >
                   <ScenesHostContext.Provider value={scenesHost}>
                   <SceneLoadProgressContext.Provider value={sceneLoadProgress}>
+                  <LittlePlanetIntroContext.Provider value={introEnabled ? introHost : null}>
                   <BackgroundAudioHostContext.Provider value={bgmHost}>
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <CompareHostContext.Provider value={compareHost}>
@@ -1021,10 +1040,12 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                       touchChannel={touchChannel}
                       userControlsEnabled={userControlsEnabled}
                     />
+                    {introEnabled && <LittlePlanetIntro options={littlePlanetIntro} blocked={vrActive || modalOpen} />}
                   </ControlClaimsContext.Provider>
                   </CompareHostContext.Provider>
                   </PanoMediaActivationHostContext.Provider>
                   </BackgroundAudioHostContext.Provider>
+                  </LittlePlanetIntroContext.Provider>
                   </SceneLoadProgressContext.Provider>
                   </ScenesHostContext.Provider>
                   </PanoContextMenuActionsContext.Provider>

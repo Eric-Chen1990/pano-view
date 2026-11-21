@@ -3,8 +3,9 @@ import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities"
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture, type Box3 } from "three";
+import { BackSide, Frustum, Matrix4, PerspectiveCamera, Texture, type Box3, type Group } from "three";
 import { resolveAssetUrl } from "../asset-url";
+import { useLittlePlanetSource } from "../little-planet/host";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   publishSceneDetail,
@@ -316,6 +317,11 @@ function SphereTileSource({
   const requireFullCoverage = detailReporter !== null;
   const previewUnavailable = !effectivePreviewUrl || !!previewFailure;
   const useFullBase = requireFullCoverage && previewUnavailable && loadMode !== "preview";
+  const introRoot = useRef<Group>(null);
+  useLittlePlanetSource(visible && loadMode === "full" && !compareSide && sceneLoad !== null, loadKey, () =>
+    preview || (useFullBase && paintedBase.current.size === baseTileCount)
+      ? introRoot.current
+      : null);
   const baseFits = useMemo(() => candidates[0]!.reduce((bytes, { address }) =>
     bytes + mipmappedTextureBytes(address.width, address.height), 0) <= budget, [budget, candidates]);
   useEffect(() => {
@@ -501,7 +507,7 @@ function SphereTileSource({
     );
   });
   return (
-    <group visible={visible}>
+    <group ref={introRoot} visible={visible}>
       {preview ? (
         <SpherePatch
           address={previewAddress}

@@ -952,6 +952,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ### 属性
 
 - `initialView` — 省略时 yaw `0`、pitch `0`、fov `75`。只填部分字段时其余用上述默认值。
+- `littlePlanetIntro` — 可选的首景镜头开场，默认关闭。详见[小行星开场](#小行星开场)。
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。
@@ -963,6 +964,30 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `onViewChange` — 参数为 `{ yaw, pitch, fov }`（度）。
 - `onPanoramaClick` / `onPanoramaDoubleClick` / `onPanoramaPointerMove` — 参数为全景指针事件：`position`（yaw / pitch）、`nativeEvent`、`button`、`buttons`、`clientX`、`clientY`，以及可选的 `pointerId`。
 - 其余标准 `div` 属性（如 `className`、`style`、`id`）可原样传入；类型已去掉冲突的 `onChange` 与 `contextMenu`。
+
+### 小行星开场
+
+传入 `littlePlanetIntro` 启用默认动画，也可传入 `PanoLittlePlanetIntroOptions` 对象调整各项参数。
+
+```tsx
+<PanoViewer littlePlanetIntro={{ duration: 2200, yawRotation: -120, planetScale: 1.25 }}>
+  <Sphere src="/panorama.webp" previewUrl="/preview.webp" />
+</PanoViewer>
+```
+
+| 参数 | 默认值 | 用途 |
+| --- | --- | --- |
+| `holdDuration` | `500` | 开场画面停留时间，单位为毫秒 |
+| `duration` | `3000` | 过渡时间，单位为毫秒。设为 `0` 时，停留结束后直接进入透视视图 |
+| `easing` | `"easeOutQuad"` | 也支持 `"easeInOutCubic"` 和 `"linear"` |
+| `yawRotation` | `180` | 开场到落点的旋转角度，范围 −360° 至 360°。正值沿 yaw 增大的方向旋转 |
+| `startPitch` | `-90` | 起始俯仰角，范围 −90° 至 90°。−90° 为正下方 |
+| `planetScale` | `1` | 开场的小行星大小倍率，范围 0.5 至 2 |
+
+每次挂载只播放一次。完整全景、360° 预览或完整基础瓦片层可绘制时开始，
+结束时落到首景配置的透视视角。WebGPU 和 WebGL 都支持 `Sphere`、`Tile`、`SphereTile`，
+包括 `Scenes` 与 `ProjectScenes` 的首景。手势和键盘操作可提前结束开场。
+系统减少动态效果、视频、对比视图和 VR 直接使用普通视图。重新挂载播放器即可重播。
 
 ### 移动端媒体激活
 

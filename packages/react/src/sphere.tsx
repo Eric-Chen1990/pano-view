@@ -1,6 +1,6 @@
 import { getTextureAnisotropy, fitImageTexture } from "./renderer-capabilities";
 import { useThree, type RootState } from "@react-three/fiber";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   BackSide,
   LinearFilter,
@@ -18,6 +18,8 @@ import { useSceneDetailReporter } from "./scene-detail";
 import { SceneLoadSourceContext, useStandaloneSceneLoad } from "./scene-load-progress";
 import { usePreviewTexture } from "./preview-texture";
 import { CompareSourceSideContext } from "./compare/view";
+import { useLittlePlanetSource } from "./little-planet/host";
+import type { Mesh } from "three";
 
 export type SphereProps = {
   src: string;
@@ -60,11 +62,12 @@ function configureSpherePreview(texture: Texture, gl: RootState["gl"]) {
   configureEquirectTexture(texture, gl, false);
 }
 
-function SphereSurface({ texture, yawOffset, visible = true }: {
+function SphereSurface({ texture, yawOffset, visible = true, mesh }: {
   texture: Texture; yawOffset: number; visible?: boolean;
+  mesh: RefObject<Mesh | null>;
 }) {
   return (
-    <mesh rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
+    <mesh ref={mesh} rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
       <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
       <PanoBasicMaterial map={texture} side={BackSide} toneMapped={false} />
     </mesh>
@@ -161,6 +164,8 @@ export function SphereSource({
   );
   const showFullTexture = !previewOnly && showDetail && texture !== null;
   const displayTexture = showFullTexture ? texture : previewTexture;
+  const mesh = useRef<Mesh>(null);
+  useLittlePlanetSource(visible && !previewOnly && !compareSide && sceneLoad !== null, loadKey, () => mesh.current);
   const readyRef = useRef(false);
   const detailReporter = useSceneDetailReporter();
 
@@ -199,7 +204,7 @@ export function SphereSource({
     return null;
   }
 
-  return <SphereSurface texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
+  return <SphereSurface mesh={mesh} texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
 }
 
 export const Sphere: (props: SphereProps) => ReturnType<typeof SphereSource> = SphereSource;

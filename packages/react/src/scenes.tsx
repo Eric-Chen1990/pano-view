@@ -18,6 +18,7 @@ import {
 } from "three";
 import { useSceneSelection } from "./use-scene-selection";
 import { PanoramaViewContext } from "./panorama-view-runtime";
+import { LittlePlanetIntroContext } from "./little-planet/host";
 import {
   SceneDetailContext,
   type SceneDetailReporter,
@@ -530,7 +531,9 @@ function ScenesController({
     };
   }, [clearDetailWait]);
 
+  const intro = useContext(LittlePlanetIntroContext);
   const startPreload = useCallback((scene: Scene) => {
+    if (slotsRef.current[liveSlotRef.current]) intro?.finish();
     clearDetailWait(true);
     const nextSlot = 1 - liveSlotRef.current;
     requestedSceneIdRef.current = scene.id;
@@ -541,7 +544,7 @@ function ScenesController({
     });
     setPendingSlot(nextSlot);
     setPhase("preloading");
-  }, [clearDetailWait]);
+  }, [clearDetailWait, intro]);
 
   const failPortal = useCallback((run: PortalRequest) => {
     if (portalRun.current !== run) return;
