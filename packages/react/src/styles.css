@@ -1281,3 +1281,226 @@
     display: none;
   }
 }
+
+.pano-scene-load-progress {
+  --pano-load-default-width: 182px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  box-sizing: border-box;
+  width: min(var(--pano-load-width, var(--pano-load-default-width)), calc(100% - 24px));
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--pano-load-background, rgb(8 19 23 / 24%));
+  color: var(--pano-load-color, #f0fffc);
+  font: 600 13px/1.35 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 85%);
+  animation: pano-load-appear 160ms ease-out both;
+}
+
+.pano-scene-load-progress[data-variant="bar"] {
+  --pano-load-default-width: 288px;
+  flex-direction: column;
+}
+
+.pano-scene-load-progress__heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  text-align: center;
+}
+
+.pano-scene-load-progress[data-variant="bar"] .pano-scene-load-progress__heading {
+  justify-content: space-between;
+  text-align: start;
+}
+
+.pano-scene-load-progress__label {
+  overflow-wrap: anywhere;
+}
+
+.pano-scene-load-progress__percent {
+  color: var(--pano-load-accent, #72f3d0);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.pano-scene-load-progress__indicator {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+
+.pano-scene-load-progress__track {
+  position: relative;
+  width: 100%;
+  height: var(--pano-load-bar-height, 8px);
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--pano-load-track, rgb(210 251 246 / 18%));
+}
+
+.pano-scene-load-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--pano-load-accent, #22bbb5), var(--pano-load-accent, #a3ffdd));
+  transition: width 140ms ease-out;
+}
+
+.pano-scene-load-progress[data-indeterminate] .pano-scene-load-progress__fill {
+  width: 45%;
+  animation: pano-load-sweep 1.25s ease-in-out infinite alternate;
+}
+
+.pano-scene-load-progress__ring,
+.pano-scene-load-progress__spinner,
+.pano-scene-load-progress__pulse {
+  width: min(100%, var(--pano-load-indicator-size, 54px));
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  border-radius: 50%;
+}
+
+.pano-scene-load-progress__ring {
+  background: conic-gradient(
+    var(--pano-load-accent, #72f3d0) var(--pano-load-angle, 94deg),
+    var(--pano-load-track, rgb(210 251 246 / 18%)) 0
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), black calc(100% - 4px));
+}
+
+.pano-scene-load-progress[data-indeterminate] .pano-scene-load-progress__ring,
+.pano-scene-load-progress__spinner {
+  animation: pano-load-spin 850ms linear infinite;
+}
+
+.pano-scene-load-progress__spinner {
+  border: 4px solid var(--pano-load-track, rgb(210 251 246 / 18%));
+  border-top-color: var(--pano-load-accent, #72f3d0);
+  border-right-color: var(--pano-load-accent, #72f3d0);
+}
+
+.pano-scene-load-progress__dots,
+.pano-scene-load-progress__wave {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, var(--pano-load-indicator-size, 54px));
+  height: 34px;
+  color: var(--pano-load-accent, #72f3d0);
+}
+
+.pano-scene-load-progress__dots span,
+.pano-scene-load-progress__wave span {
+  border-radius: 99px;
+  background: currentColor;
+  width: 16%;
+}
+
+.pano-scene-load-progress__dots span {
+  aspect-ratio: 1;
+  animation: pano-load-bounce 950ms ease-in-out infinite;
+}
+
+.pano-scene-load-progress__wave span {
+  height: 100%;
+  transform: scaleY(.3);
+  animation: pano-load-wave 920ms ease-in-out infinite;
+}
+
+.pano-scene-load-progress__dots span:nth-child(2),
+.pano-scene-load-progress__wave span:nth-child(2) {
+  animation-delay: 100ms;
+}
+
+.pano-scene-load-progress__dots span:nth-child(3),
+.pano-scene-load-progress__wave span:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+.pano-scene-load-progress__wave span:nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.pano-scene-load-progress__wave span:nth-child(5) {
+  animation-delay: 400ms;
+}
+
+.pano-scene-load-progress__pulse {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--pano-load-accent, #72f3d0);
+}
+
+.pano-scene-load-progress__pulse::before,
+.pano-scene-load-progress__pulse::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+}
+
+.pano-scene-load-progress__pulse::before {
+  inset: 0;
+  border: 2px solid currentColor;
+  animation: pano-load-pulse 1.35s ease-out infinite;
+}
+
+.pano-scene-load-progress__pulse::after {
+  inset: 34%;
+  background: currentColor;
+}
+
+@keyframes pano-load-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pano-load-sweep {
+  from { transform: translateX(-15%); }
+  to { transform: translateX(137%); }
+}
+
+@keyframes pano-load-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pano-load-bounce {
+  0%, 65%, 100% { transform: translateY(0); opacity: .55; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+@keyframes pano-load-wave {
+  0%, 65%, 100% { transform: scaleY(.3); }
+  30% { transform: scaleY(1); }
+}
+
+@keyframes pano-load-pulse {
+  from { transform: scale(.45); opacity: 1; }
+  to { transform: scale(1); opacity: .15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pano-scene-load-progress,
+  .pano-scene-load-progress__fill,
+  .pano-scene-load-progress[data-indeterminate] .pano-scene-load-progress__fill,
+  .pano-scene-load-progress[data-indeterminate] .pano-scene-load-progress__ring,
+  .pano-scene-load-progress__spinner,
+  .pano-scene-load-progress__dots span,
+  .pano-scene-load-progress__wave span,
+  .pano-scene-load-progress__pulse::before {
+    animation: none;
+    transition: none;
+  }
+
+  .pano-scene-load-progress[data-indeterminate] .pano-scene-load-progress__fill {
+    margin-inline: auto;
+  }
+}

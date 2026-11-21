@@ -25,6 +25,7 @@ export function usePreviewTexture(
     renderer: Renderer;
     texture: Texture;
   }>();
+  const [failed, setFailed] = useState<{ url: string; renderer: Renderer; error: unknown }>();
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
@@ -35,6 +36,7 @@ export function usePreviewTexture(
       return;
     }
     const previewUrl = sourceUrl;
+    setFailed(undefined);
     const manager = DefaultLoadingManager;
     const requestUrl = manager.resolveURL(previewUrl);
     const cacheKey = `image:${requestUrl}`;
@@ -64,6 +66,7 @@ export function usePreviewTexture(
       manager.itemError(requestUrl);
       finish();
       setShowDetail(true);
+      setFailed({ url: previewUrl, renderer, error });
       onErrorRef.current?.(error);
     }
 
@@ -111,5 +114,6 @@ export function usePreviewTexture(
     if (frameloop === "demand") invalidate();
   });
 
-  return { texture, showDetail: showDetail || !sourceUrl };
+  const failure = failed?.url === url && failed.renderer === renderer ? failed : undefined;
+  return { texture, failure, showDetail: showDetail || !sourceUrl };
 }

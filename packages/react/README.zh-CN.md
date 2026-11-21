@@ -1507,6 +1507,63 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 
 [打开 Playground 对比示例](https://pano-view-playground.vercel.app/compare)。
 
+## 场景加载进度
+
+将 `PanoSceneLoadProgress` 放在 `PanoOverlay` 中，并导入包的样式。默认文案为 `Loading...`，可用 `label` 自定义可见文字和无障碍名称。
+
+```tsx
+import { PanoOverlay, PanoSceneLoadProgress, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Scenes scenes={scenes} />
+  <PanoOverlay>
+    <PanoSceneLoadProgress label="正在加载全景" />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+`Scenes` 和 `ProjectScenes` 跟踪即将进入的场景，直到 `onSceneReady` 对应的画面交接。直接挂载的 `Sphere`、`Tile`、`SphereTile` 和 `PanoVideo` 跟踪首张可绘制的画面，视频封面也算首张画面。组件在加载中显示，有固定的必需瓦片总量时显示百分比，就绪时报告 100%。高清细化、转场和视频后续缓冲有各自的生命周期。
+
+指示器在查看器内居中显示，进入全屏时也会居中。`variant` 支持 `bar`（默认横向进度条）、`ring`（环形进度）、`spinner`（旋转圆环）、`dots`（跳动圆点）、`wave`（波形）和 `pulse`（脉冲）。横条和环形会反映已知进度，其余样式在加载期间持续播放动画。所有样式都可以通过 `showPercentage={false}` 隐藏数字。内置动画遵循浏览器的减少动态效果设置。
+
+指示器默认等待 300 毫秒才显示，更快完成的加载会直接跳过提示。可以通过 `showDelayMs` 调整延迟，设为 `0` 则立即显示。延迟只作用于显示，进度接口仍实时更新。默认背景为浅淡的半透明底色，可用 `appearance={{ background: "transparent" }}` 设为完全透明。
+
+用 `appearance` 调整 `background`、`color`、`accentColor`、`trackColor`、`width`、`barHeight` 和 `indicatorSize`，三个尺寸字段均以 CSS 像素为单位。也可用 `className` 或 `style` 进一步调整面板。
+
+```tsx
+<PanoSceneLoadProgress
+  variant="ring"
+  showPercentage={false}
+  appearance={{ accentColor: "#ffd28f", indicatorSize: 64 }}
+/>
+```
+
+`accentColor` 控制动画和百分比的颜色，`color` 控制加载标签，`trackColor` 和 `background` 分别控制轨道和面板底色。Playground 的 Scene transitions 页面提供配色、文案控件和 **Simulate loading** 按钮，无需请求场景资源，即可依次预览不定进度和百分比增长效果。
+
+如需预览或显示其他来源的进度，可传入快照，例如 `progress={{ status: "loading", sceneId: null, percent: 42 }}`。传入的快照在 `loading` 状态下立即显示，查看器的进度接口仍报告实际场景加载。
+
+用 `renderIndicator={(progress) => <MyAnimation percent={progress.percent} />}` 可以替换中间的装饰动画。面板会继续提供加载标签、百分比开关和无障碍进度信息。
+
+也可以独立订阅进度。将 `viewer.ref` 传给 `PanoViewer`。
+
+```tsx
+import { useEffect } from "react";
+import { usePanoViewer, type SceneLoadProgress } from "@ericchen1990/pano-view";
+
+const viewer = usePanoViewer();
+useEffect(() => {
+  const onProgress = (progress: SceneLoadProgress) => {
+    console.log(progress.sceneId, progress.status, progress.percent);
+  };
+  const unsubscribe = viewer.subscribeSceneLoadProgress(onProgress);
+  onProgress(viewer.getSceneLoadProgress());
+  return unsubscribe;
+}, [viewer]);
+```
+
+这两个方法也可与 `useSyncExternalStore` 或 `PanoViewerHandle` ref 一起使用。单独挂载全景时，`sceneId` 为 `null`。`percent: null` 表示当前没有可用的百分比。`status === "error"` 时可从 `progress.error` 读取错误原因。沉浸式 VR 中查看器会隐藏 DOM 叠加层，进度仍可读取和订阅。
+
 ## Scenes
 
 `Scenes` 支持单张等距圆柱图像、立方体瓦片与等距圆柱瓦片场景之间的切换，并支持受控与非受控模式。过渡使用 GPU 帧缓冲快照与目标场景进行混合。目标场景在隐藏状态下加载预览；瓦片场景同时加载视野附近的最低分辨率层级。目标场景首次可绘制后，当前帧缓冲成为临时 GPU 纹理，并释放旧场景的源纹理。目标随即进入 `full`：转场期间已经清晰的瓦片立刻盖住预览，尚未就绪的区域继续显示父层瓦片或预览。旧场景释放后，目标场景才开始加载细节瓦片；瓦片选择范围包含当前视野及其周边的少量预留区域。

@@ -1,3 +1,4 @@
+import { SceneLoadSourceContext, useStandaloneSceneLoad } from "../scene-load-progress";
 import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
@@ -216,8 +217,9 @@ function SphereTileSource({
   const compareHost = useContext(CompareHostContext);
   const compareSide = useContext(CompareSourceSideContext);
   const anisotropy = getTextureAnisotropy(gl);
-  const { texture: preview, showDetail } = usePreviewTexture(
-    resolveAssetUrl(baseUrl, previewUrl),
+  const effectivePreviewUrl = previewUrl ? resolveAssetUrl(baseUrl, previewUrl) : "";
+  const { texture: preview, failure: previewFailure, showDetail } = usePreviewTexture(
+    effectivePreviewUrl,
     configureTilePreviewTexture,
     onPreviewError,
     { showPreviewFirst: visible && !compareSide },
@@ -260,6 +262,9 @@ function SphereTileSource({
   );
   const manager = sharedManager ?? ownedManager;
   const budget = manager.memoryBudgetBytes;
+  const loadKey = useMemo(() => ({ manager, loadMode }), [manager, loadMode]);
+  const load = useStandaloneSceneLoad(loadKey, visible);
+  const sceneLoad = useContext(SceneLoadSourceContext);
   const readyRef = useRef(false);
   const ready = useCallback(() => {
     if (!readyRef.current) {
@@ -268,8 +273,11 @@ function SphereTileSource({
     }
   }, []);
   useEffect(() => {
-    if (preview) ready();
-  }, [preview, ready]);
+    if (preview) {
+      load.current?.ready();
+      ready();
+    }
+  }, [load, preview, ready]);
   useEffect(() => {
     manager.resume();
     return () => {
@@ -306,9 +314,24 @@ function SphereTileSource({
   const detailReporter = useSceneDetailReporter();
   // Scenes uses this readiness signal to replace an entire outgoing panorama.
   const requireFullCoverage = detailReporter !== null;
+  const previewUnavailable = !effectivePreviewUrl || !!previewFailure;
+  const useFullBase = requireFullCoverage && previewUnavailable && loadMode !== "preview";
+  const baseFits = useMemo(() => candidates[0]!.reduce((bytes, { address }) =>
+    bytes + mipmappedTextureBytes(address.width, address.height), 0) <= budget, [budget, candidates]);
+  useEffect(() => {
+    if (!previewUnavailable) return;
+    if (loadMode === "preview") {
+      load.current?.fail(previewFailure?.error ?? new Error("Tiled panorama preview is missing"));
+    } else if (useFullBase && !baseFits) {
+      sceneLoad?.fail(new Error("The lowest-resolution panorama layer exceeds the tile texture budget"));
+    } else if (useFullBase) {
+      sceneLoad?.measure(0, baseTileCount);
+    }
+  }, [baseFits, baseTileCount, load, loadMode, previewFailure, previewUnavailable, sceneLoad, useFullBase]);
   const onPaintable = useCallback((address: SphereTileAddress) => {
     if (!showDetail) return;
     if (!requireFullCoverage) {
+      load.current?.ready();
       ready();
       return;
     }
@@ -316,12 +339,13 @@ function SphereTileSource({
     const key = sphereTileKey(address);
     const painted = paintedBase.current;
     painted.add(key);
+    if (useFullBase) sceneLoad?.measure(painted.size, baseTileCount);
     if (painted.size === baseTileCount) {
       handedOffWithBase.current = true;
       ready();
     }
     return () => { painted.delete(key); };
-  }, [baseTileCount, ready, requireFullCoverage, showDetail]);
+  }, [baseTileCount, load, ready, requireFullCoverage, sceneLoad, showDetail, useFullBase]);
   const previewAddress = useMemo(
     () => sphereTileAddresses({ width: 2, height: 1 }, 0, 2)[0]!,
     [],
@@ -347,6 +371,7 @@ function SphereTileSource({
       token: "",
       level: -1,
       loadMode: "",
+      initialBaseOnly: false,
       manager: null as Pick<
         TileTextureManager<SphereTileAddress>,
         "acquire" | "getSnapshot"
@@ -362,7 +387,8 @@ function SphereTileSource({
     const now = performance.now(),
       dpr = gl.getPixelRatio();
     const managerChanged = scratch.manager !== manager;
-    const loadModeChanged = scratch.loadMode !== loadMode;
+    const initialBaseOnly = useFullBase && baseFits && !readyRef.current;
+    const loadModeChanged = scratch.loadMode !== loadMode || scratch.initialBaseOnly !== initialBaseOnly;
     const viewUnchanged =
       scratch.fov === camera.fov &&
       scratch.projection.equals(camera.projectionMatrix) &&
@@ -388,6 +414,7 @@ function SphereTileSource({
       scratch.quaternion.copy(camera.quaternion);
       scratch.manager = manager;
       scratch.loadMode = loadMode;
+      scratch.initialBaseOnly = initialBaseOnly;
       scratch.camera.copy(camera, false);
       scratch.camera.updateMatrixWorld();
       scratch.matrix.multiplyMatrices(
@@ -409,7 +436,7 @@ function SphereTileSource({
       const preferredLevel =
         loadMode === "preview"
           ? -1
-          : loadMode === "base"
+          : loadMode === "base" || initialBaseOnly
             ? 0
             : preferredSphereLevel(
                 config.levels,
@@ -425,7 +452,7 @@ function SphereTileSource({
         visibleFrustum: scratch.visibleFrustum,
         paddedFrustum: scratch.paddedFrustum,
         // Keep complete coverage after a preview-free scene handoff.
-        keepBase: handedOffWithBase.current && !preview,
+        keepBase: initialBaseOnly || (handedOffWithBase.current && !preview),
       });
       const selectedLayer = next[next.length - 1];
       const level = selectedLayer?.level ?? -1;
@@ -445,6 +472,23 @@ function SphereTileSource({
       if (token !== scratch.token || reset) {
         scratch.token = token;
         setLayers(next);
+      }
+    }
+    if (previewUnavailable && showDetail && !readyRef.current) {
+      const monitorSceneBase = initialBaseOnly && sceneLoad?.isLoading();
+      if (monitorSceneBase || load.current?.isLoading()) {
+        const addresses = monitorSceneBase
+          ? candidates[0]!.map(({ address }) => address)
+          : layers.flatMap((layer) => layer.addresses);
+        const snapshots = addresses.map((address) =>
+          manager.getSnapshot(`${resolveUrl(address)}\u0000${sphereTileKey(address)}`),
+        );
+        if (monitorSceneBase) {
+          const failure = snapshots.find(({ status }) => status === "error");
+          if (failure) sceneLoad?.fail(failure.error);
+        } else if (snapshots[0] && snapshots.every(({ status }) => status === "error")) {
+          load.current?.fail(snapshots[0].error);
+        }
       }
     }
     publishSceneDetail(

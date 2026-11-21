@@ -25,6 +25,7 @@ import {
 import type { VideoPlaybackState } from "../hotspot/video-hotspot";
 import { usePanoMediaActivationIntent } from "../media-activation";
 import { isAutoplayPolicyError } from "../media-activation-event";
+import { useStandaloneSceneLoad } from "../scene-load-progress";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { applyInlineVideoPlayback, mountTextureVideo } from "./inline-playback";
@@ -210,13 +211,15 @@ function usePosterTexture(
   onError: PanoVideoProps["onError"],
 ) {
   const gl = useThree((state) => state.gl);
-  const [texture, setTexture] = useState<Texture | null>(null);
+  const [loaded, setLoaded] = useState<{ poster: string; gl: typeof gl; texture: Texture }>();
+  const [failed, setFailed] = useState<{ poster: string; gl: typeof gl; error: unknown }>();
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
   useEffect(() => {
     let active = true;
-    setTexture(null);
+    setLoaded(undefined);
+    setFailed(undefined);
     if (!poster) {
       return () => {
         active = false;
@@ -240,11 +243,12 @@ function usePosterTexture(
         loadedTexture.magFilter = LinearFilter;
         loadedTexture.minFilter = LinearMipmapLinearFilter;
         loadedTexture.generateMipmaps = true;
-        setTexture(loadedTexture);
+        setLoaded({ poster, gl, texture: loadedTexture });
       },
       undefined,
       (error) => {
         if (active) {
+          setFailed({ poster, gl, error });
           onErrorRef.current?.({ source: "poster", error });
         }
       },
@@ -257,12 +261,15 @@ function usePosterTexture(
 
   useEffect(
     () => () => {
-      texture?.dispose();
+      loaded?.texture.dispose();
     },
-    [texture],
+    [loaded],
   );
 
-  return texture;
+  return {
+    texture: loaded?.poster === poster && loaded?.gl === gl ? loaded.texture : null,
+    failure: failed?.poster === poster && failed?.gl === gl ? failed : undefined,
+  };
 }
 
 function replaceTextTracks(video: HTMLVideoElement, tracks: readonly PanoVideoTrack[]): void {
@@ -340,6 +347,8 @@ export function PanoVideo({
     captionsEnabled ? defaultPanoVideoTrackId(tracks) : null,
   );
   const [ready, setReady] = useState(false);
+  const [frameKey, setFrameKey] = useState<string>();
+  const [mediaFailure, setMediaFailure] = useState<{ key: string; error: unknown }>();
   const autoPlayRef = useRef(autoPlay);
   autoPlayRef.current = autoPlay;
   const blockedRef = useRef(false);
@@ -439,10 +448,20 @@ export function PanoVideo({
       ? variants.map(({ id, sources }) => ({ id, sources }))
       : null,
   ]) : "";
-  const posterTexture = usePosterTexture(
-    variants.find((variant) => variant.id === nativeVariantId.current)?.poster ?? activeVariant?.poster ?? poster,
-    onError,
+  const posterUrl = variants.find((variant) => variant.id === nativeVariantId.current)?.poster ?? activeVariant?.poster ?? poster;
+  const { texture: posterTexture, failure: posterFailure } = usePosterTexture(posterUrl, onError);
+  const sourceKey = useMemo(() =>
+    JSON.stringify(variants.map(({ id, sources, poster }) => ({ id, sources, poster }))),
+  [variants]);
+  const loadKey = useMemo(() => ({ sourceKey, crossOrigin, gl }), [sourceKey, crossOrigin, gl]);
+  const canLoadVideo = activeVariant?.sources.some(({ src }) => src.trim().length > 0) === true;
+  const load = useStandaloneSceneLoad(
+    loadKey,
+    visible && variants.length > 0,
+    !posterUrl && preload === "none" && !autoPlay,
   );
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
   const emitSnapshot = useCallback(
     (patch?: Partial<PanoVideoPlaybackSnapshot>) => {
@@ -623,6 +642,8 @@ export function PanoVideo({
     blockedRef.current = false;
     failedSource.current = false;
     setReady(false);
+    setFrameKey(undefined);
+    setMediaFailure(undefined);
     if (!activeVariant || !mediaKey) {
       resetVideoSource(video);
       return;
@@ -663,6 +684,7 @@ export function PanoVideo({
         setSelection(({ revision }) => ({ id: fallback.id, revision: revision + 1 }));
         onVariantChangeRef.current?.(fallback.id);
       } else {
+        setMediaFailure({ key: mediaKey, error });
         onErrorRef.current?.({ source: "video", error });
       }
     };
@@ -695,6 +717,7 @@ export function PanoVideo({
       // source. Bind a fresh VideoTexture to the first frame of this source.
       setTextureRevision((revision) => revision + 1);
       setReady(true);
+      setFrameKey(mediaKey);
       onLoadRef.current?.();
       if (playAfterLoad.current && video.paused) void actionsRef.current.play();
     };
@@ -785,6 +808,7 @@ export function PanoVideo({
     };
     actionsRef.current = {
       play: async () => {
+        loadRef.current.current?.loading();
         const video = videoRef.current!;
         if (failedSource.current) {
           if (resume.current) resume.current.playing = true;
@@ -1046,6 +1070,20 @@ export function PanoVideo({
   }, [captionsEnabled, tracks]);
 
   const activeTexture = ready ? videoTexture : posterTexture;
+  useEffect(() => {
+    if (posterUrl || preload !== "none" || autoPlay) load.current?.loading();
+  }, [autoPlay, load, posterUrl, preload]);
+
+  useEffect(() => {
+    if (posterTexture || (videoTexture && frameKey === mediaKey)) {
+      load.current?.ready();
+      return;
+    }
+    const failure = mediaFailure?.key === mediaKey ? mediaFailure : undefined;
+    if ((!canLoadVideo || failure) && (!posterUrl || posterFailure)) {
+      load.current?.fail(failure?.error ?? posterFailure?.error ?? new Error("Panorama video source is missing"));
+    }
+  }, [canLoadVideo, frameKey, load, mediaFailure, mediaKey, posterFailure, posterTexture, posterUrl, videoTexture]);
 
   if (variants.length === 0) {
     return null;

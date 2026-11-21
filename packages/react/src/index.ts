@@ -3,6 +3,13 @@ export type { PanoCompareProps, PanoCompareScene, PanoCompareSceneError, PanoCom
 export type { PanoCompareLayout, PanoComparePresentation, PanoCompareSide } from "./compare/view";
 export type { PanoIframeSupport } from "./types";
 export { PanoViewer } from "./pano-viewer";
+export { PanoSceneLoadProgress } from "./pano-scene-load-progress";
+export type {
+  PanoSceneLoadProgressAppearance,
+  PanoSceneLoadProgressProps,
+  PanoSceneLoadProgressVariant,
+} from "./pano-scene-load-progress";
+export type { SceneLoadProgress } from "./scene-load-progress";
 export {
   PanoOverlay,
   PanoDialogSurfaceContext,

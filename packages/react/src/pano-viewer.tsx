@@ -29,6 +29,7 @@ import {
   subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
+import { createSceneLoadProgressStore, SceneLoadProgressContext } from "./scene-load-progress";
 import { isPanoAudioUnlocked, resumePanoAudio } from "./audio/howl";
 import { AutoRotate } from "./auto-rotate";
 import {
@@ -364,8 +365,10 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     );
     const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
+    const sceneLoadProgress = useMemo(createSceneLoadProgressStore, []);
     const resumeView = useRef<PanoViewerState | null>(null);
     const rendererRuntime = usePanoRenderer(renderer, () => {
+      sceneLoadProgress.reset();
       const runtime = controlsRef.current;
       if (runtime) resumeView.current = runtime.getView();
       const sceneId = scenesHost.controller?.getActiveSceneId();
@@ -818,6 +821,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         toggleFullscreen,
         isFullscreen: () => isFullscreenRef.current,
 
+        getSceneLoadProgress: sceneLoadProgress.getSnapshot,
+        subscribeSceneLoadProgress: sceneLoadProgress.subscribe,
+
         // -- Scenes --
         setScene: (id) => scenesHost.controller?.setScene(id) ?? false,
         nextScene: () => scenesHost.controller?.nextScene() ?? false,
@@ -890,6 +896,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         exitFullscreen,
         getRendererBackend,
         scenesHost,
+        sceneLoadProgress,
         hotspotTargetRegistry,
         toggleFullscreen,
         videoHost,
@@ -969,6 +976,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     value={contextMenuActions}
                   >
                   <ScenesHostContext.Provider value={scenesHost}>
+                  <SceneLoadProgressContext.Provider value={sceneLoadProgress}>
                   <BackgroundAudioHostContext.Provider value={bgmHost}>
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <CompareHostContext.Provider value={compareHost}>
@@ -1017,6 +1025,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   </CompareHostContext.Provider>
                   </PanoMediaActivationHostContext.Provider>
                   </BackgroundAudioHostContext.Provider>
+                  </SceneLoadProgressContext.Provider>
                   </ScenesHostContext.Provider>
                   </PanoContextMenuActionsContext.Provider>
                   </PanoFilterHostContext.Provider>
@@ -1056,6 +1065,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         </div>
         <SpatialHostContext.Provider value={spatialHost}>
         <ScenesHostContext.Provider value={scenesHost}>
+        <SceneLoadProgressContext.Provider value={sceneLoadProgress}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
@@ -1076,6 +1086,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </SceneLoadProgressContext.Provider>
         </ScenesHostContext.Provider>
         </SpatialHostContext.Provider>
       </div>

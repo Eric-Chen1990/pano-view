@@ -1611,6 +1611,63 @@ use the default.
 
 [Open the Playground comparison example](https://pano-view-playground.vercel.app/compare).
 
+## Scene Loading Progress
+
+Place `PanoSceneLoadProgress` inside `PanoOverlay` and import the package styles. The default text is `Loading...`. Set `label` to customize the visible text and accessible name.
+
+```tsx
+import { PanoOverlay, PanoSceneLoadProgress, PanoViewer, Scenes } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Scenes scenes={scenes} />
+  <PanoOverlay>
+    <PanoSceneLoadProgress label="Loading panorama" />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+`Scenes` and `ProjectScenes` track the incoming scene until the `onSceneReady` handoff. Standalone `Sphere`, `Tile`, `SphereTile`, and `PanoVideo` track their first drawable picture, including a video poster. The indicator appears while loading and shows a percentage when a fixed set of required tiles can be counted. Readiness reports 100%. High-resolution refinement, transitions, and ongoing video buffering have separate lifecycles.
+
+The indicator is centered within the viewer, including in fullscreen. The `variant` options are `bar` (default), `ring`, `spinner`, `dots`, `wave`, and `pulse`. Bar and ring visualize measured progress where available. The other variants animate throughout the load. Set `showPercentage={false}` on any variant to hide the number. Built-in animations respect the browser's reduced-motion setting.
+
+The panel waits 300 ms before appearing, so faster loads skip the indicator. Set `showDelayMs` to adjust the delay or pass `0` to show immediately. The delay applies to the panel. The progress methods report each update as it happens. The default background is lightly tinted and translucent. Pass `appearance={{ background: "transparent" }}` for a clear background.
+
+Use `appearance` to set `background`, `color`, `accentColor`, `trackColor`, `width`, `barHeight`, and `indicatorSize`. The three size fields use CSS pixels. Use `className` or `style` for additional panel styling.
+
+```tsx
+<PanoSceneLoadProgress
+  variant="ring"
+  showPercentage={false}
+  appearance={{ accentColor: "#ffd28f", indicatorSize: 64 }}
+/>
+```
+
+`accentColor` controls the animation and percentage text. `color` sets the loading label. `trackColor` and `background` set the track and panel. The Scene transitions Playground lets you try colors and label text with **Simulate loading**, which previews an indeterminate animation followed by a percentage without making a scene request.
+
+To display a preview or progress from another source, pass a `progress` snapshot, for example `progress={{ status: "loading", sceneId: null, percent: 42 }}`. A supplied snapshot is displayed immediately while its status is `loading`. The viewer's progress methods continue to report actual scene loading.
+
+Use `renderIndicator={(progress) => <MyAnimation percent={progress.percent} />}` to replace the visual indicator with a decorative animation. The panel keeps its label, percentage setting, and accessible progress information.
+
+Use the same progress without mounting the indicator. Pass `viewer.ref` to `PanoViewer`.
+
+```tsx
+import { useEffect } from "react";
+import { usePanoViewer, type SceneLoadProgress } from "@ericchen1990/pano-view";
+
+const viewer = usePanoViewer();
+useEffect(() => {
+  const onProgress = (progress: SceneLoadProgress) => {
+    console.log(progress.sceneId, progress.status, progress.percent);
+  };
+  const unsubscribe = viewer.subscribeSceneLoadProgress(onProgress);
+  onProgress(viewer.getSceneLoadProgress());
+  return unsubscribe;
+}, [viewer]);
+```
+
+The two methods also work with `useSyncExternalStore` or a `PanoViewerHandle` ref. A standalone source has `sceneId: null`. `percent: null` indicates an unavailable percentage. Inspect `progress.error` when `status === "error"`. During immersive VR the viewer hides the DOM overlay and continues publishing progress.
+
 ## Scenes
 
 `Scenes` switches between single-image equirectangular, cube-tile, and

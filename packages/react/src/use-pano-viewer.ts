@@ -1,7 +1,8 @@
 import { NATIVE_IFRAME_SUPPORT } from "./types";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import type { RefObject } from "react";
 import type { PanoViewerHandle } from "./types";
+import { IDLE_SCENE_LOAD_PROGRESS, type SceneLoadProgress } from "./scene-load-progress";
 import { EMPTY_WEBVR_STATE } from "./webvr/host";
 
 export type UsePanoViewerResult = PanoViewerHandle & {
@@ -10,6 +11,7 @@ export type UsePanoViewerResult = PanoViewerHandle & {
 
 function createPanoViewerHandle(
   ref: RefObject<PanoViewerHandle | null>,
+  sceneLoad: ReturnType<typeof createSceneLoadRef>,
 ): PanoViewerHandle {
   return {
     getRendererBackend: () => ref.current?.getRendererBackend() ?? null,
@@ -39,6 +41,8 @@ function createPanoViewerHandle(
     toggleFullscreen: () =>
       ref.current?.toggleFullscreen() ?? Promise.resolve(),
     isFullscreen: () => ref.current?.isFullscreen() ?? false,
+    getSceneLoadProgress: sceneLoad.getSnapshot,
+    subscribeSceneLoadProgress: sceneLoad.subscribe,
     setScene: (id) => ref.current?.setScene(id) ?? false,
     nextScene: () => ref.current?.nextScene() ?? false,
     previousScene: () => ref.current?.previousScene() ?? false,
@@ -141,8 +145,46 @@ function createPanoViewerHandle(
   } satisfies PanoViewerHandle;
 }
 
+type SceneLoadListener = Parameters<PanoViewerHandle["subscribeSceneLoadProgress"]>[0];
+
+function createSceneLoadRef() {
+  let handle: PanoViewerHandle | null = null;
+  let unsubscribe: (() => void) | undefined;
+  let last: SceneLoadProgress = IDLE_SCENE_LOAD_PROGRESS;
+  const listeners = new Set<SceneLoadListener>();
+  const getSnapshot = () => handle?.getSceneLoadProgress() ?? IDLE_SCENE_LOAD_PROGRESS;
+  const notify = () => {
+    const next = getSnapshot();
+    if (last === next) return;
+    last = next;
+    for (const listener of listeners) listener(next);
+  };
+  const ref: RefObject<PanoViewerHandle | null> = {
+    get current() { return handle; },
+    set current(next) {
+      if (handle === next) return;
+      unsubscribe?.();
+      handle = next;
+      unsubscribe = next?.subscribeSceneLoadProgress(notify);
+      // React can detach and reattach the imperative handle in one commit.
+      queueMicrotask(notify);
+    },
+  };
+  return {
+    ref,
+    getSnapshot,
+    subscribe(listener: SceneLoadListener) {
+      if (listeners.size === 0) last = getSnapshot();
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+  };
+}
+
 export function usePanoViewer(): UsePanoViewerResult {
-  const ref = useRef<PanoViewerHandle | null>(null);
-  const handle = useMemo(() => createPanoViewerHandle(ref), []);
-  return useMemo(() => ({ ref, ...handle }), [handle]);
+  const sceneLoad = useMemo(createSceneLoadRef, []);
+  return useMemo(() => ({
+    ref: sceneLoad.ref,
+    ...createPanoViewerHandle(sceneLoad.ref, sceneLoad),
+  }), [sceneLoad]);
 }

@@ -45,6 +45,12 @@ import {
   markSceneVisited,
   ScenesHostContext,
 } from "./scenes-host";
+import {
+  SceneLoadProgressContext,
+  SceneLoadSourceContext,
+  type SceneLoadAttempt,
+  type SceneLoadReporter,
+} from "./scene-load-progress";
 import { TransitionOverlay } from "./scene-transitions/transition-overlay";
 import { SphereSource } from "./sphere";
 import { matchesPortalSelection, PortalHostContext, type PortalHost, type PortalRequest, type PortalWindow } from "./hotspot/portal-host";
@@ -361,6 +367,7 @@ function ScenesController({
 }: ScenesControllerProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const scenesHost = useContext(ScenesHostContext);
+  const loadStore = useContext(SceneLoadProgressContext);
   const gpu = useContext(WebGPURuntimeContext);
   const vrHost = useContext(WebVRRuntimeContext)?.host;
   const mode = useSyncExternalStore(
@@ -405,6 +412,27 @@ function ScenesController({
   const liveSlotRef = useRef(liveSlot);
   const transitionFromRef = useRef<Scene | null>(initialScene);
   const readySceneRef = useRef<Scene | null>(null);
+  const loadOwner = useMemo(() => ({}), []);
+  const loadAttempt = useRef<{ id: string; attempt: SceneLoadAttempt } | null>(null);
+  const hasRequestedScene = sceneMap.has(activeSceneId);
+  useLayoutEffect(() => () => {
+    loadAttempt.current = null;
+    loadStore?.release(loadOwner);
+  }, [loadOwner, loadStore]);
+  useLayoutEffect(() => {
+    if (!loadStore) return;
+    if (!hasRequestedScene && !activeSceneId) {
+      loadAttempt.current = null;
+      loadStore.release(loadOwner);
+      return;
+    }
+    const live = slotsRef.current[liveSlotRef.current];
+    const ready = hasRequestedScene && live?.id === activeSceneId && readySceneRef.current === live;
+    const attempt = loadStore.begin(loadOwner, activeSceneId, ready ? "ready" : "loading");
+    loadAttempt.current = { id: activeSceneId, attempt };
+    if (!hasRequestedScene) attempt.fail(new Error(`Unknown panorama scene: ${activeSceneId}`));
+  }, [activeSceneId, hasRequestedScene, loadOwner, loadStore, recoveryKey]);
+
   const waitRef = useRef<DetailWait | null>(null);
   const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const detailGenerationRef = useRef(0);
@@ -525,7 +553,9 @@ function ScenesController({
     setPendingSlot(null);
     setActiveSlot(live);
     setPhase("idle");
-    reportError(run.targetId, run.error ?? new Error("Portal destination took too long to load"));
+    const error = run.error ?? new Error("Portal destination took too long to load");
+    if (loadAttempt.current?.id === run.targetId) loadAttempt.current.attempt.fail(error);
+    reportError(run.targetId, error);
   }, [cancelPortal, reportError]);
 
   useEffect(() => {
@@ -620,6 +650,7 @@ function ScenesController({
       scenesHost.recovery = null;
       markSceneVisited(scenesHost, scene.id);
     }
+    if (loadAttempt.current?.id === scene.id) loadAttempt.current.attempt.ready();
     onSceneReady?.(scene.id);
   }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
 
@@ -898,6 +929,8 @@ function ScenesController({
       setPortalRequest(null);
       releaseInteraction();
       clearDetailWait(true);
+      loadStore?.release(loadOwner);
+      loadAttempt.current = null;
       manager?.dispose();
       snapshot?.dispose();
       setSnapshot(null);
@@ -915,7 +948,7 @@ function ScenesController({
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
     };
-  }, [cancelPortal, clearDetailWait, gl, manager, releaseInteraction, snapshot]);
+  }, [cancelPortal, clearDetailWait, gl, loadOwner, loadStore, manager, releaseInteraction, snapshot]);
 
   const renderedScene = slots[liveSlot];
   const snapshotVisible = snapshot !== null && (
@@ -942,6 +975,17 @@ function ScenesController({
     })) as [SceneDetailReporter, SceneDetailReporter];
   }, [consumeDetailSignal, detailGeneration, slotSceneKey]);
 
+  const loadReporters = useMemo(() => slots.map((source, slot): SceneLoadReporter => {
+    const getAttempt = () =>
+      source && slotsRef.current[slot] === source && loadAttempt.current?.id === source.id
+        ? loadAttempt.current.attempt : null;
+    return {
+      isLoading: () => getAttempt()?.isLoading() ?? false,
+      measure: (loaded, total) => getAttempt()?.measure(loaded, total),
+      fail: (error) => getAttempt()?.fail(error),
+    };
+  }), [slots]);
+
   return (
     <PortalHostContext.Provider value={portalHost}>
       <PortalPreviewPass host={portalHost} windows={portalWindows} />
@@ -959,21 +1003,23 @@ function ScenesController({
             key={`${slot}:${source?.id ?? "empty"}:${recoveryKey}`}
             value={detailReporters[slot]}
           >
-            <SceneSource
-              scene={source}
-              visible={isLive}
-              baseOnly={pendingSceneUsesBaseLayer(phase, isPending)}
-              onReady={() => handleReady(slot)}
-              onError={(error) => {
-                if (source) {
-                  if (portalRun.current?.targetId === source.id) {
-                    portalRun.current.error = error;
-                    return;
+            <SceneLoadSourceContext.Provider value={loadReporters[slot]}>
+              <SceneSource
+                scene={source}
+                visible={isLive}
+                baseOnly={pendingSceneUsesBaseLayer(phase, isPending)}
+                onReady={() => handleReady(slot)}
+                onError={(error) => {
+                  if (source) {
+                    if (portalRun.current?.targetId === source.id) {
+                      portalRun.current.error = error;
+                      return;
+                    }
+                    reportError(source.id, error);
                   }
-                  reportError(source.id, error);
-                }
-              }}
-            />
+                }}
+              />
+            </SceneLoadSourceContext.Provider>
           </SceneDetailContext.Provider>
         );
       })}
