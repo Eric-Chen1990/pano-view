@@ -107,7 +107,15 @@ const descriptions: Record<string, { label: string; help: string }> = {
   },
   range: {
     label: "Look-away range (°)",
-    help: "Controls how audio fades as you look away from the hotspot. 360 disables this directional attenuation.",
+    help: "Sets the angle at which audio fades to silence. At 360, stereo stays at full volume and 3D sound remains audible behind you at a lower volume.",
+  },
+  spatialAudio: {
+    label: "Directional 3D Sound",
+    help: "Anchors the sound in 3D. On a headset with positional tracking, walking changes its direction and volume.",
+  },
+  soundDistance: {
+    label: "Sound distance (m)",
+    help: "Distance from the panorama center to the sound source in meters. Defaults to 3.",
   },
   marker: {
     label: "Show audio marker",
@@ -261,6 +269,7 @@ const descriptions: Record<string, { label: string; help: string }> = {
 };
 
 const positive = new Set([
+  "soundDistance",
   "width",
   "height",
   "scale",

@@ -1,5 +1,6 @@
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { VRBasicsExample } from "./vr-basics-example";
 import source from "./vr-basics-example.tsx?raw";
 
@@ -31,10 +32,12 @@ export function WebVRPage() {
         permission. Use a supported physical device to verify its immersive
         mode.
       </p>
-      <CodeSnippet
-        label="VR basics: minimal setup"
-        blurb="WebVR supplies immersive presentation and gaze activation. The complete example adds capability and permission status, an activation counter, and host-owned entry/exit controls."
-        code={minimalCode}
+      <ExampleCode
+        react={{
+          label: "VR basics: minimal setup",
+          blurb: "WebVR supplies immersive presentation and gaze activation. The complete example adds capability and permission status, an activation counter, and host-owned entry/exit controls.",
+          code: minimalCode,
+        }}
       />
       <details className="border-t border-line p-5">
         <summary>Complete VR example</summary>

@@ -1,5 +1,15 @@
 # @ericchen1990/pano-view
 
+## 5.13.0
+
+### Minor Changes
+
+- 5e0c7b3: Add opt-in Directional 3D Sound to audio hotspots, with HRTF positioning, WebXR head translation, and per-source distance. Expose the settings in project JSON and the tour editor.
+
+  Full-sphere 3D sound fades smoothly as the listener turns away, with a 12 dB reduction directly behind them.
+
+- e2fbcd5: Add WebGL and WebGPU chroma keying for image and video hotspots, with project JSON support and live editing from a color picker or the original media.
+
 ## 5.12.0
 
 ### Minor Changes

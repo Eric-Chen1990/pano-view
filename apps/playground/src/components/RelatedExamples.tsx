@@ -13,6 +13,7 @@ const related: Partial<Record<PlaygroundPath, readonly PlaygroundPath[]>> = {
   "/context-menu": ["/controls", "/overlays"],
   "/video": ["/basics", "/background-audio", "/spatial-controls"],
   "/background-audio": ["/scene-transitions", "/video", "/project"],
+  "/directional-3d-sound": ["/hotspots", "/webvr", "/background-audio"],
   "/filters": ["/basics", "/hotspots"],
   "/webvr": ["/vr-scene-menu", "/spatial-controls", "/immersive-tour"],
   "/vr-scene-menu": ["/webvr", "/scene-menu", "/spatial-controls"],

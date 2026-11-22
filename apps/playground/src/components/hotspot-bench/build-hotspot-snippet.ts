@@ -4,110 +4,44 @@ import type {
   EditorPolyline,
 } from "../../types";
 
-const EMPTY_SNIPPET = `// Choose a hotspot tool, then click the panorama to place it.
-// Select an existing hotspot, polygon, or polyline to see its component JSX here.
-
-import {
-  ImageHotspot,
-  GraphicHotspot,
-  SequenceHotspot,
-  VideoHotspot,
-  AudioHotspot,
-  TextHotspot,
-  IframeHotspot,
-  PolygonHotspot,
-  PolylineHotspot,
-  PanoViewer,
-  Sphere,
-} from "@ericchen1990/pano-view";
-
-<PanoViewer style={{ height: 560 }}>
-  <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
-  {/* Place a hotspot, then select it */}
-</PanoViewer>`;
-
-function indentLines(value: string, spaces: number): string {
-  const pad = " ".repeat(spaces);
-  return value
-    .split("\n")
-    .map((line) => (line.length ? `${pad}${line}` : line))
-    .join("\n");
-}
-
-function formatLiteral(value: unknown, depth = 0): string {
-  if (typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (value === null) {
-    return "null";
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return "[]";
-    }
-    const items = value.map((entry) => formatLiteral(entry, depth + 1));
-    const compact = items.every((item) => !item.includes("\n") && item.length < 40);
-    if (compact) {
-      return `[${items.join(", ")}]`;
-    }
-    return `[\n${items.map((item) => indentLines(item, 2)).join(",\n")}\n]`;
-  }
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, entry]) => entry !== undefined,
-    );
-    if (entries.length === 0) {
-      return "{}";
-    }
-    const lines = entries.map(([key, entry]) => {
-      const rendered = formatLiteral(entry, depth + 1);
-      if (rendered.includes("\n")) {
-        return `${key}: ${rendered.split("\n").join(`\n${" ".repeat(2)}`)}`;
-      }
-      return `${key}: ${rendered}`;
-    });
-    return `{\n${lines.map((line) => indentLines(line, 2)).join(",\n")}\n}`;
-  }
-  return "undefined";
-}
-
-function propLines(props: Record<string, unknown>): string {
-  return Object.entries(props)
+function wrapSnippet(
+  component: string,
+  type: EditorHotspot["type"] | "polygon" | "polyline",
+  { ariaLabel, ...props }: { ariaLabel: string } & Record<string, unknown>,
+) {
+  const propLines = Object.entries({ ariaLabel, ...props })
     .filter(([, value]) => value !== undefined)
     .map(([key, value]) => {
-      if (typeof value === "string") {
-        return `  ${key}=${JSON.stringify(value)}`;
-      }
-      if (typeof value === "boolean") {
-        return value ? `  ${key}` : `  ${key}={false}`;
-      }
-      if (typeof value === "number") {
-        return `  ${key}={${value}}`;
-      }
-      const literal = formatLiteral(value);
-      if (!literal.includes("\n")) {
-        return `  ${key}={${literal}}`;
-      }
-      return `  ${key}={${literal.split("\n").join("\n  ")}}`;
+      const literal = JSON.stringify(value);
+      // Quoted JSX attributes decode entities and do not support JavaScript escapes.
+      const plainString = typeof value === "string"
+        && literal === `"${value}"`
+        && !/[&<>\u2028\u2029]/u.test(value);
+      return `        ${key}=${plainString ? literal : `{${literal}}`}`;
     })
     .join("\n");
+  const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function PanoramaHotspot() {
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      <${component}
+${propLines}
+      />
+    </PanoViewer>
+  );
+}`;
+  return {
+    label: component,
+    blurb: "Generated from the selected hotspot’s settings.",
+    code,
+    value: { type, label: ariaLabel, ...props },
+  };
 }
 
-function wrapSnippet(componentName: string, importName: string, props: Record<string, unknown>): string {
-  return `import { ${importName}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
-
-<PanoViewer style={{ height: 560 }}>
-  <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
-  <${componentName}
-${propLines(props)}
-  />
-</PanoViewer>`;
-}
-
-function pointBaseProps(hotspot: EditorHotspot): Record<string, unknown> {
+function pointBaseProps(hotspot: EditorHotspot) {
   return {
     id: hotspot.id,
     ariaLabel: hotspot.label,
@@ -132,21 +66,21 @@ function pointBaseProps(hotspot: EditorHotspot): Record<string, unknown> {
   };
 }
 
-function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
+function buildPointHotspotSnippet(hotspot: EditorHotspot) {
   const base = pointBaseProps(hotspot);
   switch (hotspot.type) {
     case "image":
-      return wrapSnippet("ImageHotspot", "ImageHotspot", {
+      return wrapSnippet("ImageHotspot", "image", {
         ...base,
         src: hotspot.src,
       });
     case "graphic":
-      return wrapSnippet("GraphicHotspot", "GraphicHotspot", {
+      return wrapSnippet("GraphicHotspot", "graphic", {
         ...base,
         graphic: hotspot.graphic,
       });
     case "sequence":
-      return wrapSnippet("SequenceHotspot", "SequenceHotspot", {
+      return wrapSnippet("SequenceHotspot", "sequence", {
         ...base,
         src: hotspot.src,
         frameCount: hotspot.frameCount,
@@ -156,7 +90,7 @@ function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
         playing: hotspot.playing,
       });
     case "video":
-      return wrapSnippet("VideoHotspot", "VideoHotspot", {
+      return wrapSnippet("VideoHotspot", "video", {
         ...base,
         src: hotspot.src,
         poster: hotspot.poster || undefined,
@@ -166,7 +100,7 @@ function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
         volume: hotspot.volume,
       });
     case "audio":
-      return wrapSnippet("AudioHotspot", "AudioHotspot", {
+      return wrapSnippet("AudioHotspot", "audio", {
         ...base,
         src: hotspot.src,
         playing: hotspot.playing,
@@ -180,7 +114,7 @@ function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
         marker: hotspot.marker,
       });
     case "text":
-      return wrapSnippet("TextHotspot", "TextHotspot", {
+      return wrapSnippet("TextHotspot", "text", {
         ...base,
         text: hotspot.text,
         fontFamily: hotspot.fontFamily,
@@ -195,7 +129,7 @@ function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
         whiteSpace: hotspot.whiteSpace,
       });
     case "iframe":
-      return wrapSnippet("IframeHotspot", "IframeHotspot", {
+      return wrapSnippet("IframeHotspot", "iframe", {
         ...base,
         src: hotspot.src,
         title: hotspot.title,
@@ -209,8 +143,8 @@ function buildPointHotspotSnippet(hotspot: EditorHotspot): string {
   }
 }
 
-function buildPolygonSnippet(polygon: EditorPolygon): string {
-  return wrapSnippet("PolygonHotspot", "PolygonHotspot", {
+function buildPolygonSnippet(polygon: EditorPolygon) {
+  return wrapSnippet("PolygonHotspot", "polygon", {
     id: polygon.id,
     ariaLabel: polygon.label,
     vertices: polygon.vertices,
@@ -233,8 +167,8 @@ function buildPolygonSnippet(polygon: EditorPolygon): string {
   });
 }
 
-function buildPolylineSnippet(polyline: EditorPolyline): string {
-  return wrapSnippet("PolylineHotspot", "PolylineHotspot", {
+function buildPolylineSnippet(polyline: EditorPolyline) {
+  return wrapSnippet("PolylineHotspot", "polyline", {
     id: polyline.id,
     ariaLabel: polyline.label,
     vertices: polyline.vertices,
@@ -260,46 +194,27 @@ export function buildHotspotBenchSnippet(args: {
   hotspots: EditorHotspot[];
   polygons: EditorPolygon[];
   polylines: EditorPolyline[];
-}): { label: string; blurb: string; code: string } {
+}) {
   const { selectedId, hotspots, polygons, polylines } = args;
-  if (!selectedId) {
-    return {
-      label: "Hotspot component",
-      blurb: "Select a hotspot, polygon, or polyline to generate pasteable component JSX.",
-      code: EMPTY_SNIPPET,
-    };
-  }
-
-  const hotspot = hotspots.find((entry) => entry.id === selectedId);
-  if (hotspot) {
-    return {
-      label: `${hotspot.type} hotspot`,
-      blurb: `Generated from the selected ${hotspot.type} hotspot. Drag and editor callbacks are omitted.`,
-      code: buildPointHotspotSnippet(hotspot),
-    };
-  }
-
-  const polygon = polygons.find((entry) => entry.id === selectedId);
-  if (polygon) {
-    return {
-      label: "Polygon hotspot",
-      blurb: "Generated from the selected polygon. Drag and vertex-edit callbacks are omitted.",
-      code: buildPolygonSnippet(polygon),
-    };
-  }
-
-  const polyline = polylines.find((entry) => entry.id === selectedId);
-  if (polyline) {
-    return {
-      label: "Polyline hotspot",
-      blurb: "Generated from the selected polyline. Drag and vertex-edit callbacks are omitted.",
-      code: buildPolylineSnippet(polyline),
-    };
-  }
+  const hotspot = hotspots.find(({ id }) => id === selectedId);
+  const missingSource = hotspot && "src" in hotspot && !hotspot.src.trim();
+  if (hotspot && !missingSource) return buildPointHotspotSnippet(hotspot);
+  const polygon = polygons.find(({ id }) => id === selectedId);
+  if (polygon) return buildPolygonSnippet(polygon);
+  const polyline = polylines.find(({ id }) => id === selectedId);
+  if (polyline) return buildPolylineSnippet(polyline);
 
   return {
-    label: "Hotspot component",
-    blurb: "Select a hotspot, polygon, or polyline to generate pasteable component JSX.",
-    code: EMPTY_SNIPPET,
+    ...wrapSnippet("GraphicHotspot", "graphic", {
+      id: "marker",
+      ariaLabel: "Panorama marker",
+      position: { yaw: 0, pitch: 0 },
+      width: 8,
+      height: 8,
+      graphic: { kind: "circle", fill: "#df6b42" },
+    }),
+    blurb: missingSource
+      ? "Set a media source to see the selected hotspot’s code. This marker is a starter example."
+      : "Select a hotspot to see its current settings. Start with this marker if no hotspot is selected.",
   };
 }

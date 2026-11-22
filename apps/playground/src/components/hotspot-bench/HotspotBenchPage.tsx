@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { shellClassName } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { buildHotspotBenchSnippet } from "./build-hotspot-snippet";
@@ -68,13 +68,14 @@ export function HotspotBenchPage() {
         <Inspector />
       </section>
 
-      <section className="mt-6" aria-label="Hotspot code example">
-        <CodeSnippet
-          blurb={snippet.blurb}
-          code={snippet.code}
-          label={snippet.label}
-        />
-      </section>
+      <ExampleCode
+        react={snippet}
+        json={{ format: "project", files: [{
+          label: `${snippet.label} definition`,
+          blurb: `${snippet.blurb} Add the object to the scene’s hotspots array in project.json.`,
+          value: snippet.value,
+        }] }}
+      />
 
       <SiteFooter label="@ericchen1990/pano-view · point, polygon + polyline hotspots" />
     </main>

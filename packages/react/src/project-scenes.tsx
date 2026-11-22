@@ -135,6 +135,7 @@ export function ProjectHotspotSource({
   onHoverChange,
   onEnded,
   onError,
+  onAudioBlocked,
 }: {
   hotspot: ProjectHotspotDefinition;
   playing: boolean;
@@ -142,6 +143,7 @@ export function ProjectHotspotSource({
   onHoverChange?: (hovered: boolean, event: HotspotInteractionEvent) => void;
   onEnded: () => void;
   onError: (error: unknown) => void;
+  onAudioBlocked?: (error: unknown) => void;
 }) {
   const common = { ariaLabel: hotspot.label || hotspot.id, onClick, onHoverChange };
   // Narrow each variant before passing serializable data to its existing component.
@@ -215,7 +217,7 @@ export function ProjectHotspotSource({
           playing={playing}
           onEnded={onEnded}
           onError={onError}
-          onPlaybackError={onError}
+          onPlaybackError={hotspot.spatialAudio ? onAudioBlocked : onError}
         />
       );
   }
@@ -269,6 +271,7 @@ function ProjectHotspot({
       onHoverChange={onHoverChange}
       onEnded={() => setPlaying(false)}
       onError={reportError}
+      onAudioBlocked={(error) => onHotspotError?.({ sceneId, hotspot, error })}
     />
   );
   const rendered = renderHotspot?.(hotspot, {

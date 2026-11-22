@@ -3,7 +3,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import { controlInputClassName, controlLabelClassName, pageControlsClassName } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
 const assets = "/fixtures/planar-compare/v1";
@@ -22,16 +22,26 @@ export function PlanarComparePage() {
   const [presentation, setPresentation] = useState<PanoComparePresentation>("wipe");
   const [layout, setLayout] = useState<PanoCompareLayout>("left-right");
 
-  const snippet = `<PlanarTileCompare
-  scenes={scenes}
-  presentation="${presentation}"
-  layout="${layout}"
-  minScale={${minScale}}
-  maxScale={${maxScale}}
-  dividerColor="${dividerColor}"
-  dividerWidth={${dividerWidth}}
-  style={{ height: 480 }}
-/>`;
+  const snippet = `import { PlanarTileCompare, type PlanarTileCompareScene } from "@ericchen1990/pano-view";
+
+import "@ericchen1990/pano-view/styles.css";
+
+const scenes: PlanarTileCompareScene[] = ${JSON.stringify(scenes, null, 2)};
+
+export function FlatImageComparison() {
+  return (
+    <PlanarTileCompare
+      scenes={scenes}
+      presentation="${presentation}"
+      layout="${layout}"
+      minScale={${minScale}}
+      maxScale={${maxScale}}
+      dividerColor="${dividerColor}"
+      dividerWidth={${dividerWidth}}
+      style={{ height: 480 }}
+    />
+  );
+}`;
 
   return (
     <ExamplePage title="Flat image comparison"
@@ -62,7 +72,17 @@ export function PlanarComparePage() {
         className="rounded-xl" style={{ height: "clamp(340px, 65dvh, 620px)" }}
       />
       <div className="mt-6">
-        <CodeSnippet label="React" blurb="Give each pair two planar tile manifests." code={snippet} />
+        <ExampleCode
+          json={{ format: "manifest", files: [
+              { label: "Original manifest.json", blurb: "Use this URL for the original image.", url: before.manifestUrl },
+              { label: "Stylized manifest.json", blurb: "Use this URL for the stylized image.", url: after.manifestUrl },
+            ] }}
+          react={{
+            label: "React",
+            blurb: "Give each pair two planar tile manifests.",
+            code: snippet,
+          }}
+        />
       </div>
     </ExamplePage>
   );

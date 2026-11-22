@@ -13,7 +13,7 @@ import {
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import { useState } from "react";
 import { controlInputClassName, controlLabelClassName, pageControlsClassName, segmentedButtonClassName } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
 const assets = "/fixtures/compare/v1";
@@ -55,15 +55,25 @@ export function ComparePage() {
     setActiveId(id);
   };
 
-  const snippet = `<PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
-  <PanoCompare
-    scenes={scenes}
-    presentation="${presentation}"
-    layout="${layout}"
-    dividerColor="${dividerColor}"
-    dividerWidth={${dividerWidth}}
-  />
-</PanoViewer>`;
+  const snippet = `import { PanoCompare, PanoViewer, type PanoCompareScene } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const scenes: PanoCompareScene[] = ${JSON.stringify(scenes, null, 2)};
+
+export function PanoramaComparison() {
+  return (
+    <PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
+      <PanoCompare
+        scenes={scenes}
+        activeSceneId="${activeId}"
+        presentation="${presentation}"
+        layout="${layout}"
+        dividerColor="${dividerColor}"
+        dividerWidth={${dividerWidth}}
+      />
+    </PanoViewer>
+  );
+}`;
 
   return (
     <ExamplePage title="Panorama comparison" description="Drag either image to look around. Choose how the two panoramas share the viewer.">
@@ -118,7 +128,13 @@ export function ComparePage() {
         </PanoOverlay>
       </PanoViewer>
       <div className="mt-6">
-        <CodeSnippet label="React" blurb="Pass a list of panorama pairs to PanoCompare." code={snippet} />
+        <ExampleCode
+          react={{
+            label: "React",
+            blurb: "Pass a list of panorama pairs to PanoCompare.",
+            code: snippet,
+          }}
+        />
       </div>
     </ExamplePage>
   );

@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { chromaKeyAlpha, resolveHotspotChromaKey, type HotspotChromaKey, type ResolvedChromaKey } from "../../../../shared/chroma-key";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
 import {
   DoubleSide,
@@ -82,6 +84,7 @@ function sampleTextureAlpha(
   texture: Texture,
   u: number,
   v: number,
+  key: ResolvedChromaKey | undefined,
 ): number | null {
   if (!isSampleableImage(texture.image)) {
     return null;
@@ -100,13 +103,18 @@ function sampleTextureAlpha(
     data.height - 1,
     Math.max(0, Math.floor(SAMPLE_UV.y * data.height)),
   );
-  return data.data[(pixelY * data.width + pixelX) * 4 + 3]! / 255;
+  const offset = (pixelY * data.width + pixelX) * 4;
+  const alpha = data.data[offset + 3]! / 255;
+  return key ? chromaKeyAlpha(key,
+    data.data[offset]! / 255, data.data[offset + 1]! / 255, data.data[offset + 2]! / 255, alpha,
+  ) : alpha;
 }
 
 function hotspotPlaneRaycast(
   this: Mesh,
   raycaster: Raycaster,
   intersects: Intersection[],
+  key: ResolvedChromaKey | undefined,
 ) {
   if (!this.visible || this.parent?.visible === false) return;
   const material = Array.isArray(this.material)
@@ -128,7 +136,7 @@ function hotspotPlaneRaycast(
       intersects.push(hit);
       continue;
     }
-    const texelAlpha = sampleTextureAlpha(map, hit.uv.x, hit.uv.y);
+    const texelAlpha = sampleTextureAlpha(map, hit.uv.x, hit.uv.y, key);
     if (texelAlpha === null || texelAlpha * material.opacity >= cutoff) {
       intersects.push(hit);
     }
@@ -139,18 +147,25 @@ export function HotspotPlane({
   map,
   opacity,
   geometry,
+  chromaKey,
 }: {
   map: Texture | null;
   geometry?: BufferGeometry;
   opacity?: number;
+  chromaKey?: HotspotChromaKey;
 }) {
+  const key = useMemo(() => resolveHotspotChromaKey(chromaKey), [chromaKey]);
+  const raycast = useMemo(() => function (this: Mesh, raycaster: Raycaster, hits: Intersection[]) {
+    hotspotPlaneRaycast.call(this, raycaster, hits, key);
+  }, [key]);
   return (
-    <mesh geometry={geometry} raycast={hotspotPlaneRaycast}>
+    <mesh geometry={geometry} raycast={raycast}>
       {geometry ? null : <planeGeometry args={[1, 1]} />}
       <PanoBasicMaterial
         target="hotspot"
         alphaTest={HOTSPOT_ALPHA_CUTOFF}
         map={map}
+        chromaKey={map ? key : undefined}
         opacity={map ? clampOpacity(opacity) : 0}
         side={DoubleSide}
         toneMapped={false}

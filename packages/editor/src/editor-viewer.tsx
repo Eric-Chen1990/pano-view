@@ -1,3 +1,4 @@
+import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { customActionIssue } from "./custom-actions";
 import { type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
@@ -233,15 +234,7 @@ export function EditorViewer({
             hotspot,
             local ? LOCAL_ROOT : projectRoot(options.baseUrl),
             definition.id,
-            (path, context) => {
-              const files = assetFiles(path);
-              return files
-                ? files.resolve(path, {
-                    ...context,
-                    defaultUrl: new URL(path, LOCAL_ROOT).href,
-                  })
-                : (options.resolveAssetUrl?.(path, context) ?? context.defaultUrl);
-            },
+            (path, context) => resolveEditorHotspotAsset(path, context, assetFiles(path), options.resolveAssetUrl),
           );
           // Local sessions only preview documents. Keep authored permissions in
           // the saved definition, but never execute local HTML scripts or forms.

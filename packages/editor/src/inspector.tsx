@@ -1,3 +1,5 @@
+import { parseHotspotChromaKey } from "../../../shared/chroma-key";
+import { ChromaKeyFields } from "./chroma-key-fields";
 import type { PanoCustomActionDefinition } from "./custom-actions";
 import type { ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { CornerFields } from "./corner-fields";
@@ -36,6 +38,7 @@ export function HotspotInspector({
   getViewPosition,
   getRectangleCorners,
   cursorPreviewUrl,
+  resolveMediaUrl,
   popups = [],
   getView,
   onCreatePopup,
@@ -53,6 +56,7 @@ export function HotspotInspector({
   getViewPosition: () => HotspotPosition;
   getRectangleCorners: (id: string) => HotspotCorners | null;
   cursorPreviewUrl?: string;
+  resolveMediaUrl?: (path: string) => string;
   popups?: ProjectPopupDefinition[];
   getView?: () => PanoViewerState;
   customActions?: readonly PanoCustomActionDefinition[];
@@ -89,6 +93,7 @@ export function HotspotInspector({
         spec={hotspotFieldSpec({
           ...spec,
           disabled: spec.name === "distance" ? surface
+            : spec.name === "soundDistance" ? hotspot.type !== "audio" || !hotspot.spatialAudio
             : spec.name === "scaleMode" ? surface
             : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
@@ -270,6 +275,10 @@ export function HotspotInspector({
         <div className="pne-fields">
           {fields(contentFields[hotspot.type] ?? [])}
           {fields(graphicFields)}
+          {(hotspot.type === "image" || hotspot.type === "video") && (
+            <ChromaKeyFields hotspot={hotspot} onChange={key => update("chromaKey", key)}
+              onBegin={onBegin} onEnd={onEnd} resolveMediaUrl={resolveMediaUrl} t={t} />
+          )}
         </div>
       </details>
       <details
@@ -300,6 +309,8 @@ export function HotspotInspector({
                   value.type !== hotspot.type
                 )
                   throw new Error("Keep the hotspot id and type");
+                if ((value.type === "image" || value.type === "video") && "chromaKey" in value)
+                  parseHotspotChromaKey(value.chromaKey);
                 onChange(value as ProjectHotspotDefinition);
                 setAdvancedError("");
               } catch (error) {

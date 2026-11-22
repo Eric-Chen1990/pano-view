@@ -28,6 +28,7 @@ import {
 } from "../../ui";
 import { BlendSelect } from "./BlendSelect";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -46,36 +47,51 @@ function buildSceneTransitionSnippet(
   showPercentage: boolean,
   label: string,
   appearance: PanoSceneLoadProgressAppearance,
+  sceneId: string,
+  renderer: "auto" | "webgl",
 ): string {
-  return `import {
+  return `import { useState } from "react";
+import {
   PanoOverlay,
   PanoSceneLoadProgress,
   PanoViewer,
   Scenes,
+  type Scene,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes = [/* sphere + cube scenes */];
-const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+const scenes: Scene[] = ${JSON.stringify(TRANSITION_SCENES, null, 2)};
 
-<PanoViewer
-  style={{ height: "min(540px, 68dvh)" }}
->
-  <Scenes
-    activeSceneId={activeSceneId}
-    onActiveSceneIdChange={setActiveSceneId}
-    scenes={scenes}
-    transition="${preset}"
-  />
-  <PanoOverlay>
-    <PanoSceneLoadProgress
-      variant="${variant}"
-      showPercentage={${showPercentage}}
-      label={${JSON.stringify(label)}}
-      appearance={{ accentColor: "${appearance.accentColor}", color: "${appearance.color}" }}
-    />
-  </PanoOverlay>
-</PanoViewer>`;
+export function SceneTransitions() {
+  const [activeSceneId, setActiveSceneId] = useState("${sceneId}");
+
+  return (
+    <>
+      {scenes.map(({ id }) => (
+        <button key={id} type="button" onClick={() => setActiveSceneId(id)}>{id}</button>
+      ))}
+      <PanoViewer
+        renderer="${renderer}"
+        style={{ height: "min(540px, 68dvh)" }}
+      >
+        <Scenes
+          activeSceneId={activeSceneId}
+          onActiveSceneIdChange={setActiveSceneId}
+          scenes={scenes}
+          transition="${preset}"
+        />
+        <PanoOverlay>
+          <PanoSceneLoadProgress
+            variant="${variant}"
+            showPercentage={${showPercentage}}
+            label={${JSON.stringify(label)}}
+            appearance={{ accentColor: "${appearance.accentColor}", color: "${appearance.color}" }}
+          />
+        </PanoOverlay>
+      </PanoViewer>
+    </>
+  );
+}`;
 }
 
 const DEFAULT_LOADING_LABEL = "Loading...";
@@ -145,8 +161,8 @@ export function SceneTransitionPage() {
     "Choose a scene to compare transition effects.",
   );
   const snippet = useMemo(
-    () => buildSceneTransitionSnippet(preset, indicator, showPercentage, loadingLabel, appearance),
-    [preset, indicator, showPercentage, loadingLabel, appearance],
+    () => buildSceneTransitionSnippet(preset, indicator, showPercentage, loadingLabel, appearance, activeSceneId, renderer),
+    [preset, indicator, showPercentage, loadingLabel, appearance, activeSceneId, renderer],
   );
 
   return (
@@ -309,10 +325,12 @@ export function SceneTransitionPage() {
             </PanoOverlay>
           </PanoViewer>
         </div>
-        <CodeSnippet
-          blurb="Switch scenes to compare transitions, or simulate loading to preview the selected indicator, colors, and loading text."
-          code={snippet}
-          label="Scenes: transition presets"
+        <ExampleCode
+          react={{
+            blurb: "Switch scenes to compare transitions, or simulate loading to preview the selected indicator, colors, and loading text.",
+            code: snippet,
+            label: "Scenes: transition presets",
+          }}
         />
         <details className="border-t border-line p-5">
           <summary>Complete running example</summary>

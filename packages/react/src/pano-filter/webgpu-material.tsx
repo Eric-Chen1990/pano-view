@@ -1,3 +1,4 @@
+import { webGPUChromaKeyAlpha } from "./chroma-key-shader";
 import type { Node } from "three/webgpu";
 import { useContext, useLayoutEffect, useMemo } from "react";
 import { ArrayCamera, DataTexture, Matrix4, Vector2, Vector4, type Camera } from "three";
@@ -76,7 +77,7 @@ function matrixValues(matrix: PanoColorMatrix, out: Matrix4, offset: Vector4) {
   offset.set(matrix[4], matrix[9], matrix[14], matrix[19]);
 }
 
-export function WebGPUPanoBasicMaterial({ target, modules, ...props }: PanoBasicMaterialProps & {
+export function WebGPUPanoBasicMaterial({ target, modules, chromaKey, ...props }: PanoBasicMaterialProps & {
   modules: WebGPUShaderModules;
 }) {
   const host = useContext(PanoFilterHostContext);
@@ -87,6 +88,7 @@ export function WebGPUPanoBasicMaterial({ target, modules, ...props }: PanoBasic
   const matrix = enabled && (panorama || colorMatrixScope === "all") ? colorMatrix : null;
   const hasMatrix = Boolean(matrix);
   const hasAdjustments = Boolean(adjust);
+  const hasChromaKey = Boolean(chromaKey);
   const hasClarity = Boolean(adjust?.clarity);
 
   const material = useMemo(() => {
@@ -144,13 +146,15 @@ export function WebGPUPanoBasicMaterial({ target, modules, ...props }: PanoBasic
         .select((sRGBTransferEOTF(vec4(contrast, 1)) as Node<"vec4">).rgb, clamp(exposed, 0, 1));
     }
     if (artistic !== "none") color = mix(color, look(artistic, color, modules.tsl), strength);
-    if (artistic !== "none" || hasAdjustments) material.colorNode = vec4(color, rgba.a);
+    const key = hasChromaKey ? uniform(new Vector4()) : null;
+    const alpha = key ? rgba.a.mul(webGPUChromaKeyAlpha(modules.tsl, rgba, key)) : rgba.a;
+    if (artistic !== "none" || hasAdjustments || key) material.colorNode = vec4(color, alpha);
     if (hasMatrix) {
       const display = sRGBTransferOETF(output) as Node<"vec4">;
       material.outputNode = sRGBTransferEOTF(mix(display, clamp(transform.mul(display).add(offset), 0, 1), strength));
     }
-    return { material, strength, values, transform, offset };
-  }, [artistic, hasAdjustments, hasClarity, hasMatrix, host, modules]);
+    return { material, strength, values, transform, offset, key };
+  }, [artistic, hasChromaKey, hasAdjustments, hasClarity, hasMatrix, host, modules]);
 
   useLayoutEffect(() => {
     // The node pipeline uses a different binding for an absent map, a poster, and a video texture.
@@ -158,10 +162,11 @@ export function WebGPUPanoBasicMaterial({ target, modules, ...props }: PanoBasic
   }, [material, props.map]);
 
   useLayoutEffect(() => {
+    if (chromaKey) material.key?.value.set(chromaKey.cb, chromaKey.cr, chromaKey.threshold, chromaKey.smoothing);
     material.strength.value = intensity;
     if (adjust) material.values.value.set(adjust.exposure, adjust.saturation, adjust.contrast, adjust.clarity);
     if (matrix) matrixValues(matrix, material.transform.value, material.offset.value);
-  }, [adjust, intensity, material, matrix]);
+  }, [adjust, chromaKey, intensity, material, matrix]);
 
   useLayoutEffect(() => {
     if (panorama) host?.webgpuClaritySources.add(material.material);

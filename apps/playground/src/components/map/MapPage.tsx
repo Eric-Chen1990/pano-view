@@ -25,7 +25,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -76,74 +76,64 @@ import {
   type PanoMapDefinition,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
+import "@ericchen1990/pano-view/ui/styles.css";
 
-const map: PanoMapDefinition = {
-  image: "/fixtures/maps/floor.svg",
-  interaction: "zoom",
-  controls: { collapse: true, zoom: true },
-  iconSize: 28,
-  maxScale: 4,
-  sector: {
-    angle: 70,
-    radius: 56,
-    followFov: false,
-    color: "#ffffff",
-    opacity: 0.75,
-    gradient: {
-      type: "radial",
-      stops: [
-        { offset: 0, color: "#ffffff", opacity: 1 },
-        { offset: 1, color: "#ffffff", opacity: 0 },
-      ],
-    },
-  },
-  spots: [
-    { id: "entrance-spot", sceneId: "entrance", x: 0.31, y: 0.5, heading: 20 },
-    { id: "hall-spot", sceneId: "hall", x: 0.75, y: 0.5, heading: -40 },
-  ],
-};
+const map: PanoMapDefinition = ${JSON.stringify(DEMO_MAP, null, 2)};
 
-const [project, setProject] = useState<LoadedPanoProject>();
-const [activeSceneId, setActiveSceneId] = useState<string>();
+export function FloorPlanTour() {
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [activeSceneId, setActiveSceneId] = useState<string>();
+  const [error, setError] = useState<string>();
 
-useEffect(() => {
-  void loadPanoProject("/tour/project.json").then((loaded) => {
-    setProject({ ...loaded, map });
-    setActiveSceneId(loaded.initialSceneId);
-  });
-}, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject("/fixtures/projects/tour/project.json", { requestInit: { signal: controller.signal } })
+      .then((loaded) => {
+        if (controller.signal.aborted) return;
+        setProject(loaded);
+        setActiveSceneId(loaded.initialSceneId);
+      })
+      .catch((error: Error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
 
-{project ? (
-  <PanoViewer style={{ height: 560 }}>
-    <ProjectScenes
-      project={project}
-      activeSceneId={activeSceneId}
-      onActiveSceneIdChange={setActiveSceneId}
-      transition="dissolve"
-    />
-    <PanoOverlay>
-      <PanoMapOverlay
-        map={map}
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+
+  return (
+    <PanoViewer style={{ height: 560 }}>
+      <ProjectScenes
+        project={project}
         activeSceneId={activeSceneId}
-        presentation="${presentation}"
-        anchor={{ align: "${align}"${isOverlayCorner(align) ? `, axis: "${axis}"` : ""}, inset: 16 }}
-        width={${width}}
-        height={${height}}
-        dialogWidth={640}
-        dialogHeight={480}
-        onSelectScene={setActiveSceneId}
-${customToggle ? `        toggle={{
-          style: {
-            background: "#0c4a6e",
-            color: "#7dd3fc",
-            border: "1px solid #7dd3fc",
-          },
-          icon: ({ collapsed }) => (collapsed ? "+" : "–"),
-        }}
-` : ""}      />
-    </PanoOverlay>
-  </PanoViewer>
-) : null}`;
+        onActiveSceneIdChange={setActiveSceneId}
+        transition="dissolve"
+      />
+      <PanoOverlay>
+        <PanoMapOverlay
+          map={map}
+          activeSceneId={activeSceneId}
+          presentation="${presentation}"
+          anchor={{ align: "${align}"${isOverlayCorner(align) ? `, axis: "${axis}"` : ""}, inset: 16 }}
+          width={${width}}
+          height={${height}}
+          dialogWidth={640}
+          dialogHeight={480}
+          onSelectScene={setActiveSceneId}
+${customToggle ? `          toggle={{
+            style: {
+              background: "#0c4a6e",
+              color: "#7dd3fc",
+              border: "1px solid #7dd3fc",
+            },
+            icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+          }}
+` : ""}        />
+      </PanoOverlay>
+    </PanoViewer>
+  );
+}`;
 }
 
 export function MapPage() {
@@ -347,10 +337,13 @@ export function MapPage() {
             </PanoViewer>
           </>
         ) : null}
-        <CodeSnippet
-          blurb="Mount PanoMapOverlay inside PanoOverlay and share activeSceneId with ProjectScenes. presentation switches between a panel and a dialog launcher. anchor.align uses the same eight positions as the scene menu."
-          code={snippet}
-          label="PanoMapOverlay"
+        <ExampleCode
+          json={{ format: "project", files: [{ label: "Floor plan map", blurb: "Set the top-level map field of project.json to this object. Its spot scene IDs must exist in the project.", value: DEMO_MAP }] }}
+          react={{
+            blurb: "Mount PanoMapOverlay inside PanoOverlay and share activeSceneId with ProjectScenes. presentation switches between a panel and a dialog launcher. anchor.align uses the same eight positions as the scene menu.",
+            code: snippet,
+            label: "PanoMapOverlay",
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · floor plan map" />

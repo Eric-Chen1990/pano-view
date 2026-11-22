@@ -31,6 +31,7 @@ import {
 } from "./background-audio-host";
 import { cn } from "./cn";
 import { createSceneLoadProgressStore, SceneLoadProgressContext } from "./scene-load-progress";
+import { createXRAudioPose } from "./audio/xr-audio-pose";
 import { isPanoAudioUnlocked, resumePanoAudio } from "./audio/howl";
 import { AutoRotate } from "./auto-rotate";
 import {
@@ -423,6 +424,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const [mediaActivated, setMediaActivated] = useState(false);
     const stereoView = useMemo(() => createWebVRStereoView(), []);
     const xrHeadView = useMemo(createWebXRHeadView, []);
+    const xrAudioPose = useMemo(createXRAudioPose, []);
     const xrStore = useMemo(
       () =>
         createXRStore({
@@ -443,8 +445,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       [],
     );
     const vrRuntime = useMemo(
-      () => ({ host: webVRHost, xrStore, mode: vrMode, stereoView, xrHeadView }),
-      [webVRHost, xrStore, vrMode, stereoView, xrHeadView],
+      () => ({ host: webVRHost, xrStore, mode: vrMode, stereoView, xrHeadView, xrAudioPose }),
+      [webVRHost, xrStore, vrMode, stereoView, xrHeadView, xrAudioPose],
     );
     const mediaActivationControls = useMemo<PanoMediaActivationControls>(
       () => ({
@@ -978,7 +980,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             value={vrRuntime}
           >
           <SpatialHostContext.Provider value={spatialHost}>
-          <PanoramaXROrigin headView={xrHeadView} />
+          <PanoramaXROrigin headView={xrHeadView} audioPose={xrAudioPose} />
           <HotspotAccessibilityContext.Provider value={registry}>
             <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
             <PanoEventBusContext.Provider value={eventBus}>

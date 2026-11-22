@@ -397,3 +397,19 @@ test("scene limits survive editing history and JSON export without changing auth
   assert.equal(history.undo().scenes[0]!.viewLimits, undefined);
   assert.deepEqual(history.redo().scenes[0]!.viewLimits, viewLimits);
 });
+
+test("chroma key settings round-trip through editor JSON", () => {
+  const project: PanoProjectDefinition = {
+    schemaVersion: 1,
+    scenes: [{
+      id: "a", source: { viewerConfig: config },
+      hotspots: ["image", "video"].map((type) => ({
+        id: type, type: type as "image" | "video", src: "media",
+        position: { yaw: 0, pitch: 0 },
+        chromaKey: { color: "#00B140", threshold: 0.15, smoothing: 0 },
+      })),
+    }],
+  };
+  const imported = readDocument(JSON.parse(exportDocument(project)));
+  assert.deepEqual(imported.scenes[0]?.hotspots, project.scenes[0]?.hotspots);
+});

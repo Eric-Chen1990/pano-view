@@ -1,3 +1,4 @@
+import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import { useEffect, useMemo, useRef } from "react";
 import { BufferGeometry, Float32BufferAttribute, type Texture } from "three";
 import { fitHotspotCorners, moveHotspotCorners } from "./corners";
@@ -11,6 +12,7 @@ type Props = HotspotCommonProps & HotspotCornerProps & {
   width: number;
   height: number;
   map: Texture | null;
+  chromaKey?: HotspotChromaKey;
 };
 
 export function createCornerMediaQuad(corners: HotspotCorners) {
@@ -27,13 +29,13 @@ export function createCornerMediaQuad(corners: HotspotCorners) {
   return { position, distance: fit.center.length(), geometry, outline };
 }
 
-export function HotspotMediaPlane({ corners, onCornersChange, opacity, map, ...anchorProps }: Props) {
+export function HotspotMediaPlane({ corners, onCornersChange, opacity, map, chromaKey, ...anchorProps }: Props) {
   if (corners) {
-    return <CornerMediaPlane {...anchorProps} corners={corners} onCornersChange={onCornersChange} opacity={opacity} map={map} />;
+    return <CornerMediaPlane {...anchorProps} corners={corners} onCornersChange={onCornersChange} opacity={opacity} map={map} chromaKey={chromaKey} />;
   }
   return (
     <HotspotAnchor {...anchorProps} captureRectangle>
-      <HotspotPlane map={map} opacity={opacity} />
+      <HotspotPlane map={map} chromaKey={chromaKey} opacity={opacity} />
     </HotspotAnchor>
   );
 }
@@ -46,6 +48,7 @@ function CornerMediaPlane({
   onPositionChange,
   opacity,
   map,
+  chromaKey,
   renderOrder = 0,
   ...anchorProps
 }: Props & { corners: HotspotCorners }) {
@@ -87,7 +90,7 @@ function CornerMediaPlane({
         onDragEnd?.(event);
       }}
     >
-      <HotspotPlane geometry={quad.geometry} map={map} opacity={opacity} />
+      <HotspotPlane geometry={quad.geometry} map={map} chromaKey={chromaKey} opacity={opacity} />
     </HotspotAnchor>
   );
 }

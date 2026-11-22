@@ -1,6 +1,7 @@
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
-import { ControlsExample } from "./controls-example";
+import { ControlsExample, type ControlExampleKind } from "./controls-example";
 import source from "./controls-example.tsx?raw";
 
 const minimalCode = `import { PanoViewer, Sphere, GraphicHotspot, usePanoViewer } from "@ericchen1990/pano-view";
@@ -19,18 +20,63 @@ export function ViewNavigation() {
   </>;
 }`;
 
+const automaticCode = `import { useState } from "react";
+import { AutoRotate, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function AutomaticRotation() {
+  const [enabled, setEnabled] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setEnabled((value) => !value)}>
+        {enabled ? "Stop rotation" : "Start rotation"}
+      </button>
+      <PanoViewer style={{ height: 540 }}>
+        <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+        <AutoRotate enabled={enabled} speed={18} startDelay={1000} />
+      </PanoViewer>
+    </>
+  );
+}`;
+
+const gyroCode = `import { useRef, useState } from "react";
+import { Gyro, PanoViewer, Sphere, type GyroHandle } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function DeviceOrientation() {
+  const gyro = useRef<GyroHandle>(null);
+  const [enabled, setEnabled] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => {
+        if (enabled) setEnabled(false);
+        else void gyro.current?.requestPermission().then(setEnabled);
+      }}>
+        {enabled ? "Disable gyro" : "Enable gyro"}
+      </button>
+      <PanoViewer style={{ height: 540 }}>
+        <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+        <Gyro ref={gyro} enabled={enabled} onDenied={() => setEnabled(false)} />
+      </PanoViewer>
+    </>
+  );
+}`;
+
+const examples = {
+  navigation: { label: "View navigation", blurb: "Pass the viewer handle to navigation buttons.", code: minimalCode },
+  automatic: { label: "AutoRotate", blurb: "Turn automatic rotation on or off from a button.", code: automaticCode },
+  gyro: { label: "Gyro", blurb: "Request device motion permission from a button on an HTTPS page.", code: gyroCode },
+} satisfies Record<ControlExampleKind, { label: string; blurb: string; code: string }>;
+
 export function ControlsPage() {
+  const [example, setExample] = useState<ControlExampleKind>("navigation");
   return (
     <ExamplePage
       title="View controls"
       description="Learn direct input and imperative view navigation, then try automatic rotation or device orientation independently. The fullscreen button stays inside the viewer."
     >
-      <ControlsExample />
-      <CodeSnippet
-        label="View navigation: minimal setup"
-        blurb="Direct input and imperative navigation share one viewer handle. Open the complete example for fullscreen, automatic rotation and permission-based Gyro controls."
-        code={minimalCode}
-      />
+      <ControlsExample example={example} onExampleChange={setExample} />
+      <ExampleCode react={examples[example]} />
       <details className="border-t border-line p-5">
         <summary>Complete controls example</summary>
         <CodeSnippet
@@ -42,3 +88,4 @@ export function ControlsPage() {
     </ExamplePage>
   );
 }
+import { useState } from "react";

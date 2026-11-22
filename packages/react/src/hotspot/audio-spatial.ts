@@ -1,10 +1,42 @@
-import { MathUtils, Vector3, type Camera } from "three";
+import { MathUtils, Vector3, type Camera, type Quaternion } from "three";
 import { panoPositionToVector3 } from "./coordinates";
 import type { HotspotPosition } from "./types";
 
 const LOOK_DIR = new Vector3();
 const SOURCE_DIR = new Vector3();
 const RIGHT_DIR = new Vector3();
+
+export const DEFAULT_SOUND_DISTANCE = 3;
+
+export function normalizeSoundDistance(distance: number | undefined): number {
+  if (distance === undefined || !Number.isFinite(distance) || distance <= 0) {
+    return DEFAULT_SOUND_DISTANCE;
+  }
+  // Leave room for quaternion arithmetic and Web Audio's float32 parameters.
+  return Math.min(distance, 1e30);
+}
+
+/** Howler's listener remains at the origin, facing -Z in every viewer. */
+export function relativeSoundPosition(
+  target: Vector3,
+  source: Vector3,
+  listener: Vector3,
+  inverseOrientation: Quaternion,
+): Vector3 {
+  target.copy(source).sub(listener).applyQuaternion(inverseOrientation);
+  // Coinciding points have no direction. Use the front at a negligible distance.
+  if (target.lengthSq() < 1e-12) target.set(0, 0, -1e-6);
+  return target;
+}
+
+export function relativeLookGain({ x, y, z }: Vector3, range: number): number {
+  const angle = MathUtils.radToDeg(Math.atan2(Math.hypot(x, y), -z));
+  if (range <= 180) return lookRangeGain(angle, range);
+  // Generic HRTF cues can be hard to distinguish front to back. Keep a clear
+  // front and roll off smoothly to -12 dB as the source moves behind the head.
+  const attenuationDb = -12 * MathUtils.smoothstep(angle, 55, 180);
+  return 10 ** (attenuationDb / 20);
+}
 
 export function clampAudioVolume(volume: number | undefined): number {
   if (!Number.isFinite(volume)) {

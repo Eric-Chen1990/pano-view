@@ -370,7 +370,9 @@ function ScenesController({
   const scenesHost = useContext(ScenesHostContext);
   const loadStore = useContext(SceneLoadProgressContext);
   const gpu = useContext(WebGPURuntimeContext);
-  const vrHost = useContext(WebVRRuntimeContext)?.host;
+  const vr = useContext(WebVRRuntimeContext);
+  const vrHost = vr?.host;
+  const xrAudioPose = vr?.xrAudioPose;
   const mode = useSyncExternalStore(
     (listener) => vrHost ? subscribeWebVRHost(vrHost, listener) : () => {},
     () => vrHost?.snapshot.mode ?? null,
@@ -643,6 +645,7 @@ function ScenesController({
 
   const notifySceneReady = useCallback((scene: Scene | null, landing?: PanoViewerState) => {
     if (!scene || readySceneRef.current === scene) return;
+    if (readySceneRef.current?.id !== scene.id) xrAudioPose?.recenter();
     readySceneRef.current = scene;
     const metadata = sceneMap.get(scene.id) ?? scene;
     const controls = controlsRef?.current;
@@ -655,7 +658,7 @@ function ScenesController({
     }
     if (loadAttempt.current?.id === scene.id) loadAttempt.current.attempt.ready();
     onSceneReady?.(scene.id);
-  }, [controlsRef, onSceneReady, sceneMap, scenesHost]);
+  }, [controlsRef, onSceneReady, sceneMap, scenesHost, xrAudioPose]);
 
   const finishPortal = useCallback(() => {
     const run = portalRun.current;

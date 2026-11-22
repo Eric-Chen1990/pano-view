@@ -1,3 +1,4 @@
+import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { mediaControllers } from "../controls/media";
 import { usePanoMediaController } from "../controls/media";
@@ -32,6 +33,7 @@ export type VideoHotspotErrorEvent = {
 export type VideoHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   ref?: Ref<PanoMediaController>;
   src: string;
+  chromaKey?: HotspotChromaKey;
   playing: boolean;
   poster?: string;
   loop?: boolean;
@@ -258,6 +260,7 @@ export function VideoHotspot({
   width = 16,
   height = 9,
   opacity,
+  chromaKey,
   onPlaybackStateChange,
   onPlaybackError,
   onEnded,
@@ -345,6 +348,6 @@ export function VideoHotspot({
   const activeTexture = resource?.ready ? resource.texture : posterTexture;
 
   return (
-    <HotspotMediaPlane {...anchorProps} id={id} height={height} width={width} map={activeTexture} opacity={opacity} />
+    <HotspotMediaPlane {...anchorProps} id={id} height={height} width={width} map={activeTexture} opacity={opacity} chromaKey={chromaKey} />
   );
 }

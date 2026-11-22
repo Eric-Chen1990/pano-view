@@ -1,3 +1,5 @@
+import type { ExampleJsonFormat } from "./components/ExampleCode";
+import { ChromaKeyPage } from "./components/chroma-key/ChromaKeyPage";
 import { lazy, type ComponentType } from "react";
 import type { PlaygroundPath } from "./page-meta";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
@@ -14,6 +16,7 @@ import { ProjectPage } from "./components/project/ProjectPage";
 import { BasicsPage } from "./components/basics/BasicsPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
+import { DirectionalSoundPage } from "./components/directional-sound/DirectionalSoundPage";
 import { MapPage } from "./components/map/MapPage";
 import { ComparePage } from "./components/compare/ComparePage";
 import { PlanarComparePage } from "./components/planar-tile/PlanarComparePage";
@@ -67,6 +70,7 @@ export type PlaygroundRoute = {
 
 export type PlaygroundExampleRoute = PlaygroundRoute & {
   group: PlaygroundNavGroupId;
+  jsonExample: ExampleJsonFormat;
 };
 
 export const HOME_ROUTE: PlaygroundRoute = {
@@ -83,138 +87,175 @@ export const HOME_ROUTE: PlaygroundRoute = {
 export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
   {
     path: "/basics",
+    jsonExample: "viewer",
     navLabel: "Panorama basics",
     group: "start",
     Component: BasicsPage,
   },
   {
     path: "/planar-image",
+    jsonExample: "manifest",
     navLabel: "Tiled flat image",
     group: "start",
     Component: PlanarTilePage,
   },
   {
     path: "/controls",
+    jsonExample: "none",
     navLabel: "View controls",
     group: "start",
     Component: ControlsPage,
   },
   {
     path: "/project",
+    jsonExample: "project",
     navLabel: "Static JSON tour",
     group: "project",
     Component: ProjectPage,
   },
   {
     path: "/compare",
+    jsonExample: "none",
     navLabel: "Panorama comparison",
     group: "scenes",
     Component: ComparePage,
   },
   {
     path: "/planar-compare",
+    jsonExample: "manifest",
     navLabel: "Flat image comparison",
     group: "scenes",
     Component: PlanarComparePage,
   },
   {
     path: "/scene-transitions",
+    jsonExample: "none",
     navLabel: "Scene transitions",
     group: "scenes",
     Component: SceneTransitionPage,
   },
   {
     path: "/portals",
+    jsonExample: "project",
     navLabel: "Panorama portals",
     group: "scenes",
     Component: PortalPage,
   },
   {
     path: "/weather",
+    jsonExample: "none",
     navLabel: "360° weather",
     group: "scenes",
     Component: WeatherPage,
   },
   {
     path: "/sun",
+    jsonExample: "none",
     navLabel: "Panorama sunlight",
     group: "scenes",
     Component: SunPage,
   },
   {
     path: "/scene-menu",
+    jsonExample: "none",
     navLabel: "Scene menu",
     group: "scenes",
     Component: SceneMenuPage,
   },
   {
     path: "/map",
+    jsonExample: "project",
     navLabel: "Floor plan map",
     group: "scenes",
     Component: MapPage,
   },
   {
     path: "/hotspots",
+    jsonExample: "project",
     navLabel: "Hotspot bench",
     group: "interaction",
     Component: HotspotBenchPage,
   },
   {
     path: "/overlays",
+    jsonExample: "none",
     navLabel: "Dialogs & overlays",
     group: "interaction",
     Component: OverlayPage,
   },
   {
     path: "/context-menu",
+    jsonExample: "none",
     navLabel: "Context menu",
     group: "interaction",
     Component: ContextMenuPage,
   },
   {
     path: "/video",
+    jsonExample: "none",
     navLabel: "360 video",
     group: "media",
     Component: VideoPage,
   },
   {
+    path: "/chroma-key",
+    jsonExample: "project",
+    navLabel: "Chroma key",
+    group: "media",
+    Component: ChromaKeyPage,
+  },
+  {
     path: "/background-audio",
+    jsonExample: "none",
     navLabel: "Background audio",
     group: "media",
     Component: BackgroundAudioPage,
   },
   {
+    path: "/directional-3d-sound",
+    jsonExample: "project",
+    navLabel: "Directional 3D Sound",
+    group: "media",
+    Component: DirectionalSoundPage,
+  },
+  {
     path: "/webvr",
+    jsonExample: "none",
     navLabel: "VR basics",
     group: "immersive",
     Component: WebVRPage,
   },
   {
     path: "/vr-scene-menu",
+    jsonExample: "none",
     navLabel: "VR scene menu",
     group: "immersive",
     Component: VRSceneMenuPage,
   },
   {
     path: "/spatial-controls",
+    jsonExample: "none",
     navLabel: "Spatial controls",
     group: "immersive",
     Component: SpatialControlsPage,
   },
   {
     path: "/immersive-tour",
+    jsonExample: "project",
     navLabel: "Immersive tour",
     group: "project",
     Component: ImmersiveTourPage,
   },
   {
     path: "/editor",
+    jsonExample: "project",
     navLabel: "Tour editor",
     group: "project",
     Component: EditorPage,
   },
   {
     path: "/filters",
+    jsonExample: "none",
     navLabel: "Filters",
     group: "media",
     Component: FilterPage,

@@ -1,23 +1,30 @@
 import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { Howl } from "howler";
-import { useEffect, useRef, useState } from "react";
+import { Howler, type Howl } from "howler";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   CanvasTexture,
   ClampToEdgeWrapping,
   LinearFilter,
   LinearMipmapLinearFilter,
+  Quaternion,
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  Vector3,
 } from "three";
-import { createUnlockingHowl, sourceList } from "../audio/howl";
+import { createUnlockingHowl, getAudioPanningModel, sourceList } from "../audio/howl";
 import { usePanoMediaActivationIntent } from "../media-activation";
+import { WebVRRuntimeContext } from "../webvr/host";
 import {
   audioSpatialFromView,
   clampAudioVolume,
   clampLookRange,
+  normalizeSoundDistance,
+  relativeLookGain,
+  relativeSoundPosition,
 } from "./audio-spatial";
+import { panoPositionToVector3 } from "./coordinates";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps } from "./types";
@@ -41,8 +48,12 @@ export type AudioHotspotProps = HotspotCommonProps & {
   loop?: boolean;
   muted?: boolean;
   volume?: number;
-  /** Degrees of look-away before the source is silent. Defaults to 360 (no look attenuation). */
+  /** Degrees of look-away before silence. The default 360 keeps 3D sound audible behind you. */
   range?: number;
+  /** Enables HRTF spatialization and positional tracking in WebXR. Defaults to false. */
+  spatialAudio?: boolean;
+  /** Distance from the panorama center in meters for spatial audio. Defaults to 3. */
+  soundDistance?: number;
   pauseWhenHidden?: boolean;
   /** Optional stopped-state image. When omitted, a built-in speaker icon is used. */
   icon?: string;
@@ -225,6 +236,8 @@ function useAudioHowl({
   onPlaybackError,
   onPlaybackStateChange,
   playing,
+  pauseWhenHidden,
+  spatialAudio,
   src,
   format,
 }: Pick<
@@ -237,17 +250,21 @@ function useAudioHowl({
   | "onPlaybackError"
   | "onPlaybackStateChange"
   | "playing"
+  | "pauseWhenHidden"
+  | "spatialAudio"
   | "src"
   | "format"
 >) {
   const [howl, setHowl] = useState<Howl | null>(null);
   const playingRef = useRef(playing);
+  const pauseWhenHiddenRef = useRef(pauseWhenHidden);
   const loopRef = useRef(loop ?? false);
   const onEndedRef = useRef(onEnded);
   const onErrorRef = useRef(onError);
   const onPlaybackErrorRef = useRef(onPlaybackError);
   const onPlaybackStateChangeRef = useRef(onPlaybackStateChange);
   playingRef.current = playing;
+  pauseWhenHiddenRef.current = pauseWhenHidden;
   loopRef.current = loop ?? false;
   onEndedRef.current = onEnded;
   onErrorRef.current = onError;
@@ -259,10 +276,8 @@ function useAudioHowl({
 
   useEffect(() => {
     const sources = sourcesKey.length > 0 ? sourcesKey.split("\0") : [];
-    if (sources.length === 0) {
-      setHowl(null);
-      return;
-    }
+    setHowl(null);
+    if (sources.length === 0) return;
 
     let active = true;
     const handle = createUnlockingHowl({
@@ -270,8 +285,11 @@ function useAudioHowl({
       format: formatsKey ? formatsKey.split("\0") : undefined,
       loop: loopRef.current,
       crossOrigin,
+      spatialAudio,
+      onLoad: setHowl,
       isActive: () => active,
-      shouldRetryPlay: () => playingRef.current,
+      shouldRetryPlay: () =>
+        playingRef.current && !(pauseWhenHiddenRef.current && document.hidden),
       onEnded: () => {
         onPlaybackStateChangeRef.current?.("ended");
         onEndedRef.current?.();
@@ -290,13 +308,11 @@ function useAudioHowl({
         onPlaybackErrorRef.current?.(error);
       },
     });
-    setHowl(handle.howl);
-
     return () => {
       active = false;
       handle.dispose();
     };
-  }, [crossOrigin, id, sourcesKey, formatsKey]);
+  }, [crossOrigin, id, sourcesKey, formatsKey, spatialAudio]);
 
   useEffect(() => {
     howl?.loop(loop ?? false);
@@ -314,6 +330,8 @@ export function AudioHotspot({
   muted = false,
   volume = 1,
   range = 360,
+  spatialAudio = false,
+  soundDistance,
   pauseWhenHidden = true,
   icon,
   playingIcon,
@@ -330,6 +348,8 @@ export function AudioHotspot({
 }: AudioHotspotProps) {
   usePanoMediaActivationIntent(playing);
   const camera = useThree((state) => state.camera);
+  const xr = useThree((state) => state.gl.xr);
+  const xrAudioPose = useContext(WebVRRuntimeContext)?.xrAudioPose;
   const howl = useAudioHowl({
     crossOrigin,
     id,
@@ -339,6 +359,8 @@ export function AudioHotspot({
     onPlaybackError,
     onPlaybackStateChange,
     playing,
+    pauseWhenHidden,
+    spatialAudio,
     src,
     format,
   });
@@ -350,23 +372,75 @@ export function AudioHotspot({
     : stoppedIconTexture ?? speakerTextures.stopped;
   const playingRef = useRef(playing);
   playingRef.current = playing;
-  const mutedRef = useRef(muted);
-  const volumeRef = useRef(volume);
-  const rangeRef = useRef(range);
-  mutedRef.current = muted;
-  volumeRef.current = volume;
-  rangeRef.current = range;
+  const { yaw, pitch } = anchorProps.position;
+  const source = useMemo(() => panoPositionToVector3(
+    { yaw, pitch }, normalizeSoundDistance(soundDistance),
+  ), [yaw, pitch, soundDistance]);
+  const settings = useRef({ position: anchorProps.position, source, range, muted, volume });
+  settings.current = { position: anchorProps.position, source, range, muted, volume };
+  const audio = useMemo(() => ({
+    zero: new Vector3(),
+    inverseOrientation: new Quaternion(),
+    position: new Vector3(),
+    previousPosition: new Vector3(Infinity, Infinity, Infinity),
+    pan: NaN,
+    volume: NaN,
+    muted: undefined as boolean | undefined,
+  }), [howl]);
+
+  const syncAudio = useCallback(() => {
+    if (!howl || howl.state() !== "loaded") return;
+    const current = settings.current;
+    const model = getAudioPanningModel(Howler.ctx);
+    const lookRange = clampLookRange(current.range);
+    let pan: number | undefined;
+    let gain: number;
+    if (spatialAudio) {
+      const head = xr?.isPresenting && xrAudioPose?.valid ? xrAudioPose : null;
+      if (head) audio.inverseOrientation.copy(head.orientation);
+      else camera.getWorldQuaternion(audio.inverseOrientation);
+      const position = relativeSoundPosition(
+        audio.position, current.source, head?.position ?? audio.zero, audio.inverseOrientation.invert(),
+      );
+      if (model === "hrtf") {
+        if (!audio.previousPosition.equals(position)) {
+          howl.pos(position.x, position.y, position.z);
+          audio.previousPosition.copy(position);
+        }
+      } else {
+        const horizontalDistance = Math.hypot(position.x, position.z);
+        pan = horizontalDistance > 0 ? position.x / horizontalDistance : 0;
+      }
+      gain = relativeLookGain(position, lookRange);
+    } else {
+      const spatial = audioSpatialFromView(camera, current.position, lookRange);
+      pan = spatial.pan;
+      gain = spatial.gain;
+    }
+    if (model !== "none" && pan !== undefined && audio.pan !== pan) {
+      howl.stereo(pan);
+      audio.pan = pan;
+    }
+    const nextVolume = clampAudioVolume(current.volume) * gain;
+    if (audio.volume !== nextVolume) {
+      howl.volume(nextVolume);
+      audio.volume = nextVolume;
+    }
+    if (audio.muted !== current.muted) {
+      howl.mute(current.muted);
+      audio.muted = current.muted;
+    }
+  }, [audio, camera, howl, spatialAudio, xr, xrAudioPose]);
 
   useEffect(() => {
-    if (!howl) {
-      return;
-    }
-    if (!playing) {
+    if (!howl || howl.state() !== "loaded") return;
+    if (!playing || (pauseWhenHidden && document.hidden)) {
       howl.pause();
       return;
     }
-    howl.play();
-  }, [howl, playing]);
+    syncAudio();
+    if (!howl.playing()) howl.play();
+  }, [howl, pauseWhenHidden, playing, syncAudio]);
 
   useEffect(() => {
     if (!howl || !pauseWhenHidden) {
@@ -377,7 +451,8 @@ export function AudioHotspot({
         howl.pause();
         return;
       }
-      if (playingRef.current) {
+      if (playingRef.current && !howl.playing()) {
+        syncAudio();
         howl.play();
       }
     };
@@ -385,20 +460,10 @@ export function AudioHotspot({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [howl, pauseWhenHidden]);
+  }, [howl, pauseWhenHidden, syncAudio]);
 
   useFrame(() => {
-    if (!howl) {
-      return;
-    }
-    const spatial = audioSpatialFromView(
-      camera,
-      anchorProps.position,
-      clampLookRange(rangeRef.current),
-    );
-    howl.stereo(spatial.pan);
-    howl.mute(mutedRef.current);
-    howl.volume(clampAudioVolume(volumeRef.current) * spatial.gain);
+    if (playing && !(pauseWhenHidden && document.hidden)) syncAudio();
   });
 
   return (

@@ -9,7 +9,7 @@ import {
   pageHeadingWrapClassName, pageSectionClassName, segmentedButtonActiveClassName, segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { SunGuide } from "./SunGuide";
@@ -105,14 +105,19 @@ function SunExample({ scenario }: { scenario: Scenario }) {
   }
 
   const code = `import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer style={{ height: 480 }}>
-  <Sphere src="${src}" previewUrl="preview.webp" />
-  <PanoSun
-    position={{ yaw: ${Number(position.yaw.toFixed(4))}, pitch: ${Number(position.pitch.toFixed(4))} }}
-${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("\n")}${enabled ? "" : "\n    enabled={false}"}
-  />
-</PanoViewer>`;
+export function PanoramaSun() {
+  return (
+    <PanoViewer style={{ height: 480 }} initialView={${JSON.stringify(initialView)}}>
+      <Sphere src="${src}" previewUrl="preview.webp" />
+      <PanoSun
+        position={{ yaw: ${Number(position.yaw.toFixed(4))}, pitch: ${Number(position.pitch.toFixed(4))} }}
+    ${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("\n")}${enabled ? "" : "\n    enabled={false}"}
+      />
+    </PanoViewer>
+  );
+}`;
 
   return (
     <>
@@ -210,7 +215,13 @@ ${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("
             onChange={(value) => setSettings((current) => ({ ...current, [key]: value }))} />
         ))}
       </div>
-      <CodeSnippet code={code} label="PanoSun" blurb="Copy the current sun position, sizes, and strengths." />
+      <ExampleCode
+        react={{
+          code: code,
+          label: "PanoSun",
+          blurb: "Copy the current sun position, sizes, and strengths.",
+        }}
+      />
     </>
   );
 }

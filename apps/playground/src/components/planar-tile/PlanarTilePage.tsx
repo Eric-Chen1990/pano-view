@@ -4,7 +4,7 @@ import {
   checkboxLabelClassName, controlInputClassName, controlLabelClassName,
   pageControlsClassName, pageHeadingTitleClassName, pageSectionClassName, shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -14,14 +14,23 @@ export function PlanarTilePage() {
   const [maxScale, setMaxScale] = useState<number>();
   const [bounce, setBounce] = useState(true);
   const [showMinimap, setShowMinimap] = useState(false);
+  const options = [
+    maxScale === undefined ? "" : `      maxScale={${maxScale}}\n`,
+    bounce ? "" : "      dragMotion={{ bounce: false }}\n",
+    showMinimap ? "      showMinimap\n" : "",
+  ].join("");
   const snippet = `import { PlanarTileViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-<PlanarTileViewer
-  manifestUrl="${manifestUrl}"
-  alt="${alt}"
-${maxScale === undefined ? "" : `  maxScale={${maxScale}}\n`}${bounce ? "" : "  dragMotion={{ bounce: false }}\n"}${showMinimap ? "  showMinimap\n" : ""}  style={{ height: 480 }}
-/>`;
+export function FlatImage() {
+  return (
+    <PlanarTileViewer
+      manifestUrl="${manifestUrl}"
+      alt="${alt}"
+${options}      style={{ height: 480 }}
+    />
+  );
+}`;
 
   return (
     <div className={shellClassName}>
@@ -63,7 +72,14 @@ ${maxScale === undefined ? "" : `  maxScale={${maxScale}}\n`}${bounce ? "" : "  
           style={{ height: "clamp(320px, 65vh, 600px)" }}
         />
         <div className="mt-6">
-          <CodeSnippet label="React" blurb="Point the viewer at the generated manifest." code={snippet} />
+          <ExampleCode
+            json={{ format: "manifest", files: [{ label: "manifest.json", blurb: "Use this converter manifest URL as PlanarTileViewer’s manifestUrl.", url: manifestUrl }] }}
+            react={{
+              label: "React",
+              blurb: "Point the viewer at the generated manifest.",
+              code: snippet,
+            }}
+          />
         </div>
       </main>
       <SiteFooter label="Pano View Playground by" />

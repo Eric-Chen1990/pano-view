@@ -1,3 +1,4 @@
+import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import type { CSSProperties } from "react";
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
@@ -57,6 +58,7 @@ export type ImageHotspotDefinition = PointHotspotDefinitionBase & {
   type: "image";
   src: string;
   corners?: HotspotCorners;
+  chromaKey?: HotspotChromaKey;
 };
 
 export type PortalHotspotDefinition = Omit<
@@ -82,6 +84,7 @@ export type VideoHotspotDefinition = PointHotspotDefinitionBase & {
   type: "video";
   src: string;
   corners?: HotspotCorners;
+  chromaKey?: HotspotChromaKey;
   poster?: string;
   playing?: boolean;
   loop?: boolean;
@@ -102,6 +105,8 @@ export type AudioHotspotDefinition = PointHotspotDefinitionBase & {
   volume?: number;
   pauseWhenHidden?: boolean;
   range?: number;
+  spatialAudio?: boolean;
+  soundDistance?: number;
   icon?: string;
   playingIcon?: string;
   marker?: boolean;

@@ -13,6 +13,7 @@ export type UnlockingHowlCallbacks = {
   onPause?: () => void;
   onLoadError?: (error: unknown) => void;
   onPlayError?: (error: unknown) => void;
+  onLoad?: (howl: Howl) => void;
 };
 
 export type CreateUnlockingHowlOptions = UnlockingHowlCallbacks & {
@@ -20,6 +21,7 @@ export type CreateUnlockingHowlOptions = UnlockingHowlCallbacks & {
   format?: readonly string[];
   loop: boolean;
   crossOrigin?: "" | "anonymous" | "use-credentials";
+  spatialAudio?: boolean;
 };
 
 export type UnlockingHowlHandle = {
@@ -38,6 +40,26 @@ export function resumePanoAudio(): Promise<void> {
 /** True when Web Audio is already running, or no shared context exists yet. */
 export function isPanoAudioUnlocked(): boolean {
   return !Howler.ctx || Howler.ctx.state === "running";
+}
+
+const panningModels = new WeakMap<AudioContext, "hrtf" | "stereo" | "none">();
+
+export function getAudioPanningModel(context: AudioContext | undefined | null) {
+  if (!context) return "none";
+  const cached = panningModels.get(context);
+  if (cached) return cached;
+  let model: "hrtf" | "stereo" | "none" =
+    typeof context.createStereoPanner === "function" ? "stereo" : "none";
+  try {
+    const panner = context.createPanner();
+    model = "stereo";
+    panner.panningModel = "HRTF";
+    if (panner.panningModel === "HRTF") model = "hrtf";
+  } catch {
+    // Stereo panning may still be available when the HRTF model is rejected.
+  }
+  panningModels.set(context, model);
+  return model;
 }
 
 export function sourceList(
@@ -68,6 +90,8 @@ export function createUnlockingHowl({
   onPause,
   onLoadError,
   onPlayError,
+  onLoad,
+  spatialAudio,
 }: CreateUnlockingHowlOptions): UnlockingHowlHandle {
   let disposed = false;
   let blockedNotified = false;
@@ -89,6 +113,7 @@ export function createUnlockingHowl({
     html5: false,
     preload: true,
     loop,
+    ...(spatialAudio ? { panningModel: "HRTF", distanceModel: "inverse", refDistance: 1 } : {}),
     xhr:
       crossOrigin === "use-credentials"
         ? { withCredentials: true }
@@ -101,8 +126,12 @@ export function createUnlockingHowl({
     },
     onplay: () => {
       if (!disposed && isActive()) {
+        removeUnlockListeners();
         onPlay?.();
       }
+    },
+    onload: () => {
+      if (!disposed && isActive()) onLoad?.(instance);
     },
     onpause: () => {
       if (!disposed && isActive()) {
@@ -114,7 +143,7 @@ export function createUnlockingHowl({
         onLoadError?.(error);
       }
     },
-    onplayerror: (_soundId, error) => {
+    onplayerror: (soundId, error) => {
       if (disposed || !isActive()) {
         return;
       }
@@ -128,8 +157,9 @@ export function createUnlockingHowl({
         }
         removeUnlockListeners();
         if (!disposed && isActive() && shouldRetryPlay()) {
-          void resumePanoAudio();
-          instance.play();
+          void resumePanoAudio().catch(() => {});
+          if (spatialAudio) instance.play(soundId);
+          else instance.play();
         }
       };
       removeUnlockListeners();

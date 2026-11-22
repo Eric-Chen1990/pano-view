@@ -4,6 +4,7 @@ import {
   Scenes,
   type PanoViewerHandle,
   type PortalHotspotProps,
+  type PanoProjectDefinition,
   type Scene,
 } from "@ericchen1990/pano-view";
 import { useRef, useState } from "react";
@@ -13,6 +14,7 @@ import {
   pageControlsClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 import source from "./PortalPage.tsx?raw";
 
@@ -104,6 +106,53 @@ const PORTALS = {
   [Source in PortalSceneId]: Partial<Record<Exclude<PortalSceneId, Source>, Door>>;
 };
 
+const project: PanoProjectDefinition = {
+  schemaVersion: 1,
+  initialSceneId: "garden",
+  scenes: PORTAL_SCENES.filter((scene) => scene.type !== "sphere").map((scene) => {
+    const { id } = scene;
+    const target = id === "garden" ? "lakeside" : "garden";
+    const door = id === "garden" ? PORTALS.garden.lakeside : PORTALS.lakeside.garden;
+    return {
+      id,
+      title: scene.name,
+      initialView: scene.initialView,
+      viewLimits: scene.viewLimits,
+      source: { viewerUrl: `${scene.baseUrl.replace(/\/$/, "")}/viewer.json` },
+      hotspots: [{
+        id: `portal-${id}-${target}`,
+        type: "portal",
+        ...door,
+        enterOnZoom: true,
+        events: { click: { type: "scene", sceneId: target } },
+      }],
+    };
+  }),
+};
+
+function buildPortalSnippet(sceneId: string, renderer: "auto" | "webgl") {
+  return `import { PanoViewer, PortalHotspot, Scenes, type PortalHotspotProps, type Scene } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const scenes: Scene[] = ${JSON.stringify(PORTAL_SCENES.map(({ name, ...scene }) => scene), null, 2)};
+type Door = Omit<PortalHotspotProps, "id" | "targetSceneId">;
+const doors: Record<string, Record<string, Door>> = ${JSON.stringify(PORTALS, null, 2)};
+
+export function PortalTour() {
+  return (
+    <PanoViewer renderer="${renderer}" style={{ height: 540 }}>
+      <Scenes
+        scenes={scenes}
+        defaultActiveSceneId="${sceneId}"
+        renderHotspots={(scene) => Object.entries(doors[scene.id] ?? {}).map(([targetSceneId, door]) => (
+          <PortalHotspot key={targetSceneId} id={targetSceneId} targetSceneId={targetSceneId} enterOnZoom {...door} />
+        ))}
+      />
+    </PanoViewer>
+  );
+}`;
+}
+
 function renderDoors(scene: Scene) {
   const sourceScene = PORTAL_SCENES.find(({ id }) => id === scene.id);
   if (!sourceScene) return null;
@@ -182,8 +231,16 @@ export function PortalPage() {
           renderHotspots={renderDoors}
         />
       </PanoViewer>
+      <ExampleCode
+        react={{ label: "PortalHotspot", blurb: "Render each doorway with the target scene ID and its position.", code: buildPortalSnippet(sceneId, renderer) }}
+        json={{ format: "project", files: [{
+          label: "Two-scene portal project",
+          blurb: "Load this project.json with loadPanoProject and pass it to ProjectScenes. Each portal’s click event points to its destination scene.",
+          value: project,
+        }] }}
+      />
       <details className="border-t border-line p-5">
-        <summary>Portal example code</summary>
+        <summary>Complete portal example</summary>
         <CodeSnippet
           label="PortalHotspot"
           blurb="Each source scene maps a doorway to each destination by scene ID."

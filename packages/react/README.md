@@ -3267,13 +3267,18 @@ Video reports media and poster failures through `onError`, including
 `playing` by itself. This keeps source changes, unmounts, and React StrictMode
 lifecycles deterministic.
 
+### Chroma key
+
+Set `chromaKey={{ color: "#00B140", threshold: 0.12, smoothing: 0.08 }}` on an image or video hotspot to make the selected background color transparent. The same `chromaKey` object is available on image and video definitions in project schema v1. The color is a six-digit sRGB HEX value. Threshold and smoothing range from 0 to 1 and default to 0.12 and 0.08. Threshold controls the range made transparent. Smoothing controls the width of the transition, with 0 giving a hard edge.
+
+The effect runs in WebGL and WebGPU on rectangular and four-corner hotspots, including video posters. Image and poster hit testing follows the visible pixels. Playing video uses rectangular hit testing. The optional `ChromaKeyColorSampler` in `@ericchen1990/pano-view/ui` accepts `src`, `kind`, optional `crossOrigin`, and `onPick(color)`. Remote media must allow cross-origin texture access and pixel sampling. Try the controls in the [Playground](https://pano-view-playground.vercel.app/chroma-key).
+
 ## AudioHotspot
 
 `AudioHotspot` plays a directional sound at a spherical position. Stereo
-panning follows the camera look direction; `range` is the look-away angle in
-degrees at which volume reaches silence. The default `360` disables look
-attenuation (stereo pan only). Use a smaller `range` such as `90` for a
-spot source.
+panning follows the camera look direction. In stereo mode the default
+`range={360}` keeps the volume steady as you turn. Use a smaller `range`
+such as `90` to fade to silence at that look-away angle.
 
 Playback uses Web Audio via Howler.js (bundled; hosts do not install
 `howler`). The file must decode before playback starts; MP3 is a suitable
@@ -3318,6 +3323,29 @@ import { AudioHotspot } from "@ericchen1990/pano-view";
 Like the other media hotspots, `AudioHotspot` does not change `playing` by
 itself. Omitted marker size defaults to `8×8`. `crossOrigin` is also accepted;
 load failures go to `onError({ id, error })`, distinct from `onPlaybackError`.
+
+### Directional 3D Sound
+
+Set `spatialAudio` on an `AudioHotspot` to place the sound in 3D using HRTF.
+Use headphones to listen for changes in direction as you look around. In
+WebXR, a headset with positional tracking also changes the sound's direction
+and loudness as you move. The panorama image stays centered.
+
+Each source uses its hotspot's yaw and pitch. Set `soundDistance={3}` to place
+it three meters from the panorama center (the default). This is separate
+from the visual marker's `distance`. With the default `range={360}`, the
+source stays audible as you turn away and fades smoothly to 12 dB below its
+front-facing level directly behind you. Set `range` to an angle of 180° or
+less to fade to silence at that angle. Mono clips work well for individual
+sound sources.
+Give each hotspot its own `playing` state so visitors can start or pause that
+source independently.
+
+The optional fields also work in an audio hotspot in `project.json`
+(`"spatialAudio": true, "soundDistance": 3`) and in the tour editor.
+Omitting `spatialAudio` keeps the original stereo behaviour. Playback falls
+back to stereo panning if HRTF is unavailable, or ordinary audio if Web Audio
+is unavailable. Try the [Directional 3D Sound example](https://pano-view-playground.vercel.app/directional-3d-sound).
 
 ## TextHotspot
 

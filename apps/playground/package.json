@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "build": "pnpm run typecheck && vite build",
+    "typecheck": "tsc --noEmit && node scripts/check-examples.mjs"
   },
   "dependencies": {
     "@ericchen1990/pano-editor": "workspace:*",

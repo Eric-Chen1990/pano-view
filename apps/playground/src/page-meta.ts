@@ -26,6 +26,11 @@ export const PAGE_META = {
     description:
       "Play and pause shared or per-scene background music. Keep audio outside scene lifecycles and observe playback while navigating a panorama tour.",
   },
+  "/directional-3d-sound": {
+    title: "Directional 3D Sound Demo | Pano View",
+    description:
+      "Listen to two positional sound sources as you look around a panorama or move with positional tracking in WebXR.",
+  },
   "/vr-scene-menu": {
     title: "VR Scene Menu Demo | Pano View",
     description:
@@ -103,6 +108,10 @@ export const PAGE_META = {
     title: "Panorama Context Menu Demo | Pano View",
     description:
       "Try a customizable context menu in a React panorama viewer, with reset view, fullscreen controls, and host-defined menu actions.",
+  },
+  "/chroma-key": {
+    title: "Chroma Key Hotspot Demo | Pano View",
+    description: "Remove a green or blue background from image and video hotspots with live color sampling and edge controls.",
   },
   "/video": {
     title: "React 360° Video Player Demo | Pano View",

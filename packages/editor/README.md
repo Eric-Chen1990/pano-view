@@ -182,6 +182,10 @@ const customActions = [{
 
 The Interaction events panel configures and tests each trigger separately. Edit mode never executes business actions. Preview uses the separate `onPreviewCustomAction`; without it, testing reports that a preview handler is missing and saving remains available. Scene and popup references cover all events and show their trigger. Exported projects retain configuration; the player host still needs `ProjectScenes.onCustomAction`.
 
+## Chroma key for media hotspots
+
+Select an image or video hotspot and enable **Chroma key** under **Content**. Use the color picker, enter a HEX value, or select **Sample from source** to pick a pixel from the original image or a paused video frame. Adjust the threshold and edge smoothing while watching the panorama. The settings are saved with the hotspot in `project.json`.
+
 ## Floor plan
 
 Switch the left sidebar to **Map** to add one floor plan for the project. Choose a floor image, select the scene for the next click, then click the map to place a spot. Drag a spot to move it. Selecting a spot also shows that spot's scene. The sector is drawn on the active scene's first matching spot; drag that sector to set its heading. A new spot's heading is the negation of the current yaw, so the sector points image-up while the camera stays at that yaw.

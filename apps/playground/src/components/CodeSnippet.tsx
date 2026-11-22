@@ -14,8 +14,9 @@ export function CodeSnippet({
   language?: string;
   onCopy?: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<{ code: string; copied: boolean }>();
   const copiedTimerRef = useRef<number>(0);
+  const status = copyStatus?.code === code ? copyStatus : undefined;
 
   useEffect(() => {
     return () => window.clearTimeout(copiedTimerRef.current);
@@ -35,21 +36,28 @@ export function CodeSnippet({
             {language}
           </span>
           <button
-            className="border border-[#3e6c73] px-2.5 py-1.5 text-[0.7rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]"
-            onClick={() => {
-              void navigator.clipboard.writeText(code).then(() => {
-                setCopied(true);
-                onCopy?.();
-                window.clearTimeout(copiedTimerRef.current);
-                copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1600);
-              });
+            className="border border-[#3e6c73] px-2.5 py-1.5 text-[0.7rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3] focus-visible:outline-2 focus-visible:outline-offset-2"
+            onClick={async () => {
+              window.clearTimeout(copiedTimerRef.current);
+              try {
+                await navigator.clipboard.writeText(code);
+                setCopyStatus({ code, copied: true });
+                copiedTimerRef.current = window.setTimeout(() => setCopyStatus(undefined), 1600);
+              } catch {
+                setCopyStatus({ code, copied: false });
+                return;
+              }
+              onCopy?.();
             }}
             type="button"
           >
-            {copied ? "Copied" : "Copy"}
+            {status?.copied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>
+      <span role="status" className={status?.copied === false ? "block px-5 py-2 text-sm" : "sr-only"}>
+        {status ? status.copied ? "Code copied." : "Could not copy. Select the code to copy it manually." : ""}
+      </span>
       <Highlight code={code} language={language} theme={themes.oneDark}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
           <pre

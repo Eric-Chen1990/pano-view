@@ -1,3 +1,4 @@
+import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { hotspotAction, setHotspotAction, projectHotspotTriggers, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { customActionIssue, validateCustomActions } from "./custom-actions";
 import { PopupLibrary, PopupInspector } from "./popup-panels";
@@ -1549,6 +1550,14 @@ export function PanoEditor(props: PanoEditorProps) {
                   onEnd={end}
                   onPick={(field) => void pickAsset(field)}
                   cursorPreviewUrl={cursorPreviewUrl}
+                  resolveMediaUrl={active ? (path) => {
+                    const files = media.find((entry) => entry.containsPath(path))
+                      ?? directories.find((entry) => entry.containsPath(path)) ?? local;
+                    return resolveEditorHotspotAsset(path, {
+                      kind: "hotspot", sceneId: active.id, hotspotId: selected.id,
+                      defaultUrl: new URL(path, projectRoot(props.baseUrl)).href,
+                    }, files, props.resolveAssetUrl);
+                  } : undefined}
                   getViewPosition={() =>
                     viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }
                   }

@@ -2811,9 +2811,15 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 
 视频通过 `onError` 报告媒体与 poster 失败，参数含 `source: "poster" | "video"`。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
 
+### 色键抠像
+
+在图片或视频热点上设置 `chromaKey={{ color: "#00B140", threshold: 0.12, smoothing: 0.08 }}`，可将选中的背景色变为透明。项目 schema v1 中的图片与视频热点定义也接受同样的 `chromaKey` 对象。颜色使用六位 sRGB HEX 值。阈值和平滑度的范围是 0–1，默认分别为 0.12 和 0.08。阈值控制透明范围，平滑度控制过渡宽度，设为 0 时边缘为硬切。
+
+WebGL 和 WebGPU 都支持矩形热点、四角热点和视频封面的抠像。图片和封面按可见像素响应指针，播放中的视频按矩形响应指针。`@ericchen1990/pano-view/ui` 提供 `ChromaKeyColorSampler`，可传入 `src`、`kind`、可选 `crossOrigin` 和 `onPick(color)`。远程素材需允许跨域读取纹理及像素。可在 [Playground](https://pano-view-playground.vercel.app/chroma-key) 试用。
+
 ## AudioHotspot
 
-`AudioHotspot` 在球面位置播放定向声音。立体声像跟随相机朝向；`range` 指视线偏离声源达到该角度时，音量衰减至静音。默认 `360` 表示不因视角衰减（仅左右声像）。定点声源可使用较小值，例如 `90`。
+`AudioHotspot` 在球面位置播放定向声音。立体声像跟随相机朝向。普通立体声模式下，默认 `range={360}` 让音量在转动视角时保持稳定。设为较小的角度（例如 `90`）时，视线偏离声源达到该角度会衰减至静音。
 
 音频通过 Howler.js 的 Web Audio 模式播放（Howler.js 已包含在本包构建产物中，宿主无需另行安装）。文件需完成解码后才能开始播放，可使用 MP3 格式。`src` 可以是字符串或回退 URL 数组。组件不使用 HTML5 流式音频模式，以保留立体声像控制。
 
@@ -2843,6 +2849,16 @@ import { AudioHotspot } from "@ericchen1990/pano-view";
 ```
 
 与其他媒体热点相同，`AudioHotspot` 不会自行改变 `playing`。省略标记尺寸时默认 `8×8`。也可设 `crossOrigin`；加载失败走 `onError({ id, error })`，与 `onPlaybackError` 不同。
+
+### Directional 3D Sound（3D 音效）
+
+给 `AudioHotspot` 设置 `spatialAudio` 即可启用 HRTF 三维定位。佩戴耳机转动视角，可以听到声源随朝向变化。使用支持位置追踪的 WebXR 头显时，走动也会改变听到的方向和音量。全景画面继续保持居中。
+
+声源方向来自热点的 `yaw` 和 `pitch`。`soundDistance={3}` 表示声源距全景中心 3 米，也是默认距离。标记的摆放距离由 `distance` 单独控制。默认 `range={360}` 时，转身会让声源逐渐变小，到正后方比正前方低 12 dB，仍然可闻。要让声音在指定角度衰减至静音，可将 `range` 设为 180° 或更小。单声道素材适合独立声源。
+
+为每个音频热点单独管理 `playing`，访客就能独立播放或暂停该声源。
+
+编辑器和 `project.json` 的音频热点均可配置这两个字段（`"spatialAudio": true, "soundDistance": 3`）。省略 `spatialAudio` 时沿用立体声定位。HRTF 不可用时降级为立体声定位，Web Audio 不可用时尝试普通音频播放。可体验 [Directional 3D Sound 示例](https://pano-view-playground.vercel.app/directional-3d-sound)。
 
 ## TextHotspot
 

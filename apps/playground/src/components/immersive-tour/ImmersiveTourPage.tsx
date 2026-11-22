@@ -23,6 +23,7 @@ import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
+import { ExampleCode } from "../ExampleCode";
 import { CodeSnippet } from "../CodeSnippet";
 import { ComposedHotspotDialog } from "../overlays/composed-dialog-example";
 import composedDialogCode from "../overlays/composed-dialog-example.tsx?raw";
@@ -42,6 +43,51 @@ import {
   shellClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
+
+const projectUrl = "/fixtures/projects/tour/project.json";
+const reactCode = `import { useEffect, useState } from "react";
+import {
+  loadPanoProject, PanoOverlay, PanoViewer, ProjectScenes, WebVR,
+  usePanoViewer, type LoadedPanoProject, type ProjectPopupDefinition,
+} from "@ericchen1990/pano-view";
+import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/styles.css";
+import "@ericchen1990/pano-view/ui/styles.css";
+
+export function ImmersiveTour() {
+  const viewer = usePanoViewer();
+  const [project, setProject] = useState<LoadedPanoProject>();
+  const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPanoProject(${JSON.stringify(projectUrl)}, { requestInit: { signal: controller.signal } })
+      .then((loaded) => {
+        if (!controller.signal.aborted) setProject(loaded);
+      })
+      .catch((error: Error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+
+  return (
+    <>
+      <button type="button" onClick={() => void viewer.toggleVR().catch(console.error)}>Toggle VR</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+        <WebVR />
+        <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)} />
+        <PanoOverlay>
+          <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+        </PanoOverlay>
+      </PanoViewer>
+    </>
+  );
+}`;
 
 type DialogMode = "default" | "composed" | "custom";
 
@@ -239,7 +285,7 @@ export function ImmersiveTourPage() {
   const [autoRotate, setAutoRotate] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    loadPanoProject("/fixtures/projects/tour/project.json", {
+    loadPanoProject(projectUrl, {
       requestInit: { signal: controller.signal },
     })
       .then((loaded) => {
@@ -450,17 +496,25 @@ export function ImmersiveTourPage() {
           <a href="/scene-transitions">scene transitions</a>. Choose a topic to
           learn its individual setup.
         </p>
-        <CodeSnippet
-          label="VR media controls"
-          blurb="Scene video, shared media controls, and a 360° video control bar."
-          code={spatialControlsCode}
+        <ExampleCode
+          react={{ label: "Immersive JSON tour", blurb: "Load scenes and shared popup content, then enable headset entry with WebVR.", code: reactCode }}
+          json={{ format: "project", files: [{
+            label: "project.json",
+            blurb: "This file supplies the base scenes and hotspots. The tour adds its interactive dialog content in React.",
+            url: projectUrl,
+          }] }}
         />
-        <CodeSnippet key={mode} {...dialogSnippet(mode)} />
         <details className="border-t border-line p-5">
-          <summary>Complete tour integration</summary>
+          <summary>Complete tour integration and selected dialog</summary>
+          <CodeSnippet
+            label="VR media controls"
+            blurb="Scene video, shared media controls, and a 360° video control bar."
+            code={spatialControlsCode}
+          />
+          <CodeSnippet key={mode} {...dialogSnippet(mode)} />
           <CodeSnippet
             label="Immersive tour page"
-            blurb="Full page wiring: project loading, marker mapping, scene navigation, dialog selection, automatic rotation and spatial media. The supporting content and dialog implementations are shown above or on their linked topic pages."
+            blurb="Full page wiring: project loading, marker mapping, scene navigation, dialog selection, automatic rotation and spatial media. The supporting content and dialog implementations are included here or on their linked topic pages."
             code={fullSource}
           />
         </details>

@@ -65,6 +65,8 @@ const content: Record<
     muted: false,
     volume: 1,
     range: 360,
+    spatialAudio: false,
+    soundDistance: 3,
     marker: true,
     pauseWhenHidden: true,
   },
