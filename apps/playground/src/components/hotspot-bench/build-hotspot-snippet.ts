@@ -11,7 +11,14 @@ function wrapSnippet(
 ) {
   const propLines = Object.entries({ ariaLabel, ...props })
     .filter(([, value]) => value !== undefined)
-    .map(([key, value]) => `        ${key}={${JSON.stringify(value)}}`)
+    .map(([key, value]) => {
+      const literal = JSON.stringify(value);
+      // Quoted JSX attributes decode entities and do not support JavaScript escapes.
+      const plainString = typeof value === "string"
+        && literal === `"${value}"`
+        && !/[&<>\u2028\u2029]/u.test(value);
+      return `        ${key}=${plainString ? literal : `{${literal}}`}`;
+    })
     .join("\n");
   const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";

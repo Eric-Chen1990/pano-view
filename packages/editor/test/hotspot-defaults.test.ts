@@ -276,6 +276,13 @@ test("tooltip overrides survive export, history and snippet generation for point
     assert.ok(code.includes('tooltipMode="surface"'));
     assert.ok(code.includes('tooltipScaleMode="fixed"'));
   }
+  for (const label of ['Door "A"', "A &amp; B", "Entry\nNext"]) {
+    const hotspot = { ...hotspots[0]!, label };
+    const snippet = buildHotspotBenchSnippet({ selectedId: hotspot.id, hotspots: [hotspot], polygons, polylines });
+    assert.ok(snippet.code.includes(`ariaLabel={${JSON.stringify(label)}}`));
+    assert.equal(snippet.value.label, label);
+  }
+
   const original = createHotspot("polygon", position);
   const doc = readDocument({schemaVersion: 1, scenes: [{id: "s", source: {viewerUrl: "viewer.json"}, hotspots: [{...original, vertices: [position, {yaw:20,pitch:0}, {yaw:20,pitch:20}]}]}]});
   const history = new DocumentHistory(doc);
