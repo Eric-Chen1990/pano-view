@@ -1,14 +1,14 @@
-import { ImageHotspot, PanoViewer, Scenes, VideoHotspot, type PanoViewerHandle } from "@ericchen1990/pano-view";
+import { ImageHotspot, PanoViewer, Scenes, VideoHotspot, type ProjectHotspotDefinition, type PanoViewerHandle } from "@ericchen1990/pano-view";
 import { ChromaKeyColorSampler } from "@ericchen1990/pano-view/ui";
 import { useRef, useState } from "react";
 import { DEFAULT_CHROMA_KEY, isChromaKeyColor } from "../../../../../shared/chroma-key";
 import { controlInputClassName, controlLabelClassName, segmentedButtonClassName } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
 const media = {
   image: { label: "Green-screen image", src: "/fixtures/chroma-key-v1/robot-green.png", color: "#00B140" },
-  video: { label: "Blue-screen video", src: "/fixtures/chroma-key-v1/robot-blue.mp4", color: "#1853E6" },
+  video: { label: "Blue-screen video", src: "/fixtures/chroma-key-v1/robot-blue.mp4", poster: "/fixtures/chroma-key-v1/robot-blue.png", color: "#1853E6" },
 } as const;
 const position = { yaw: 0, pitch: 0 };
 const scenes = [{ id: "chroma-key", type: "sphere", src: "/fixtures/panorama/panos/1/sphere.webp", previewUrl: "preview.webp" }] as const;
@@ -22,21 +22,42 @@ export function ChromaKeyPage() {
   const [playing, setPlaying] = useState(true);
   const [sampler, setSampler] = useState(false);
   const [hex, setHex] = useState<string>();
-  const [language, setLanguage] = useState<"tsx" | "json">("tsx");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState<string>();
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<typeof DEFAULT_CHROMA_KEY>({ ...DEFAULT_CHROMA_KEY });
   const source = media[kind];
-  const json = JSON.stringify(enabled ? { chromaKey: settings } : {}, null, 2);
+  const hotspot = {
+    id: "robot",
+    src: source.src,
+    position,
+    width: 42,
+    height: 42,
+    interactive: false,
+    chromaKey: enabled ? settings : undefined,
+  };
+  const video = { poster: media.video.poster, playing, loop: true, muted: true };
+  const projectHotspot: ProjectHotspotDefinition = kind === "image"
+    ? { type: "image", ...hotspot }
+    : { type: "video", ...hotspot, ...video };
   const component = kind === "image" ? "ImageHotspot" : "VideoHotspot";
-  const code = language === "json" ? json : `<${component}
-  id="robot"
-  src="${source.src}"
-  position={{ yaw: 0, pitch: 0 }}
-  width={42}
-  height={42}${kind === "video" ? "\n  playing\n  loop\n  muted" : ""}${enabled ? `\n  chromaKey={{ color: "${settings.color}", threshold: ${settings.threshold}, smoothing: ${settings.smoothing} }}` : ""}
- />`;
+  const props = kind === "image" ? hotspot : { ...hotspot, ...video };
+  const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function ChromaKeyPanorama() {
+  return (
+    <PanoViewer renderer="${renderer}" style={{ height: 540 }} initialView={{ yaw: 0, pitch: 0, fov: 62 }}>
+      <Sphere src="${scenes[0].src}" previewUrl="${scenes[0].previewUrl}" />
+      <${component}
+${Object.entries(props)
+  .filter(([, value]) => value !== undefined)
+  .map(([key, value]) => `        ${key}={${JSON.stringify(value)}}`)
+  .join("\n")}
+      />
+    </PanoViewer>
+  );
+}`;
 
   function setColor(color: string) {
     setSettings(current => ({ ...current, color }));
@@ -51,12 +72,9 @@ export function ChromaKeyPage() {
         >
           <Scenes scenes={scenes} onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? undefined)} />
           {kind === "image" ? (
-            <ImageHotspot id="robot" src={source.src} position={position} width={42} height={42}
-              chromaKey={enabled ? settings : undefined} interactive={false} onError={() => setError("Could not load the image.")} />
+            <ImageHotspot {...hotspot} onError={() => setError("Could not load the image.")} />
           ) : (
-            <VideoHotspot id="robot" src={source.src} poster="/fixtures/chroma-key-v1/robot-blue.png"
-              position={position} width={42} height={42} interactive={false}
-              chromaKey={enabled ? settings : undefined} playing={playing} muted loop
+            <VideoHotspot {...hotspot} {...video}
               onError={() => setError("Could not load the video.")}
               onPlaybackError={() => { setPlaying(false); setError("Press Play video to start playback."); }} />
           )}
@@ -137,14 +155,14 @@ export function ChromaKeyPage() {
           {backend && <output aria-label="Active renderer" className={controlLabelClassName}>{backend}</output>}
         </div>
       </div>
-      <div className="grid gap-3 border-t border-[#244047] p-5">
-        <div className="flex gap-2">
-          <button type="button" className={button} aria-pressed={language === "tsx"} onClick={() => setLanguage("tsx")}>React JSX</button>
-          <button type="button" className={button} aria-pressed={language === "json"} onClick={() => setLanguage("json")}>Project JSON</button>
-        </div>
-        <CodeSnippet code={code} label={language === "json" ? "Hotspot settings" : component} language={language}
-          blurb={language === "json" ? "Apply these settings to an image or video hotspot in project.json." : "Use these props on a hotspot inside PanoViewer."} />
-      </div>
+      <ExampleCode
+        react={{ label: component, blurb: "Use the current media and key settings in a panorama.", code }}
+        json={{ format: "project", files: [{
+          label: "Chroma key hotspot",
+          blurb: "Add this object to the scene’s hotspots array in project.json.",
+          value: projectHotspot,
+        }] }}
+      />
     </ExamplePage>
   );
 }

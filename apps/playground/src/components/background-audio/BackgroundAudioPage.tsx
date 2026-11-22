@@ -8,7 +8,7 @@ import {
   segmentedButtonActiveClassName,
 } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 
 const sharedSource = "/fixtures/bgm/ambient-light.mp3";
 const sources = {
@@ -149,10 +149,12 @@ export function AudioTour() {
           }
         />
       </PanoViewer>
-      <CodeSnippet
-        label="BackgroundAudio + Scenes"
-        blurb="The selected soundtrack configuration and play/pause state are separate from scene loading. This example logs the playback callbacks; the demo displays their status above."
-        code={code}
+      <ExampleCode
+        react={{
+          label: "BackgroundAudio + Scenes",
+          blurb: "The selected soundtrack configuration and play/pause state are separate from scene loading. This example logs the playback callbacks; the demo displays their status above.",
+          code: code,
+        }}
       />
     </ExamplePage>
   );

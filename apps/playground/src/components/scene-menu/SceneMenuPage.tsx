@@ -25,7 +25,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -46,6 +46,8 @@ const LABEL_ALIGNS: readonly PanoSceneMenuLabelAlign[] = [
 ];
 
 function buildSceneMenuSnippet(options: {
+  items: PanoSceneMenuItem[];
+  initialSceneId: string;
   align: PanoOverlayAlign;
   axis: PanoOverlayAxis;
   collapsible: boolean;
@@ -78,25 +80,31 @@ function buildSceneMenuSnippet(options: {
     align === "bottom" ||
     (isOverlayCorner(align) && axis === "horizontal");
   const sizeProps = horizontal
-    ? `      width="80%"`
-    : `      height="70%"
-      width={160}`;
+    ? `          width="80%"`
+    : `          height="70%"
+          width={160}`;
   const anchorLines = [
-    `        align: "${align}",`,
-    isOverlayCorner(align) ? `        axis: "${axis}",` : null,
-    `        inset: 12,`,
+    `            align: "${align}",`,
+    isOverlayCorner(align) ? `            axis: "${axis}",` : null,
+    `            inset: 12,`,
   ]
     .filter((line): line is string => line !== null)
     .join("\n");
   const optionalProps = [
-    collapsible ? "      collapsible" : null,
-    showArrows ? "      showArrows" : null,
-    showVisited ? "      showVisited" : null,
-    loop ? "      loop" : null,
-    dragMotionEnabled ? null : "      dragMotion={false}",
-  ]
-    .filter((line): line is string => line !== null)
-    .join("\n");
+    collapsible ? "          collapsible\n" : "",
+    showArrows ? "          showArrows\n" : "",
+    showVisited ? "          showVisited\n" : "",
+    loop ? "          loop\n" : "",
+    dragMotionEnabled ? "" : "          dragMotion={false}\n",
+    customToggle ? `          toggle={{
+            style: {
+              background: "#0c4a6e",
+              color: "#7dd3fc",
+              border: "1px solid #7dd3fc",
+            },
+            icon: ({ collapsed }) => (collapsed ? "+" : "–"),
+          }}\n` : "",
+  ].join("");
 
   return `import { useState } from "react";
 import {
@@ -105,50 +113,44 @@ import {
   PanoViewer,
   Scenes,
   type PanoSceneMenuItem,
+  type Scene,
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes = [/* sphere + cube scenes */];
-const sceneMenuItems: PanoSceneMenuItem[] = [/* id, title, thumbnailUrl */];
-const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+const scenes: Scene[] = ${JSON.stringify(TRANSITION_SCENES, null, 2)};
+const sceneMenuItems: PanoSceneMenuItem[] = ${JSON.stringify(options.items, null, 2)};
 
-<PanoViewer style={{ height: "min(640px, 72dvh)" }}>
-  <Scenes
-    activeSceneId={activeSceneId}
-    onActiveSceneIdChange={setActiveSceneId}
-    scenes={scenes}
-    transition="dissolve"
-  />
-  <PanoOverlay>
-    <PanoSceneMenu
-      activeId={activeSceneId}
-      anchor={{
+export function SceneMenuTour() {
+  const [activeSceneId, setActiveSceneId] = useState(${JSON.stringify(options.initialSceneId)});
+
+  return (
+    <PanoViewer style={{ height: "min(640px, 72dvh)" }}>
+      <Scenes
+        activeSceneId={activeSceneId}
+        onActiveSceneIdChange={setActiveSceneId}
+        scenes={scenes}
+        transition="dissolve"
+      />
+      <PanoOverlay>
+        <PanoSceneMenu
+          activeId={activeSceneId}
+          anchor={{
 ${anchorLines}
-      }}
-      appearance={{
-        labelAlign: "${labelAlign}",
-        selectionColor: "${selectionColor}",
-        focusColor: "${focusColor}",
-        selectionWidth: ${selectionWidth},
-      }}
-${optionalProps ? `${optionalProps}\n` : ""}${
-    customToggle
-      ? `      toggle={{
-        style: {
-          background: "#0c4a6e",
-          color: "#7dd3fc",
-          border: "1px solid #7dd3fc",
-        },
-        icon: ({ collapsed }) => (collapsed ? "+" : "–"),
-      }}
-`
-      : ""
-  }      items={sceneMenuItems}
-      onSelect={setActiveSceneId}
+          }}
+          appearance={{
+            labelAlign: "${labelAlign}",
+            selectionColor: "${selectionColor}",
+            focusColor: "${focusColor}",
+            selectionWidth: ${selectionWidth},
+          }}
+${optionalProps}          items={sceneMenuItems}
+          onSelect={setActiveSceneId}
 ${sizeProps}
-    />
-  </PanoOverlay>
-</PanoViewer>`;
+        />
+      </PanoOverlay>
+    </PanoViewer>
+  );
+}`;
 }
 
 export function SceneMenuPage() {
@@ -195,6 +197,8 @@ export function SceneMenuPage() {
   const snippet = useMemo(
     () =>
       buildSceneMenuSnippet({
+        items: sceneMenuItems,
+        initialSceneId: activeSceneId,
         align,
         axis,
         collapsible,
@@ -209,6 +213,8 @@ export function SceneMenuPage() {
         customToggle,
       }),
     [
+      activeSceneId,
+      sceneMenuItems,
       align,
       axis,
       collapsible,
@@ -526,10 +532,12 @@ export function SceneMenuPage() {
             </PanoOverlay>
           </PanoViewer>
         </div>
-        <CodeSnippet
-          blurb="PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Align, axis, chrome, and appearance update live."
-          code={snippet}
-          label="PanoSceneMenu"
+        <ExampleCode
+          react={{
+            blurb: "PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Align, axis, chrome, and appearance update live.",
+            code: snippet,
+            label: "PanoSceneMenu",
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · panorama scene menu" />

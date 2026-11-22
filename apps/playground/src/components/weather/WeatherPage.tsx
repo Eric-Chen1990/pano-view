@@ -22,7 +22,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -130,11 +130,16 @@ export function WeatherPage() {
       : ""}${type === "snow" && groundEnabled ? `\n    groundY={${groundY}}` : ""}
   />`;
   const code = `import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer style={{ height: 480 }}>
-  <Sphere src="${src}" previewUrl="${previewUrl}" />
-${weatherCode}
-</PanoViewer>`;
+export function PanoramaWeather() {
+  return (
+    <PanoViewer style={{ height: 480 }}>
+      <Sphere src="${src}" previewUrl="${previewUrl}" />
+    ${weatherCode}
+    </PanoViewer>
+  );
+}`;
 
   return (
     <main className={shellClassName}>
@@ -212,7 +217,13 @@ ${weatherCode}
           <Sphere src={src} previewUrl={previewUrl} />
           <PanoWeather {...weather} enabled={enabled} intensity={intensity} wind={[windX, windZ]} />
         </PanoViewer>
-        <CodeSnippet label="PanoWeather" blurb="Use the current weather settings in your viewer." code={code} />
+        <ExampleCode
+          react={{
+            label: "PanoWeather",
+            blurb: "Use the current weather settings in your viewer.",
+            code: code,
+          }}
+        />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · 360° weather" />
     </main>

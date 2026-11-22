@@ -10,7 +10,7 @@ import {
   type LoadedPanoProject,
   type ProjectPopupDefinition,
 } from "@ericchen1990/pano-view";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import {
@@ -34,16 +34,18 @@ import {
   type ProjectPopupDefinition,
 } from "@ericchen1990/pano-view";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
+import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 export function Tour() {
   const [project, setProject] = useState<LoadedPanoProject>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
+  const [error, setError] = useState<string>();
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    loadPanoProject("/tour/project.json", {
+    loadPanoProject(${JSON.stringify(projectUrl)}, {
       requestInit: { signal: controller.signal },
     })
       .then((loaded) => {
@@ -51,10 +53,13 @@ export function Tour() {
         setProject(loaded);
         setActiveSceneId(loaded.initialSceneId);
       })
-      .catch(() => {});
+      .catch((error: Error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      });
     return () => controller.abort();
   }, []);
 
+  if (error) return <p role="alert">{error}</p>;
   if (!project) return <p role="status">Loading tour…</p>;
 
   return (
@@ -177,16 +182,17 @@ export function ProjectPage() {
             </PanoViewer>
           </>
         ) : null}
-        <a
-          className="mt-4 inline-block text-sm text-cyan-300 underline"
-          href={projectUrl}
-        >
-          View project.json
-        </a>
-        <CodeSnippet
-          blurb="loadPanoProject resolves viewer.json and hotspot assets. ProjectScenes drives navigation; onPopupRequest hands shared content to ProjectPopupDialog."
-          code={PROJECT_SNIPPET}
-          label="loadPanoProject + ProjectScenes"
+        <ExampleCode
+          json={{ format: "project", files: [{
+            label: "project.json",
+            blurb: "Open the source in its demo directory to preserve its relative viewer and media URLs.",
+            url: projectUrl,
+          }] }}
+          react={{
+            blurb: "loadPanoProject resolves viewer.json and hotspot assets. ProjectScenes drives navigation; onPopupRequest hands shared content to ProjectPopupDialog.",
+            code: PROJECT_SNIPPET,
+            label: "loadPanoProject + ProjectScenes",
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · static projects" />

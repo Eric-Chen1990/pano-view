@@ -31,12 +31,14 @@ function FullscreenButton({ toggle }: { toggle: () => void }) {
   );
 }
 
-export function ControlsExample() {
+export type ControlExampleKind = "navigation" | "automatic" | "gyro";
+
+export function ControlsExample({ example, onExampleChange }: {
+  example: ControlExampleKind;
+  onExampleChange: (example: ControlExampleKind) => void;
+}) {
   const viewer = usePanoViewer();
   const gyro = useRef<GyroHandle>(null);
-  const [example, setExample] = useState<"navigation" | "automatic" | "gyro">(
-    "navigation",
-  );
   const [autoRotate, setAutoRotate] = useState(false);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [gyroStatus, setGyroStatus] = useState("Detecting sensor support…");
@@ -60,7 +62,7 @@ export function ControlsExample() {
               example === value && segmentedButtonActiveClassName,
             )}
             onClick={() => {
-              setExample(value);
+              onExampleChange(value);
               setAutoRotate(false);
               setGyroEnabled(false);
             }}

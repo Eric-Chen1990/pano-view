@@ -6,6 +6,7 @@ import {
   segmentedButtonActiveClassName,
 } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
+import { ExampleCode } from "../ExampleCode";
 import { CodeSnippet } from "../CodeSnippet";
 import { SpatialExample, type SpatialExampleKind } from "./spatial-example";
 import source from "./spatial-example.tsx?raw";
@@ -18,6 +19,91 @@ const examples = [
   { id: "model", label: "Model" },
   { id: "scroll", label: "Scrolling" },
 ] as const;
+
+const sphere = '<Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />';
+const videoUrl = "/fixtures/360video/1/video-1024x512.mp4";
+
+const snippets = {
+  "scene-video": {
+    hooks: "useState",
+    imports: "Sphere, VideoHotspot, PanoSpatialControls, PanoMediaControls, type PanoMediaController",
+    state: `  const [controller, setController] = useState<PanoMediaController | null>(null);
+  const [playing, setPlaying] = useState(false);`,
+    scene: `${sphere}
+        <VideoHotspot ref={setController} id="movie" src="${videoUrl}" position={{ yaw: 0, pitch: 0 }}
+          width={28} height={16} playing={playing} onClick={() => setPlaying((value) => !value)}
+          onPlaybackStateChange={(state) => setPlaying(state === "playing")} />`,
+    controls: `<PanoSpatialControls position={{ yaw: 0, pitch: -12 }} width={28}>
+            <PanoMediaControls controller={controller} />
+          </PanoSpatialControls>`,
+  },
+  "360-video": {
+    hooks: "useSyncExternalStore",
+    imports: "PanoVideo, PanoSpatialControls, PanoMediaControls",
+    state: "  const controller = useSyncExternalStore(viewer.subscribeVideo, viewer.getVideo, () => null);",
+    scene: `<PanoVideo src="${videoUrl}" loop />`,
+    controls: "<PanoSpatialControls><PanoMediaControls controller={controller} /></PanoSpatialControls>",
+  },
+  model: {
+    hooks: "useMemo, useState",
+    imports: "Sphere, PanoModelControls",
+    state: `  const [open, setOpen] = useState(false);
+  const [angle, setAngle] = useState(0);
+  const [scale, setScale] = useState(1);
+  const adapter = useMemo(() => ({
+    rotateBy: (yaw: number) => setAngle((angle) => angle + yaw),
+    zoomBy: (factor: number) => setScale((scale) => Math.max(0.5, Math.min(2, scale * factor))),
+    resetView: () => { setAngle(0); setScale(1); },
+  }), []);`,
+    scene: sphere,
+    controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open model</button>
+          <PanoDialog title="Model controls" open={open} onOpenChange={setOpen}>
+            <div style={{ width: 100, height: 100, margin: 32, background: "teal",
+              transform: \`perspective(200px) rotateY(\${angle}deg) scale(\${scale})\` }} />
+            <PanoModelControls adapter={adapter} />
+          </PanoDialog>`,
+  },
+  scroll: {
+    hooks: "useRef, useState",
+    imports: "Sphere, PanoScrollControls",
+    state: `  const [open, setOpen] = useState(false);
+  const article = useRef<HTMLDivElement>(null);`,
+    scene: sphere,
+    controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open article</button>
+          <PanoDialog title="Scroll controls" open={open} onOpenChange={setOpen}>
+            <div ref={article} tabIndex={0} style={{ height: 160, overflow: "auto" }}>
+              {Array.from({ length: 12 }, (_, index) => <p key={index}>Chapter {index + 1}</p>)}
+            </div>
+            <PanoScrollControls targetRef={article} />
+          </PanoDialog>`,
+  },
+} satisfies Record<SpatialExampleKind, { hooks: string; imports: string; state: string; scene: string; controls: string }>;
+
+function spatialSnippet(kind: SpatialExampleKind) {
+  const { hooks, imports, state, scene, controls } = snippets[kind];
+  const dialog = kind === "model" || kind === "scroll";
+  return `import { ${hooks} } from "react";
+import { PanoOverlay, PanoViewer, WebVR, usePanoViewer, ${imports} } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+${dialog ? 'import { PanoDialog } from "@ericchen1990/pano-view/ui";\nimport "@ericchen1990/pano-view/ui/styles.css";\n' : ""}
+export function SpatialControlsExample() {
+  const viewer = usePanoViewer();
+${state}
+
+  return (
+    <>
+      <button type="button" onClick={() => void viewer.toggleVR().catch(console.error)}>Toggle VR</button>
+      <PanoViewer ref={viewer.ref} style={{ height: 540 }}>
+        <WebVR />
+        ${scene}
+        <PanoOverlay>
+          ${controls}
+        </PanoOverlay>
+      </PanoViewer>
+    </>
+  );
+}`;
+}
 
 export function SpatialControlsPage() {
   const [kind, setKind] = useState<SpatialExampleKind>("scene-video");
@@ -53,11 +139,18 @@ export function SpatialControlsPage() {
         use arrow keys. Open the model/article before entering VR to observe
         dialog state across entry and exit.
       </p>
-      <CodeSnippet
+      <ExampleCode react={{
+        label: examples.find(({ id }) => id === kind)!.label,
+        blurb: "Connect the selected target to its controls inside the viewer.",
+        code: spatialSnippet(kind),
+      }} />
+      <details className="border-t border-line p-5">
+        <summary>Complete spatial controls example</summary>
+        <CodeSnippet
         label="Spatial controls: complete integration"
         blurb="The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below."
         code={source}
-      />
+        />
       {kind === "scene-video" || kind === "360-video" ? (
         <CodeSnippet
           label="Media controllers"
@@ -72,6 +165,7 @@ export function SpatialControlsPage() {
           code={modelSource}
         />
       ) : null}
+      </details>
     </ExamplePage>
   );
 }

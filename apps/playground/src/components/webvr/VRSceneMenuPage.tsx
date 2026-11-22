@@ -21,7 +21,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -433,15 +433,16 @@ export function VRSceneMenuPage() {
             </PanoOverlay>
           </PanoViewer>
         </div>
-        <CodeSnippet
-          blurb="Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it."
-          code={`import { useState } from "react";
+        <ExampleCode
+          react={{
+            blurb: "Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it.",
+            code: `import { useState } from "react";
 import { PanoViewer, PanoOverlay, PanoSceneMenu, Scenes, WebVR, WebVRSceneMenu, usePanoViewer, type Scene, type WebVRSceneMenuProps } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 const scenes = ${JSON.stringify(menuScenes, null, 2)} satisfies readonly Scene[];
 const items = ${JSON.stringify(menuItems, null, 2)};
-const menuSettings = ${JSON.stringify({ ...settings, appearance }, null, 2)} satisfies Partial<WebVRSceneMenuProps>;
+const menuSettings: Partial<WebVRSceneMenuProps> = ${JSON.stringify({ ...settings, appearance }, null, 2)};
 
 export function Tour() {
   const viewer = usePanoViewer();
@@ -467,8 +468,9 @@ export function Tour() {
       </PanoOverlay>
     </PanoViewer>
   </>;
-}`}
-          label="WebVRSceneMenu + Scenes"
+}`,
+            label: "WebVRSceneMenu + Scenes",
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · WebVR" />

@@ -29,7 +29,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -149,36 +149,41 @@ function buildFilterSnippet(
   PanoViewer,
   ${component},
 } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer style={{ height: 540 }}>
-  <PanoFilter
-    adjustments={{ ${adjustmentLiteral} }}
-    enabled={${enabled}}
-    preset="${preset}"
-    intensity={${intensity}}
-  />
-  <${component}
-    ${sourceAttributes}
-  />
-  <ImageHotspot
-    id="filter-image-marker"
-    position={{ yaw: 18, pitch: 5 }}
-    src="/fixtures/hotspots/signal.svg"
-    tooltip="Hotspots stay unfiltered"
-    tooltipTrigger="hover"
-    width={6}
-    height={6}
-  />
-  <GraphicHotspot
-    id="filter-graphic-marker"
-    position={{ yaw: -28, pitch: -6 }}
-    graphic={{ fill: "#df6b42", kind: "circle" }}
-    tooltip="Original hotspot color"
-    tooltipTrigger="hover"
-    width={8}
-    height={8}
-  />
-</PanoViewer>`;
+export function PanoramaFilter() {
+  return (
+    <PanoViewer style={{ height: 540 }}>
+      <PanoFilter
+        adjustments={{ ${adjustmentLiteral} }}
+        enabled={${enabled}}
+        preset="${preset}"
+        intensity={${intensity}}
+      />
+      <${component}
+        ${sourceAttributes}
+      />
+      <ImageHotspot
+        id="filter-image-marker"
+        position={{ yaw: 18, pitch: 5 }}
+        src="/fixtures/hotspots/signal.svg"
+        tooltip="Hotspots stay unfiltered"
+        tooltipTrigger="hover"
+        width={6}
+        height={6}
+      />
+      <GraphicHotspot
+        id="filter-graphic-marker"
+        position={{ yaw: -28, pitch: -6 }}
+        graphic={{ fill: "#df6b42", kind: "circle" }}
+        tooltip="Original hotspot color"
+        tooltipTrigger="hover"
+        width={8}
+        height={8}
+      />
+    </PanoViewer>
+  );
+}`;
 }
 
 export function FilterPage() {
@@ -333,10 +338,12 @@ export function FilterPage() {
             </div>
           ))}
         </div>
-        <CodeSnippet
-          blurb="Pass an adjustments object to PanoFilter. Its values apply to the panorama source."
-          code={snippet}
-          label="PanoFilter"
+        <ExampleCode
+          react={{
+            blurb: "Pass an adjustments object to PanoFilter. Its values apply to the panorama source.",
+            code: snippet,
+            label: "PanoFilter",
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · panorama filters" />

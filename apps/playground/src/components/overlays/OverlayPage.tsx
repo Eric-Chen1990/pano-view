@@ -1,5 +1,6 @@
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { DialogsExample } from "./dialogs-example";
 import source from "./dialogs-example.tsx?raw";
 import composedSource from "./composed-dialog-example.tsx?raw";
@@ -37,10 +38,12 @@ export function OverlayPage() {
       description="Several markers select content for one shared dialog. Compare the default dialog, composed parts and an existing third-party Dialog with the same stories. Enter fullscreen, then open a story to check the nested tooltip."
     >
       <DialogsExample />
-      <CodeSnippet
-        label="Shared dialog: minimal setup"
-        blurb="Marker IDs select text for one PanoDialog inside PanoOverlay. The full example adds images, viewer-local triggers, fullscreen and a nested tooltip, plus comparisons of all three dialog implementations."
-        code={minimalCode}
+      <ExampleCode
+        react={{
+          label: "Shared dialog: minimal setup",
+          blurb: "Marker IDs select text for one PanoDialog inside PanoOverlay. The full example adds images, viewer-local triggers, fullscreen and a nested tooltip, plus comparisons of all three dialog implementations.",
+          code: minimalCode,
+        }}
       />
       <details className="border-t border-line p-5">
         <summary>Complete example and dialog implementations</summary>

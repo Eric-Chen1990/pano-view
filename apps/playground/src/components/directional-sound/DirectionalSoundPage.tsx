@@ -8,9 +8,13 @@ import {
   usePanoViewer,
   type AudioPlaybackState,
   type GyroHandle,
+  type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
 import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
+import { ExampleCode } from "../ExampleCode";
+
+const panorama = "/fixtures/panorama/panos/1/sphere.webp";
 
 const sources = [
   {
@@ -30,6 +34,50 @@ const sources = [
 ] as const;
 
 type SoundId = (typeof sources)[number]["id"];
+
+const projectHotspots: ProjectHotspotDefinition[] = sources.map(({ name, ...source }) => ({
+  ...source,
+  type: "audio",
+  label: name,
+  tooltip: name,
+  tooltipTrigger: "always",
+  spatialAudio: true,
+  loop: true,
+  playing: false,
+}));
+
+const code = `import { useState } from "react";
+import { AudioHotspot, PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+const sources = ${JSON.stringify(sources, null, 2)};
+
+export function DirectionalSound() {
+  const viewer = usePanoViewer();
+  const [playing, setPlaying] = useState<Record<string, boolean>>({});
+
+  return (
+    <PanoViewer ref={viewer.ref} style={{ height: 540 }}>
+      <Sphere src="${panorama}" previewUrl="preview.webp" />
+      {sources.map(({ name, ...source }) => (
+        <AudioHotspot
+          key={source.id}
+          {...source}
+          ariaLabel={name}
+          tooltip={name}
+          tooltipTrigger="always"
+          spatialAudio
+          loop
+          playing={playing[source.id] ?? false}
+          onClick={() => {
+            if (!playing[source.id]) void viewer.activateMedia().catch(console.error);
+            setPlaying((current) => ({ ...current, [source.id]: !current[source.id] }));
+          }}
+        />
+      ))}
+    </PanoViewer>
+  );
+}`;
 
 export function DirectionalSoundPage() {
   const viewer = usePanoViewer();
@@ -88,7 +136,7 @@ export function DirectionalSoundPage() {
       </div>
       {error && <p role="alert" className="px-6 text-sm">{error}</p>}
       <PanoViewer ref={viewer.ref} aria-label="Directional 3D Sound viewer" style={{ height: 540 }}>
-        <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+        <Sphere src={panorama} previewUrl="preview.webp" />
         <Gyro
           ref={gyro}
           enabled={gyroEnabled && !vr.enabled}
@@ -113,6 +161,14 @@ export function DirectionalSoundPage() {
           />
         ))}
       </PanoViewer>
+      <ExampleCode
+        react={{ label: "AudioHotspot", blurb: "Click a marker to activate audio and toggle that source. soundDistance places the source along its yaw and pitch direction.", code }}
+        json={{ format: "project", files: [{
+          label: "Directional audio hotspots",
+          blurb: "Add these entries to the scene’s hotspots array in project.json. ProjectScenes toggles each source on marker click.",
+          value: projectHotspots,
+        }] }}
+      />
     </ExamplePage>
   );
 }

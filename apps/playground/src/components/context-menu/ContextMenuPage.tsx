@@ -20,7 +20,7 @@ import {
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -75,74 +75,43 @@ function buildContextMenuSnippet(
       separatorColor: "#333",
       iconSize: 16,
     }`;
-  const copyItem = `{
+  const customItems = `{
         id: "copy",
         label: "Copy yaw / pitch",
-        icon: <CopyIcon />,
         onSelect: ({ position }) => {
           void navigator.clipboard.writeText(
             \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
           );
         },
-      }`;
-  const lookHereItem = `{
+      },
+      {
         id: "look-here",
         label: "Look here",
-        image: "/hotspots/signal.svg",
-        onSelect: ({ position }) => {
-          panoRef.current?.setView({
-            yaw: position.yaw,
-            pitch: position.pitch,
-          });
-        },
+        image: "/fixtures/hotspots/signal.svg",
+        onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
       }`;
+  const entries = mode === "default" ? "" : mode === "append"
+    ? `append: ["separator", ${customItems}],`
+    : `items: ["resetView", "separator", ${customItems}, "separator", "fullscreen"],`;
 
-  switch (mode) {
-    case "default":
-      return `<PanoViewer
-  contextMenu={{
-    appearance: ${appearance},
-  }}
-  style={{ height: 540 }}
->
-  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
-</PanoViewer>`;
-    case "append":
-      return `<PanoViewer
-  contextMenu={{
-    appearance: ${appearance},
-    append: [
-      "separator",
-      ${copyItem},
-      ${lookHereItem},
-    ],
-  }}
-  style={{ height: 540 }}
->
-  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
-</PanoViewer>`;
-    case "presets":
-      return `<PanoViewer
-  contextMenu={{
-    appearance: ${appearance},
-    items: [
-      "resetView",
-      "separator",
-      ${copyItem},
-      ${lookHereItem},
-      "separator",
-      "fullscreen",
-    ],
-  }}
-  style={{ height: 540 }}
->
-  <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
-</PanoViewer>`;
-    default: {
-      const exhaustive: never = mode;
-      throw new Error(`Unhandled menu mode: ${exhaustive}`);
-    }
-  }
+  return `import { PanoViewer, Sphere${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function PanoramaContextMenu() {
+${mode === "default" ? "" : "  const pano = usePanoViewer();\n"}
+  return (
+    <PanoViewer
+      ${mode === "default" ? "" : "ref={pano.ref}"}
+      contextMenu={{
+        appearance: ${appearance},
+        ${entries}
+      }}
+      style={{ height: 540 }}
+    >
+      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+  );
+}`;
 }
 
 export function ContextMenuPage() {
@@ -322,10 +291,12 @@ export function ContextMenuPage() {
             />
           </PanoViewer>
         </div>
-        <CodeSnippet
-          blurb={snippetMeta.blurb}
-          code={snippet}
-          label={snippetMeta.label}
+        <ExampleCode
+          react={{
+            blurb: snippetMeta.blurb,
+            code: snippet,
+            label: snippetMeta.label,
+          }}
         />
       </section>
       <SiteFooter label="@ericchen1990/pano-view · context menu" />

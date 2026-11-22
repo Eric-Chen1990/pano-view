@@ -7,7 +7,7 @@ import {
 } from "@ericchen1990/pano-view/data";
 import "@ericchen1990/pano-editor/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
-import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { shellClassName } from "../../ui";
@@ -15,22 +15,49 @@ import { shellClassName } from "../../ui";
 const sampleProjectUrl = "/fixtures/projects/editor/v4/project.json";
 
 function buildEditorSnippet(locale: "en" | "zh-CN"): string {
-  return `import { PanoEditor } from "@ericchen1990/pano-editor";
+  return `import { useEffect, useState } from "react";
+import { PanoEditor } from "@ericchen1990/pano-editor";
 import {
   parsePanoProject,
   type PanoProjectDefinition,
 } from "@ericchen1990/pano-view/data";
+import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-editor/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 
-const project: PanoProjectDefinition = parsePanoProject(/* project.json */);
+const projectUrl = ${JSON.stringify(sampleProjectUrl)};
 
-<PanoEditor
-  defaultValue={project}
-  baseUrl="https://cdn.example.com/tour/"
-  locale="${locale}"
-  style={{ height: "min(860px, 85vh)", minHeight: 660 }}
-/>`;
+export function TourEditor() {
+  const [project, setProject] = useState<PanoProjectDefinition>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(projectUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load project.json");
+        return response.json();
+      })
+      .then((value: unknown) => {
+        if (!controller.signal.aborted) setProject(parsePanoProject(value));
+      })
+      .catch((error: Error) => {
+        if (!controller.signal.aborted) setError(error.message);
+      });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!project) return <p role="status">Loading tour…</p>;
+
+  return (
+    <PanoEditor
+      defaultValue={project}
+      baseUrl={new URL(".", new URL(projectUrl, window.location.href)).href}
+      locale="${locale}"
+      style={{ height: "min(860px, 85vh)", minHeight: 660 }}
+    />
+  );
+}`;
 }
 
 export function EditorPage() {
@@ -117,10 +144,13 @@ export function EditorPage() {
           : "下载示例文件（.zip）· 解压后打开目录，或拖入“添加场景”"}
       </a>
       <div className="mt-6">
-        <CodeSnippet
-          blurb="Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings."
-          code={snippet}
-          label="PanoEditor"
+        <ExampleCode
+          json={{ format: "project", files: [{ label: "project.json", blurb: "Load this file with parsePanoProject. Resolve relative assets from the directory containing the file.", url: sampleProjectUrl }] }}
+          react={{
+            blurb: "Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings.",
+            code: snippet,
+            label: "PanoEditor",
+          }}
         />
       </div>
       <SiteFooter label="@ericchen1990/pano-view · tour editor" />

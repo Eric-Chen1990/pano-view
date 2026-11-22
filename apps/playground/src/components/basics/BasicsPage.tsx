@@ -17,6 +17,7 @@ import {
   segmentedButtonActiveClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
 const sphere = {
@@ -129,16 +130,21 @@ export function BasicsPage() {
   const introCode = introEnabled
     ? ` littlePlanetIntro={{\n${Object.entries(intro).map(([key, value]) => `  ${key}: ${JSON.stringify(value)},`).join("\n")}\n}}`
     : "";
+  const sourceProps = Object.entries(props)
+    .map(([key, value]) => `        ${key}=${JSON.stringify(value)}`)
+    .join("\n");
   const code = `import { PanoViewer, ${component} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer renderer="${renderer}"${introCode} style={{ height: 540 }}>
-  <${component}
-${Object.entries(props)
-  .map(([key, value]) => `    ${key}=${JSON.stringify(value)}`)
-  .join("\n")}
-  />
-</PanoViewer>`;
+export function Panorama() {
+  return (
+    <PanoViewer renderer="${renderer}"${introCode} style={{ height: 540 }}>
+      <${component}
+${sourceProps}
+      />
+    </PanoViewer>
+  );
+}`;
   return (
     <ExamplePage
       title="Panorama basics"
@@ -235,10 +241,18 @@ ${Object.entries(props)
         templates resolve below baseUrl. Use the template and multires values
         matching your converted files.
       </p>
-      <CodeSnippet
-        label={`${component}: minimal setup`}
-        blurb="The demo reports load failures and, for cube tiles, the current level and tile counts. These callbacks observe loading without changing the source configuration."
-        code={code}
+      <ExampleCode
+        key={source}
+        json={{ format: "viewer", files: source === "tile" ? [{
+          label: "viewer.json",
+          blurb: "Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes.",
+          url: `${tile.baseUrl}/viewer.json`,
+        }] : [] }}
+        react={{
+          label: `${component}: minimal setup`,
+          blurb: "The demo reports load failures and, for cube tiles, the current level and tile counts. These callbacks observe loading without changing the source configuration.",
+          code: code,
+        }}
       />
       <details className="border-t border-line p-5">
         <summary>Complete running example</summary>

@@ -19,6 +19,7 @@ import {
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
+import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { VideoMotionSampler, VideoPerformanceMetrics, type VideoMotionStats } from "./VideoPerformance";
@@ -93,36 +94,41 @@ function buildVideoSnippet(
   const tracks = profile === "files" ? VIDEO_TRACKS : HLS_TRACKS;
   const variants = profile === "files" ? VIDEO_VARIANTS : profile === "mobile" ? MOBILE_VARIANTS : undefined;
   const sourceProps = variants ? [
-    `    defaultVariantId="${profile === "files" ? "1024" : AUTO_VARIANT}"`,
-    ...(profile === "mobile" ? [`    fallbackVariantId="${AUTO_VARIANT}"`, '    crossOrigin="anonymous"'] : []),
-    `    variants={${JSON.stringify(variants, null, 2).replace(/\n/g, "\n    ")}}`,
-  ].join("\n") : `    src="${HLS_EXAMPLE_URL}"\n    crossOrigin="anonymous"`;
+    `        defaultVariantId="${profile === "files" ? "1024" : AUTO_VARIANT}"`,
+    ...(profile === "mobile" ? [`        fallbackVariantId="${AUTO_VARIANT}"`, '        crossOrigin="anonymous"'] : []),
+    `        variants={${JSON.stringify(variants, null, 2).replace(/\n/g, "\n        ")}}`,
+  ].join("\n") : `        src="${HLS_EXAMPLE_URL}"\n        crossOrigin="anonymous"`;
   const captionsProp =
     captionLang === "off"
       ? "false"
       : `{ fontSize: ${fontSize}, color: "${captionColor}" }`;
   return `import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
 
-<PanoViewer
-  mediaActivation={{
-    onActivate: (media) => {
-      void media.playVideo({ unmute: true });
-    },
-  }}
-  style={{ height: "min(540px, 68dvh)" }}
->
-  <PanoVideo
-    autoPlay
-    loop={${loop}}
-    clickToTogglePlayback={${clickToTogglePlayback}}
-    showCenterPlayButton={${showCenterPlayButton}}
-    captions={${captionsProp}}
+export function PanoramaVideo() {
+  return (
+    <PanoViewer
+      mediaActivation={{
+        onActivate: (media) => {
+          void media.playVideo({ unmute: true });
+        },
+      }}
+      style={{ height: "min(540px, 68dvh)" }}
+    >
+      <PanoVideo
+        autoPlay
+        loop={${loop}}
+        clickToTogglePlayback={${clickToTogglePlayback}}
+        showCenterPlayButton={${showCenterPlayButton}}
+        captions={${captionsProp}}
 ${sourceProps}
-    tracks={[
-${tracks.map((track) => `      { src: "${track.src}", srcLang: "${track.srcLang}", label: "${track.label}"${defaultTrack === track.srcLang ? ", default: true" : ""} },`).join("\n")}
-    ]}
-  />
-</PanoViewer>`;
+        tracks={[
+${tracks.map((track) => `          { src: "${track.src}", srcLang: "${track.srcLang}", label: "${track.label}"${defaultTrack === track.srcLang ? ", default: true" : ""} },`).join("\n")}
+        ]}
+      />
+    </PanoViewer>
+  );
+}`;
 }
 
 export function VideoPage() {
@@ -321,10 +327,12 @@ export function VideoPage() {
           </PanoViewer>
         </div>
         <VideoPerformanceMetrics root={viewerRoot} motion={motion} />
-        <CodeSnippet
-          blurb="Replace the sample URLs with your own video sources and captions."
-          code={snippet}
-          label="PanoVideo"
+        <ExampleCode
+          react={{
+            blurb: "Replace the sample URLs with your own video sources and captions.",
+            code: snippet,
+            label: "PanoVideo",
+          }}
         />
       <details className="border-t border-line p-5"><summary>Complete running example</summary>
         <CodeSnippet label="360 video page" blurb="Full page implementation, including the displayed controls, loading/error status and example code generation." code={exampleSource} />
