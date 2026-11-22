@@ -1,3 +1,4 @@
+import { parsePanoGeoMap, resolvePanoGeoMapAssets, type PanoGeoMapDefinition } from "./geo-map";
 import { parseViewLimits, type PanoViewLimits } from "../view-limits";
 import { parsePopups, resolveProjectPopupAssets, type ProjectPopupDefinition, type PopupAssetUrlResolver } from "./popups";
 import {
@@ -51,6 +52,7 @@ export type PanoProjectDefinition = {
   scenes: PanoProjectSceneDefinition[];
   popups?: ProjectPopupDefinition[];
   map?: PanoMapDefinition;
+  geoMap?: PanoGeoMapDefinition;
 };
 export type LoadedProjectScene = {
   scene: TileScene | SphereTileScene;
@@ -64,6 +66,7 @@ export type LoadedPanoProject = {
   scenes: LoadedProjectScene[];
   popups?: ProjectPopupDefinition[];
   map?: PanoMapDefinition;
+  geoMap?: PanoGeoMapDefinition;
 };
 export type LoadPanoProjectOptions = JsonRequestOptions & {
   /** Directory used for project-relative references. Required for object input. */
@@ -228,6 +231,7 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
       }
     }
     const map = parsePanoMap(value.map, ids, options);
+    const geoMap = parsePanoGeoMap(value.geoMap, ids);
     return {
       schemaVersion: 1,
       title: optionalString(value, "title"),
@@ -235,6 +239,7 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
       scenes,
       ...(popups === undefined ? {} : { popups }),
       ...(map === undefined ? {} : { map }),
+      ...(geoMap === undefined ? {} : { geoMap }),
     };
   } catch (cause) {
     if (cause instanceof PanoDataError) throw cause;
@@ -356,6 +361,9 @@ export async function loadPanoProject(
       initialSceneId: definition.initialSceneId!,
       scenes,
       ...(definition.popups === undefined ? {} : { popups: definition.popups.map((popup) => resolveProjectPopupAssets(popup, root, options.resolvePopupAssetUrl)) }),
+      ...(definition.geoMap === undefined ? {} : {
+        geoMap: resolvePanoGeoMapAssets(definition.geoMap, root, options.resolveAssetUrl),
+      }),
       ...(definition.map === undefined
         ? {}
         : {

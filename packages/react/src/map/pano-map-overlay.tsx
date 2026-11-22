@@ -67,7 +67,11 @@ export type PanoMapOverlayProps = {
   iconSize?: number;
   openLabel?: string;
   closeLabel?: string;
-  title?: string;
+  title?: ReactNode;
+  /** Replace the dialog launcher button contents. Defaults to `openLabel`. */
+  launcher?: ReactNode;
+  /** Replace the dialog close button contents. Defaults to the built-in X icon. */
+  close?: ReactNode;
   className?: string;
   style?: CSSProperties;
   /**
@@ -104,11 +108,12 @@ const CHEVRON_PATHS = {
 } as const;
 
 /** Viewer-local map dialog. Avoids document modal locks from Radix Dialog. */
-function PanoMapDialogShell({
+export function PanoMapDialogShell({
   open,
   onOpenChange,
   title,
   closeLabel,
+  close,
   dialogWidth,
   dialogHeight,
   children,
@@ -117,6 +122,7 @@ function PanoMapDialogShell({
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   closeLabel: string;
+  close?: ReactNode;
   dialogWidth: number;
   dialogHeight: number;
   children: ReactNode;
@@ -208,9 +214,13 @@ function PanoMapDialogShell({
             aria-label={closeLabel}
             onClick={() => onOpenChange(false)}
           >
-            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="m4 4 8 8M12 4l-8 8" />
-            </svg>
+            {close === undefined ? (
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="m4 4 8 8M12 4l-8 8" />
+              </svg>
+            ) : (
+              close
+            )}
           </button>
         </header>
         <div className="pano-map-dialog-body" style={{ minHeight: 0, flex: 1 }}>
@@ -251,6 +261,8 @@ export function PanoMapOverlay({
   openLabel = "Map",
   closeLabel = "Close",
   title = "Map",
+  launcher,
+  close,
   className,
   style,
   toggle,
@@ -366,13 +378,14 @@ export function PanoMapOverlay({
           }}
           onClick={() => setOpen(true)}
         >
-          {openLabel}
+          {launcher === undefined ? openLabel : launcher}
         </button>
         <PanoMapDialogShell
           open={open}
           onOpenChange={setOpen}
           title={title}
           closeLabel={closeLabel}
+          close={close}
           dialogWidth={dialogWidth}
           dialogHeight={dialogHeight}
         >

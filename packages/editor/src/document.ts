@@ -106,6 +106,9 @@ export function exportDocument(project: PanoProjectDefinition): string {
       if (spot.icon) check(spot.icon, `map.spots.${spot.id}.icon`);
     }
   }
+  for (const spot of parsed.geoMap?.spots ?? []) {
+    if (spot.icon) check(spot.icon, `geoMap.spots.${spot.id}.icon`);
+  }
   return JSON.stringify(parsed, null, 2) + "\n";
 }
 
@@ -140,6 +143,9 @@ export function removeScene(
     initialSceneId:
       project.initialSceneId === id ? scenes[0]?.id : project.initialSceneId,
     ...(map === undefined ? {} : { map }),
+    ...(project.geoMap === undefined ? {} : {
+      geoMap: { ...project.geoMap, spots: project.geoMap.spots.filter((spot) => spot.sceneId !== id) },
+    }),
   };
 }
 

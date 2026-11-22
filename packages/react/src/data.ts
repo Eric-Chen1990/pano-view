@@ -48,3 +48,6 @@ export type {
 export type { PanoViewLimits } from "./view-limits";
 
 export { hotspotAction, setHotspotAction, projectHotspotTriggers } from "./data/hotspots";
+
+export { parsePanoGeoMap, resolvePanoGeoMapAssets, PANO_GEO_COORDINATE_SYSTEMS } from "./data/geo-map";
+export type { PanoGeoMapDefinition, PanoGeoMapSpot, PanoGeoPosition, PanoGeoCoordinateSystem } from "./data/geo-map";

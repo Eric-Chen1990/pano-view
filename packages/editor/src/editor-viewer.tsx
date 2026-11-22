@@ -16,6 +16,8 @@ import {
   PanoEvents,
   getHotspotCornerCenter,
   PanoMapOverlay,
+  PanoGeoMapOverlay,
+  type PanoGeoMapEdit,
   PanoOverlay,
   Scenes,
   ProjectScenes,
@@ -30,6 +32,7 @@ import {
   resolveProjectHotspotAssets,
   resolveProjectPopupAssets,
   resolvePanoMapAssets,
+  resolvePanoGeoMapAssets,
   type PanoProjectDefinition,
   type LoadedPanoProject,
   type LoadedProjectScene,
@@ -101,6 +104,11 @@ export function EditorViewer({
   testRequest,
   onTestConsumed,
   mapEditing = false,
+  geoEditing,
+  geoSpotId,
+  geoPlacement,
+  onGeoSelect,
+  onGeoEdit,
   selectedMapSpotId,
   placementSceneId,
   onSelectedMapSpotIdChange,
@@ -133,6 +141,11 @@ export function EditorViewer({
   testRequest?: HotspotTestRequest;
   onTestConsumed?: () => void;
   mapEditing?: boolean;
+  geoEditing?: boolean;
+  geoSpotId?: string;
+  geoPlacement?: { sceneId: string } | { spotId: string };
+  onGeoSelect?: (spotId: string) => void;
+  onGeoEdit?: (edit: PanoGeoMapEdit) => void;
   selectedMapSpotId?: string;
   placementSceneId?: string;
   onSelectedMapSpotIdChange?: (id: string | null) => void;
@@ -321,15 +334,32 @@ export function EditorViewer({
         issues.push(`map: ${errorMessage(error)}`);
       }
     }
+    let geoMap: LoadedPanoProject["geoMap"];
+    if (project.geoMap) {
+      try {
+        geoMap = resolvePanoGeoMapAssets(project.geoMap, local ? LOCAL_ROOT : projectRoot(options.baseUrl), (path, context) => {
+          const files = assetFiles(path);
+          return files ? files.resolve(path, { ...context, defaultUrl: new URL(path, LOCAL_ROOT).href })
+            : (options.resolveAssetUrl?.(path, context) ?? context.defaultUrl);
+        });
+      } catch (error) {
+        issues.push(`geoMap: ${errorMessage(error)}`);
+        geoMap = { ...project.geoMap, spots: project.geoMap.spots.map((spot) => ({ ...spot, icon: undefined })) };
+      }
+    }
     const loaded: LoadedPanoProject = {
       title: project.title,
       initialSceneId: project.initialSceneId ?? scenes[0]?.scene.id ?? "",
       scenes,
       ...(project.popups === undefined ? {} : { popups }),
       ...(map === undefined ? {} : { map }),
+      ...(geoMap === undefined ? {} : { geoMap }),
     };
     return { loaded, issues };
   }, [project, sources, local, directories, media, options.baseUrl, options.resolveAssetUrl, options.resolvePopupAssetUrl]);
+  const sceneTitles = useMemo(() => Object.fromEntries(
+    project.scenes.map((scene) => [scene.id, scene.title ?? scene.id]),
+  ), [project.scenes]);
   const scenes = useMemo(
     () => runtime.loaded.scenes.map(({ scene, initialView }) => ({ ...scene, initialView })),
     [runtime.loaded.scenes],
@@ -456,7 +486,23 @@ export function EditorViewer({
                 onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
                 onMediaError={(block) => onError(`${block.id}: ${t("Could not load popup media")}`)}
               />
-              {runtime.loaded.map ? (
+              {runtime.loaded.geoMap && (geoEditing || (!mapEditing || preview)) ? (
+                <PanoGeoMapOverlay
+                  geoMap={runtime.loaded.geoMap}
+                  sources={options.geoMapSources ?? []}
+                  activeSceneId={activeId}
+                  sceneTitles={sceneTitles}
+                  selectedSpotId={geoEditing ? geoSpotId : undefined}
+                  placement={geoEditing ? geoPlacement : undefined}
+                  onSelectSpot={geoEditing ? onGeoSelect : undefined}
+                  onEdit={geoEditing ? onGeoEdit : undefined}
+                  onSelectScene={geoEditing ? undefined : onActive}
+                  editorSurface={geoEditing}
+                  anchor={!geoEditing && runtime.loaded.map && !runtime.loaded.geoMap.presentation?.anchor ? { align: "top-right" } : undefined}
+                  translate={t}
+                />
+              ) : null}
+              {runtime.loaded.map && !geoEditing ? (
                 <PanoMapOverlay
                   map={runtime.loaded.map}
                   activeSceneId={activeId}

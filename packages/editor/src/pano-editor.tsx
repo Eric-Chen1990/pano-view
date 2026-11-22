@@ -1,3 +1,4 @@
+import { GeoMapInspector } from "./geo-map-panels";
 import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { hotspotAction, setHotspotAction, projectHotspotTriggers, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { customActionIssue, validateCustomActions } from "./custom-actions";
@@ -24,6 +25,8 @@ import {
 import {
   parsePanoProject,
   type PanoProjectDefinition,
+  type PanoGeoMapDefinition,
+  type PanoGeoMapEdit,
   type PanoProjectSceneDefinition,
   type ProjectHotspotDefinition,
   type HotspotPosition,
@@ -103,6 +106,13 @@ export function PanoEditor(props: PanoEditorProps) {
   const [selectedPopupId, setSelectedPopupId] = useState<string>();
   const selectedPopup = project.popups?.find((popup) => popup.id === selectedPopupId);
   const [selectedMapSpotId, setSelectedMapSpotId] = useState<string>();
+  const [mapKind, setMapKind] = useState<"image" | "online">("image");
+  const [geoSpotId, setGeoSpotId] = useState<string>();
+  const [geoPlacement, setGeoPlacement] = useState<{ sceneId: string } | { spotId: string }>();
+  const geoSpot = project.geoMap?.spots.find((spot) => spot.id === geoSpotId);
+  const geoIconInput = useRef<HTMLInputElement>(null);
+  const geoIconTarget = useRef<string | undefined>(undefined);
+
   const [placementSceneId, setPlacementSceneId] = useState<string>();
   const mapInput = useRef<HTMLInputElement>(null);
   const mapPickField = useRef<"image" | "icon">("image");
@@ -729,6 +739,85 @@ export function PanoEditor(props: PanoEditorProps) {
       });
     }
   }
+  function changeGeoMap(geoMap: PanoGeoMapDefinition) {
+    begin();
+    publish({ ...history.current, geoMap });
+    end();
+  }
+
+  function selectGeoSpot(id: string) {
+    const spot = history.current.geoMap?.spots.find((entry) => entry.id === id);
+    if (!spot) return;
+    setGeoSpotId(id);
+    setGeoPlacement(undefined);
+    if (spot.sceneId !== active?.id) navigate(spot.sceneId);
+  }
+
+  function editGeoSpot(edit: PanoGeoMapEdit) {
+    const map = history.current.geoMap;
+    if (!map) return;
+    if (edit.type === "place") {
+      if (!history.current.scenes.some((scene) => scene.id === edit.sceneId)) return;
+      const id = newId();
+      changeGeoMap({ ...map, spots: [...map.spots, {
+        id, sceneId: edit.sceneId, positions: { [edit.coordinateSystem]: edit.position },
+      }] });
+      selectGeoSpot(id);
+    } else {
+      if (!map.spots.some((spot) => spot.id === edit.spotId)) return;
+      changeGeoMap({ ...map, spots: map.spots.map((spot) => spot.id !== edit.spotId ? spot
+        : edit.type === "heading" ? { ...spot, heading: edit.heading }
+        : { ...spot, positions: { ...spot.positions, [edit.coordinateSystem]: edit.position } }) });
+      setGeoPlacement(undefined);
+    }
+  }
+
+  function deleteGeoSpot(id: string) {
+    const map = history.current.geoMap;
+    if (!map) return;
+    changeGeoMap({ ...map, spots: map.spots.filter((spot) => spot.id !== id) });
+    if (geoSpotId === id) setGeoSpotId(undefined);
+    setGeoPlacement(undefined);
+  }
+
+  function setGeoIcon(id: string, icon: string) {
+    const map = history.current.geoMap;
+    if (map?.spots.some((spot) => spot.id === id)) {
+      changeGeoMap({ ...map, spots: map.spots.map((spot) => spot.id === id ? { ...spot, icon } : spot) });
+    }
+  }
+
+  async function pickGeoIcon() {
+    if (!geoSpot) return;
+    if (!localSession && props.onPickAsset) {
+      const token = generation.current;
+      try {
+        const url = await props.onPickAsset({
+          kind: "image", field: "geoMap.icon", sceneId: geoSpot.sceneId, hotspotId: geoSpot.id, currentUrl: geoSpot.icon,
+        });
+        if (url && alive.current && generation.current === token) setGeoIcon(geoSpot.id, url);
+      } catch (cause) { report(cause); }
+      return;
+    }
+    geoIconTarget.current = geoSpot.id;
+    geoIconInput.current?.click();
+  }
+
+  function importGeoIcon(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    const id = geoIconTarget.current;
+    if (!file || !id || !history.current.geoMap?.spots.some((spot) => spot.id === id)) return;
+    try {
+      const files = LocalFiles.imported(file, `assets/map/${newId()}/`);
+      const path = LocalFiles.reference([...files.files.keys()][0]!);
+      retainedFiles.current.push(files);
+      setDirectories((current) => [...current, files]);
+      setGeoIcon(id, path);
+      setError("");
+    } catch (cause) { report(cause); }
+  }
+
   function applyMapAsset(path: string, field: "image" | "icon") {
     const current = history.current.map;
     if (!current) return;
@@ -1247,6 +1336,7 @@ export function PanoEditor(props: PanoEditorProps) {
         onChange={(event) => void openDirectory(event)}
       />
       <input ref={cursorInput} type="file" accept="image/png,.png" hidden aria-label={t("Choose cursor image")} onChange={event => void importCursor(event)} />
+      <input ref={geoIconInput} type="file" accept="image/*,.svg" hidden onChange={importGeoIcon} />
       <input
         ref={mapInput}
         type="file"
@@ -1323,7 +1413,31 @@ export function PanoEditor(props: PanoEditorProps) {
             <button type="button" aria-pressed={sidebarMode === "popups"} onClick={() => { end(); setSidebarMode("popups"); }}>{t("Popup content")}</button>
             <button type="button" aria-pressed={sidebarMode === "map"} onClick={() => { end(); setSidebarMode("map"); setSelectedId(undefined); }}>{t("Map")}</button>
           </div> : null}
-          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} onDelete={deletePopup} t={t} /> : sidebarMode === "map" && !preview ? <MapLibrary
+          {sidebarMode === "map" && !preview ? <div className="pne-sidebar-tabs" role="group" aria-label={t("Map type")}>
+            <button type="button" aria-pressed={mapKind === "image"} onClick={() => { setGeoPlacement(undefined); setMapKind("image"); }}>{t("Floor plan")}</button>
+            <button type="button" aria-pressed={mapKind === "online"} onClick={() => setMapKind("online")}>{t("Online map")}</button>
+          </div> : null}
+          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} onDelete={deletePopup} t={t} /> : sidebarMode === "map" && !preview ? mapKind === "online" ? <div className="pne-fields">
+            {project.geoMap ? <>
+              <strong>{t("Online map")}</strong>
+              <div className="pne-button-grid">
+                <button type="button" onClick={() => { setGeoSpotId(undefined); setGeoPlacement(undefined); }}>{t("New point")}</button>
+                <button type="button" onClick={() => {
+                  begin();
+                  const next = { ...history.current };
+                  delete next.geoMap;
+                  publish(next);
+                  end();
+                  setGeoSpotId(undefined);
+                  setGeoPlacement(undefined);
+                }}>{t("Remove online map")}</button>
+              </div>
+              {project.geoMap.spots.map((spot) => <button key={spot.id} type="button"
+                aria-pressed={geoSpot?.id === spot.id} onClick={() => selectGeoSpot(spot.id)}>
+                {spot.label ?? project.scenes.find((scene) => scene.id === spot.sceneId)?.title ?? spot.sceneId}
+              </button>)}
+            </> : <button type="button" onClick={() => changeGeoMap({ spots: [] })}>{t("Add online map")}</button>}
+          </div> : <MapLibrary
             map={project.map}
             selectedSpotId={selectedMapSpotId}
             onSelectMap={() => setSelectedMapSpotId(undefined)}
@@ -1434,7 +1548,12 @@ export function PanoEditor(props: PanoEditorProps) {
             }}
             testRequest={testRequest}
             onTestConsumed={() => setTestRequest(undefined)}
-            mapEditing={sidebarMode === "map"}
+            mapEditing={sidebarMode === "map" && mapKind === "image"}
+            geoEditing={sidebarMode === "map" && mapKind === "online" && !preview}
+            geoSpotId={geoSpot?.id}
+            geoPlacement={geoPlacement}
+            onGeoSelect={selectGeoSpot}
+            onGeoEdit={editGeoSpot}
             selectedMapSpotId={selectedMapSpotId}
             placementSceneId={placementSceneId}
             onSelectedMapSpotIdChange={(id) => setSelectedMapSpotId(id ?? undefined)}
@@ -1476,11 +1595,15 @@ export function PanoEditor(props: PanoEditorProps) {
         {!preview ? (
           <aside ref={inspectorRef} className="pne-inspector" aria-label={t("Appearance")}>
             <div className="pne-panel-title">
-              {sidebarMode === "map" ? t("Floor plan") : sidebarMode === "popups" ? selectedPopup?.title || t("Popup content") : selected
+              {sidebarMode === "map" ? t(mapKind === "online" ? "Online map" : "Floor plan") : sidebarMode === "popups" ? selectedPopup?.title || t("Popup content") : selected
                 ? selected.label || selected.id
                 : (active?.title ?? t("Scene source"))}
             </div>
-            {sidebarMode === "map" ? project.map ? <MapInspector
+            {sidebarMode === "map" ? mapKind === "online" ? project.geoMap ? <GeoMapInspector
+              map={project.geoMap} scenes={project.scenes} sources={props.geoMapSources} spot={geoSpot}
+              placement={geoPlacement} onPlacement={setGeoPlacement} onChange={changeGeoMap} onEdit={editGeoSpot}
+              onIcon={() => void pickGeoIcon()} onDelete={deleteGeoSpot} t={t}
+            /> : null : project.map ? <MapInspector
               map={project.map}
               project={project}
               selectedSpotId={selectedMapSpotId}

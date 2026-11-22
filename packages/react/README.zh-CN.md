@@ -248,6 +248,10 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `ProjectPopupDialog` 接收 `popup`（null 关闭）、`onOpenChange`，以及可选 `closeLabel` 和 `onMediaError(block)`。文字按纯文本展示，音视频使用原生控件且不自动播放；关闭或切换内容时释放媒体。全屏、尺寸和焦点行为复用 `PanoDialog`。需要自定义渲染时可替换成自己的 Overlay。
 
+### 在线场景地图
+
+通过 `PanoGeoMap` 或 `PanoGeoMapOverlay` 将导览场景标记在 Google、高德、百度或标准 XYZ 底图上。配置方式见[在线场景地图](docs/geo-map.md)。
+
 ### 平面图地图
 
 项目可选字段 `map` 把场景点位放在一张平面图上。没有 `map` 的旧项目仍然有效，`schemaVersion` 仍为 1。`loadPanoProject` 返回的地图已按项目目录解析平面图和点位图标。自定义加载器也可使用 `/data` 导出的 `parsePanoMap` 与 `resolvePanoMapAssets`。
@@ -358,7 +362,8 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 对话框模式放置一个打开按钮，并在查看器内部打开地图。打开按钮尺寸使用 `width` / `height`，位置使用同一个 `anchor`。对话框本体使用另一组尺寸：
 
 - `dialogWidth` / `dialogHeight` — 期望的对话框宽高，单位为 CSS 像素（默认 720×520）。两者都会按查看器可用区域夹紧，四周各留 16 像素边距。
-- `openLabel` / `closeLabel` / `title` — 打开按钮无障碍名称、关闭按钮文案与对话框标题（默认分别为 `"Map"`、`"Close"`、`"Map"`）。
+- `openLabel` / `closeLabel` / `title` — 打开按钮无障碍名称、关闭按钮无障碍名称与对话框标题（默认分别为 `"Map"`、`"Close"`、`"Map"`）。`title` 可为 `ReactNode`。
+- `launcher` / `close` — 可选 `ReactNode`，分别替换打开按钮与关闭按钮的内容。省略时打开按钮显示 `openLabel` 文字，关闭按钮使用内置叉号。
 
 选中点位后关闭对话框。
 
@@ -376,6 +381,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
   openLabel="Floor plan"
   title="Floor plan"
   closeLabel="Close"
+  launcher={<img src="/map-icon.svg" alt="" width={24} height={24} />}
 />
 ```
 
