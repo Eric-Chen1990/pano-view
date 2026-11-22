@@ -102,6 +102,8 @@ export type AudioHotspotDefinition = PointHotspotDefinitionBase & {
   volume?: number;
   pauseWhenHidden?: boolean;
   range?: number;
+  spatialAudio?: boolean;
+  soundDistance?: number;
   icon?: string;
   playingIcon?: string;
   marker?: boolean;

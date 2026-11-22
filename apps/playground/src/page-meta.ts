@@ -26,6 +26,11 @@ export const PAGE_META = {
     description:
       "Play and pause shared or per-scene background music. Keep audio outside scene lifecycles and observe playback while navigating a panorama tour.",
   },
+  "/directional-3d-sound": {
+    title: "Directional 3D Sound Demo | Pano View",
+    description:
+      "Listen to two positional sound sources as you look around a panorama or move with positional tracking in WebXR.",
+  },
   "/vr-scene-menu": {
     title: "VR Scene Menu Demo | Pano View",
     description:

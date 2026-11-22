@@ -118,6 +118,8 @@ const fields = {
     "volume",
     "pauseWhenHidden",
     "range",
+    "spatialAudio",
+    "soundDistance",
     "icon",
     "playingIcon",
     "marker",
@@ -180,6 +182,7 @@ const booleanFields = new Set([
   "playsInline",
   "pauseWhenHidden",
   "marker",
+  "spatialAudio",
 ]);
 const numberFields = new Set([
   "renderOrder",
@@ -195,6 +198,7 @@ const numberFields = new Set([
   "fps",
   "volume",
   "range",
+  "soundDistance",
   "fontSize",
   "backgroundOpacity",
   "padding",
@@ -211,6 +215,7 @@ const positiveFields = new Set([
   "height",
   "scale",
   "distance",
+  "soundDistance",
   "referenceFov",
   "frameCount",
   "fps",

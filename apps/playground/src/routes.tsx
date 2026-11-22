@@ -14,6 +14,7 @@ import { ProjectPage } from "./components/project/ProjectPage";
 import { BasicsPage } from "./components/basics/BasicsPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
+import { DirectionalSoundPage } from "./components/directional-sound/DirectionalSoundPage";
 import { MapPage } from "./components/map/MapPage";
 import { ComparePage } from "./components/compare/ComparePage";
 import { PlanarComparePage } from "./components/planar-tile/PlanarComparePage";
@@ -182,6 +183,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Background audio",
     group: "media",
     Component: BackgroundAudioPage,
+  },
+  {
+    path: "/directional-3d-sound",
+    navLabel: "Directional 3D Sound",
+    group: "media",
+    Component: DirectionalSoundPage,
   },
   {
     path: "/webvr",

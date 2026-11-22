@@ -89,6 +89,7 @@ export function HotspotInspector({
         spec={hotspotFieldSpec({
           ...spec,
           disabled: spec.name === "distance" ? surface
+            : spec.name === "soundDistance" ? hotspot.type !== "audio" || !hotspot.spatialAudio
             : spec.name === "scaleMode" ? surface
             : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
           defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,

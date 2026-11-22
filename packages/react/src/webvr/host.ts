@@ -3,6 +3,7 @@ import { DEFAULT_WEBVR_SETTINGS } from "./profiles";
 import type { XRStore } from "@react-three/xr";
 import { createContext } from "react";
 import type { WebVRHotspotView, WebVRStereoView } from "./stereo-view";
+import type { XRAudioPose } from "../audio/xr-audio-pose";
 import type {
   WebVRChrome,
   WebVRMode,
@@ -55,6 +56,7 @@ export type WebVRRuntimeApi = {
   mode: WebVRMode | null;
   stereoView: WebVRStereoView;
   xrHeadView: WebVRHotspotView;
+  xrAudioPose: XRAudioPose;
 };
 
 export const WebVRRuntimeContext = createContext<WebVRRuntimeApi | null>(null);

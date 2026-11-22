@@ -424,6 +424,8 @@ export const contentFields: Record<string, FieldSpec[]> = {
     { name: "icon", asset: true },
     { name: "playingIcon", asset: true },
     ...numbers("volume", "range"),
+    ...booleans("spatialAudio"),
+    ...numbers("soundDistance"),
     ...booleans("playing", "loop", "muted", "marker", "pauseWhenHidden"),
     { name: "crossOrigin", options: ["anonymous", "use-credentials"] },
   ],

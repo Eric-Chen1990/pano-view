@@ -15,7 +15,9 @@
   element exposed as a Three.js video texture.
 - **Audio Hotspot**: a point hotspot that plays a directional sound at its
   spherical position. Look-away `range` (degrees) fades volume to silence;
-  stereo panning follows the camera yaw. Playback is controlled `playing`
+  stereo panning follows the camera yaw. Opt-in `spatialAudio` uses HRTF,
+  rear attenuation in full-sphere mode, a per-source distance in meters, and
+  WebXR head translation. Playback is controlled `playing`
   state, decoded with Web Audio (not HTML5 streaming). The default marker
   uses distinct stopped and playing icons. `marker={false}` hides
   the visual; the source remains positional and spatial.

@@ -134,6 +134,8 @@ test("local package contains every sphere tile and media, preserves metadata, an
             type: "audio",
             ...point,
             src: ["media/audio"],
+            spatialAudio: true,
+            soundDistance: 4.5,
             icon: "media/icon.svg",
             playingIcon: "media/image%20%231.png",
           },
@@ -190,6 +192,8 @@ test("local package contains every sphere tile and media, preserves metadata, an
   assert.equal(saved.scenes[0]!.hotspots!.length, 9);
   const audio = saved.scenes[0]!.hotspots!.find((hotspot) => hotspot.type === "audio");
   assert.ok(audio && Array.isArray(audio.src));
+  assert.equal(audio.spatialAudio, true);
+  assert.equal(audio.soundDistance, 4.5);
   const audioPath = audio.src[0]!;
   assert.match(audioPath, /^assets\/\d+\.wav$/);
   assert.equal(strFromU8(archive[audioPath]!), "audio");

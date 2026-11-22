@@ -238,6 +238,8 @@ const hotspots: ProjectHotspotDefinition[] = [
     src: ["clip.mp3", "clip.ogg"],
     icon: "sound.webp",
     playingIcon: "playing.webp",
+    spatialAudio: true,
+    soundDistance: 4.5,
   },
   {
     type: "text",
@@ -300,11 +302,28 @@ test("projects validate all hotspot variants and resolve nested resources withou
     (hs[4] as Extract<ProjectHotspotDefinition, { type: "audio" }>).format,
     ["mp3", "ogg"]
   );
+  assert.equal(hs[4]?.type, "audio");
+  if (hs[4]?.type === "audio") {
+    assert.equal(hs[4].spatialAudio, true);
+    assert.equal(hs[4].soundDistance, 4.5);
+  }
   assert.equal(
     (hs[5] as Extract<ProjectHotspotDefinition, { type: "text" }>).text,
     "card.webp stays text"
   );
   assert.equal(loaded.initialSceneId, "a");
+});
+
+test("older audio definitions omit 3D sound settings and new distances must be positive", () => {
+  const audio = { type: "audio", id: "sound", src: "sound.mp3", position };
+  const withAudio = (hotspot: unknown) => ({
+    ...project(),
+    scenes: [{ id: "a", source: { viewerConfig: cube }, hotspots: [hotspot] }],
+  });
+  const hotspot = parsePanoProject(withAudio(audio)).scenes[0]?.hotspots?.[0];
+  assert.deepEqual(hotspot, audio);
+  assert.throws(() => parsePanoProject(withAudio({ ...audio, soundDistance: 0 })), /soundDistance/);
+  assert.throws(() => parsePanoProject(withAudio({ ...audio, spatialAudio: "true" })), /spatialAudio/);
 });
 
 test("project references, inline configs and per-scene roots have separate URL bases", async (t) => {
