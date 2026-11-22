@@ -1,4 +1,4 @@
-import type { ProjectCustomActionEvent } from "@ericchen1990/pano-view";
+import type { PanoGeoMapSource, ProjectCustomActionEvent } from "@ericchen1990/pano-view";
 import type { PanoCustomActionDefinition } from "./custom-actions";
 import type { CSSProperties } from "react";
 import type {
@@ -35,6 +35,7 @@ export type PanoPopupAssetRequest = {
 };
 
 export type PanoEditorProps = {
+  geoMapSources?: readonly PanoGeoMapSource[];
   customActions?: readonly PanoCustomActionDefinition[];
   onPreviewCustomAction?: (event: ProjectCustomActionEvent) => void | Promise<void>;
   /** Controlled document. Empty scenes are allowed while authoring, but cannot be exported. */

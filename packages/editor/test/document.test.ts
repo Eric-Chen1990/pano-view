@@ -413,3 +413,18 @@ test("chroma key settings round-trip through editor JSON", () => {
   const imported = readDocument(JSON.parse(exportDocument(project)));
   assert.deepEqual(imported.scenes[0]?.hotspots, project.scenes[0]?.hotspots);
 });
+
+test("removing a scene clears online marks and undo preserves all coordinate systems", () => {
+  const source = { viewerConfig: config };
+  const project: PanoProjectDefinition = {
+    schemaVersion: 1,
+    scenes: [{ id: "a", source }, { id: "b", source }],
+    geoMap: { controlsLayout: "vertical", spots: [
+      { id: "spot", sceneId: "a", positions: { wgs84: { lat: 1, lng: 2 }, gcj02: { lat: 3, lng: 4 } } },
+    ] },
+  };
+  const history = new DocumentHistory(project);
+  history.commit(removeScene(project, "a"));
+  assert.deepEqual(history.current.geoMap?.spots, []);
+  assert.deepEqual(readDocument(JSON.parse(exportDocument(history.undo()))).geoMap, project.geoMap);
+});

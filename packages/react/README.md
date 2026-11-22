@@ -252,6 +252,10 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `ProjectPopupDialog` accepts `popup` (or `null` to close), `onOpenChange`, optional `closeLabel` and `onMediaError(block)`. It renders text as text, uses native audio/video controls without autoplay, and releases media when content closes or changes. It inherits `PanoDialog` fullscreen, sizing and focus behavior. Replace this component with your own overlay to customize rendering.
 
+### Online scene maps
+
+Use `PanoGeoMap` or `PanoGeoMapOverlay` to place tour scenes on a Google, AMap, Baidu or standard XYZ basemap. See [Online scene maps](docs/geo-map.md).
+
 ### Floor plan maps
 
 An optional project-level `map` places scene spots on one floor image. Projects without `map` stay valid, and `schemaVersion` remains 1. `loadPanoProject` returns the map with the floor image and spot icons resolved from the project directory. `parsePanoMap` and `resolvePanoMapAssets` are also exported from `/data` for custom loaders.
@@ -362,7 +366,8 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 Dialog mode places a launcher button and opens the map in a viewer-local modal. Launcher size uses `width` / `height`, and the launcher uses the same `anchor`. The dialog body uses a separate pair:
 
 - `dialogWidth` / `dialogHeight` — preferred dialog size in CSS pixels (default 720×520). Both are clamped to the viewer with a 16 px margin on each side.
-- `openLabel` / `closeLabel` / `title` — launcher accessible name, close button label, and dialog heading (defaults `"Map"`, `"Close"`, `"Map"`).
+- `openLabel` / `closeLabel` / `title` — launcher accessible name, close button accessible name, and dialog heading (defaults `"Map"`, `"Close"`, `"Map"`). `title` accepts a `ReactNode`.
+- `launcher` / `close` — optional `ReactNode` that replaces the launcher button contents and the close button contents. Omit to keep `openLabel` text and the built-in X icon.
 
 Choosing a spot closes the dialog.
 
@@ -380,6 +385,7 @@ Choosing a spot closes the dialog.
   openLabel="Floor plan"
   title="Floor plan"
   closeLabel="Close"
+  launcher={<img src="/map-icon.svg" alt="" width={24} height={24} />}
 />
 ```
 

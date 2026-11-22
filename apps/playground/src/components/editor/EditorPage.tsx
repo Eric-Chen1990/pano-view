@@ -1,3 +1,4 @@
+import { GEO_MAP_SOURCES, OPEN_STREET_MAP } from "../geo-map/geo-map-example";
 import { useEffect, useMemo, useState } from "react";
 import { PanoEditor } from "@ericchen1990/pano-editor";
 import {
@@ -52,6 +53,7 @@ export function TourEditor() {
   return (
     <PanoEditor
       defaultValue={project}
+      geoMapSources={[${JSON.stringify(OPEN_STREET_MAP)}]}
       baseUrl={new URL(".", new URL(projectUrl, window.location.href)).href}
       locale="${locale}"
       style={{ height: "min(860px, 85vh)", minHeight: 660 }}
@@ -120,6 +122,7 @@ export function EditorPage() {
       ) : project ? (
         <PanoEditor
           defaultValue={project}
+          geoMapSources={GEO_MAP_SOURCES}
           baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
           locale={locale}
           style={{ height: "min(860px, 85vh)", minHeight: 660 }}

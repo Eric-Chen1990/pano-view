@@ -380,3 +380,9 @@ export { usePanoMediaController } from "./controls/media";
 
 export { WebVRSceneMenu, DEFAULT_WEBVR_SCENE_MENU_APPEARANCE } from "./webvr/scene-menu";
 export type { WebVRSceneMenuProps, WebVRSceneMenuAppearance } from "./webvr/scene-menu";
+
+export { PanoGeoMap } from "./geo-map/pano-geo-map";
+export { PanoGeoMapOverlay } from "./geo-map/pano-geo-map-overlay";
+export type { PanoGeoMapProps, PanoGeoMapEdit } from "./geo-map/pano-geo-map";
+export type { PanoGeoMapOverlayProps } from "./geo-map/pano-geo-map-overlay";
+export type { PanoGeoMapSource } from "./geo-map/engine";

@@ -88,6 +88,9 @@ test("local package contains every sphere tile and media, preserves metadata, an
     schemaVersion: 1,
     title: "Portable",
     initialSceneId: "a",
+    geoMap: { spots: [
+      { id: "room", sceneId: "a", positions: { wgs84: { lat: 37.8, lng: -122.4 } }, icon: "media/icon.svg" },
+    ] },
     scenes: [
       {
         id: "a",
@@ -183,6 +186,9 @@ test("local package contains every sphere tile and media, preserves metadata, an
   );
   assert.deepEqual(project, before);
   assert.equal(saved.title, "Portable");
+  assert.deepEqual(saved.geoMap?.spots[0].positions, project.geoMap?.spots[0].positions);
+  assert.match(saved.geoMap!.spots[0].icon!, /^assets\/\d+\.svg$/);
+  assert.ok(archive[saved.geoMap!.spots[0].icon!]);
   assert.deepEqual(saved.scenes[0]!.viewLimits, project.scenes[0]!.viewLimits);
   assert.equal(saved.initialSceneId, "a");
   assert.deepEqual(

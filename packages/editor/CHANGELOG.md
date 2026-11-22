@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 3.4.0
+
+### Minor Changes
+
+- 5e39cea: Add online scene maps for Google Maps, AMap, Baidu Maps, and XYZ tiles, with customizable markers, view-direction radar, configurable control layout, and Tour Editor authoring.
+
 ## 3.3.0
 
 ### Minor Changes

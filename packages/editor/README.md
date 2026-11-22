@@ -206,3 +206,8 @@ In a host-managed session, `onPickAsset` supplies the floor image and spot icons
 Project packages copy the floor image and spot icons and rewrite them to package-relative paths. JSON-only export keeps the paths as authored. Playback of the saved `map` is described in the [viewer floor-plan section](../react/README.md#floor-plan-maps): mount `PanoMapOverlay` inside `PanoOverlay` and switch scenes from `onSelectScene`.
 
 Hotspot placement and tooltip sizing follow the viewer rules: floating point hotspots default to fixed screen size, surface hotspots always scale with FOV, and polygon/polyline geometry only supports surface attachment. Tooltips default to floating and inherit the hotspot scale behavior; `tooltipMode` and `tooltipScaleMode` provide independent overrides. Surface tooltips always scale with FOV. Existing omitted settings use these defaults without rewriting project data.
+
+
+## Online map
+
+Pass `geoMapSources` with the same [basemap configuration](../react/docs/geo-map.md) as your player. In **Map → Online map**, choose a scene and place a point, drag it to move, or enter its coordinates. To fill in a position on another basemap, select the point in the sidebar and choose **Set point on this basemap**. Drag its radar to calibrate its view direction. JSON and ZIP preserve all explicitly placed positions. ZIP also includes custom marker icons.

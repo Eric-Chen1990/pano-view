@@ -169,7 +169,7 @@ function parseGradientStop(
   };
 }
 
-function parseSector(value: unknown, field: string): PanoMapSectorDefinition {
+export function parseMapSector(value: unknown, field: string): PanoMapSectorDefinition {
   if (!isRecord(value)) throw new Error(`${field}: expected an object`);
   const angle = requiredNumber(value, "angle", { exclusiveMin: 0, exclusiveMax: 360 });
   const radius = requiredNumber(value, "radius", { exclusiveMin: 0 });
@@ -217,7 +217,7 @@ function parseSector(value: unknown, field: string): PanoMapSectorDefinition {
   };
 }
 
-function parsePresentation(
+export function parseMapPresentation(
   value: unknown,
   field: string,
 ): PanoMapPresentation {
@@ -357,7 +357,7 @@ export function parsePanoMap(
     const presentation =
       value.presentation === undefined
         ? undefined
-        : parsePresentation(value.presentation, "map.presentation");
+        : parseMapPresentation(value.presentation, "map.presentation");
     const controls =
       value.controls === undefined
         ? undefined
@@ -380,7 +380,7 @@ export function parsePanoMap(
     const sector =
       value.sector === undefined
         ? undefined
-        : parseSector(value.sector, "map.sector");
+        : parseMapSector(value.sector, "map.sector");
     return {
       image,
       ...(interaction === undefined ? {} : { interaction }),

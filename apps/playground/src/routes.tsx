@@ -17,6 +17,7 @@ import { BasicsPage } from "./components/basics/BasicsPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { DirectionalSoundPage } from "./components/directional-sound/DirectionalSoundPage";
+import { GeoMapPage } from "./components/geo-map/GeoMapPage";
 import { MapPage } from "./components/map/MapPage";
 import { ComparePage } from "./components/compare/ComparePage";
 import { PlanarComparePage } from "./components/planar-tile/PlanarComparePage";
@@ -161,6 +162,13 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Scene menu",
     group: "scenes",
     Component: SceneMenuPage,
+  },
+  {
+    path: "/geo-map",
+    jsonExample: "project",
+    navLabel: "Online scene map",
+    group: "scenes",
+    Component: GeoMapPage,
   },
   {
     path: "/map",

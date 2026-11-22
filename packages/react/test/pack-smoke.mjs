@@ -39,8 +39,10 @@ try {
     assert.ok(ui.includes("ProjectPopupDialog"), "Shared popup UI must be exported");
   }
   assert.ok((await readFile(join(destination, "dist/ui/styles.css"), "utf8")).includes(".pano-dialog-content"));
-  await Promise.all(["dialogs.md", "dialogs.zh-CN.md"].map((name) => access(join(destination, "docs", name))));
+  await Promise.all(["dialogs.md", "dialogs.zh-CN.md", "geo-map.md"].map((name) => access(join(destination, "docs", name))));
   const example = `
+const geoMap = api.parsePanoGeoMap({spots:[{id:"deck",sceneId:"room",positions:{wgs84:{lat:37.8,lng:-122.4}}}],controlsLayout:"vertical"},new Set(["room"]));
+assert.equal(geoMap.controlsLayout,"vertical");
 const limits={yaw:{min:170,max:-170},fov:{min:60,max:60}};
 const config = {type:"tile",multires:{tileSize:512,levels:[512]},urlTemplate:"tiles/%s/%l/%v_%h.webp",previewUrl:"preview.webp",previewFaceOrder:["l","f","r","b","u","d"]};
 const scene = api.sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/room/"});

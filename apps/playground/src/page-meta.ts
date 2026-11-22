@@ -89,6 +89,10 @@ export const PAGE_META = {
     description:
       "Explore the Pano View thumbnail scene menu. Switch 360° scenes, adjust menu placement, and try collapsible controls and scrollable thumbnails.",
   },
+  "/geo-map": {
+    title: "Online Scene Map Demo | Pano View",
+    description: "Navigate a panorama tour through a live basemap, with scene markers and a real-time direction indicator.",
+  },
   "/map": {
     title: "360° Tour Floor Plan Map Demo | Pano View",
     description:

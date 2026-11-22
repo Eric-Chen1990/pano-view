@@ -273,6 +273,11 @@ export async function buildProjectPackage(
         if (spot.icon) spot.icon = await copyMap(spot.icon, spot.id);
       }
     }
+    for (const spot of project.geoMap?.spots ?? []) {
+      if (spot.icon) spot.icon = await mediaPath(spot.icon, {
+        kind: "map", sceneId: spot.sceneId, hotspotId: spot.id, defaultUrl: new URL(spot.icon, root).href,
+      });
+    }
     for (const [index, scene] of project.scenes.entries()) {
       signal.throwIfAborted();
       const local = scene.source.viewerUrl

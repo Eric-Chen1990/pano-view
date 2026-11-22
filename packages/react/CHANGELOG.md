@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.14.0
+
+### Minor Changes
+
+- 5e39cea: Add online scene maps for Google Maps, AMap, Baidu Maps, and XYZ tiles, with customizable markers, view-direction radar, configurable control layout, and Tour Editor authoring.
+
 ## 5.13.0
 
 ### Minor Changes
