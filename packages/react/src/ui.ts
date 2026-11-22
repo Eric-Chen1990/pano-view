@@ -18,3 +18,5 @@ export type {
 } from "./ui/dialog";
 export { ProjectPopupDialog } from "./ui/project-popup-dialog";
 export type { ProjectPopupDialogProps } from "./ui/project-popup-dialog";
+export { ChromaKeyColorSampler } from "./ui/chroma-key-color-sampler";
+export type { ChromaKeyColorSamplerProps } from "./ui/chroma-key-color-sampler";

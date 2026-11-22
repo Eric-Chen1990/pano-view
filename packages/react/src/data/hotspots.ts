@@ -1,3 +1,4 @@
+import { parseHotspotChromaKey } from "../../../../shared/chroma-key";
 import { mapCursorAssets } from "../../../../shared/cursor-assets";
 import { isRecord, requiredString } from "../../../../shared/viewer-config";
 import type { HotspotDefinition } from "../hotspot/definitions";
@@ -93,13 +94,14 @@ const point = [
   "opacity",
 ];
 const fields = {
-  image: ["src", "corners"],
+  image: ["src", "corners", "chromaKey"],
   portal: ["shape", "frame", "enterOnZoom"],
   graphic: ["graphic"],
   sequence: ["src", "frameCount", "frameDirection", "playing", "fps", "loop"],
   video: [
     "src",
     "corners",
+    "chromaKey",
     "poster",
     "playing",
     "loop",
@@ -409,7 +411,8 @@ export function parseHotspot(
         if (!Array.isArray(item) || item.length < (kind === "polygon" ? 3 : 2))
           throw new Error("vertices: not enough points");
         result[key] = item.map((p, i) => parsePosition(p, `vertices[${i}]`));
-      } else if (key === "graphic") result[key] = parseGraphic(item);
+      } else if (key === "chromaKey") result[key] = parseHotspotChromaKey(item);
+      else if (key === "graphic") result[key] = parseGraphic(item);
       else if (key === "frame") result[key] = parsePortalFrame(item);
       else if (key === "tooltip") result[key] = parseTooltip(item);
       else if (key === "tooltipAppearance") result[key] = parseAppearance(item);

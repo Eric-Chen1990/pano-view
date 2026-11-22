@@ -1,3 +1,4 @@
+export type { HotspotChromaKey } from "../../../shared/chroma-key";
 export { PanoDataError } from "./data/errors";
 export type { PanoDataErrorCode } from "./data/errors";
 export { sceneFromViewerConfig, loadSceneFromJson } from "./data/viewer";

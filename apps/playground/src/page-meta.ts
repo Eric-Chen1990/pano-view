@@ -109,6 +109,10 @@ export const PAGE_META = {
     description:
       "Try a customizable context menu in a React panorama viewer, with reset view, fullscreen controls, and host-defined menu actions.",
   },
+  "/chroma-key": {
+    title: "Chroma Key Hotspot Demo | Pano View",
+    description: "Remove a green or blue background from image and video hotspots with live color sampling and edge controls.",
+  },
   "/video": {
     title: "React 360° Video Player Demo | Pano View",
     description:

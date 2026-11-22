@@ -1,3 +1,4 @@
+import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +15,7 @@ import type { HotspotCommonProps, HotspotCornerProps } from "./types";
 
 export type ImageHotspotProps = HotspotCommonProps & HotspotCornerProps & {
   src: string;
+  chromaKey?: HotspotChromaKey;
   onLoad?: (texture: Texture) => void;
   onError?: (error: unknown) => void;
 };
@@ -87,6 +89,7 @@ export function ImageHotspot({
   width = 12,
   height = 8,
   opacity,
+  chromaKey,
   onLoad,
   onError,
   ...anchorProps
@@ -94,6 +97,6 @@ export function ImageHotspot({
   const texture = useHotspotImageTexture(src, onLoad, onError);
 
   return (
-    <HotspotMediaPlane {...anchorProps} height={height} width={width} map={texture} opacity={opacity} />
+    <HotspotMediaPlane {...anchorProps} height={height} width={width} map={texture} opacity={opacity} chromaKey={chromaKey} />
   );
 }

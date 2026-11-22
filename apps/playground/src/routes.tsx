@@ -1,3 +1,4 @@
+import { ChromaKeyPage } from "./components/chroma-key/ChromaKeyPage";
 import { lazy, type ComponentType } from "react";
 import type { PlaygroundPath } from "./page-meta";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
@@ -177,6 +178,12 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "360 video",
     group: "media",
     Component: VideoPage,
+  },
+  {
+    path: "/chroma-key",
+    navLabel: "Chroma key",
+    group: "media",
+    Component: ChromaKeyPage,
   },
   {
     path: "/background-audio",

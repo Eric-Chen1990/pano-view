@@ -181,6 +181,7 @@ export const HotspotLayer = memo(function HotspotLayer({
                 {...renderProps(hotspot)}
                 {...point}
                 {...mediaCornerProps}
+                preload={hotspot.chromaKey ? "auto" : hotspot.preload}
                 playing={false}
                 onError={(error) => onError(`${hotspot.id}: ${String(error)}`)}
               />

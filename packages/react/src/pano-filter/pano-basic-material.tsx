@@ -1,3 +1,5 @@
+import type { ResolvedChromaKey } from "../../../../shared/chroma-key";
+import { injectChromaKey } from "./chroma-key-shader";
 import { WebGPUPanoBasicMaterial } from "./webgpu-material";
 import { WebGPURuntimeContext } from "../pano-renderer";
 import { useContext, useLayoutEffect, useMemo } from "react";
@@ -21,6 +23,7 @@ import type { PanoColorMatrix } from "./presets";
 
 export type PanoBasicMaterialProps = {
   map?: Texture | null;
+  chromaKey?: ResolvedChromaKey;
   side?: Side;
   depthTest?: boolean;
   depthWrite?: boolean;
@@ -72,6 +75,7 @@ export function PanoBasicMaterial({
 
 function WebGLPanoBasicMaterial({
   target,
+  chromaKey,
   ...props
 }: PanoBasicMaterialProps) {
   const host = useContext(PanoFilterHostContext);
@@ -88,6 +92,8 @@ function WebGLPanoBasicMaterial({
     ? snapshot.adjustments
     : null;
   const hasAdjustments = adjustments !== null;
+  const hasChromaKey = Boolean(chromaKey);
+  const keyUniform = useMemo(() => ({ value: new Vector4() }), []);
   const intensityUniform = useMemo(() => ({ value: 1 }), []);
   const matrixUniform = useMemo(() => ({ value: new Matrix4() }), []);
   const offsetUniform = useMemo(() => ({ value: new Vector4() }), []);
@@ -99,6 +105,7 @@ function WebGLPanoBasicMaterial({
   } : null, [hasAdjustments]);
   const onBeforeCompile = useMemo(() => {
     const compile = (shader: WebGLProgramParametersWithUniforms) => {
+      if (hasChromaKey) injectChromaKey(shader, keyUniform);
       if (preset !== "none") {
         injectPanoFilterShader(shader, preset);
         shader.uniforms.uPanoFilterIntensity = intensityUniform;
@@ -114,10 +121,11 @@ function WebGLPanoBasicMaterial({
         shader.uniforms.uPanoColorMatrixIntensity = intensityUniform;
       }
     };
-    compile.toString = () => `pano-filter:${preset}:matrix:${hasMatrix}:adjustments:${hasAdjustments}`;
+    compile.toString = () => `pano-filter:${preset}:matrix:${hasMatrix}:adjustments:${hasAdjustments}:chromaKey:${hasChromaKey}`;
     return compile;
-  }, [preset, hasMatrix, hasAdjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
+  }, [hasChromaKey, keyUniform, preset, hasMatrix, hasAdjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
   useLayoutEffect(() => {
+    if (chromaKey) keyUniform.value.set(chromaKey.cb, chromaKey.cr, chromaKey.threshold, chromaKey.smoothing);
     intensityUniform.value = snapshot.intensity;
     if (matrix) {
       const values = matrixUniforms(matrix);
@@ -129,7 +137,7 @@ function WebGLPanoBasicMaterial({
         adjustments.exposure, adjustments.saturation, adjustments.contrast, adjustments.clarity,
       );
     }
-  }, [matrix, snapshot.intensity, adjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
+  }, [chromaKey, keyUniform, matrix, snapshot.intensity, adjustments, intensityUniform, matrixUniform, offsetUniform, adjustmentUniforms]);
   const bindClarity = useMemo<MeshBasicMaterial["onBeforeRender"] | undefined>(() => {
     if (!adjustmentUniforms || !host) return undefined;
     const viewport = new Vector4();
@@ -144,7 +152,7 @@ function WebGLPanoBasicMaterial({
   }, [host, adjustmentUniforms]);
   return (
     <meshBasicMaterial
-      key={`${preset}:${hasMatrix}:${hasAdjustments}`}
+      key={`${preset}:${hasMatrix}:${hasAdjustments}:${hasChromaKey}`}
       toneMapped={false}
       {...props}
       ref={target === "panorama" ? markPanoClaritySource : undefined}

@@ -3267,6 +3267,12 @@ Video reports media and poster failures through `onError`, including
 `playing` by itself. This keeps source changes, unmounts, and React StrictMode
 lifecycles deterministic.
 
+### Chroma key
+
+Set `chromaKey={{ color: "#00B140", threshold: 0.12, smoothing: 0.08 }}` on an image or video hotspot to make the selected background color transparent. The same `chromaKey` object is available on image and video definitions in project schema v1. The color is a six-digit sRGB HEX value. Threshold and smoothing range from 0 to 1 and default to 0.12 and 0.08. Threshold controls the range made transparent. Smoothing controls the width of the transition, with 0 giving a hard edge.
+
+The effect runs in WebGL and WebGPU on rectangular and four-corner hotspots, including video posters. Image and poster hit testing follows the visible pixels. Playing video uses rectangular hit testing. The optional `ChromaKeyColorSampler` in `@ericchen1990/pano-view/ui` accepts `src`, `kind`, optional `crossOrigin`, and `onPick(color)`. Remote media must allow cross-origin texture access and pixel sampling. Try the controls in the [Playground](https://pano-view-playground.vercel.app/chroma-key).
+
 ## AudioHotspot
 
 `AudioHotspot` plays a directional sound at a spherical position. Stereo

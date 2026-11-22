@@ -2811,6 +2811,12 @@ import { VideoHotspot } from "@ericchen1990/pano-view";
 
 视频通过 `onError` 报告媒体与 poster 失败，参数含 `source: "poster" | "video"`。与 `SequenceHotspot` 相同，不会自行改变 `playing`，以保证源变更、卸载与 React StrictMode 生命周期可预测。
 
+### 色键抠像
+
+在图片或视频热点上设置 `chromaKey={{ color: "#00B140", threshold: 0.12, smoothing: 0.08 }}`，可将选中的背景色变为透明。项目 schema v1 中的图片与视频热点定义也接受同样的 `chromaKey` 对象。颜色使用六位 sRGB HEX 值。阈值和平滑度的范围是 0–1，默认分别为 0.12 和 0.08。阈值控制透明范围，平滑度控制过渡宽度，设为 0 时边缘为硬切。
+
+WebGL 和 WebGPU 都支持矩形热点、四角热点和视频封面的抠像。图片和封面按可见像素响应指针，播放中的视频按矩形响应指针。`@ericchen1990/pano-view/ui` 提供 `ChromaKeyColorSampler`，可传入 `src`、`kind`、可选 `crossOrigin` 和 `onPick(color)`。远程素材需允许跨域读取纹理及像素。可在 [Playground](https://pano-view-playground.vercel.app/chroma-key) 试用。
+
 ## AudioHotspot
 
 `AudioHotspot` 在球面位置播放定向声音。立体声像跟随相机朝向。普通立体声模式下，默认 `range={360}` 让音量在转动视角时保持稳定。设为较小的角度（例如 `90`）时，视线偏离声源达到该角度会衰减至静音。

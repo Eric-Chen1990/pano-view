@@ -906,3 +906,35 @@
 .pne-popup-row .pne-popup-select { display: grid; justify-content: start; min-width: 0; overflow-wrap: anywhere; }
 .pne-popup-block { margin: 12px; border: 1px solid var(--pne-border); min-width: 0; }
 .pne-popup-references { display: grid; gap: 6px; overflow-wrap: anywhere; }
+
+.pne-root .pne-chroma-key {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.pne-root .pne-chroma-color {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.pne-root .pne-chroma-key :is(label:has(input), input[type="range"]) {
+  min-width: 0;
+}
+
+.pne-root .pne-chroma-key input[type="range"] {
+  display: block;
+  width: 100%;
+}
+
+.pne-root .pne-chroma-key input[type="color"] {
+  display: block;
+  width: 3.25rem;
+  padding: 0.2rem;
+}
+
+.pne-root .pne-chroma-key button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
