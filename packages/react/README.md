@@ -1091,6 +1091,108 @@ iPhone Safari does not implement the HTML5 Fullscreen API. When `enterFullscreen
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 ```
 
+### Screenshots
+
+Call `captureScreenshot(options?)` on a `PanoViewerHandle` or the object returned by
+`usePanoViewer()`. It captures the current perspective view and returns a
+`Promise<Blob>`. The host can preview the image, download it under a custom
+filename, or pass the blob to another workflow.
+
+| Option | Default | Behavior |
+| --- | --- | --- |
+| `mode` | `"panorama"` | Captures the panorama, including filters and scene effects. `"hotspots"` adds visible hotspot bodies, titles and tooltips. `"viewer"` also includes UI inside the viewer, such as controls, maps and open dialogs hosted in `PanoOverlay`. |
+| `format` | `"png"` | `"png"` preserves transparency. `"jpeg"` composites transparency on black. The blob MIME type is `image/png` or `image/jpeg`. |
+| `outputWidth` | Drawing buffer width | Positive integer in physical pixels. The image fits within this width, the source dimensions, 4096 pixels on either side and 8,294,400 total pixels. The aspect ratio is preserved and the source is never upscaled. |
+| `quality` | `95` | JPEG quality from `1` to `100` as an integer. PNG ignores it. |
+| `feedback` | `{ sound: true, focus: "none" }` | Plays the shutter sound when browser audio is available. Set `sound: false` for silent capture. `"reticle"` shows fixed viewfinder corners and a center crosshair that turn green when focus locks. `"lens"` gently softens the panorama once before returning to sharp focus, keeping the controls clear. `"both"` combines the two effects. Set `feedback: false` to disable sound and animation. Animations finish before the frame is captured and respect reduced-motion preferences. |
+
+```ts
+await viewer.captureScreenshot(); // Panorama PNG, with the default shutter sound
+await viewer.captureScreenshot({ mode: "hotspots", feedback: false });
+await viewer.captureScreenshot({
+  mode: "viewer",
+  format: "jpeg",
+  outputWidth: 1280,
+  quality: 85,
+  feedback: { sound: true, focus: "lens" },
+});
+```
+
+For a custom capture button, observe `getSceneLoadProgress()` through
+`subscribeSceneLoadProgress()` and enable capture after the first drawable
+image is ready. A direct click lets the browser authorize the shutter sound.
+The screenshot still completes if browser audio is unavailable. This example
+keeps the object URL available for the preview and the download link until
+the blob is replaced or the component unmounts.
+
+The package includes a trimmed Olympus E-1 shutter recording by A Clock in
+the Kingdom, adapted from the CC0 edit by themightyglider. [Original recording](https://archive.org/details/CameraShutterSound) · [CC0 edit](https://opengameart.org/content/camera)
+
+```jsx
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function ScreenshotExample() {
+  const viewer = usePanoViewer();
+  const progress = useSyncExternalStore(
+    viewer.subscribeSceneLoadProgress,
+    viewer.getSceneLoadProgress,
+    viewer.getSceneLoadProgress,
+  );
+  const [image, setImage] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => () => {
+    if (image) URL.revokeObjectURL(image.url);
+  }, [image]);
+
+  async function capture() {
+    setBusy(true);
+    setError("");
+    try {
+      const blob = await viewer.captureScreenshot({ feedback: { focus: "reticle" } });
+      setImage({
+        url: URL.createObjectURL(blob),
+        filename: blob.type === "image/jpeg" ? "main-hall.jpg" : "main-hall.png",
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Screenshot failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <>
+    <button type="button" onClick={capture} disabled={busy || progress.status !== "ready"}>
+      Take screenshot
+    </button>
+    {error && <p role="alert">{error}</p>}
+    <PanoViewer ref={viewer.ref} style={{ height: 480 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+    {image && <>
+      <img src={image.url} alt="Screenshot preview" style={{ maxWidth: "100%" }} />
+      <a href={image.url} download={image.filename}>Download image</a>
+      <button type="button" onClick={() => setImage(null)}>Close preview</button>
+    </>}
+  </>;
+}
+```
+
+Screenshots work in regular and fullscreen viewer layouts. In fullscreen, put
+capture and preview controls inside the viewer with `PanoOverlay` so they
+can be used there. Interface capture uses the viewer's DOM subtree. Embedded
+cross-origin documents keep their place in the image with a blank interior.
+Other remote resources such as images or fonts must allow the browser to
+read them for inclusion.
+
+Capture supports one request per viewer. Wait for the first frame or for a
+scene change to complete before retrying an `InvalidStateError`. VR returns
+`NotSupportedError`. An interrupted capture can reject with `AbortError` or
+`TimeoutError`. Try the **Panorama screenshot** Playground route at `/screenshot`.
+
 ### Imperative scene switching
 
 Use `usePanoViewer()` to shorten parent-side commands to `viewer.setScene("roof")`. Keep using controlled `activeSceneId` when the host UI needs to render the current scene id reactively. For uncontrolled mode, `defaultActiveSceneId` still lets imperative calls update the internal state directly.

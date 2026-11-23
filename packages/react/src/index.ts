@@ -128,6 +128,8 @@ export type { PanoOverlayToggle, PanoOverlayToggleState } from "./overlay/toggle
 export { PanoEvents, usePanoEvents } from "./pano-events";
 export type { PanoEventsProps } from "./pano-events";
 export { usePanoViewer } from "./use-pano-viewer";
+export type { PanoScreenshotFormat, PanoScreenshotMode, PanoScreenshotOptions } from "./screenshot";
+export type { PanoScreenshotFeedback, PanoScreenshotFocus } from "./screenshot-feedback";
 export type { UsePanoViewerResult } from "./use-pano-viewer";
 export type {
   PanoEventBus,

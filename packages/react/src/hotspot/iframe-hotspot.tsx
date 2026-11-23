@@ -107,6 +107,7 @@ export function IframeHotspot({
     <iframe
       allow={allow}
       className="pano-iframe-hotspot"
+      data-pano-screenshot-hotspot=""
       loading={loading}
       onError={(event) => onError?.(event.nativeEvent)}
       onLoad={() => onLoad?.()}

@@ -105,6 +105,7 @@ import {
   type PanoCursors,
 } from "./pano-cursor";
 import { WebGPUFrame } from "./webgpu-frame";
+import { createScreenshotHost, ScreenshotContext, ScreenshotFrame, type PanoScreenshotOptions } from "./screenshot";
 import { usePanoRenderer, WebGPURuntimeContext } from "./pano-renderer";
 import { PanoEvents } from "./pano-events";
 import { createPanoModalHost } from "./overlay/modal-host";
@@ -385,7 +386,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       return sceneLoadProgress.subscribe(consumeIfReady);
     }, [introEnabled, introHost, sceneLoadProgress]);
     const resumeView = useRef<PanoViewerState | null>(null);
+    const screenshot = useMemo(() => createScreenshotHost(rootRef), []);
     const rendererRuntime = usePanoRenderer(renderer, () => {
+      screenshot.cancel("The viewer changed rendering backends.");
       if (introHost.isPlaying()) introHost.finish();
       sceneLoadProgress.reset();
       const runtime = controlsRef.current;
@@ -395,6 +398,17 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     });
     const getRendererBackend = rendererRuntime.getBackend;
     const compareHost = useMemo(createCompareHost, []);
+    const isComparing = useCallback(() => compareHost.config !== null, [compareHost]);
+    const captureScreenshot = useCallback((options?: PanoScreenshotOptions) => screenshot.capture(options, () => {
+      if (webVRHost.snapshot.mode !== null) {
+        throw new DOMException("Screenshots are unavailable in VR.", "NotSupportedError");
+      }
+      if (!getRendererBackend() || rootRef.current?.ownerDocument.hidden ||
+          (!compareHost.config && sceneLoadProgress.getSnapshot().status !== "ready") ||
+          scenesHost.controller?.isTransitioning()) {
+        throw new DOMException("The viewer has no stable panorama frame yet.", "InvalidStateError");
+      }
+    }), [compareHost, getRendererBackend, sceneLoadProgress, scenesHost, screenshot, webVRHost]);
     const pointerEvents = useCallback((store: RootStore) => {
       const events = createPointerEvents(store);
       return {
@@ -807,6 +821,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       ref,
       () => ({
         getRendererBackend,
+        captureScreenshot,
         // -- View --
         getView: () =>
           controlsRef.current?.getView() ?? { ...fallbackViewRef.current },
@@ -915,6 +930,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         enterFullscreen,
         exitFullscreen,
         getRendererBackend,
+        captureScreenshot,
         scenesHost,
         sceneLoadProgress,
         hotspotTargetRegistry,
@@ -953,6 +969,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           flat={rendererRuntime.key === "webgpu"}
           aria-label={`${ariaLabel} canvas`}
           className="pano-render-surface"
+          data-pano-screenshot-canvas=""
           events={pointerEvents}
           // Container-only resizes also use react-use-measure's scroll debounce.
           resize={{ debounce: 0 }}
@@ -1001,6 +1018,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   <BackgroundAudioHostContext.Provider value={bgmHost}>
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <CompareHostContext.Provider value={compareHost}>
+                  <ScreenshotContext.Provider value={screenshot}>
                   <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={setControlsRuntime}
@@ -1044,6 +1062,8 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     />
                     {introEnabled && <LittlePlanetIntro options={littlePlanetIntro} blocked={vrActive || modalOpen} />}
                   </ControlClaimsContext.Provider>
+                  <ScreenshotFrame host={screenshot} gpuDraw={rendererRuntime.runtime?.passes.render} isComparing={isComparing} />
+                  </ScreenshotContext.Provider>
                   </CompareHostContext.Provider>
                   </PanoMediaActivationHostContext.Provider>
                   </BackgroundAudioHostContext.Provider>

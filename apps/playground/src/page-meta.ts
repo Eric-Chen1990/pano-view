@@ -108,6 +108,10 @@ export const PAGE_META = {
     description:
       "Explore viewer-local dialogs and overlays for React panoramas, comparing default, composed and third-party dialogs with shared story content, nested portals and fullscreen support.",
   },
+  "/screenshot": {
+    title: "Panorama Screenshot Demo | Pano View",
+    description: "Capture the current panorama with optional hotspots and viewer controls, then download the result as PNG or JPEG.",
+  },
   "/context-menu": {
     title: "Panorama Context Menu Demo | Pano View",
     description:

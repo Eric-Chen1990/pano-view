@@ -5,6 +5,7 @@ import { CompareHostContext, type CompareFrameConfig, type createCompareHost } f
 
 import { WebGPURuntimeContext } from "../pano-renderer";
 import { createWebGPUComparison } from "./webgpu-renderer";
+import { ScreenshotContext } from "../screenshot";
 
 const LAYOUT_FADE_MS = 240;
 const SEPARATION_MS = 360;
@@ -119,6 +120,7 @@ function captureComparison(
 
 export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | null> }) {
   const host = useContext(CompareHostContext);
+  const screenshot = useContext(ScreenshotContext);
   const gpu = useContext(WebGPURuntimeContext)?.passes;
   const gpuCompare = useMemo(() => gpu && createWebGPUComparison(gpu), [gpu]);
   const gpuFadeStart = useRef<number | null>(null);
@@ -234,9 +236,16 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
       }
     }
 
+    const opacity = gpuCompare ? fadeOpacity(now) : 0;
+    if (opacity === 0 && gpuFadeStart.current !== null) clearFade();
+    const stable = !host.motion && !fade.current && opacity === 0;
+    if (stable) {
+      screenshot?.beforeDraw(gl.domElement, scene, () => {
+        if (gpuCompare) gpuCompare.render(state, host, pair, config, 0);
+        else renderComparison(state, host, pair, config, viewport, scissor);
+      });
+    }
     if (gpuCompare) {
-      const opacity = fadeOpacity(now);
-      if (opacity === 0 && gpuFadeStart.current !== null) clearFade();
       gpuCompare.render(state, host, pair, config, opacity);
     } else renderComparison(state, host, pair, config, viewport, scissor);
     const chrome = host.chrome;
@@ -247,6 +256,7 @@ export function CompareRenderer({ groups }: { groups: RefObject<PairGroups | nul
     if (previous?.config !== config || !samePair || !sameFrameSize) {
       lastFrame.current = { config, pair, width: size.width, height: size.height };
     }
+    if (stable) screenshot?.afterDraw(gl.domElement);
   };
   const latest = useRef(renderFrame);
   latest.current = renderFrame;

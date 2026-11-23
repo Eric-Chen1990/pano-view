@@ -939,6 +939,7 @@ export function HotspotAnchor({
   return (
     <group
       ref={groupRef}
+      userData={screenshotHotspot}
       position={worldPosition}
       renderOrder={renderOrder}
       scale={[worldWidth, worldHeight, 1]}
@@ -1117,3 +1118,4 @@ export function HotspotAnchor({
     </group>
   );
 }
+import { screenshotHotspot } from "../screenshot";

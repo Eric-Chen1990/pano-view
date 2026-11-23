@@ -62,6 +62,8 @@ export type PanoRendererBackend = "webgpu" | "webgl";
 export type PanoViewerHandle = {
   /** The active canvas backend, or null while no renderer is ready. */
   getRendererBackend: () => PanoRendererBackend | null;
+  /** Capture the current viewer frame as an encoded PNG or JPEG. */
+  captureScreenshot: (options?: PanoScreenshotOptions) => Promise<Blob>;
   // -- View --
   getView: () => PanoViewerState;
   setView: (
@@ -252,3 +254,4 @@ export type PanoramaControlsOptions = {
    */
   keyboard?: boolean | KeyboardControlsProps;
 };
+import type { PanoScreenshotOptions } from "./screenshot";
