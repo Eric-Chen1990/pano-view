@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   useContext,
+  useId,
   useLayoutEffect,
   useRef,
   useSyncExternalStore,
@@ -62,6 +63,7 @@ function ProjectedHtml({
   worldSize,
 }: PanoHtmlProps & { stereoView?: WebVRStereoView; eye?: WebVRStereoEye; compareSide?: PanoCompareSide }) {
   const { camera, gl, events, size } = useThree();
+  const screenshotId = useId();
   const group = useRef<Group>(null);
   const overlay = useRef<{ element: HTMLDivElement; root: Root } | null>(null);
   const scratch = useRef(new Vector3());
@@ -118,6 +120,7 @@ function ProjectedHtml({
     if (!target) return;
     // Each setup needs a fresh container, including Strict Mode's replay.
     const element = document.createElement("div");
+    element.setAttribute("data-pano-screenshot-hotspot", screenshotId);
     Object.assign(element.style, {
       position: "absolute",
       top: "0",
@@ -133,7 +136,7 @@ function ProjectedHtml({
       // Never synchronously unmount a second root during Fiber's commit.
       queueMicrotask(() => root.unmount());
     };
-  }, [target]);
+  }, [screenshotId, target]);
 
   useLayoutEffect(() => {
     overlay.current?.root.render(

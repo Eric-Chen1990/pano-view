@@ -8,6 +8,7 @@ export default defineConfig([
     clean: false,
     dts: true,
     entry: ["src/index.ts"],
+    loader: { ".mp3": "dataurl" },
     esbuildPlugins: [
       {
         name: "shared-data-entry",

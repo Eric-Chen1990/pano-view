@@ -15,6 +15,8 @@ function createPanoViewerHandle(
 ): PanoViewerHandle {
   return {
     getRendererBackend: () => ref.current?.getRendererBackend() ?? null,
+    captureScreenshot: (options) => ref.current?.captureScreenshot(options) ??
+      Promise.reject(new DOMException("The viewer is not mounted.", "InvalidStateError")),
     getView: () => ref.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 },
     setView: (view, options) => {
       ref.current?.setView(view, options);

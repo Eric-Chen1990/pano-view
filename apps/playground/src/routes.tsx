@@ -14,6 +14,7 @@ import { SunPage } from "./components/sun/SunPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { BasicsPage } from "./components/basics/BasicsPage";
+import { ScreenshotPage } from "./components/screenshot/ScreenshotPage";
 import { ControlsPage } from "./components/controls/ControlsPage";
 import { BackgroundAudioPage } from "./components/background-audio/BackgroundAudioPage";
 import { DirectionalSoundPage } from "./components/directional-sound/DirectionalSoundPage";
@@ -190,6 +191,13 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Dialogs & overlays",
     group: "interaction",
     Component: OverlayPage,
+  },
+  {
+    path: "/screenshot",
+    jsonExample: "none",
+    navLabel: "Panorama screenshot",
+    group: "interaction",
+    Component: ScreenshotPage,
   },
   {
     path: "/context-menu",

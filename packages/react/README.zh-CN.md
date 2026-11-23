@@ -1044,6 +1044,102 @@ iPhone Safari 不支持 HTML5 Fullscreen API。在 iPhone 上调用 `enterFullsc
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 ```
 
+### 截图
+
+通过 `PanoViewerHandle` 或 `usePanoViewer()` 返回的对象调用
+`captureScreenshot(options?)`。截图保留当前的视角和缩放，返回
+`Promise<Blob>`，宿主可以预览、使用自定义文件名下载，或将 Blob 交给后续流程。
+
+| 参数 | 默认值 | 用法 |
+| --- | --- | --- |
+| `mode` | `"panorama"` | 只截全景，保留滤镜和场景效果。`"hotspots"` 加入可见热点本体、标题和提示。`"viewer"` 还包含 Viewer 内的界面，例如控件、地图和挂载在 `PanoOverlay` 中的弹窗。 |
+| `format` | `"png"` | `"png"` 保留透明度。`"jpeg"` 将透明像素合成到黑色背景。Blob 的 MIME 类型为 `image/png` 或 `image/jpeg`。 |
+| `outputWidth` | 画布实际像素宽度 | 正整数，以物理像素为单位。截图等比缩放，宽度受此值和源画布限制，单边最多 4096 像素，总计最多 8,294,400 像素。 |
+| `quality` | `95` | JPEG 压缩质量，接受 `1–100` 的整数。PNG 忽略此值。 |
+| `feedback` | `{ sound: true, focus: "none" }` | 浏览器允许时播放快门声。`sound: false` 静音。`focus: "reticle"` 显示固定的四角标记和中心十字，锁焦时亮绿。`"lens"` 让整幅全景轻微失焦一次，再平滑回到清晰，Viewer 控件保持清晰。`"both"` 同时显示两种效果。`"none"` 关闭对焦动画，传入 `feedback: false` 同时关闭声音和动画。对焦结束后才取帧，动画遵循系统减少动态效果偏好。 |
+
+```ts
+await viewer.captureScreenshot(); // 纯全景 PNG，使用默认快门声
+await viewer.captureScreenshot({ mode: "hotspots", feedback: false });
+await viewer.captureScreenshot({
+  mode: "viewer",
+  format: "jpeg",
+  outputWidth: 1280,
+  quality: 85,
+  feedback: { sound: true, focus: "lens" },
+});
+```
+
+自定义截图按钮可订阅 `subscribeSceneLoadProgress()` 并读取
+`getSceneLoadProgress()`，在首帧可绘制后启用。直接在点击事件中调用，
+便于浏览器授权播放快门声。音频不可用时，图片仍会生成。以下示例通过
+对象 URL 预览和下载，在替换图片、关闭预览或卸载时释放 URL。
+
+快门声随包分发，取自 A Clock in the Kingdom 录制的 Olympus E-1 快门声，
+使用 themightyglider 的 CC0 版本裁剪而成。[原始录音](https://archive.org/details/CameraShutterSound) · [CC0 剪辑](https://opengameart.org/content/camera)
+
+```jsx
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+export function ScreenshotExample() {
+  const viewer = usePanoViewer();
+  const progress = useSyncExternalStore(
+    viewer.subscribeSceneLoadProgress,
+    viewer.getSceneLoadProgress,
+    viewer.getSceneLoadProgress,
+  );
+  const [image, setImage] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => () => {
+    if (image) URL.revokeObjectURL(image.url);
+  }, [image]);
+
+  async function capture() {
+    setBusy(true);
+    setError("");
+    try {
+      const blob = await viewer.captureScreenshot({ feedback: { focus: "reticle" } });
+      setImage({
+        url: URL.createObjectURL(blob),
+        filename: blob.type === "image/jpeg" ? "main-hall.jpg" : "main-hall.png",
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Screenshot failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <>
+    <button type="button" onClick={capture} disabled={busy || progress.status !== "ready"}>
+      Take screenshot
+    </button>
+    {error && <p role="alert">{error}</p>}
+    <PanoViewer ref={viewer.ref} style={{ height: 480 }}>
+      <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
+    </PanoViewer>
+    {image && <>
+      <img src={image.url} alt="Screenshot preview" style={{ maxWidth: "100%" }} />
+      <a href={image.url} download={image.filename}>Download image</a>
+      <button type="button" onClick={() => setImage(null)}>Close preview</button>
+    </>}
+  </>;
+}
+```
+
+普通布局与 Viewer 全屏均可截取。要在全屏时操作，将截图与预览按钮放进
+`PanoOverlay`。界面模式的取景范围为 Viewer 根节点。浏览器无法读取跨域 iframe
+时保留空白占位。远程图片、字体等资源须允许浏览器读取后才能合成。
+
+每个 Viewer 同时处理一个截图请求。遇到 `InvalidStateError`，可等首帧就绪、
+场景切换完成或上一次截图结束后再试。VR 会返回 `NotSupportedError`。
+中止或超时分别返回 `AbortError` 或 `TimeoutError`。可在 Playground 的
+`/screenshot` 页面试用三种模式、导出设置和拍摄反馈。
+
 ### 命令式切换场景
 
 使用 `usePanoViewer()` 可将父组件侧命令缩短为 `viewer.setScene("roof")`。当宿主 UI 需要响应式显示当前场景 id 时，仍建议继续使用受控 `activeSceneId`。若使用非受控模式，`defaultActiveSceneId` 依然允许命令式调用直接更新内部状态。
