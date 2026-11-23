@@ -291,10 +291,11 @@ function SnapshotCapture({
     [],
   );
 
-  useFrame(() => {
+  useFrame((state) => {
     if (requestId === 0 || requestId === capturedRequestRef.current) {
       return;
     }
+    state.invalidate();
 
     const pixelRatio = gl.getPixelRatio();
     const sourceWidth = Math.max(1, Math.floor(size.width * pixelRatio));

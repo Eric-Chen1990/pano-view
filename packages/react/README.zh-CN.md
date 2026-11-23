@@ -968,6 +968,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。
+- `frameloop` — `"always"`（默认）每显示帧都渲染。`"demand"` 仅在输入、动画、媒体或其他唤醒后渲染，静止时更省电。WebVR / XR、Spatial UI 或 Compare 激活时会强制回退为 `"always"`。
 - `controls` — `false` 关掉全部用户输入。对象可配置共享项与 `mouse` / `touch` / `keyboard` 通道；通道细节见[鼠标、触控与键盘控件](#鼠标触控与键盘控件)。共享项中：`enabled` 默认 `true`，`inertia` 默认 `true`，`invert` 默认 `false`，`bouncingLimits` 默认 `false`，`frictionStop` 默认 `0.01`，`rotateSpeed` 默认 `0.35`，`zoomSpeed` 默认 `0.08`，`rotateDamping` / `zoomDamping` 默认 `14` / `16`。`fovSpeed` 省略时不额外限速；滚轮按单次位移 `deltaY * zoomSpeed` 夹到 `±fovSpeed`，键盘按键按「度/秒 × 帧时间」再与 `fovSpeed` 比较。
 - `cursors` — `true` / 省略使用 grab / grabbing / pointer / move；`false` 不改画布光标；对象可覆盖四个状态。
 - `contextMenu` — `true` / 省略挂载「重置视图 + 全屏」；`false` 不挂默认菜单；对象可改外观或 `items` / `prepend` / `append`。详见 [PanoContextMenu](#panocontextmenu)。

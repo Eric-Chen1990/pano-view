@@ -1,4 +1,4 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
 import { PanoEventBusContext } from "./pano-event-bus";
 import { PanoramaViewContext } from "./panorama-view-runtime";
@@ -44,6 +44,7 @@ export function AutoRotate({
 }: AutoRotateProps) {
   const controlsRef = useContext(PanoramaViewContext);
   const eventBus = useContext(PanoEventBusContext);
+  const invalidate = useThree((state) => state.invalidate);
   const elapsedRef = useRef(0);
   const rotationSpeedRef = useRef(0);
   const rotatingRef = useRef(false);
@@ -63,7 +64,21 @@ export function AutoRotate({
     }
   }, [enabled, eventBus, startDelay]);
 
-  useFrame((_, deltaSeconds) => {
+  // Demand mode stops after settle; wake once startDelay elapses or the view settles.
+  useEffect(() => {
+    if (!enabled || !Number.isFinite(speed) || speed === 0) return;
+    const delay = resolveStartDelay(startDelay);
+    const timer = window.setTimeout(() => invalidate(), delay);
+    const unsubscribe = eventBus?.subscribe("viewsettled", () => {
+      window.setTimeout(() => invalidate(), resolveStartDelay(startDelay));
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe?.();
+    };
+  }, [enabled, eventBus, invalidate, speed, startDelay]);
+
+  useFrame((state, deltaSeconds) => {
     if (!enabled || !Number.isFinite(speed) || speed === 0) {
       rotationSpeedRef.current = 0;
       if (rotatingRef.current) {
@@ -76,6 +91,7 @@ export function AutoRotate({
     const delaySeconds = resolveStartDelay(startDelay) / 1000;
     elapsedRef.current += deltaSeconds;
     if (elapsedRef.current < delaySeconds) {
+      state.invalidate();
       return;
     }
 
@@ -113,6 +129,7 @@ export function AutoRotate({
     }
 
     rotationSpeedRef.current = nextSpeed;
+    state.invalidate();
   });
 
   return null;

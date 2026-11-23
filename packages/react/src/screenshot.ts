@@ -73,6 +73,7 @@ export function createScreenshotHost(root: RefObject<HTMLDivElement | null>) {
   let request: Request | null = null;
   let activeCanvas: HTMLCanvasElement | null = null;
   let contextLost = false;
+  let wake: (() => void) | null = null;
   const feedback = createScreenshotFeedback();
 
   function cancel(message: string) {
@@ -164,6 +165,7 @@ export function createScreenshotHost(root: RefObject<HTMLDivElement | null>) {
           current.complete(new DOMException("The screenshot timed out.", "TimeoutError"));
         }, 10_000);
         request = current;
+        wake?.();
         const focus = feedback.focus(element, settings.focus, current.signal).catch(() => {});
         const dom = settings.mode === "panorama"
           ? undefined
@@ -172,8 +174,12 @@ export function createScreenshotHost(root: RefObject<HTMLDivElement | null>) {
           if (request !== current) return;
           current.captureDom = captureDom;
           current.ready = true;
+          wake?.();
         }, current.complete);
       });
+    },
+    setWake(next: (() => void) | null) {
+      wake = next;
     },
     beforeDraw(canvas: HTMLCanvasElement, scene: Scene, draw: () => void) {
       const current = request;
@@ -210,10 +216,18 @@ export function ScreenshotFrame({ host, gpuDraw, isComparing }: {
   isComparing: () => boolean;
 }) {
   const canvas = useThree((state) => state.gl.domElement);
+  const invalidate = useThree((state) => state.invalidate);
   useLayoutEffect(() => host.bind(canvas), [canvas, host]);
+  useLayoutEffect(() => {
+    host.setWake(() => invalidate());
+    return () => host.setWake(null);
+  }, [host, invalidate]);
 
   useFrame((state) => {
     if (state.gl.xr.isPresenting || isComparing()) return;
+    if (host.awaitingDomFrame) {
+      state.invalidate();
+    }
     const gpu = isWebGPURenderer(state.gl);
     if (state.internal.priority === (gpu ? 1 : 0)) {
       host.beforeDraw(canvas, state.scene, () => {

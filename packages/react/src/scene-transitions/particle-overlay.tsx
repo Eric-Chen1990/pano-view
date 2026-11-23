@@ -152,6 +152,7 @@ export function ParticleOverlay({
     if (!running || finishedRef.current) {
       return;
     }
+    state.invalidate();
     const next = overlayProgress(state.clock.elapsedTime, transition.duration, startRef.current);
     startRef.current = next.startTime;
     material.uniforms.progress.value = next.progress;

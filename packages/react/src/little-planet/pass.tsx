@@ -173,12 +173,13 @@ export function LittlePlanetIntro({
     };
   }, [canvas, host]);
 
-  useFrame(({ camera, gl, scene, size }) => {
+  useFrame(({ camera, gl, scene, size, invalidate }) => {
     const running = active.current;
     if (!host || (!running && host.isConsumed())) {
       revealCanvas();
       return;
     }
+    invalidate();
     const ready = progress?.getSnapshot();
     // Source meshes can be committed before scene readiness applies the landing
     // view. Keep those frames offscreen so the first visible panorama is the intro.

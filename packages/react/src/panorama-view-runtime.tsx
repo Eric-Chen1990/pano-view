@@ -48,6 +48,8 @@ const DEFAULT_ROTATE_DAMPING = 14;
 const DEFAULT_ZOOM_DAMPING = 16;
 const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
+/** Cap demand-mode wake deltas so the first frame after idle does not jump. */
+const MAX_FRAME_DELTA_SECONDS = 1 / 30;
 const DEFAULT_NAVIGATION_DURATION = 700;
 export const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
@@ -218,7 +220,9 @@ export const PanoramaViewRuntime = forwardRef<
   { initialView, fallbackStereo, resumeView, viewLimits, minFov, maxFov, options, eventBus },
   ref,
 ) {
-  const { camera, gl } = useThree();
+  const { camera, gl, invalidate } = useThree();
+  const invalidateRef = useRef(invalidate);
+  invalidateRef.current = invalidate;
   const xrSession = useXR((state) => state.session);
   const xrSessionRef = useRef(xrSession);
   const pointerRevisionRef = useRef(0);
@@ -346,6 +350,7 @@ export const PanoramaViewRuntime = forwardRef<
   const markDirty = () => {
     dirtyRef.current = true;
     settledRef.current = false;
+    invalidateRef.current();
   };
 
   const snapTargetToHardLimits = () => {
@@ -736,7 +741,7 @@ export const PanoramaViewRuntime = forwardRef<
         if (!active) {
           gyroPoseDrivingRef.current = false;
           cameraRollRef.current = 0;
-          dirtyRef.current = true;
+          markDirty();
         }
       },
       setGyroPose: (pose: GyroPose) => {
@@ -784,11 +789,8 @@ export const PanoramaViewRuntime = forwardRef<
         gyroOffsetRef.current.yaw = reclaimed.yaw;
         gyroOffsetRef.current.pitch = reclaimed.pitch;
         cameraRollRef.current = pose.roll;
-        if (viewMovement >= GYRO_POSE_EPSILON) {
-          markDirty();
-        } else {
-          dirtyRef.current = true;
-        }
+        // Roll-only updates still need a frame (stereo / camera roll).
+        markDirty();
       },
       setGyroTouchMode: (mode: GyroTouchMode) => {
         gyroTouchModeRef.current = mode;
@@ -847,6 +849,7 @@ export const PanoramaViewRuntime = forwardRef<
     if (!(camera instanceof PerspectiveCamera)) {
       return;
     }
+    const delta = Math.min(deltaSeconds, MAX_FRAME_DELTA_SECONDS);
     if (xrSessionRef.current && gl.xr.isPresenting) {
       cancelNavigation();
       const xrCamera = gl.xr.getCamera();
@@ -917,6 +920,7 @@ export const PanoramaViewRuntime = forwardRef<
       } else {
         settledRef.current = false;
         dirtyRef.current = true;
+        invalidate();
       }
       return;
     }
@@ -925,13 +929,13 @@ export const PanoramaViewRuntime = forwardRef<
     const inertiaEnabled = optionsRef.current.inertia !== false;
     if (!interactingRef.current && !gyroActiveRef.current && inertiaEnabled) {
       const rotationDamping = Math.exp(
-        -INERTIA_ROTATION_DAMPING * deltaSeconds,
+        -INERTIA_ROTATION_DAMPING * delta,
       );
-      const zoomDamping = Math.exp(-INERTIA_ZOOM_DAMPING * deltaSeconds);
+      const zoomDamping = Math.exp(-INERTIA_ZOOM_DAMPING * delta);
 
       if (Math.abs(yawVelocityRef.current) >= frictionStop) {
         const previousYaw = targetViewRef.current.yaw;
-        targetViewRef.current.yaw = applyLimitedYawDelta(previousYaw, yawVelocityRef.current * deltaSeconds, limitsRef.current.yaw);
+        targetViewRef.current.yaw = applyLimitedYawDelta(previousYaw, yawVelocityRef.current * delta, limitsRef.current.yaw);
         yawVelocityRef.current = targetViewRef.current.yaw === previousYaw ? 0 : yawVelocityRef.current * rotationDamping;
         markDirty();
       } else {
@@ -939,7 +943,7 @@ export const PanoramaViewRuntime = forwardRef<
       }
 
       if (Math.abs(pitchVelocityRef.current) >= frictionStop) {
-        targetViewRef.current.pitch += pitchVelocityRef.current * deltaSeconds;
+        targetViewRef.current.pitch += pitchVelocityRef.current * delta;
         pitchVelocityRef.current *= rotationDamping;
         markDirty();
       } else {
@@ -947,7 +951,7 @@ export const PanoramaViewRuntime = forwardRef<
       }
 
       if (Math.abs(zoomVelocityRef.current) >= frictionStop) {
-        targetViewRef.current.fov += zoomVelocityRef.current * deltaSeconds;
+        targetViewRef.current.fov += zoomVelocityRef.current * delta;
         zoomVelocityRef.current *= zoomDamping;
         markDirty();
       } else {
@@ -978,8 +982,8 @@ export const PanoramaViewRuntime = forwardRef<
     );
     const rotationFactor = gyroPoseDrivingRef.current
       ? 1
-      : dampingFactor(rotateDamping, deltaSeconds);
-    const zoomFactor = dampingFactor(zoomDamping, deltaSeconds);
+      : dampingFactor(rotateDamping, delta);
+    const zoomFactor = dampingFactor(zoomDamping, delta);
     const yawDelta = limitedYawDelta(viewRef.current.yaw, targetView.yaw, limitsRef.current.yaw);
     const smoothedView = {
       yaw: normalizeYaw(viewRef.current.yaw + yawDelta * rotationFactor),
@@ -1023,6 +1027,14 @@ export const PanoramaViewRuntime = forwardRef<
     }
 
     dirtyRef.current = !hasSettled;
+    if (
+      dirtyRef.current ||
+      interactingRef.current ||
+      keyboardActiveRef.current ||
+      gyroActiveRef.current
+    ) {
+      invalidate();
+    }
     // In fallback VR, commit the gyro pose before preparing the stereo cameras.
   }, fallbackStereo ? -0.9 : 0);
 

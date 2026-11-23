@@ -390,7 +390,15 @@ function SphereTileSource({
     }),
     [camera, candidates],
   );
-  useFrame(() => {
+  const lodCatchUpTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (lodCatchUpTimerRef.current !== null) {
+      window.clearTimeout(lodCatchUpTimerRef.current);
+      lodCatchUpTimerRef.current = null;
+    }
+  }, []);
+
+  useFrame((state) => {
     const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
     const worldCamera = pane ? pane.camera : root.camera;
     const size = pane ? pane.rect : root.size;
@@ -408,14 +416,23 @@ function SphereTileSource({
       scratch.height === size.height &&
       scratch.dpr === dpr &&
       scratch.quaternion.angleTo(camera.quaternion) < 0.0001;
-    if (
-      sphereTileViewShouldRefresh({
-        loadModeChanged,
-        managerChanged,
-        elapsedMs: now - scratch.time,
-        viewUnchanged,
-      })
-    ) {
+    const shouldRefresh = sphereTileViewShouldRefresh({
+      loadModeChanged,
+      managerChanged,
+      elapsedMs: now - scratch.time,
+      viewUnchanged,
+    });
+    if (!shouldRefresh && !viewUnchanged && lodCatchUpTimerRef.current === null) {
+      const delay = Math.max(0, 100 - (now - scratch.time));
+      lodCatchUpTimerRef.current = window.setTimeout(() => {
+        lodCatchUpTimerRef.current = null;
+        state.invalidate();
+      }, delay);
+    } else if (shouldRefresh && lodCatchUpTimerRef.current !== null) {
+      window.clearTimeout(lodCatchUpTimerRef.current);
+      lodCatchUpTimerRef.current = null;
+    }
+    if (shouldRefresh) {
       const reset = managerChanged || loadModeChanged;
       scratch.time = now;
       scratch.fov = camera.fov;

@@ -535,7 +535,7 @@ export function PanoVideo({
     emitSnapshotRef.current();
   }, []);
 
-  useFrame(() => {
+  useFrame((state) => {
     const mesh = meshRef.current;
     const current = videoRef.current;
     if (!mesh) return;
@@ -544,6 +544,10 @@ export function PanoVideo({
     mesh.visible = visible && !(ready && failedSource.current) && !oversized;
     if (oversized && !failedSource.current) {
       sourceFailure.current?.(new VideoTextureSizeError(current, maxTextureSize));
+    }
+    // VideoTexture only refreshes while the canvas keeps drawing.
+    if (current && !current.paused && !current.ended) {
+      state.invalidate();
     }
   }, -1);
 

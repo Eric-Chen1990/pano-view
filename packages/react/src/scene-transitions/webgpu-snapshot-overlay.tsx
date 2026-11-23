@@ -28,8 +28,9 @@ export function WebGPUSnapshotOverlay({
     if (isPerspectiveCamera(camera)) visual.distance.value = Math.max(camera.near * 1.1, 0.11);
   };
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, invalidate }) => {
     if (!running || finished.current) return;
+    invalidate();
     const next = overlayProgress(clock.elapsedTime, transition.duration, start.current);
     start.current = next.startTime;
     visual.progress.value = next.progress;
