@@ -24,6 +24,7 @@ import {
   Vector3,
 } from "three";
 import type { PanoSceneMenuItem } from "../pano-scene-menu";
+import { getMaxTextureSize, getTextureAnisotropy } from "../renderer-capabilities";
 import { useVisitedSceneIds } from "../scenes-host";
 import { SpatialHostContext } from "../spatial/host";
 import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
@@ -244,6 +245,7 @@ function MenuSurface({
   const menuScale = bounded(scale, 1, 0.75, 1.25);
   const surfaces = useMemo(() => {
     const width = open ? W : 1024;
+    const anisotropy = Math.min(4, getTextureAnisotropy(gl));
     const result: {
       canvas: HTMLCanvasElement;
       texture: CanvasTexture;
@@ -257,7 +259,7 @@ function MenuSurface({
     for (const { x: left, y: top, w, h: atlasHeight } of sceneMenuAtlasRects(
       width,
       h,
-      gl.capabilities.maxTextureSize,
+      getMaxTextureSize(gl),
       MENU_TEXTURE_SCALE
     )) {
       const canvas = document.createElement("canvas");
@@ -268,7 +270,7 @@ function MenuSurface({
       texture.minFilter = LinearMipmapLinearFilter;
       texture.magFilter = LinearFilter;
       texture.generateMipmaps = true;
-      texture.anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
+      texture.anisotropy = anisotropy;
       const material = new MeshBasicMaterial({
         map: texture,
         transparent: true,
