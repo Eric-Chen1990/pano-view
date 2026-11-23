@@ -108,9 +108,9 @@ export function Inspector() {
   return (
     <aside
       aria-label={t("Hotspot inspector")}
-      className="min-w-0 border-l border-[#27454d] bg-[#071316]/70 max-[1180px]:col-span-full max-[1180px]:border-t max-[1180px]:border-l-0"
+      className="min-w-0 border-l border-[#27454d] bg-[#071316]/70 max-[1180px]:col-span-full max-[1180px]:border-t max-[1180px]:border-l-0 min-[1181px]:h-0 min-[1181px]:min-h-full min-[1181px]:overflow-y-auto"
     >
-      <div className="flex min-h-[92px] items-center justify-between gap-3 border-b border-[#27454d] p-[17px]">
+      <div className="flex min-h-[92px] items-center justify-between gap-3 border-b border-[#27454d] bg-[#071316] p-[17px] min-[1181px]:sticky min-[1181px]:top-0 min-[1181px]:z-10">
         <div>
           <p className={panelLabelClassName}>{t("INSPECTOR")}</p>
           <h2 className="mt-[7px] max-w-[210px] overflow-hidden text-ellipsis whitespace-nowrap text-[0.93rem] leading-[1.2] text-[#f1f8fa]">
