@@ -16,15 +16,17 @@ function snippet(
   controlsLayout: "horizontal" | "vertical",
   markerLabels: "hover" | "always",
 ) {
+  const geoMap = JSON.stringify({ ...GEO_MAP, presentation: { mode: presentation }, controlsLayout }, null, 2)
+    .replace(/\n/g, "\n  ");
   return `import { useState } from "react";
 import { PanoGeoMapOverlay, PanoOverlay, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const sources = [${JSON.stringify(OPEN_STREET_MAP, null, 2)}];
+const sources = ${JSON.stringify([OPEN_STREET_MAP], null, 2)};
 
 export function OnlineMapTour({ project }) {
   const [sceneId, setSceneId] = useState(project.initialSceneId);
-  const geoMap = project.geoMap ?? ${JSON.stringify({ ...GEO_MAP, presentation: { mode: presentation }, controlsLayout }, null, 2)};
+  const geoMap = project.geoMap ?? ${geoMap};
   const sceneTitles = Object.fromEntries(project.scenes.map(({ scene, title }) => [scene.id, title ?? scene.id]));
 
   return (

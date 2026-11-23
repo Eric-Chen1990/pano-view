@@ -104,6 +104,9 @@ function SunExample({ scenario }: { scenario: Scenario }) {
     setEdit((current) => current && { ...current, position: next });
   }
 
+  const layerProps = Object.entries(layers)
+    .map(([name, value]) => `        ${name}={${value}}`)
+    .join("\n");
   const code = `import { PanoSun, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
@@ -113,7 +116,7 @@ export function PanoramaSun() {
       ${cubeTileJsx(panorama)}
       <PanoSun
         position={{ yaw: ${Number(position.yaw.toFixed(4))}, pitch: ${Number(position.pitch.toFixed(4))} }}
-    ${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("\n")}${enabled ? "" : "\n    enabled={false}"}
+${layerProps}${enabled ? "" : "\n        enabled={false}"}
       />
     </PanoViewer>
   );

@@ -120,14 +120,13 @@ export function WeatherPage() {
         groundY: groundEnabled ? groundY : undefined,
       }
     : { type: "rain", preset: rain };
-  const weatherCode = `  <PanoWeather
-    type="${weather.type}"
-    preset="${weather.preset}"
-    intensity={${intensity}}
-    wind={[${windX}, ${windZ}]}${!enabled ? "\n    enabled={false}" : ""}${type === "snow" && customSize
-      ? `\n    sizeRange={[${sizeRange[0]}, ${sizeRange[1]}]}`
-      : ""}${type === "snow" && groundEnabled ? `\n    groundY={${groundY}}` : ""}
-  />`;
+  const optionalWeatherProps = [
+    !enabled ? "        enabled={false}\n" : "",
+    weather.type === "snow" && weather.sizeRange
+      ? `        sizeRange={[${weather.sizeRange[0]}, ${weather.sizeRange[1]}]}\n` : "",
+    weather.type === "snow" && weather.groundY !== undefined
+      ? `        groundY={${weather.groundY}}\n` : "",
+  ].join("");
   const code = `import { PanoViewer, PanoWeather, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
@@ -135,7 +134,12 @@ export function PanoramaWeather() {
   return (
     <PanoViewer style={{ height: 480 }}>
       ${cubeTileJsx()}
-    ${weatherCode}
+      <PanoWeather
+        type="${weather.type}"
+        preset="${weather.preset}"
+        intensity={${intensity}}
+        wind={[${windX}, ${windZ}]}
+${optionalWeatherProps}      />
     </PanoViewer>
   );
 }`;

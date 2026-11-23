@@ -116,9 +116,9 @@ function buildFilterSnippet(
     : { variants: VIDEO_VARIANTS, tracks: VIDEO_TRACKS, loop: true, muted: true };
   const sourceAttributes = Object.entries(sourceProps)
     .map(([key, value]) => typeof value === "string"
-      ? `${key}=${JSON.stringify(value)}`
-      : `${key}={${JSON.stringify(value)}}`)
-    .join("\n    ");
+      ? `        ${key}=${JSON.stringify(value)}`
+      : `        ${key}={${JSON.stringify(value)}}`)
+    .join("\n");
   const adjustmentLiteral = ADJUSTMENTS.map(({ key }) =>
     `${key}: ${adjustments[key] ?? 0}`,
   ).join(", ");
@@ -142,7 +142,7 @@ export function PanoramaFilter() {
         intensity={${intensity}}
       />
       <${component}
-        ${sourceAttributes}
+${sourceAttributes}
       />
       <ImageHotspot
         id="filter-image-marker"

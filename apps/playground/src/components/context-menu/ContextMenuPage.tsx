@@ -66,34 +66,24 @@ function buildContextMenuSnippet(
   opacity: number,
   borderRadius: number,
 ): string {
-  const appearance = `{
-      background: "#161616",
-      color: "#f4f4f4",
-      border: "1px solid #2e2e2e",
-      borderRadius: ${borderRadius},
-      opacity: ${opacity.toFixed(2)},
-      itemHoverBackground: "#2a2a2a",
-      separatorColor: "#333",
-      iconSize: 16,
-    }`;
-  const customItems = `{
-        id: "copy",
-        label: "Copy yaw / pitch",
-        onSelect: ({ position }) => {
-          void navigator.clipboard.writeText(
-            \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
-          );
-        },
-      },
-      {
-        id: "look-here",
-        label: "Look here",
-        image: "/fixtures/hotspots/signal.svg",
-        onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
-      }`;
-  const entries = mode === "default" ? "" : mode === "append"
-    ? `append: ["separator", ${customItems}],`
-    : `items: ["resetView", "separator", ${customItems}, "separator", "fullscreen"],`;
+  const entries = mode === "default" ? "" : `        ${mode === "append" ? "append" : "items"}: [
+${mode === "presets" ? '          "resetView",\n' : ""}          "separator",
+          {
+            id: "copy",
+            label: "Copy yaw / pitch",
+            onSelect: ({ position }) => {
+              void navigator.clipboard.writeText(
+                \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
+              );
+            },
+          },
+          {
+            id: "look-here",
+            label: "Look here",
+            image: "/fixtures/hotspots/signal.svg",
+            onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
+          },
+${mode === "presets" ? '          "separator",\n          "fullscreen",\n' : ""}        ],\n`;
 
   return `import { PanoViewer, Tile${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
@@ -102,11 +92,18 @@ export function PanoramaContextMenu() {
 ${mode === "default" ? "" : "  const pano = usePanoViewer();\n"}
   return (
     <PanoViewer
-      ${mode === "default" ? "" : "ref={pano.ref}"}
-      contextMenu={{
-        appearance: ${appearance},
-        ${entries}
-      }}
+${mode === "default" ? "" : "      ref={pano.ref}\n"}      contextMenu={{
+        appearance: {
+          background: "#161616",
+          color: "#f4f4f4",
+          border: "1px solid #2e2e2e",
+          borderRadius: ${borderRadius},
+          opacity: ${opacity.toFixed(2)},
+          itemHoverBackground: "#2a2a2a",
+          separatorColor: "#333",
+          iconSize: 16,
+        },
+${entries}      }}
       style={{ height: 540 }}
     >
       ${cubeTileJsx()}

@@ -145,7 +145,9 @@ export function BasicsPage() {
   const { component, props } = sources[source];
   const viewerUrl = source === "sphere" ? undefined : `${sources[source].props.baseUrl}/viewer.json`;
   const introCode = introEnabled
-    ? ` littlePlanetIntro={{\n${Object.entries(intro).map(([key, value]) => `  ${key}: ${JSON.stringify(value)},`).join("\n")}\n}}`
+    ? `      littlePlanetIntro={{
+${Object.entries(intro).map(([key, value]) => `        ${key}: ${JSON.stringify(value)},`).join("\n")}
+      }}\n`
     : "";
   const sourceProps = Object.entries(props)
     .map(([key, value]) => typeof value === "string"
@@ -157,7 +159,10 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function Panorama() {
   return (
-    <PanoViewer renderer="${renderer}"${introCode} style={{ height: 540 }}>
+    <PanoViewer
+      renderer="${renderer}"
+${introCode}      style={{ height: 540 }}
+    >
       <${component}
 ${sourceProps}
       />
