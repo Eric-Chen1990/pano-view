@@ -454,6 +454,22 @@
   pointer-events: auto;
 }
 
+.pano-video-controls[data-stacked-seek] ~ .pano-video-captions {
+  transform: translateY(calc(-2rem - var(--pano-safe-bottom)));
+}
+
+@media (pointer: coarse) {
+  .pano-video-controls[data-vr-entry][data-idle] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .pano-video-chrome-button.pano-video-vr-button {
+    height: 44px;
+    min-width: 44px;
+  }
+}
+
 @media (max-width: 600px) {
   .pano-video-controls {
     bottom: calc(0.75rem + var(--pano-safe-bottom)) !important;

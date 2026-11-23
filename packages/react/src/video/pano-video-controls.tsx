@@ -30,6 +30,7 @@ import {
 import type {
   PanoVideoController,
   PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
 } from "./types";
 
 export const DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE: Required<PanoVideoControlsAppearance> =
@@ -45,6 +46,7 @@ export const DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE: Required<PanoVideoControlsA
 const IDLE_HIDE_MS = 2_500;
 const COMPACT_CONTROLS_WIDTH = 560;
 const NARROW_CONTROLS_WIDTH = 420;
+const STACKED_VR_CONTROLS_WIDTH = 360;
 const VOLUME_SLIDER_HEIGHT = 84;
 const VOLUME_TRACK_WIDTH = 6;
 const VOLUME_THUMB_SIZE = 14;
@@ -134,6 +136,7 @@ const VIDEO_ICON_PATHS = {
   muted: `${SPEAKER_PATH} M15.4 8.7l2.6 2.6 2.6-2.6L22 10l-2.6 2.6 2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6-2.6-2.6z`,
   captions: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h16V6zM7 9h4v1.5H8v3h3V15H7a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5zm6.5 0h4v1.5h-3v3h3V15h-4a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5z",
   settings: "M10 2H14L14.5 4.6 15.7 5.1 17.7 3.5 20.5 6.3 18.9 8.3 19.4 9.5 22 10V14L19.4 14.5 18.9 15.7 20.5 17.7 17.7 20.5 15.7 18.9 14.5 19.4 14 22H10L9.5 19.4 8.3 18.9 6.3 20.5 3.5 17.7 5.1 15.7 4.6 14.5 2 14V10L4.6 9.5 5.1 8.3 3.5 6.3 6.3 3.5 8.3 5.1 9.5 4.6zM15.3 12a3.3 3.3 0 1 1-6.6 0 3.3 3.3 0 1 1 6.6 0z",
+  vr: "M5 5h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-3.5a2 2 0 0 1-1.6-.8L12 14.7l-1.9 2.5a2 2 0 0 1-1.6.8H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zm0 2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3.5l2.3-3a1.5 1.5 0 0 1 2.4 0l2.3 3H19a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm2.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z",
   enterFullscreen: "M3 3h7v2.5H5.5V10H3zM14 3h7v7h-2.5V5.5H14zM3 14h2.5v4.5H10V21H3zM18.5 14H21v7h-7v-2.5h4.5z",
   exitFullscreen: "M7.5 3H10v7H3V7.5h4.5zM14 3h2.5v4.5H21V10h-7zM3 14h7v7H7.5v-4.5H3zM14 14h7v2.5h-4.5V21H14z",
 } as const;
@@ -157,6 +160,7 @@ function Icon({ name }: { name: keyof typeof VIDEO_ICON_PATHS }) {
 function ChromeButton({
   appearance,
   children,
+  className,
   disabled,
   id,
   label,
@@ -164,6 +168,7 @@ function ChromeButton({
 }: {
   appearance: Required<PanoVideoControlsAppearance>;
   children: ReactNode;
+  className?: string;
   disabled?: boolean;
   id?: string;
   label: string;
@@ -172,7 +177,7 @@ function ChromeButton({
   return (
     <button
       aria-label={label}
-      className="pano-video-chrome-button"
+      className={className ? `pano-video-chrome-button ${className}` : "pano-video-chrome-button"}
       disabled={disabled}
       id={id}
       onClick={onClick}
@@ -673,14 +678,18 @@ function VolumeControl({
 
 export function PanoVideoControlsHud({
   appearance,
+  buttons,
   controller,
   fullscreen,
   overlayElement,
+  vrEntry,
 }: {
   appearance?: PanoVideoControlsAppearance;
+  buttons?: PanoVideoControlsOptions["buttons"];
   controller: PanoVideoController;
   fullscreen: PanoContextMenuActionsApi | null;
   overlayElement: HTMLDivElement;
+  vrEntry?: { disabled: boolean; onEnter: () => void };
 }) {
   const t = usePanoUiTranslation();
   const resolved = useMemo(
@@ -707,7 +716,9 @@ export function PanoVideoControlsHud({
   const moreMenuId = `${barId}-more`;
   const compact = overlayWidth < COMPACT_CONTROLS_WIDTH;
   const hideTime = overlayWidth < NARROW_CONTROLS_WIDTH;
-  const showFullscreen = canEnterViewerFullscreen();
+  const showFullscreen = buttons?.fullscreen !== false && fullscreen !== null && canEnterViewerFullscreen();
+  const showVR = buttons?.vr !== false && vrEntry !== undefined;
+  const stackSeek = showVR && overlayWidth < STACKED_VR_CONTROLS_WIDTH;
 
   const bumpVisibility = useCallback(
     (playing: boolean) => {
@@ -738,12 +749,6 @@ export function PanoVideoControlsHud({
       observer.disconnect();
     };
   }, [overlayElement]);
-
-  useEffect(() => {
-    if (!compact && menu === "more") {
-      setMenu(null);
-    }
-  }, [compact, menu]);
 
   useEffect(() => {
     bumpVisibility(snapshot.playing);
@@ -822,8 +827,11 @@ export function PanoVideoControlsHud({
   const showBar = visible || !snapshot.playing || menu !== null || volumeOpen;
   const { hlsQuality, qualitySwitch } = snapshot;
   const explicitVariants = snapshot.variants.length > 1;
-  const canSwitchVariant = explicitVariants || (hlsQuality?.levels.length ?? 0) > 1 ||
-    Boolean(hlsQuality && typeof hlsQuality.selectedLevel === "number");
+  const showRate = buttons?.playbackRate !== false;
+  const showQuality = buttons?.quality !== false;
+  const canSwitchVariant = showQuality && (explicitVariants ||
+    (hlsQuality?.levels.length ?? 0) > 1 ||
+    Boolean(hlsQuality && typeof hlsQuality.selectedLevel === "number"));
   const qualityLabel = videoQualityButtonLabel({
     variantId: snapshot.variantId,
     variants: snapshot.variants,
@@ -831,7 +839,23 @@ export function PanoVideoControlsHud({
     qualitySwitch,
   }, t);
   const switchLabel = qualitySwitch ? t(videoQualitySwitchStatus(qualitySwitch.state)) : undefined;
-  const showCaptionsMenu = snapshot.captionsEnabled && snapshot.tracks.length > 0;
+  const showCaptionsMenu = buttons?.captions !== false &&
+    snapshot.captionsEnabled && snapshot.tracks.length > 0;
+  const showMore = compact && (showRate || canSwitchVariant || showCaptionsMenu);
+  const availableMenus = {
+    rate: showRate,
+    variant: canSwitchVariant,
+    captions: showCaptionsMenu,
+    more: showMore,
+  };
+  const activeMenu = menu && availableMenus[menu] ? menu : null;
+
+  useEffect(() => {
+    if (menu !== activeMenu) {
+      setMenu(null);
+      setCaptionsPanel("tracks");
+    }
+  }, [activeMenu, menu]);
 
   const closeMenu = () => {
     setMenu(null);
@@ -855,7 +879,7 @@ export function PanoVideoControlsHud({
     : `${barId}-captions-btn`;
 
   let menuNode: ReactNode = null;
-  switch (menu) {
+  switch (activeMenu) {
     case "rate":
       menuNode = (
         <ChromeMenu
@@ -940,14 +964,14 @@ export function PanoVideoControlsHud({
           appearance={resolved}
           id={moreMenuId}
           items={[
-            {
+            ...(showRate ? [{
               id: "rate",
               label: t("Speed"),
               active: false,
               onSelect: () => {
                 setMenu("rate");
               },
-            },
+            }] : []),
             ...(canSwitchVariant
               ? [
                   {
@@ -981,7 +1005,7 @@ export function PanoVideoControlsHud({
       menuNode = null;
       break;
     default: {
-      const exhaustive: never = menu;
+      const exhaustive: never = activeMenu;
       return exhaustive;
     }
   }
@@ -995,6 +1019,7 @@ export function PanoVideoControlsHud({
     display: "flex",
     fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
     fontSize: resolved.fontSize,
+    flexWrap: stackSeek ? "wrap" : undefined,
     left: 10,
     padding: resolved.padding,
     position: "absolute",
@@ -1003,7 +1028,7 @@ export function PanoVideoControlsHud({
     zIndex: 2,
   };
 
-  const rateButton = (
+  const rateButton = showRate ? (
     <div className="pano-video-menu" data-pano-video-menu="rate">
       {!compact && menu === "rate" ? menuNode : null}
       <ChromeButton
@@ -1018,7 +1043,7 @@ export function PanoVideoControlsHud({
         </span>
       </ChromeButton>
     </div>
-  );
+  ) : null;
 
   const variantButton = canSwitchVariant ? (
     <div className="pano-video-menu" data-pano-video-menu="variant">
@@ -1035,7 +1060,7 @@ export function PanoVideoControlsHud({
         </span>
       </ChromeButton>
     </div>
-  ) : hlsQuality && !compact ? (
+  ) : showQuality && hlsQuality && !compact ? (
     <span className="pano-video-chrome-label">{qualityLabel}</span>
   ) : null;
 
@@ -1055,52 +1080,63 @@ export function PanoVideoControlsHud({
     </div>
   ) : null;
 
+  const seek = (
+    <input
+      aria-label={t("Seek")}
+      max={duration || 1}
+      min={0}
+      onChange={(event) => {
+        controller.seek(Number(event.currentTarget.value));
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+      }}
+      step="any"
+      style={{
+        accentColor: resolved.accent,
+        flex: stackSeek ? "1 0 100%" : 1,
+        minWidth: hideTime ? 0 : 64,
+      }}
+      type="range"
+      value={duration > 0 ? snapshot.currentTime : 0}
+    />
+  );
+
   return (
     <div
+      aria-label={t("Video controls")}
       className="pano-video-controls"
       data-idle={showBar ? undefined : ""}
       data-pano-video-controls=""
+      data-stacked-seek={stackSeek ? "" : undefined}
+      data-vr-entry={showVR ? "" : undefined}
+      role="group"
       style={barStyle}
     >
-      <ChromeButton
-        appearance={resolved}
-        label={snapshot.playing ? t("Pause") : t("Play")}
-        onClick={() => {
-          controller.togglePlay();
-        }}
-      >
-        <Icon name={snapshot.playing ? "pause" : "play"} />
-      </ChromeButton>
+      {stackSeek ? seek : null}
+      {buttons?.play !== false ? (
+        <ChromeButton
+          appearance={resolved}
+          label={snapshot.playing ? t("Pause") : t("Play")}
+          onClick={() => {
+            controller.togglePlay();
+          }}
+        >
+          <Icon name={snapshot.playing ? "pause" : "play"} />
+        </ChromeButton>
+      ) : null}
       {hideTime ? null : (
         <span className="pano-video-time">
           {formatMediaTime(snapshot.currentTime)}
         </span>
       )}
-      <input
-        aria-label={t("Seek")}
-        max={duration || 1}
-        min={0}
-        onChange={(event) => {
-          controller.seek(Number(event.currentTarget.value));
-        }}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-        }}
-        step="any"
-        style={{
-          accentColor: resolved.accent,
-          flex: 1,
-          minWidth: hideTime ? 0 : 64,
-        }}
-        type="range"
-        value={duration > 0 ? snapshot.currentTime : 0}
-      />
+      {stackSeek ? null : seek}
       {hideTime ? null : (
         <span className="pano-video-time">
           {formatMediaTime(duration)}
         </span>
       )}
-      {snapshot.hasAudio === false ? null : <VolumeControl
+      {buttons?.volume === false || snapshot.hasAudio === false ? null : <VolumeControl
         appearance={resolved}
         muted={snapshot.muted}
         onOpenChange={setVolumeOpen}
@@ -1113,9 +1149,9 @@ export function PanoVideoControlsHud({
         volume={snapshot.volume}
         volumeAdjustable={snapshot.volumeAdjustable}
       />}
-      {compact ? (
+      {showMore ? (
         <div className="pano-video-menu" data-pano-video-menu="more">
-          {menu !== null ? menuNode : null}
+          {menuNode}
           <ChromeButton
             appearance={resolved}
             id={`${barId}-more-btn`}
@@ -1127,13 +1163,24 @@ export function PanoVideoControlsHud({
             <Icon name="settings" />
           </ChromeButton>
         </div>
-      ) : (
+      ) : !compact ? (
         <>
           {rateButton}
           {variantButton}
           {captionsButton}
         </>
-      )}
+      ) : null}
+      {showVR ? (
+        <ChromeButton
+          appearance={resolved}
+          className="pano-video-vr-button"
+          disabled={vrEntry.disabled}
+          label={t("Enter VR")}
+          onClick={vrEntry.onEnter}
+        >
+          <Icon name="vr" />
+        </ChromeButton>
+      ) : null}
       {showFullscreen ? (
         <ChromeButton
           appearance={resolved}

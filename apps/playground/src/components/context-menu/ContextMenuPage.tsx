@@ -4,8 +4,8 @@ import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   PanoEvents,
-  PanoViewer,
   Tile,
+  WebVR,
   usePanoViewer,
   type PanoContextMenuAppearance,
   type PanoContextMenuEntry,
@@ -27,6 +27,7 @@ import {
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 
 function CopyIcon() {
   return (
@@ -52,7 +53,7 @@ type MenuMode = "default" | "append" | "presets";
 const MODE_SNIPPET_META: Record<MenuMode, { label: string; blurb: string }> = {
   default: {
     label: "Default items + appearance",
-    blurb: "Keep built-in Reset view / Fullscreen. Tune appearance only.",
+    blurb: "Keep the built-in items and add Enter VR.",
   },
   append: {
     label: "append custom items",
@@ -69,7 +70,7 @@ function buildContextMenuSnippet(
   opacity: number,
   borderRadius: number,
 ): string {
-  const entries = mode === "default" ? "" : `        ${mode === "append" ? "append" : "items"}: [
+  const entries = mode === "default" ? "        append: [vrEntry],\n" : `        ${mode === "append" ? "append" : "items"}: [
 ${mode === "presets" ? '          "resetView",\n' : ""}          "separator",
           {
             id: "copy",
@@ -86,16 +87,27 @@ ${mode === "presets" ? '          "resetView",\n' : ""}          "separator",
             image: "/fixtures/hotspots/signal.svg",
             onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
           },
-${mode === "presets" ? '          "separator",\n          "fullscreen",\n' : ""}        ],\n`;
+${mode === "presets" ? '          { preset: "separator", id: "before-fullscreen" },\n          "fullscreen",\n' : ""}          vrEntry,
+        ],\n`;
 
-  return `import { PanoViewer, Tile${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
+  return `import { useSyncExternalStore } from "react";
+import { PanoViewer, Tile, WebVR, usePanoViewer, type PanoContextMenuActionItem } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaContextMenu() {
-${mode === "default" ? "" : "  const pano = usePanoViewer();\n"}
+  const pano = usePanoViewer();
+  const available = useSyncExternalStore(pano.subscribeVR, pano.isVRAvailable, () => false);
+  const vrEntry: PanoContextMenuActionItem = {
+    id: "enter-vr",
+    label: "Enter VR",
+    hidden: !available,
+    onSelect: () => { void pano.enterVR(); },
+  };
+
   return (
     <PanoViewer
-${mode === "default" ? "" : "      ref={pano.ref}\n"}      contextMenu={{
+      ref={pano.ref}
+      contextMenu={{
         appearance: {
           background: "#161616",
           color: "#f4f4f4",
@@ -109,6 +121,7 @@ ${mode === "default" ? "" : "      ref={pano.ref}\n"}      contextMenu={{
 ${entries}      }}
       style={{ height: 540 }}
     >
+      <WebVR />
       ${cubeTileJsx()}
     </PanoViewer>
   );
@@ -186,7 +199,7 @@ export function ContextMenuPage() {
         "separator" as const,
         copyItem,
         lookHereItem,
-        "separator" as const,
+        { preset: "separator" as const, id: "before-fullscreen" },
         "fullscreen" as const,
       ],
     };
@@ -266,8 +279,8 @@ export function ContextMenuPage() {
           </label>
         </div>
         <div className="bg-[#020607]">
-          <PanoViewer
-            ref={pano.ref}
+          <PlaygroundVRViewer
+            viewer={pano}
             aria-label={t("Panorama context menu demo")}
             contextMenu={contextMenu}
             style={{ height: 540 }}
@@ -277,7 +290,8 @@ export function ContextMenuPage() {
               onExitFullscreen={() => setLastAction("Exited fullscreen")}
             />
             <Tile {...cubeTileProps()} />
-          </PanoViewer>
+            <WebVR />
+          </PlaygroundVRViewer>
         </div>
         <ExampleCode
           react={{

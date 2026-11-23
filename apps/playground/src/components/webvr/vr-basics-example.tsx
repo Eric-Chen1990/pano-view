@@ -1,3 +1,4 @@
+import { PlaygroundVRViewer } from "./PlaygroundVRViewer";
 import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
@@ -5,7 +6,6 @@ import { useState, useSyncExternalStore } from "react";
 import {
   GraphicHotspot,
   PanoEvents,
-  PanoViewer,
   Tile,
   WebVR,
   usePanoViewer,
@@ -52,8 +52,8 @@ export function VRBasicsExample() {
         <span role="status" className="text-sm">{t("Marker activations:") + " "}{count}
         </span>
       </div>
-      <PanoViewer
-        ref={viewer.ref}
+      <PlaygroundVRViewer
+        viewer={viewer}
         aria-label={t("VR basics viewer")}
         style={{ height: 560 }}
       >
@@ -81,7 +81,7 @@ export function VRBasicsExample() {
           tooltip={t("Point and select, or look here in gaze mode")}
           onClick={() => setCount((value) => value + 1)}
         />
-      </PanoViewer>
+      </PlaygroundVRViewer>
     </>
   );
 }

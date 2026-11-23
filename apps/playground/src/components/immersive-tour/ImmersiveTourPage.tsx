@@ -1,3 +1,4 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./ImmersiveTourPage.tsx?raw";
 import {
@@ -12,7 +13,6 @@ import {
   AutoRotate,
   WebVR,
   PanoOverlay,
-  PanoViewer,
   ProjectScenes,
   loadPanoProject,
   usePanoOverlay,
@@ -392,8 +392,8 @@ export function ImmersiveTourPage() {
               onChange={(event) => setAutoRotate(event.target.checked)}
             />{t("Auto rotate")}</label>
         </div>
-        <PanoViewer
-          ref={viewer.ref}
+        <PlaygroundVRViewer
+          viewer={viewer}
           aria-label={t("Immersive tour viewer")}
           style={{ height: 560 }}
         >
@@ -437,7 +437,7 @@ export function ImmersiveTourPage() {
               toggleFullscreen={() => void viewer.toggleFullscreen()}
             />
           </PanoOverlay>
-        </PanoViewer>
+        </PlaygroundVRViewer>
         {error ? (
           <p role="alert" className="p-4">
             {t(error)}

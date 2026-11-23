@@ -1,6 +1,7 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
-  PanoSun, PanoViewer, Scenes, WebVR, usePanoViewer,
+  PanoSun, Scenes, WebVR, usePanoViewer,
   type HotspotPosition, type PanoSunProps,
 } from "@ericchen1990/pano-view";
 import { useState, useSyncExternalStore } from "react";
@@ -142,8 +143,8 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
           <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.enterVR()}>{t("Enter VR")}</button>
         )}
       </div>
-      <PanoViewer
-        ref={viewer.ref} aria-label={t(label)} initialView={initialView} minFov={5}
+      <PlaygroundVRViewer
+        viewer={viewer} vrMenuEnabled={!editing} aria-label={t(label)} initialView={initialView} minFov={5}
         onPanoramaClick={editing ? (event) => {
           if (event.button === 0) moveSun(event.position);
         } : undefined}
@@ -187,7 +188,7 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
         />
         <PanoSun {...layers} position={position} enabled={editing ? edit.preview : enabled} />
         {editing && <SunGuide position={position} angularSize={layers.angularSize} onMove={moveSun} />}
-      </PanoViewer>
+      </PlaygroundVRViewer>
       <div className={pageControlsClassName} role="group" aria-label={t("Sun placement and size")}>
         {(["yaw", "pitch"] as const).map((axis) => {
           const limit = axis === "yaw" ? 180 : 90;

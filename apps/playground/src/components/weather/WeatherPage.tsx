@@ -1,9 +1,9 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   PANO_RAIN_PRESETS,
   PANO_SNOW_PRESETS,
-  PanoViewer,
   PanoWeather,
   Tile,
   WebVR,
@@ -211,11 +211,11 @@ ${optionalWeatherProps}      />
             )}
           </div>
         )}
-        <PanoViewer ref={viewer.ref} aria-label={t("Weather demo")} style={{ height: "min(540px, 68dvh)" }}>
+        <PlaygroundVRViewer viewer={viewer} aria-label={t("Weather demo")} style={{ height: "min(540px, 68dvh)" }}>
           <WebVR />
           <Tile {...cubeTileProps()} />
           <PanoWeather {...weather} enabled={enabled} intensity={intensity} wind={[windX, windZ]} />
-        </PanoViewer>
+        </PlaygroundVRViewer>
         <ExampleCode
           react={{
             label: "PanoWeather",

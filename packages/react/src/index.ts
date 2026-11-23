@@ -180,7 +180,9 @@ export { DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE } from "./video/pano-video-captio
 export { DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE } from "./video/pano-video-controls";
 export type {
   PanoVideoCaptionAppearance,
+  PanoVideoControlButton,
   PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
   PanoVideoController,
   PanoVideoErrorEvent,
   PanoVideoErrorSource,

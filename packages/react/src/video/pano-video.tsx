@@ -56,7 +56,7 @@ import { PanoVideoHostContext, notifyPanoVideoHost } from "./host";
 import type {
   PanoVideoCaptionAppearance,
   PanoVideoController,
-  PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
   PanoVideoErrorEvent,
   PanoVideoHlsSelection,
   PanoVideoQualitySwitch,
@@ -84,10 +84,10 @@ export type PanoVideoProps = {
   captions?: boolean | PanoVideoCaptionAppearance;
   /**
    * Playback chrome. `true` / omit mounts the default bar; `false` skips
-   * it; an object mounts the default bar with appearance overrides.
+   * it; an object configures the default bar's appearance and visible buttons.
    * Render `PanoVideoControls` as a PanoViewer child to replace the default.
    */
-  controls?: boolean | PanoVideoControlsAppearance;
+  controls?: boolean | PanoVideoControlsOptions;
   /** Click or tap the panorama to toggle playback in screen mode. Defaults to true. */
   clickToTogglePlayback?: boolean;
   /** Show a centered play button while the visible video is stopped. Defaults to true. */

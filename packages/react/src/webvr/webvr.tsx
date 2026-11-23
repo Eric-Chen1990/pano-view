@@ -309,13 +309,10 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     })();
   }, [activateXR, gl.xr, gpu, host, reportDenied]);
 
-  const enterVR = useCallback(async (): Promise<boolean> => {
-    if (modeRef.current) return true;
+  const startVR = useCallback(async (): Promise<boolean> => {
     const capabilities = capabilitiesRef.current;
-    if (host.requestingXR || host.pendingXR) return false;
     host.hotspotReferenceHeight = Math.max(1, store.getState().size.height);
     if (capabilities.webxr) {
-      host.requestingXR = true;
       let session: XRSession | null = null;
       try {
         if (!gpu) {
@@ -342,8 +339,6 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
           gpu.fallback();
         } else reportDenied(error);
         return false;
-      } finally {
-        host.requestingXR = false;
       }
     }
 
@@ -356,12 +351,14 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
         void acquireWebVRWakeLock();
       }
       const viewer = getViewerElement(gl.domElement);
+      // Ask while the activation gesture is still available, before fullscreen can consume it.
+      const permission = requestPermission();
       await enterWebVRPresentation(viewer);
-      const granted = await requestPermission();
-      if (!granted) {
+      const granted = await permission;
+      if (!mounted.current || !granted) {
         releaseWebVRWakeLock();
         leaveWebVRPresentation();
-        reportDenied();
+        if (mounted.current) reportDenied();
         return false;
       }
       activate("mobilevr");
@@ -379,6 +376,11 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
         void requestWebVRPointerLock(gl.domElement);
       }
       await enterWebVRPresentation(getViewerElement(gl.domElement));
+      if (!mounted.current) {
+        releaseWebVRWakeLock();
+        leaveWebVRPresentation();
+        return false;
+      }
       activate("fake");
       return true;
     }
@@ -405,6 +407,20 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     wakelock,
     xrStore,
   ]);
+
+  const enterVR = useCallback(async (): Promise<boolean> => {
+    if (modeRef.current) return true;
+    if (host.snapshot.entering || host.pendingXR) return false;
+    updateWebVRHost(host, { entering: true });
+    try {
+      return await startVR();
+    } catch (error) {
+      if (mounted.current) reportDenied(error);
+      return false;
+    } finally {
+      updateWebVRHost(host, { entering: false });
+    }
+  }, [host, reportDenied, startVR]);
 
   const exitVR = useCallback(async (): Promise<void> => {
     if (modeRef.current === "webxr") {
@@ -551,7 +567,7 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   useEffect(() => () => {
     host.controller = null;
     dpdbRequestIdRef.current += 1;
-    updateWebVRHost(host, { detectedScreensize: null, screensizeStatus: "idle", pointerLocked: false, mode: null, setupOpen: false });
+    updateWebVRHost(host, { available: false, detectedScreensize: null, screensizeStatus: "idle", pointerLocked: false, mode: null, setupOpen: false });
   }, [host]);
 
   useEffect(() => {

@@ -286,6 +286,13 @@ function DefaultContextMenuPanel({
     [onRequestClose, selectContext],
   );
 
+  const focusItem = (index: number) => {
+    setActiveIndex(index);
+    menuRef.current?.querySelector<HTMLButtonElement>(
+      `[data-pano-menu-index="${index}"]`,
+    )?.focus();
+  };
+
   const moveFocus = (direction: 1 | -1) => {
     if (focusableIndices.length === 0) {
       return;
@@ -296,12 +303,7 @@ function DefaultContextMenuPanel({
         ? 0
         : (currentSlot + direction + focusableIndices.length) %
           focusableIndices.length;
-    const nextIndex = focusableIndices[nextSlot]!;
-    setActiveIndex(nextIndex);
-    const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>(
-      '[role="menuitem"]',
-    );
-    buttons?.[nextIndex]?.focus();
+    focusItem(focusableIndices[nextSlot]!);
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -318,11 +320,7 @@ function DefaultContextMenuPanel({
         event.preventDefault();
         const first = focusableIndices[0];
         if (first !== undefined) {
-          setActiveIndex(first);
-          const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>(
-            '[role="menuitem"]',
-          );
-          buttons?.[first]?.focus();
+          focusItem(first);
         }
         break;
       }
@@ -330,11 +328,7 @@ function DefaultContextMenuPanel({
         event.preventDefault();
         const last = focusableIndices[focusableIndices.length - 1];
         if (last !== undefined) {
-          setActiveIndex(last);
-          const buttons = menuRef.current?.querySelectorAll<HTMLButtonElement>(
-            '[role="menuitem"]',
-          );
-          buttons?.[last]?.focus();
+          focusItem(last);
         }
         break;
       }
@@ -433,6 +427,7 @@ function DefaultContextMenuPanel({
               item.className,
             )}
             disabled={disabled}
+            data-pano-menu-index={index}
             key={item.id}
             onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
               event.preventDefault();

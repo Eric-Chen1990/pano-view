@@ -1,3 +1,4 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
@@ -5,7 +6,6 @@ import {
   PanoOverlay,
   PanoScrollControls,
   PanoVideo,
-  PanoViewer,
   Tile,
   WebVR,
   usePanoViewer,
@@ -96,8 +96,8 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
           {t(status)}
         </span>
       </div>
-      <PanoViewer
-        ref={viewer.ref}
+      <PlaygroundVRViewer
+        viewer={viewer}
         aria-label={t("Spatial controls viewer")}
         initialView={{
           yaw: kind === "scene-video" ? 145 : 0,
@@ -147,7 +147,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
             </>
           ) : null}
         </PanoOverlay>
-      </PanoViewer>
+      </PlaygroundVRViewer>
     </>
   );
 }

@@ -1486,15 +1486,20 @@ browser can pick mp4 / webm and the control bar can switch resolution. Changing
 quality keeps the current time and play/pause state.
 
 A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
-volume, speed, resolution, captions, and fullscreen. Volume is a hover (or tap)
+volume, speed, resolution, captions, VR, and fullscreen. The VR button appears
+when the viewer mounts `WebVR` and a VR mode is available. Volume is a hover (or tap)
 vertical slider when the browser allows `HTMLMediaElement.volume`; iOS Safari
 only exposes mute. The speed menu lists rates the current element accepts. The
 captions menu also includes a settings panel for subtitle font size and
 background opacity. When the viewer is narrow, speed, quality, and captions
 move into a More menu.
-Pass `controls={false}` to hide it, an appearance object to restyle the default
-instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
-instance.
+Pass `controls={false}` to hide the bar or an options object to configure its
+appearance and buttons. All buttons are enabled by default where supported. Set
+any of `play`, `volume`, `playbackRate`, `quality`, `captions`, `vr`, or
+`fullscreen` to `false` under `controls.buttons` to hide it, including its entry
+in More. For example, `controls={{ buttons: { vr: false, fullscreen: false } }}`
+hides both presentation buttons.
+Render `PanoVideoControls` as a `PanoViewer` child to replace the default instance.
 
 Captions use WebVTT `tracks`. The video element is mounted inside the viewer as a
 transparent 1×1-pixel node; cue text is rendered in a screen-space overlay. `captions={false}` hides the overlay and the language
@@ -1566,7 +1571,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `fallbackVariantId` — optionally try this variant once when the active source fails with a decoding, format support, or texture size error. Restores playback position and state where possible.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
-- `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
+- `controls` — `true` or omitted mounts the default bar. `false` hides it. A `PanoVideoControlsOptions` object accepts `buttons` and the appearance keys `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), and `padding` (`"8px 10px"`).
 - `clickToTogglePlayback` — Defaults to `true`. Click or tap the panorama to play or pause in screen mode, including fullscreen. Set `false` to disable this gesture. Call `nativeEvent.preventDefault()` in a panorama click callback to cancel the toggle for that click.
 - `showCenterPlayButton` — Defaults to `true`. Shows a translucent play button at the center while playback is paused, blocked, or ended in screen mode. Set `false` to hide it. This button and `clickToTogglePlayback` are configured independently of `controls`.
 - `yawOffset` — horizontal offset in degrees, default `0`.

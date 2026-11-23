@@ -72,7 +72,11 @@ function snapshot(
   };
 }
 
-function renderControls(state: PanoVideoPlaybackSnapshot, width = 800): string {
+function renderControls(
+  state: PanoVideoPlaybackSnapshot,
+  width = 800,
+  options?: Pick<Parameters<typeof PanoVideoControlsHud>[0], "buttons" | "vrEntry">,
+): string {
   const controller: PanoVideoController = {
     subscribe: () => () => {},
     getSnapshot: () => state,
@@ -91,11 +95,38 @@ function renderControls(state: PanoVideoPlaybackSnapshot, width = 800): string {
   };
   const overlay = { clientWidth: width } as HTMLDivElement;
   return renderToStaticMarkup(createElement(PanoVideoControlsHud, {
+    ...options,
     controller,
     fullscreen: null,
     overlayElement: overlay,
   }));
 }
+
+test("shows the VR icon for an available viewer and respects the button setting", () => {
+  const state = snapshot(undefined);
+  const vrEntry = { disabled: false, onEnter: () => {} };
+  assert.doesNotMatch(renderControls(state), /aria-label="Enter VR"/);
+  assert.match(renderControls(state, 320, { vrEntry }), /aria-label="Enter VR"[^>]*><svg/);
+  assert.match(
+    renderControls(state, 320, { vrEntry: { ...vrEntry, disabled: true } }),
+    /aria-label="Enter VR"[^>]*disabled/,
+  );
+  assert.doesNotMatch(renderControls(state, 800, { vrEntry, buttons: { vr: false } }), /aria-label="Enter VR"/);
+});
+
+test("hides configured controls while retaining the seek bar and omitting an empty More menu", () => {
+  const state = snapshot(quality({ selectedLevel: "auto" }), {
+    hasAudio: true,
+    captionsEnabled: true,
+    tracks: [{ src: "/captions.vtt", srcLang: "en", label: "English" }],
+  });
+  const buttons = { play: false, volume: false, playbackRate: false, quality: false, captions: false };
+  for (const width of [320, 800]) {
+    const html = renderControls(state, width, { buttons });
+    assert.match(html, /aria-label="Seek"/);
+    assert.doesNotMatch(html, /aria-label="(?:Play|Mute|Unmute|Playback speed|Resolution|Captions|More)"/);
+  }
+});
 
 function variantButtonText(html: string): string {
   const button = html.match(/id="[^"]*-variant-btn">([^<]*)</);

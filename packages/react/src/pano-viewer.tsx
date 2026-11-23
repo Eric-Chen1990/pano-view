@@ -1120,6 +1120,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             fullscreen={contextMenuActions}
             host={videoHost}
             overlayElement={overlayElement}
+            webVRHost={webVRHost}
           />
           </div>
           <WebVRChromeBridge host={webVRHost} />

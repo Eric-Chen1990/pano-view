@@ -1,8 +1,8 @@
+import { PlaygroundVRViewer } from "./PlaygroundVRViewer";
 import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoEvents,
-  PanoViewer,
   PanoOverlay,
   PanoSceneMenu,
   Scenes,
@@ -350,9 +350,9 @@ export function VRSceneMenuPage() {
           </details>
         </div>
         <div className="h-[min(68vh,680px)] min-h-105">
-          <PanoViewer
-            ref={viewer.ref}
-            contextMenu={false}
+          <PlaygroundVRViewer
+            viewer={viewer}
+            contextMenu={{ items: [] }}
             style={{ height: "100%" }}
           >
             <PanoEvents
@@ -407,7 +407,7 @@ export function VRSceneMenuPage() {
                 }}
               />
             </PanoOverlay>
-          </PanoViewer>
+          </PlaygroundVRViewer>
         </div>
         <ExampleCode
           react={{
