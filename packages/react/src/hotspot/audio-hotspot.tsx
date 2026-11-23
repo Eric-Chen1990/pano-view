@@ -24,6 +24,8 @@ import {
   relativeLookGain,
   relativeSoundPosition,
 } from "./audio-spatial";
+import { toLeveledPanoPosition } from "../level-correction";
+import { HotspotLevelCorrectionContext } from "../level-rotation";
 import { panoPositionToVector3 } from "./coordinates";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
@@ -372,12 +374,13 @@ export function AudioHotspot({
     : stoppedIconTexture ?? speakerTextures.stopped;
   const playingRef = useRef(playing);
   playingRef.current = playing;
-  const { yaw, pitch } = anchorProps.position;
+  const correction = useContext(HotspotLevelCorrectionContext);
+  const { yaw, pitch } = toLeveledPanoPosition(anchorProps.position, correction);
   const source = useMemo(() => panoPositionToVector3(
     { yaw, pitch }, normalizeSoundDistance(soundDistance),
   ), [yaw, pitch, soundDistance]);
-  const settings = useRef({ position: anchorProps.position, source, range, muted, volume });
-  settings.current = { position: anchorProps.position, source, range, muted, volume };
+  const settings = useRef({ position: { yaw, pitch }, source, range, muted, volume });
+  settings.current = { position: { yaw, pitch }, source, range, muted, volume };
   const audio = useMemo(() => ({
     zero: new Vector3(),
     inverseOrientation: new Quaternion(),

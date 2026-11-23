@@ -1,10 +1,12 @@
 import {
-  useContext, useEffect, useId, useRef, useState, useSyncExternalStore,
+  useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore,
   type CSSProperties, type PointerEvent, type ReactNode,
 } from "react";
 import type { PanoGeoCoordinateSystem, PanoGeoMapDefinition, PanoGeoMapSpot, PanoGeoPosition } from "../data/geo-map";
+import { normalizePanoYaw } from "../hotspot/position-math";
 import { headingFromVector, horizontalFov } from "../map/geometry";
 import { DefaultSpotIcon, SectorShape } from "../map/map-visuals";
+import { ScenesHostContext, subscribeScenesHost } from "../scenes-host";
 import { PanoEventBusContext } from "../pano-event-bus";
 import { IDLE_SCENE_LOAD_PROGRESS, SceneLoadProgressContext } from "../scene-load-progress";
 import type { PanoViewerState } from "../types";
@@ -20,6 +22,8 @@ export type PanoGeoMapProps = {
   geoMap: PanoGeoMapDefinition;
   sources: readonly PanoGeoMapSource[];
   activeSceneId?: string | null;
+  /** Viewer yaw of true north for the active scene. Overrides calibration inherited from Scenes. */
+  northYaw?: number;
   onSelectScene?: (sceneId: string, spot: PanoGeoMapSpot) => void;
   sceneTitles?: Readonly<Record<string, string>>;
   /**
@@ -52,7 +56,7 @@ const identity = (message: string) => message;
 type Drag = { id: number; spotId: string; x: number; y: number; mode: "marker" | "heading"; moved: boolean };
 
 export function PanoGeoMap({
-  geoMap, sources, activeSceneId, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
+  geoMap, sources, activeSceneId, northYaw, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
   selectedSpotId, onSelectSpot, placement, onEdit, translate = identity, style, className,
 }: PanoGeoMapProps) {
   const [selectedSourceId, setSelectedSourceId] = useState<string>();
@@ -86,12 +90,19 @@ export function PanoGeoMap({
   const loadStore = useContext(SceneLoadProgressContext);
   const progress = useSyncExternalStore(loadStore?.subscribe ?? noopSubscribe, loadStore?.getSnapshot ?? idle, idle);
   const bus = useContext(PanoEventBusContext);
+  const scenesHost = useContext(ScenesHostContext);
+  const subscribeNorth = useCallback((listener: () => void) =>
+    scenesHost ? subscribeScenesHost(scenesHost, listener) : noopSubscribe(), [scenesHost]);
+  const getNorthYaw = () => activeSceneId ? scenesHost?.sceneNorthYaws?.get(activeSceneId) : undefined;
+  const inheritedNorthYaw = useSyncExternalStore(subscribeNorth, getNorthYaw, getNorthYaw);
+  const calibratedNorthYaw = northYaw !== undefined && Number.isFinite(northYaw) ? normalizePanoYaw(northYaw) : inheritedNorthYaw;
   const selected = onEdit ? geoMap.spots.find((spot) => spot.id === selectedSpotId && spot.sceneId === activeSceneId && resolved.has(spot.id)) : undefined;
   const active = selected ?? geoMap.spots.find((spot) => spot.sceneId === activeSceneId && resolved.has(spot.id));
   const radarSpot = progress.sceneId === null || (progress.status === "ready" && progress.sceneId === activeSceneId) ? active : undefined;
   const sector = geoMap.sector !== false ? geoMap.sector ?? DEFAULT_SECTOR : undefined;
-  const heading = headingDraft && headingDraft.spotId === radarSpot?.id ? headingDraft.heading
-    : radarSpot?.heading ?? (radarSpot && selected?.id === radarSpot.id ? 0 : undefined);
+  const heading = radarSpot && (headingDraft?.spotId === radarSpot.id ? headingDraft.heading
+    : calibratedNorthYaw !== undefined ? -calibratedNorthYaw
+    : radarSpot.heading ?? (selected?.id === radarSpot.id ? 0 : undefined));
   const [angle, setAngle] = useState(sector?.angle ?? 70);
   const actionRef = useRef({ placement, onEdit });
   actionRef.current = { placement, onEdit };

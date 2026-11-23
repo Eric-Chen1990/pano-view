@@ -1900,6 +1900,12 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 
 Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source component. Per-scene cube cache fields are ignored under the shared cache — see [Tile](#tile).
 
+### Scene calibration
+
+Set `northYaw` on a scene to its viewer yaw when looking due north. An online map in the same viewer uses this angle to compute its radar bearing. Set `levelCorrection: { pitch: 2.5, roll: -4 }` to rotate the panorama for leveling, in degrees. Both fields are optional in `project.json` and in React scene definitions.
+
+With `Scenes.renderHotspots` and `ProjectScenes`, hotspot anchors use the image's original coordinates. Camera views, view limits and panorama pointer events use leveled viewer coordinates. Import `toLeveledPanoPosition` or `toSourcePanoPosition` from the main package or `/data` to convert between them. Standalone `Sphere`, `SphereTile` and `Tile` also accept `levelCorrection`.
+
 ## PanoSceneMenu
 
 `PanoSceneMenu` is a scrollable thumbnail strip for switching scenes. Mount it

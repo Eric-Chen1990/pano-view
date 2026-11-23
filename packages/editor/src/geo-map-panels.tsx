@@ -30,6 +30,7 @@ export function GeoMapInspector({
     onChange({ ...map, spots: map.spots.map((item) => item.id === spot.id ? { ...item, ...patch } : item) });
   };
   const coordinates = spot?.positions[system];
+  const calibrated = spot && scenes.some((entry) => entry.id === spot.sceneId && entry.northYaw !== undefined);
   const savePosition = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -61,16 +62,18 @@ export function GeoMapInspector({
           if (name?.id === spot.id) updateSpot({ label: name.text.trim() || undefined });
           setName(undefined);
         }} /></label>
-      <label>{t("Heading at yaw zero (°)")}
-        <input key={`heading-${spot.id}-${spot.heading}`} type="number" step="any" defaultValue={spot.heading ?? ""}
-          onBlur={(event) => {
-            if (!event.currentTarget.validity.valid) return;
-            const angle = event.currentTarget.valueAsNumber;
-            const heading = Number.isFinite(angle) ? ((angle % 360) + 360) % 360 : undefined;
-            if (heading !== spot.heading) updateSpot({ heading });
-          }} />
-      </label>
-      <p className="pne-hint">{t("Drag the radar to align it with a visible landmark.")}</p>
+      {calibrated ? <p className="pne-hint">{t("The radar uses this scene's virtual north. Drag it to adjust the scene calibration.")}</p> : <>
+        <label>{t("Heading at yaw zero (°)")}
+          <input key={`heading-${spot.id}-${spot.heading}`} type="number" step="any" defaultValue={spot.heading ?? ""}
+            onBlur={(event) => {
+              if (!event.currentTarget.validity.valid) return;
+              const angle = event.currentTarget.valueAsNumber;
+              const heading = Number.isFinite(angle) ? ((angle % 360) + 360) % 360 : undefined;
+              if (heading !== spot.heading) updateSpot({ heading });
+            }} />
+        </label>
+        <p className="pne-hint">{t("Drag the radar to align it with a visible landmark.")}</p>
+      </>}
       <div className="pne-button-grid">
         <button type="button" onClick={onIcon}>{t("Choose icon")}</button>
         {spot.icon ? <button type="button" onClick={() => updateSpot({ icon: undefined })}>{t("Use default icon")}</button> : null}

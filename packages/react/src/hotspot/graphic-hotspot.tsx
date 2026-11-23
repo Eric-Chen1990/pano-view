@@ -320,11 +320,14 @@ function useGraphicTexture(
   const onErrorRef = useRef(onError);
   onLoadRef.current = onLoad;
   onErrorRef.current = onError;
+  // Project edits can recreate the definition object while its pixels stay the same.
+  const definition = JSON.stringify(graphic);
 
   useEffect(() => {
     let nextTexture: CanvasTexture | null = null;
     try {
-      nextTexture = createGraphicTexture(graphic, aspectWidth, aspectHeight);
+      const shape: Exclude<GraphicDefinition, SvgGraphic> = JSON.parse(definition);
+      nextTexture = createGraphicTexture(shape, aspectWidth, aspectHeight);
       setTexture(nextTexture);
       onLoadRef.current?.(nextTexture);
     } catch (error) {
@@ -335,7 +338,7 @@ function useGraphicTexture(
     return () => {
       nextTexture?.dispose();
     };
-  }, [aspectHeight, aspectWidth, graphic]);
+  }, [aspectHeight, aspectWidth, definition]);
 
   return texture;
 }

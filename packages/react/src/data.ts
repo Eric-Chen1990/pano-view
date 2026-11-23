@@ -45,6 +45,7 @@ export type {
   PanoDragMotion,
 } from "./data/map";
 
+export { toLeveledPanoPosition, toSourcePanoPosition, type PanoLevelCorrection } from "./level-correction";
 export type { PanoViewLimits } from "./view-limits";
 
 export { hotspotAction, setHotspotAction, projectHotspotTriggers } from "./data/hotspots";

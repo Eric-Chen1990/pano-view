@@ -24,6 +24,7 @@ import {
 } from "react";
 import {
   parsePanoProject,
+  toSourcePanoPosition,
   type PanoProjectDefinition,
   type PanoGeoMapDefinition,
   type PanoGeoMapEdit,
@@ -102,6 +103,7 @@ export function PanoEditor(props: PanoEditorProps) {
   const localSession = Boolean(local || directories.length);
   const localMediaEnabled = localSession || !hostManaged;
   const [preview, setPreview] = useState(false);
+  const [horizonSceneId, setHorizonSceneId] = useState<string>();
   const [sidebarMode, setSidebarMode] = useState<"scenes" | "popups" | "map">("scenes");
   const [selectedPopupId, setSelectedPopupId] = useState<string>();
   const selectedPopup = project.popups?.find((popup) => popup.id === selectedPopupId);
@@ -764,7 +766,14 @@ export function PanoEditor(props: PanoEditorProps) {
       }] });
       selectGeoSpot(id);
     } else {
-      if (!map.spots.some((spot) => spot.id === edit.spotId)) return;
+      const target = map.spots.find((spot) => spot.id === edit.spotId);
+      if (!target) return;
+      if (edit.type === "heading" && history.current.scenes.some((scene) => scene.id === target.sceneId && scene.northYaw !== undefined)) {
+        end();
+        updateScene(target.sceneId, (scene) => ({ ...scene, northYaw: -edit.heading }));
+        setGeoPlacement(undefined);
+        return;
+      }
       changeGeoMap({ ...map, spots: map.spots.map((spot) => spot.id !== edit.spotId ? spot
         : edit.type === "heading" ? { ...spot, heading: edit.heading }
         : { ...spot, positions: { ...spot.positions, [edit.coordinateSystem]: edit.position } }) });
@@ -1529,6 +1538,7 @@ export function PanoEditor(props: PanoEditorProps) {
             activeId={active?.id}
             selectedId={selectedId}
             preview={preview}
+            showHorizon={Boolean(active && horizonSceneId === active.id && !preview)}
             draft={draft}
             draftKind={draftKind}
             placing={Boolean(placement)}
@@ -1668,7 +1678,12 @@ export function PanoEditor(props: PanoEditorProps) {
                   onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
                   onTest={(trigger) => enterPreview(selected.id, trigger)}
                   onChange={updateHotspot}
-                  getRectangleCorners={(id) => viewerRef.current?.getHotspotCorners(id) ?? null}
+                  getRectangleCorners={(id) => {
+                    const corners = viewerRef.current?.getHotspotCorners(id);
+                    if (!corners) return null;
+                    const toSource = (point: HotspotPosition) => toSourcePanoPosition(point, active?.levelCorrection);
+                    return [toSource(corners[0]), toSource(corners[1]), toSource(corners[2]), toSource(corners[3])];
+                  }}
                   onBegin={begin}
                   onEnd={end}
                   onPick={(field) => void pickAsset(field)}
@@ -1681,9 +1696,9 @@ export function PanoEditor(props: PanoEditorProps) {
                       defaultUrl: new URL(path, projectRoot(props.baseUrl)).href,
                     }, files, props.resolveAssetUrl);
                   } : undefined}
-                  getViewPosition={() =>
-                    viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }
-                  }
+                  getViewPosition={() => toSourcePanoPosition(
+                    viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }, active?.levelCorrection,
+                  )}
                   t={t}
                 />
               </>
@@ -1697,6 +1712,8 @@ export function PanoEditor(props: PanoEditorProps) {
                 onBegin={begin}
                 onEnd={end}
                 onChange={(scene) => updateScene(active.id, () => scene)}
+                showHorizon={horizonSceneId === active.id}
+                onShowHorizonChange={(show) => setHorizonSceneId(show ? active.id : undefined)}
                 onSetInitial={() =>
                   publish({ ...project, initialSceneId: active.id })
                 }

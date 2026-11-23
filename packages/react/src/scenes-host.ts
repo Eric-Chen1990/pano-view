@@ -12,6 +12,7 @@ export type ScenesController = {
 export type ScenesHost = {
   controller: ScenesController | null;
   project: object | null;
+  sceneNorthYaws?: ReadonlyMap<string, number>;
   recovery: { id: string; project: object | null } | null;
   visitedSceneIds: ReadonlySet<string>;
   revision: number;

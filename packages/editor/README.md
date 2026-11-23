@@ -148,6 +148,10 @@ Store content structure in project.json and media as files. A host backend can p
 
 ### Scene view limits
 
+Use **Scene settings → Virtual north** to enter the yaw of true north or mark the current direction. The online map shares this calibration across the scene's points. Clearing it restores each point's saved heading, if any.
+
+In **Horizon correction**, turn on the horizon guide and adjust pitch and roll until the panorama aligns with it. Turn through the scene to check several directions. Image-relative hotspots move with the panorama. Both settings support undo and are saved in `project.json` and ZIP exports.
+
 Scene settings separate **Initial view** from **View limits**. Enable Yaw, Pitch or FOV individually, then enter minimum and maximum angles. Defaults on enabling are −180 / 180, −90 / 90 and 30 / 100 respectively. Limits apply immediately in editing and preview and support undo/redo. Invalid values are reported beside the field and do not update the project. Yaw min > max crosses ±180°; equal bounds lock an axis. Limits constrain the camera center, not the entire visible frame. They are saved as each scene's optional `viewLimits` in `project.json`; the source path is hidden in the settings panel, while Replace source remains available.
 
 ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images, popup media, the floor-plan image, and spot icons. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.

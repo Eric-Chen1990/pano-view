@@ -1753,6 +1753,12 @@ const scenes: Scene[] = [
 
 场景对象上的 `viewLimits` 见 FAQ；`yawOffset` 语义与对应源组件相同。`TileScene` 上的单场景缓存字段在共享缓存下会被忽略，见 [Tile](#tile)。
 
+### 场景标定
+
+将场景的 `northYaw` 设为查看器面向正北时的 yaw。同一查看器内的在线地图据此计算雷达方向。通过 `levelCorrection: { pitch: 2.5, roll: -4 }` 旋转全景进行调平，单位为度。两个字段都可选，可写入 `project.json` 或 React 场景定义。
+
+`Scenes.renderHotspots` 和 `ProjectScenes` 的热点锚点使用原始素材坐标。相机视角、观看范围和全景指针事件使用调平后的查看器坐标。可从主入口或 `/data` 导入 `toLeveledPanoPosition` 和 `toSourcePanoPosition` 进行换算。独立使用的 `Sphere`、`SphereTile` 和 `Tile` 也接受 `levelCorrection`。
+
 ## PanoSceneMenu
 
 `PanoSceneMenu` 是可滚动的缩略图场景菜单。通过 `PanoOverlay` 挂载，这样在普通布局和全屏里都会留在 viewer 内。默认布局需导入 `@ericchen1990/pano-view/styles.css`。

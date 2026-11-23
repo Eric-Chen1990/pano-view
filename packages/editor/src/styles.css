@@ -494,6 +494,14 @@
   color: var(--pne-muted);
   font-size: 11px;
 }
+.pne-horizon-guide {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px dashed #fff;
+  filter: drop-shadow(0 1px 1px #000);
+  pointer-events: none;
+}
+
 .pne-viewer-area {
   position: relative;
   min-height: 0;

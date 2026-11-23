@@ -1,3 +1,5 @@
+import type { PanoLevelCorrection } from "./level-correction";
+import { useLevelRotation } from "./level-rotation";
 import { getTextureAnisotropy, fitImageTexture } from "./renderer-capabilities";
 import { useThree, type RootState } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -6,6 +8,8 @@ import {
   LinearFilter,
   LinearMipmapLinearFilter,
   MathUtils,
+  Quaternion,
+  Vector3,
   RepeatWrapping,
   SRGBColorSpace,
   Texture,
@@ -32,6 +36,7 @@ export type SphereProps = {
   previewUrl: string;
   /** Horizontal image offset in degrees. */
   yawOffset?: number;
+  levelCorrection?: PanoLevelCorrection;
   /** Called once the first paintable texture (preview or `src`) is ready. */
   onReady?: () => void;
   onLoad?: (texture: Texture) => void;
@@ -62,12 +67,20 @@ function configureSpherePreview(texture: Texture, gl: RootState["gl"]) {
   configureEquirectTexture(texture, gl, false);
 }
 
-function SphereSurface({ texture, yawOffset, visible = true, mesh }: {
+const UP = new Vector3(0, 1, 0);
+
+function SphereSurface({ texture, yawOffset, levelCorrection, visible = true, mesh }: {
   texture: Texture; yawOffset: number; visible?: boolean;
   mesh: RefObject<Mesh | null>;
+  levelCorrection?: PanoLevelCorrection;
 }) {
+  const levelRotation = useLevelRotation(levelCorrection);
+  const rotation = useMemo(() => {
+    const yaw = new Quaternion().setFromAxisAngle(UP, MathUtils.degToRad(90 + yawOffset));
+    return levelRotation ? yaw.premultiply(levelRotation) : yaw;
+  }, [yawOffset, levelRotation]);
   return (
-    <mesh ref={mesh} rotation={[0, MathUtils.degToRad(90 + yawOffset), 0]} visible={visible}>
+    <mesh ref={mesh} quaternion={rotation} visible={visible}>
       <sphereGeometry args={[DEFAULT_PANORAMA_RADIUS, 128, 64]} />
       <PanoBasicMaterial map={texture} side={BackSide} toneMapped={false} />
     </mesh>
@@ -139,6 +152,7 @@ export function SphereSource({
   src,
   previewUrl,
   yawOffset = 0,
+  levelCorrection,
   onReady,
   onLoad,
   onError,
@@ -204,7 +218,7 @@ export function SphereSource({
     return null;
   }
 
-  return <SphereSurface mesh={mesh} texture={displayTexture} yawOffset={yawOffset} visible={visible} />;
+  return <SphereSurface mesh={mesh} texture={displayTexture} yawOffset={yawOffset} levelCorrection={levelCorrection} visible={visible} />;
 }
 
 export const Sphere: (props: SphereProps) => ReturnType<typeof SphereSource> = SphereSource;

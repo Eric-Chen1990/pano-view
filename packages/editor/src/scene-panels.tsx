@@ -165,7 +165,8 @@ export function SceneSidebar({
                       if (event.button !== 0) return;
                       event.preventDefault();
                       event.currentTarget.focus({ preventScroll: true });
-                      event.currentTarget.setPointerCapture(event.pointerId);
+                      event.currentTarget.focus();
+                event.currentTarget.setPointerCapture(event.pointerId);
                       dragRef.current = { id: scene.id, pointerId: event.pointerId, startY: event.clientY, started: false };
                     }}
                     onPointerMove={pointerMove}
@@ -281,6 +282,8 @@ export function SceneSettings({
   initialSceneId,
   onChange,
   onSetInitial,
+  showHorizon,
+  onShowHorizonChange,
   getView,
   onReplace,
   onImport,
@@ -293,6 +296,8 @@ export function SceneSettings({
   initialSceneId?: string;
   onChange: (scene: PanoProjectSceneDefinition) => void;
   onSetInitial: () => void;
+  showHorizon: boolean;
+  onShowHorizonChange: (show: boolean) => void;
   getView: () => PanoViewerState | undefined;
   onReplace: () => void;
   onImport?: () => void;
@@ -301,6 +306,10 @@ export function SceneSettings({
   onEnd: () => void;
   t: Translate;
 }) {
+  const setCorrection = (axis: "pitch" | "roll", value: number | undefined) => {
+    const levelCorrection = { ...scene.levelCorrection, [axis]: value };
+    onChange({ ...scene, levelCorrection: levelCorrection.pitch || levelCorrection.roll ? levelCorrection : undefined });
+  };
   return (
     <div className="pne-fields">
       <Field
@@ -349,6 +358,58 @@ export function SceneSettings({
             t={t}
           />
         ))}
+      </fieldset>
+      <fieldset>
+        <legend>{t("Virtual north")}</legend>
+        <Field
+          spec={{ name: "northYaw", label: "North yaw (°)", type: "number", disabled: busy }}
+          value={scene.northYaw} onBegin={onBegin} onEnd={onEnd} t={t}
+          onChange={(value) => onChange({ ...scene, northYaw: typeof value === "number" ? value : undefined })}
+        />
+        <div className="pne-button-grid">
+          <button type="button" disabled={busy} onClick={() => {
+            const view = getView();
+            if (view) onChange({ ...scene, northYaw: view.yaw });
+          }}>{t("Set current direction as north")}</button>
+          <button type="button" disabled={busy || scene.northYaw === undefined}
+            onClick={() => onChange({ ...scene, northYaw: undefined })}>{t("Clear north calibration")}</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>{t("Horizon correction")}</legend>
+        <label className="pne-check">
+          <input type="checkbox" checked={showHorizon}
+            onChange={(event) => onShowHorizonChange(event.currentTarget.checked)} />
+          {t("Show horizon guide")}
+        </label>
+        {([
+          { axis: "pitch", limit: 90, label: "Pitch correction (°)" },
+          { axis: "roll", limit: 180, label: "Roll correction (°)" },
+        ] as const).map(({ axis, limit, label }) => (
+          <div key={axis} className="pne-fields">
+            <Field
+              spec={{ name: axis, label, type: "number", defaultValue: 0, disabled: busy, number: { min: -limit, max: limit } }}
+              value={scene.levelCorrection?.[axis]} onBegin={onBegin} onEnd={onEnd} t={t}
+              onChange={(value) => setCorrection(axis, typeof value === "number" ? value : undefined)}
+            />
+            <input type="range" aria-label={t(label)} min={-limit} max={limit} step={0.1} disabled={busy}
+              value={scene.levelCorrection?.[axis] ?? 0}
+              onPointerDown={(event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onBegin();
+              }}
+              onPointerUp={onEnd} onPointerCancel={onEnd} onLostPointerCapture={onEnd}
+              onKeyDown={(event) => {
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) onBegin();
+              }}
+              onKeyUp={onEnd} onBlur={onEnd}
+              onChange={(event) => setCorrection(axis, event.currentTarget.valueAsNumber)}
+            />
+          </div>
+        ))}
+        <button type="button" disabled={busy || !scene.levelCorrection}
+          onClick={() => onChange({ ...scene, levelCorrection: undefined })}>{t("Reset horizon correction")}</button>
       </fieldset>
       <fieldset>
         <legend>{t("View limits")}</legend>

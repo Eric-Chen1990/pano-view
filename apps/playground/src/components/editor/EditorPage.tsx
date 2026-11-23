@@ -1,5 +1,5 @@
 import { GEO_MAP_SOURCES, OPEN_STREET_MAP } from "../geo-map/geo-map-example";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { PanoEditor } from "@ericchen1990/pano-editor";
 import {
   PanoDataError,
@@ -65,8 +65,10 @@ export function TourEditor() {
 export function EditorPage() {
   const [locale, setLocale] = useState<"en" | "zh-CN">("en");
   const [project, setProject] = useState<PanoProjectDefinition>();
+  const [editedProject, setEditedProject] = useState<PanoProjectDefinition>();
   const [error, setError] = useState<string>();
   const snippet = useMemo(() => buildEditorSnippet(locale), [locale]);
+  const exampleProject = useDeferredValue(editedProject ?? project);
   useEffect(() => {
     const controller = new AbortController();
     fetch(sampleProjectUrl, { signal: controller.signal })
@@ -122,6 +124,7 @@ export function EditorPage() {
       ) : project ? (
         <PanoEditor
           defaultValue={project}
+          onChange={setEditedProject}
           geoMapSources={GEO_MAP_SOURCES}
           baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
           locale={locale}
@@ -148,7 +151,11 @@ export function EditorPage() {
       </a>
       <div className="mt-6">
         <ExampleCode
-          json={{ format: "project", files: [{ label: "project.json", blurb: "Load this file with parsePanoProject. Resolve relative assets from the directory containing the file.", url: sampleProjectUrl }] }}
+          json={{ format: "project", files: [{
+            label: "project.json",
+            blurb: "This is the current editor document. Parse it with parsePanoProject and use the sample project directory as the base URL for relative assets.",
+            ...(exampleProject ? { value: exampleProject } : { url: sampleProjectUrl }),
+          }] }}
           react={{
             blurb: "Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings.",
             code: snippet,

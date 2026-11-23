@@ -51,6 +51,11 @@ if(scene.previewUrl!=="https://cdn.test/room/preview.webp") throw Error("Incorre
 const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/room/"});
 if(project.initialSceneId!=="room")throw Error("Incorrect initial scene");
 if(project.scenes[0].scene.viewLimits.yaw.min!==170)throw Error("Limits missing from packed loader");
+const position={yaw:0,pitch:0};
+const correction={pitch:15};
+const leveled=api.toLeveledPanoPosition(position,correction);
+assert.ok(Math.abs(leveled.pitch-15)<1e-9);
+assert.ok(Math.abs(api.toSourcePanoPosition(leveled,correction).pitch)<1e-9);
 const marker={id:"custom",type:"text",text:"Hi",position:{yaw:0,pitch:0},events:{pointerenter:{type:"custom",actionId:"show",params:{src:"blob:business"}}}};
 const corners=[{yaw:175,pitch:8},{yaw:-176,pitch:10},{yaw:-171,pitch:-7},{yaw:172,pitch:-9}];
 const image={id:"image",type:"image",src:"image.webp",position:{yaw:180,pitch:0},corners};

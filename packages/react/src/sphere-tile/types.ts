@@ -1,3 +1,4 @@
+import type { PanoLevelCorrection } from "../level-correction";
 import type { TileLoadProgress } from "../tile/types";
 
 export type SphereTileLevel = { width: number; height: number };
@@ -28,6 +29,7 @@ export type SphereTileLoadError = {
 };
 
 export type SphereTileProps = {
+  levelCorrection?: PanoLevelCorrection;
   baseUrl: string;
   /** `512,500x250,1000x500,2000x1000` or explicit ascending dimensions. */
   multires: string | SphereTileMultiresConfig;

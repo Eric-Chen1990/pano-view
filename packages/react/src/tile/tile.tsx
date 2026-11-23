@@ -1,3 +1,4 @@
+import { cameraInSourceSpace, useLevelRotation } from "../level-rotation";
 import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
@@ -442,6 +443,7 @@ function layerToken(layers: TileLayer[]): string {
 export function Tile({
   baseUrl,
   multires,
+  levelCorrection,
   previewUrl,
   previewFaceOrder = PREVIEW_FACE_ORDER,
   urlTemplate,
@@ -459,6 +461,9 @@ export function Tile({
 }: TileProps) {
   const root = useThree();
   const { camera, gl } = root;
+  const rotation = useLevelRotation(levelCorrection);
+  const inverse = useMemo(() => rotation?.clone().invert() ?? null, [rotation]);
+  const sourceCamera = useMemo(() => new PerspectiveCamera(), []);
   const compareHost = useContext(CompareHostContext);
   const compareSide = useContext(CompareSourceSideContext);
   const multiresConfig = useMemo(() => parseMultires(multires), [multires]);
@@ -629,9 +634,9 @@ export function Tile({
 
   useFrame(() => {
     const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
-    const camera = pane ? pane.camera : root.camera;
+    const worldCamera = pane ? pane.camera : root.camera;
     const size = pane ? pane.rect : root.size;
-    if (!(camera instanceof PerspectiveCamera)) {
+    if (!(worldCamera instanceof PerspectiveCamera)) {
       return;
     }
     // Preview has no tile LOD. Remember it so the next base/full frame refreshes
@@ -643,6 +648,7 @@ export function Tile({
       return;
     }
 
+    const camera = cameraInSourceSpace(worldCamera, inverse, sourceCamera);
     const now = performance.now();
     const pixelRatio = gl.getPixelRatio();
     const rotationDelta = lastVisibilityQuaternionRef.current.angleTo(
@@ -709,7 +715,7 @@ export function Tile({
         levels,
         tileSize,
         frustumRef.current,
-        camera,
+        visibilityCamera,
         candidatesByLevel,
       );
       visibilityDirtyRef.current = false;
@@ -755,7 +761,7 @@ export function Tile({
   });
 
   return (
-    <group ref={introRoot} visible={visible}>
+    <group ref={introRoot} quaternion={rotation ?? [0, 0, 0, 1]} visible={visible}>
       {previewTexture ? (
         <PreviewCube texture={previewTexture} faceOrder={previewFaceOrder} />
       ) : null}

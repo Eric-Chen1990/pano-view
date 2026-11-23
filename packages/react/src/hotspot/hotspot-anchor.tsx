@@ -1,4 +1,6 @@
 import { aimComparePointer, CompareHostContext, type PanoCompareSide } from "../compare/view";
+import { toLeveledPanoPosition, toSourcePanoPosition } from "../level-correction";
+import { HotspotLevelCorrectionContext, useLevelRotation } from "../level-rotation";
 import { pointerInput, pointerStick } from "../webvr/input";
 import { dispatchGazeHotspotClick, GAZE_POINTER_ID, isGazeHotspotClick } from "../webvr/gaze-target";
 import { hotspotScaleMode, tooltipScaleMode as resolveTooltipScaleMode } from "../../../../shared/hotspot-rendering";
@@ -600,6 +602,11 @@ export function HotspotAnchor({
     [tooltip],
   );
   const normalizedPosition = normalizePanoPosition(position);
+  const correction = useContext(HotspotLevelCorrectionContext);
+  const rotationToWorld = useLevelRotation(correction);
+  const leveledPosition = toLeveledPanoPosition(normalizedPosition, correction);
+  const sourcePositionFromRay = (direction: Vector3) =>
+    toSourcePanoPosition(vector3ToPanoPosition(direction), correction);
 
   useEffect(() => {
     if (!hotspotTargetRegistry) {
@@ -615,8 +622,8 @@ export function HotspotAnchor({
       );
       return [direction(-0.5, 0.5), direction(0.5, 0.5), direction(0.5, -0.5), direction(-0.5, -0.5)];
     };
-    return hotspotTargetRegistry.register(id, normalizedPosition, captureRectangle ? getCorners : undefined);
-  }, [hotspotTargetRegistry, id, normalizedPosition.pitch, normalizedPosition.yaw, camera, captureRectangle]);
+    return hotspotTargetRegistry.register(id, leveledPosition, captureRectangle ? getCorners : undefined);
+  }, [hotspotTargetRegistry, id, leveledPosition.pitch, leveledPosition.yaw, camera, captureRectangle]);
   const rendering =
     internalOrientation && internalPlacement
       ? { orientation: internalOrientation, placement: internalPlacement }
@@ -633,12 +640,18 @@ export function HotspotAnchor({
     ? maximumDistance
     : resolveFloatingHotspotDistance(distance, maximumDistance, inVR && floatingBillboard);
   const worldPosition = useMemo(
-    () => panoPositionToVector3(normalizedPosition, resolvedDistance),
-    [normalizedPosition.pitch, normalizedPosition.yaw, resolvedDistance],
+    () => {
+      const anchor = panoPositionToVector3(normalizedPosition, resolvedDistance);
+      return rotationToWorld ? anchor.applyQuaternion(rotationToWorld) : anchor;
+    },
+    [normalizedPosition.pitch, normalizedPosition.yaw, resolvedDistance, rotationToWorld],
   );
   const surfaceQuaternion = useMemo(
-    () => createSurfaceQuaternion(normalizedPosition),
-    [normalizedPosition.pitch, normalizedPosition.yaw],
+    () => {
+      const surface = createSurfaceQuaternion(normalizedPosition);
+      return rotationToWorld ? surface.premultiply(rotationToWorld) : surface;
+    },
+    [normalizedPosition.pitch, normalizedPosition.yaw, rotationToWorld],
   );
   const worldWidth = angularSizeToWorldSize(scaledWidth, resolvedDistance);
   const worldHeight = angularSizeToWorldSize(scaledHeight, resolvedDistance);
@@ -866,7 +879,7 @@ export function HotspotAnchor({
     return translateHotspotPosition(
       dragState.startPosition,
       dragState.pointerOrigin,
-      vector3ToPanoPosition(DRAG_RAYCASTER.ray.direction),
+      sourcePositionFromRay(DRAG_RAYCASTER.ray.direction),
     );
   };
 
@@ -990,7 +1003,7 @@ export function HotspotAnchor({
         const releaseInteractionLock =
           controlsRef?.current?.acquireInteractionLock() ?? (() => undefined);
         const pointer = aimPointer(native);
-        const pointerOrigin = vector3ToPanoPosition(pointer.valid ? DRAG_RAYCASTER.ray.direction : event.ray.direction);
+        const pointerOrigin = sourcePositionFromRay(pointer.valid ? DRAG_RAYCASTER.ray.direction : event.ray.direction);
         const startPosition = { ...normalizedPosition };
         const tracksOutsideMesh = typeof window !== "undefined";
         const stopTracking = tracksOutsideMesh

@@ -357,6 +357,7 @@ export type {
   VideoHotspotDefinition,
 } from "./hotspot/definitions";
 
+export { toLeveledPanoPosition, toSourcePanoPosition, type PanoLevelCorrection } from "./level-correction";
 export type { PanoViewLimits } from "./view-limits";
 
 export { PanoMap } from "./map/pano-map";
