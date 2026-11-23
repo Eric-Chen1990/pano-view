@@ -1,5 +1,18 @@
 # @ericchen1990/pano-view
 
+## 5.18.0
+
+### Minor Changes
+
+- 1fe2d26: Add configurable buttons to the 360 video playback bar, including a VR headset icon when WebVR is available.
+- 7c51776: Add `PanoGrid`, a debug reference grid for panorama space.
+
+  Mount it alone inside `PanoViewer` when no panorama image is present, or beside `Sphere` / `Tile` to check alignment. Choose `projection="sphere"` for latitude/longitude lines or `projection="cube"` for a six-face grid, and adjust `divisions`, `color`, and `opacity`.
+
+### Patch Changes
+
+- fd816a4: Wake demand-rendered panoramas when video starts playing or finishes seeking. Keep WebXR sessions active when a device rejects the preferred refresh rate, and share the scene transition snapshot budget across both eyes in immersive WebGL.
+
 ## 5.17.0
 
 ### Minor Changes
