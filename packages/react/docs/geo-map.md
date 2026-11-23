@@ -28,7 +28,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-Save settings in the optional top-level `geoMap` field of `project.json`. `loadPanoProject` resolves point icon paths relative to the project. `controlsLayout` is `"horizontal"` by default and accepts `"vertical"`. The component prop can override the saved value. The four buttons zoom in, zoom out, center the active scene and fit all points available on the current basemap. Use a separate scene menu or list if your tour needs search or navigation when the basemap is unavailable.
+Save settings in the optional top-level `geoMap` field of `project.json`. `initialSourceId` is the basemap that opens first from the runtime `sources` / `geoMapSources` list; provider keys and tile URLs stay in that host list, not in the project. Tour Editor can switch OpenStreetMap, Google, AMap, or Baidu while editing and accepts browser keys for that session only; those keys are not saved in `project.json`. `loadPanoProject` resolves point icon paths relative to the project. `controlsLayout` is `"horizontal"` by default and accepts `"vertical"`. The component prop can override the saved value. The four buttons zoom in, zoom out, center the active scene and fit all points available on the current basemap. Use a separate scene menu or list if your tour needs search or navigation when the basemap is unavailable.
 
 ```json
 {

@@ -7,6 +7,11 @@ import {
   type PanoProjectSceneDefinition,
 } from "@ericchen1990/pano-view/data";
 import type { PanoGeoMapEdit, PanoGeoMapSource } from "@ericchen1990/pano-view";
+import {
+  EDITOR_BASEMAP_PROVIDERS,
+  basemapBlockReason,
+  type EditorBasemapSession,
+} from "./editor-basemap";
 import type { Translate } from "./i18n";
 import { LibraryRow, LibrarySection } from "./library-list";
 import { InspectorTabs } from "./inspector-tabs";
@@ -16,6 +21,12 @@ type GeoPanelProps = {
   map: PanoGeoMapDefinition;
   scenes: readonly PanoProjectSceneDefinition[];
   sources?: readonly PanoGeoMapSource[];
+  /** Basemap currently shown on the online map surface. */
+  activeSource?: PanoGeoMapSource;
+  /** Editor-only provider and credentials. Not part of the project document. */
+  basemapSession: EditorBasemapSession;
+  /** `apply` loads the map. Credential fields pass false while typing and true on blur. */
+  onBasemapSession: (session: EditorBasemapSession, apply?: boolean) => void;
   spot?: PanoGeoMapSpot;
   placement?: { sceneId: string } | { spotId: string };
   onPlacement: (next?: { sceneId: string } | { spotId: string }) => void;
@@ -26,6 +37,34 @@ type GeoPanelProps = {
 };
 
 const names = { wgs84: "WGS84", gcj02: "GCJ-02", bd09: "BD-09" };
+const providerNames = {
+  osm: "OpenStreetMap",
+  google: "Google Maps",
+  amap: "AMap",
+  baidu: "Baidu Maps",
+} as const;
+
+function sourceCoordinateSystem(source: PanoGeoMapSource): PanoGeoCoordinateSystem {
+  if (source.kind === "amap") return "gcj02";
+  if (source.kind === "baidu") return "bd09";
+  return source.kind === "google" ? source.coordinateSystem ?? "wgs84" : "wgs84";
+}
+
+function sourceStyleLabel(source: PanoGeoMapSource, t: Translate): string {
+  if (source.kind === "xyz") return t("Road map tiles");
+  return source.mapType === "satellite" ? t("Satellite") : t("Road map");
+}
+
+function sourceTitle(source: PanoGeoMapSource, t: Translate): string {
+  if (source.kind === "amap") return t("AMap");
+  if (source.kind === "baidu") return t("Baidu Maps");
+  if (source.kind === "google") return t("Google Maps");
+  return source.label;
+}
+
+function describeSource(source: PanoGeoMapSource, t: Translate): string {
+  return `${sourceTitle(source, t)} · ${sourceStyleLabel(source, t)} · ${names[sourceCoordinateSystem(source)]}`;
+}
 
 function readZoomField(input: HTMLInputElement): number | undefined | "invalid" {
   if (!input.value.trim()) return undefined;
@@ -110,6 +149,9 @@ export function GeoMapInspector({
   map,
   scenes,
   sources,
+  activeSource,
+  basemapSession,
+  onBasemapSession,
   spot,
   placement,
   onPlacement,
@@ -122,6 +164,10 @@ export function GeoMapInspector({
   const [system, setSystem] = useState<PanoGeoCoordinateSystem>("wgs84");
   const [name, setName] = useState<{ id: string; text: string }>();
   const scene = scenes.find((entry) => entry.id === sceneId) ?? scenes[0];
+  const sourceList = sources ?? [];
+  const firstSource = sourceList[0];
+  const viewing = activeSource ?? firstSource;
+  const viewingSystem = viewing ? sourceCoordinateSystem(viewing) : undefined;
   const updateSpot = (patch: Partial<PanoGeoMapSpot>) => {
     if (!spot) return;
     onChange({
@@ -132,6 +178,8 @@ export function GeoMapInspector({
     });
   };
   const coordinates = spot?.positions[system];
+  const viewingPosition =
+    spot && viewingSystem ? spot.positions[viewingSystem] : undefined;
   const calibrated =
     spot &&
     scenes.some(
@@ -221,10 +269,22 @@ export function GeoMapInspector({
               <p className="pne-field-help">
                 {t("Use + in the Online map list to place a point by clicking the map.")}
               </p>
+              {viewing ? (
+                <p className="pne-field-help">
+                  {t("Viewing basemap")}: {describeSource(viewing, t)}
+                  {spot
+                    ? viewingPosition
+                      ? ` · ${t("This point has a position for this coordinate system.")}`
+                      : ` · ${t("This point has no position for this coordinate system yet.")}`
+                    : null}
+                </p>
+              ) : (
+                <p className="pne-field-help">{t(basemapBlockReason(basemapSession) ?? "No basemap configured")}</p>
+              )}
               {spot ? (
                 <button
                   type="button"
-                  disabled={!sources?.length}
+                  disabled={!sourceList.length}
                   onClick={() => onPlacement({ spotId: spot.id })}
                 >
                   {t("Set point on this basemap")}
@@ -463,30 +523,123 @@ export function GeoMapInspector({
           content: (
             <div className="pne-fields">
               <label>
-                {t("Default basemap")}
+                {t("Map source")}
                 <select
-                  value={map.initialSourceId ?? ""}
+                  value={basemapSession.provider}
                   onChange={(event) =>
-                    onChange({
-                      ...map,
-                      initialSourceId: event.target.value || undefined,
-                    })
+                    onBasemapSession({
+                      ...basemapSession,
+                      provider: event.target.value as EditorBasemapSession["provider"],
+                    }, true)
                   }
                 >
-                  <option value="">{t("First available")}</option>
-                  {map.initialSourceId &&
-                  !sources?.some(({ id }) => id === map.initialSourceId) ? (
-                    <option value={map.initialSourceId}>
-                      {map.initialSourceId}
-                    </option>
-                  ) : null}
-                  {sources?.map(({ id, label }) => (
-                    <option key={id} value={id}>
-                      {label}
+                  {EDITOR_BASEMAP_PROVIDERS.map((provider) => (
+                    <option key={provider} value={provider}>
+                      {t(providerNames[provider])}
                     </option>
                   ))}
                 </select>
               </label>
+              {basemapSession.provider === "osm" ? null : (
+                <label>
+                  {t("Basemap style")}
+                  <select
+                    value={basemapSession.mapType}
+                    onChange={(event) =>
+                      onBasemapSession({
+                        ...basemapSession,
+                        mapType: event.target.value === "satellite" ? "satellite" : "road",
+                      }, true)
+                    }
+                  >
+                    <option value="road">{t("Road map")}</option>
+                    <option value="satellite">{t("Satellite")}</option>
+                  </select>
+                </label>
+              )}
+              {basemapSession.provider === "google" ? (
+                <label>
+                  {t("Google Maps browser API key")}
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={basemapSession.googleApiKey}
+                    onChange={(event) =>
+                      onBasemapSession({ ...basemapSession, googleApiKey: event.target.value })
+                    }
+                    onBlur={(event) =>
+                      onBasemapSession({ ...basemapSession, googleApiKey: event.currentTarget.value }, true)
+                    }
+                  />
+                </label>
+              ) : null}
+              {basemapSession.provider === "amap" ? (
+                <>
+                  <label>
+                    {t("AMap key")}
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={basemapSession.amapApiKey}
+                      onChange={(event) =>
+                        onBasemapSession({ ...basemapSession, amapApiKey: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        onBasemapSession({ ...basemapSession, amapApiKey: event.currentTarget.value }, true)
+                      }
+                    />
+                  </label>
+                  <label>
+                    {t("AMap security service host")}
+                    <input
+                      type="text"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder="https://example.com/_AMapService"
+                      value={basemapSession.amapServiceHost}
+                      onChange={(event) =>
+                        onBasemapSession({ ...basemapSession, amapServiceHost: event.target.value })
+                      }
+                      onBlur={(event) =>
+                        onBasemapSession({ ...basemapSession, amapServiceHost: event.currentTarget.value }, true)
+                      }
+                    />
+                  </label>
+                </>
+              ) : null}
+              {basemapSession.provider === "baidu" ? (
+                <label>
+                  {t("Baidu Maps browser AK")}
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={basemapSession.baiduAk}
+                    onChange={(event) =>
+                      onBasemapSession({ ...basemapSession, baiduAk: event.target.value })
+                    }
+                    onBlur={(event) =>
+                      onBasemapSession({ ...basemapSession, baiduAk: event.currentTarget.value }, true)
+                    }
+                  />
+                </label>
+              ) : null}
+              {viewing ? (
+                <p className="pne-field-help">
+                  {t("Current basemap")}: {describeSource(viewing, t)}
+                </p>
+              ) : (
+                <p className="pne-field-help">
+                  {basemapSession.provider === "amap"
+                    ? t("Enter the AMap key and a security service host ending in /_AMapService to load this basemap.")
+                    : t("Enter this provider's browser key to load the basemap.")}
+                </p>
+              )}
+              <p className="pne-field-help">
+                {t("Keys stay in this editor session and are not written to project.json. Published playback still receives basemaps from the host app.")}
+              </p>
             </div>
           ),
         },

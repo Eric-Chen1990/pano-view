@@ -1,4 +1,5 @@
 import { GeoMapInspector, GeoMapLibrary } from "./geo-map-panels";
+import { basemapBlockReason, basemapSessionFromSources, editorBasemapSource } from "./editor-basemap";
 import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { hotspotAction, setHotspotAction, projectHotspotTriggers, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { customActionIssue, validateCustomActions } from "./custom-actions";
@@ -44,6 +45,7 @@ import {
   type PanoProjectDefinition,
   type PanoGeoMapDefinition,
   type PanoGeoMapEdit,
+  type PanoGeoMapSource,
   type PanoProjectSceneDefinition,
   type ProjectHotspotDefinition,
   type HotspotPosition,
@@ -127,6 +129,14 @@ export function PanoEditor(props: PanoEditorProps) {
   const [mapKind, setMapKind] = useState<"image" | "online">("image");
   const [geoSpotId, setGeoSpotId] = useState<string>();
   const [geoPlacement, setGeoPlacement] = useState<{ sceneId: string } | { spotId: string }>();
+  const [geoSource, setGeoSource] = useState<PanoGeoMapSource>();
+  const [basemapSession, setBasemapSession] = useState(() => basemapSessionFromSources(props.geoMapSources));
+  const [appliedBasemap, setAppliedBasemap] = useState(basemapSession);
+  const editorBasemap = editorBasemapSource(appliedBasemap);
+  const changeBasemap = (next: typeof basemapSession, apply?: boolean) => {
+    setBasemapSession(next);
+    if (apply) setAppliedBasemap(next);
+  };
   const geoSpot = project.geoMap?.spots.find((spot) => spot.id === geoSpotId);
   const geoIconInput = useRef<HTMLInputElement>(null);
   const geoIconTarget = useRef<string | undefined>(undefined);
@@ -1721,7 +1731,7 @@ export function PanoEditor(props: PanoEditorProps) {
             local={local}
             directories={directories}
             media={media}
-            options={props}
+            options={{ ...props, geoMapSources: editorBasemap ? [editorBasemap] : [] }}
             activeId={active?.id}
             selectedId={selectedId}
             preview={preview}
@@ -1751,6 +1761,8 @@ export function PanoEditor(props: PanoEditorProps) {
             geoPlacement={geoPlacement}
             onGeoSelect={selectGeoSpot}
             onGeoEdit={editGeoSpot}
+            onGeoSourceChange={setGeoSource}
+            geoMapEmptyLabel={basemapBlockReason(appliedBasemap)}
             selectedMapSpotId={selectedMapSpotId}
             placementSceneId={placementSceneId}
             onSelectedMapSpotIdChange={(id) => setSelectedMapSpotId(id ?? undefined)}
@@ -1903,9 +1915,10 @@ export function PanoEditor(props: PanoEditorProps) {
               </span>
             </div>
             {sidebarMode === "map" ? mapKind === "online" ? project.geoMap ? <GeoMapInspector
-              map={project.geoMap} scenes={project.scenes} sources={props.geoMapSources} spot={geoSpot}
-              placement={geoPlacement} onPlacement={setGeoPlacement} onChange={changeGeoMap} onEdit={editGeoSpot}
-              onIcon={() => void pickGeoIcon()} t={t}
+              map={project.geoMap} scenes={project.scenes} sources={editorBasemap ? [editorBasemap] : []}
+              activeSource={geoSource} basemapSession={basemapSession} onBasemapSession={changeBasemap}
+              spot={geoSpot} placement={geoPlacement} onPlacement={setGeoPlacement} onChange={changeGeoMap}
+              onEdit={editGeoSpot} onIcon={() => void pickGeoIcon()} t={t}
             /> : <p className="pne-hint">{t("Add an online map from the Map tab.")}</p> : project.map ? <MapInspector
               map={project.map}
               project={project}

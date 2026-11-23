@@ -18,6 +18,7 @@ import {
   PanoMapOverlay,
   PanoGeoMapOverlay,
   type PanoGeoMapEdit,
+  type PanoGeoMapSource,
   PanoOverlay,
   Scenes,
   ProjectScenes,
@@ -112,6 +113,8 @@ export function EditorViewer({
   geoPlacement,
   onGeoSelect,
   onGeoEdit,
+  onGeoSourceChange,
+  geoMapEmptyLabel,
   selectedMapSpotId,
   placementSceneId,
   onSelectedMapSpotIdChange,
@@ -150,6 +153,9 @@ export function EditorViewer({
   geoPlacement?: { sceneId: string } | { spotId: string };
   onGeoSelect?: (spotId: string) => void;
   onGeoEdit?: (edit: PanoGeoMapEdit) => void;
+  onGeoSourceChange?: (source: PanoGeoMapSource | undefined) => void;
+  /** Translation key shown on the map when the editing basemap has no credentials yet. */
+  geoMapEmptyLabel?: string;
   selectedMapSpotId?: string;
   placementSceneId?: string;
   onSelectedMapSpotIdChange?: (id: string | null) => void;
@@ -523,6 +529,8 @@ export function EditorViewer({
                   placement={geoEditing ? geoPlacement : undefined}
                   onSelectSpot={geoEditing ? onGeoSelect : undefined}
                   onEdit={geoEditing ? onGeoEdit : undefined}
+                  onSourceChange={onGeoSourceChange}
+                  emptyLabel={geoMapEmptyLabel}
                   onSelectScene={geoEditing ? undefined : onActive}
                   editorSurface={!preview}
                   anchor={!geoEditing && runtime.loaded.map && !runtime.loaded.geoMap.presentation?.anchor ? { align: "top-right" } : undefined}

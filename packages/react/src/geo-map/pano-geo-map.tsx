@@ -59,6 +59,10 @@ export type PanoGeoMapProps = {
   onSelectSpot?: (spotId: string) => void;
   placement?: { sceneId: string } | { spotId: string };
   onEdit?: (edit: PanoGeoMapEdit) => void;
+  /** Called when the resolved basemap changes (initial selection or in-map switch). */
+  onSourceChange?: (source: PanoGeoMapSource | undefined) => void;
+  /** Shown instead of "No basemap configured" when no source is available. */
+  emptyLabel?: string;
   translate?: (message: string) => string;
   className?: string;
   style?: CSSProperties;
@@ -74,7 +78,7 @@ type Drag = { id: number; spotId: string; x: number; y: number; mode: "marker" |
 
 export function PanoGeoMap({
   geoMap, sources, activeSceneId, northYaw, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
-  selectedSpotId, onSelectSpot, placement, onEdit, translate = identity, style, className,
+  selectedSpotId, onSelectSpot, placement, onEdit, onSourceChange, emptyLabel, translate = identity, style, className,
 }: PanoGeoMapProps) {
   const [selectedSourceId, setSelectedSourceId] = useState<string>();
   const source = sources.find(({ id }) => id === (selectedSourceId ?? geoMap.initialSourceId)) ?? sources[0];
@@ -82,6 +86,11 @@ export function PanoGeoMap({
   const zoomLimits = resolveZoomLimits(geoMap, source);
   const sourceRef = useRef(source);
   sourceRef.current = source;
+  const onSourceChangeRef = useRef(onSourceChange);
+  onSourceChangeRef.current = onSourceChange;
+  useEffect(() => {
+    onSourceChangeRef.current?.(source);
+  }, [source]);
   const sourceSignature = source && JSON.stringify(source);
   const zoomLimitsKey = `${zoomLimits.min}:${zoomLimits.max}`;
   const [attempt, setAttempt] = useState(0);
@@ -579,7 +588,7 @@ export function PanoGeoMap({
         </select> : null}
       {!source || failed || !engine ? (
         <div className="pano-geo-map-status" role="status">
-          {translate(!source ? "No basemap configured" : failed ? "Could not load map" : "Loading map…")}
+          {translate(!source ? (emptyLabel ?? "No basemap configured") : failed ? "Could not load map" : "Loading map…")}
           {failed ? <button type="button" onClick={() => setAttempt((value) => value + 1)}>{translate("Retry")}</button> : null}
         </div>
       ) : null}
