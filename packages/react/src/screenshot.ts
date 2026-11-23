@@ -21,7 +21,7 @@ export type PanoScreenshotOptions = {
 };
 
 export const screenshotHotspot = { panoScreenshotHotspot: true };
-type DomCapture = typeof import("./screenshot-dom").captureScreenshotDom;
+type DomCapture = Awaited<ReturnType<typeof import("./screenshot-dom").loadScreenshotDom>>;
 
 function normalizeOptions({
   mode = "panorama", format = "png", outputWidth, quality = 95, feedback,
@@ -165,10 +165,12 @@ export function createScreenshotHost(root: RefObject<HTMLDivElement | null>) {
         }, 10_000);
         request = current;
         const focus = feedback.focus(element, settings.focus, current.signal).catch(() => {});
-        const dom = settings.mode === "panorama" ? undefined : import("./screenshot-dom");
-        void Promise.all([focus, dom]).then(([, module]) => {
+        const dom = settings.mode === "panorama"
+          ? undefined
+          : import("./screenshot-dom").then(({ loadScreenshotDom }) => loadScreenshotDom());
+        void Promise.all([focus, dom]).then(([, captureDom]) => {
           if (request !== current) return;
-          current.captureDom = module?.captureScreenshotDom;
+          current.captureDom = captureDom;
           current.ready = true;
         }, current.complete);
       });

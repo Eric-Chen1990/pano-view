@@ -1,10 +1,16 @@
-import { domToCanvas } from "modern-screenshot";
 import type { PanoScreenshotMode } from "./screenshot";
 
 const hotspotSelector = "[data-pano-screenshot-hotspot]";
 const canvasSlot = "[data-pano-screenshot-canvas]";
 
-export async function captureScreenshotDom(
+export async function loadScreenshotDom() {
+  // The single-file build hoists static imports even from lazily loaded local modules.
+  const { domToCanvas } = await import("modern-screenshot");
+  return captureScreenshotDom.bind(null, domToCanvas);
+}
+
+async function captureScreenshotDom(
+  domToCanvas: typeof import("modern-screenshot").domToCanvas,
   root: HTMLDivElement,
   liveCanvas: HTMLCanvasElement,
   snapshot: HTMLCanvasElement,
