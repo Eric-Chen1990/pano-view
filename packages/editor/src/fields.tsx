@@ -470,7 +470,7 @@ export const contentFields: Record<string, FieldSpec[]> = {
   polyline: stroke,
   portal: [
     { name: "enterOnZoom", label: "Enter on zoom", type: "boolean",
-      help: "In Preview, aim at the portal and zoom in to enter it." },
+      help: "In Preview, center the opening and zoom in until it fills most of the view. If you reach the zoom limit first, enlarge the portal or adjust the scene's FOV limits." },
     { name: "shape", label: "Portal shape", options: ["rectangle", "circle", "ellipse"],
       optionLabels: { rectangle: "Rectangle", circle: "Circle", ellipse: "Ellipse" } },
     { name: "frame.color", label: "Frame color" },

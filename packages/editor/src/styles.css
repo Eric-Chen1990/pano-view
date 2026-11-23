@@ -399,6 +399,79 @@
   gap: 12px;
   padding: 14px;
 }
+.pne-root .pne-portal-fields > fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 8px 10px 10px;
+}
+.pne-root .pne-portal-fields legend {
+  padding-inline: 4px;
+}
+.pne-root .pne-portal-fields fieldset .pne-fields {
+  padding: 0;
+}
+.pne-root .pne-portal-fields input[type="color"] {
+  width: 48px;
+  height: 32px;
+  padding: 2px;
+}
+.pne-arrival-preview-label {
+  margin: 0 0 5px;
+  color: var(--pne-muted);
+  font-size: 12px;
+}
+.pne-portal-arrival-preview {
+  position: relative;
+  min-height: 112px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--pne-border);
+  border-radius: 6px;
+}
+.pne-portal-arrival-preview > .pano-viewer {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pne-arrival-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--pne-panel);
+  color: var(--pne-muted);
+}
+.pne-arrival-angle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 4px 8px;
+}
+.pne-arrival-angle > .pne-field {
+  display: contents;
+}
+.pne-arrival-angle .pne-field-heading,
+.pne-arrival-angle .pne-field > small {
+  grid-column: 1 / -1;
+}
+.pne-arrival-angle input[type="number"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+.pne-root .pne-arrival-angle input[type="range"] {
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--pne-accent);
+  touch-action: pan-y;
+}
 .pne-field {
   min-width: 0;
 }

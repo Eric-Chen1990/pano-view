@@ -1,6 +1,6 @@
 import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { customActionIssue } from "./custom-actions";
-import { type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
+import { hotspotAction, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import {
   Component,
@@ -11,6 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   PanoViewer,
   PanoEvents,
@@ -43,7 +44,7 @@ import {
 import { SceneSources, projectRoot } from "./sources";
 import { LocalFiles, LOCAL_ROOT } from "./local-files";
 import { audioExtension } from "./local-media";
-import type { HotspotGeometryPatch } from "./document";
+import { sceneStartingView, type HotspotGeometryPatch } from "./document";
 import { HotspotLayer } from "./hotspot-layer";
 import type { PanoEditorProps } from "./types";
 import type { Translate } from "./i18n";
@@ -73,14 +74,48 @@ class ViewerBoundary extends Component<
   }
 }
 
-export type HotspotTestRequest = { sceneId: string; hotspotId: string; trigger?: ProjectHotspotTrigger; token: number };
+export type HotspotTestRequest = {
+  sceneId: string;
+  hotspotId: string;
+  trigger?: ProjectHotspotTrigger;
+  fromView: PanoViewerState;
+  token: number;
+};
 function PreviewHotspot({ context, hotspot, test }: {
   context: ProjectHotspotRenderContext;
   hotspot: ProjectHotspotDefinition;
-  test: (hotspot: ProjectHotspotDefinition, context: ProjectHotspotRenderContext) => void;
+  test: (hotspot: ProjectHotspotDefinition, context: ProjectHotspotRenderContext, portalReady: boolean) => void;
 }) {
-  useEffect(() => test(hotspot, context), [test, hotspot, context]);
-  return context.renderDefault();
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => test(hotspot, context, portalReady), [test, hotspot, context, portalReady]);
+  return context.renderDefault({ onPortalPreviewReady: () => setPortalReady(true) });
+}
+
+function ArrivalViewPreview({ scene, view, t }: {
+  scene: LoadedProjectScene["scene"];
+  view: PanoViewerState;
+  t: Translate;
+}) {
+  const viewer = useRef<PanoViewerHandle>(null);
+  const scenes = useMemo(() => [scene], [scene]);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (loaded) viewer.current?.setView(view, { immediate: true });
+  }, [loaded, view]);
+  return failed ? <p className="pne-empty" role="status">{t("Could not load this scene")}</p> : (
+    <>
+      <PanoViewer ref={viewer} controls={false} initialView={view} aria-label={t("Arrival view preview")}>
+        <Scenes scenes={scenes} activeSceneId={scene.id} transition="none" previewOnly
+          onSceneReady={() => {
+            viewer.current?.setView(view, { immediate: true });
+            setLoaded(true);
+          }}
+          onTransitionError={() => setFailed(true)} />
+      </PanoViewer>
+      {!loaded ? <p className="pne-arrival-loading" role="status">{t("Loading scene…")}</p> : null}
+    </>
+  );
 }
 
 export function EditorViewer({
@@ -106,6 +141,7 @@ export function EditorViewer({
   onError,
   onReady,
   testRequest,
+  arrivalPreviewSlot,
   onTestConsumed,
   mapEditing = false,
   geoEditing,
@@ -146,6 +182,7 @@ export function EditorViewer({
   onError: (message: string) => void;
   onReady?: (id: string) => void;
   testRequest?: HotspotTestRequest;
+  arrivalPreviewSlot?: HTMLDivElement | null;
   onTestConsumed?: () => void;
   mapEditing?: boolean;
   geoEditing?: boolean;
@@ -165,7 +202,8 @@ export function EditorViewer({
   const [popupSelection, setPopupSelection] = useState<{ id?: string; sceneId?: string; preview: boolean }>({ sceneId: activeId, preview });
   if (popupSelection.sceneId !== activeId || popupSelection.preview !== preview)
     setPopupSelection({ sceneId: activeId, preview });
-  const [readyId, setReadyId] = useState<string>();
+  const [readyScene, setReadyScene] = useState<{ id: string; preview: boolean }>();
+  const readyId = readyScene?.id;
   const [viewportHeight, setViewportHeight] = useState(768);
   const horizonGuide = useRef<HTMLDivElement | null>(null);
   function projectHorizon(view: PanoViewerState) {
@@ -179,6 +217,17 @@ export function EditorViewer({
     }
   }
   const tested = useRef<number | undefined>(undefined);
+  const portalAimStarted = useRef<number | undefined>(undefined);
+  const [aimedPortal, setAimedPortal] = useState<number>();
+  const pendingTest = useRef(testRequest);
+  pendingTest.current = testRequest;
+  const reportTestError = useRef(onError);
+  reportTestError.current = onError;
+  useEffect(() => {
+    if (!testRequest || aimedPortal !== testRequest.token) return;
+    const timer = window.setTimeout(() => reportTestError.current(t("The portal preview did not load in time.")), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [aimedPortal, testRequest, t]);
   const loader = useMemo(
     () =>
       new SceneSources(
@@ -324,9 +373,7 @@ export function EditorViewer({
           levelCorrection: definition.levelCorrection,
         },
         title: definition.title,
-        initialView: definition.initialView
-          ? { yaw: 0, pitch: 0, fov: 75, ...definition.initialView }
-          : undefined,
+        initialView: sceneStartingView(definition),
         hotspots,
       });
     }
@@ -393,20 +440,37 @@ export function EditorViewer({
   const active = runtime.loaded.scenes.find(
     (entry) => entry.scene.id === activeId,
   );
+  const selected = active?.hotspots.find((hotspot) => hotspot.id === selectedId);
+  const arrivalView = selected?.type === "portal" ? selected.arrivalView : undefined;
+  const arrivalAction = arrivalView && selected ? hotspotAction(selected, "click") : undefined;
+  const arrivalSceneId = arrivalAction?.type === "scene" ? arrivalAction.sceneId : undefined;
+  const arrivalScene = runtime.loaded.scenes.find(({ scene }) => scene.id === arrivalSceneId)?.scene;
   const viewerSceneId = active?.scene.id ??
     (activeId && scenes.some((scene) => scene.id === readyId) ? readyId : undefined);
   const canEditScene = activeId !== undefined && readyId === activeId;
   const ready = (id: string) => {
-    setReadyId(id);
+    setReadyScene({ id, preview });
     const initialView = runtime.loaded.scenes.find(({ scene }) => scene.id === id)?.initialView;
-    // ProjectScenes already applies configured views in preview mode.
-    if (!preview || !initialView) {
+    const startTest = preview && testRequest?.sceneId === id && (testRequest.trigger ?? "click") === "click" &&
+      active?.hotspots.some((hotspot) => hotspot.id === testRequest.hotspotId && hotspot.type === "portal");
+    // ProjectScenes applies the starting view or a portal's arrival view in Preview.
+    if (startTest) {
+      viewerRef.current?.setView(testRequest.fromView, { immediate: true });
+    } else if (!preview) {
       viewerRef.current?.setView(initialView ?? { yaw: 0, pitch: 0, fov: 75 }, { immediate: true });
     }
     onReady?.(id);
   };
   return (
     <div className="pne-viewer-area">
+      {!preview && arrivalPreviewSlot && arrivalView && arrivalSceneId ? createPortal(
+        arrivalScene ? <ViewerBoundary key={sourceKey} sceneId={arrivalSceneId}>
+          <ArrivalViewPreview key={arrivalSceneId} scene={arrivalScene} view={arrivalView} t={t} />
+        </ViewerBoundary> : <p className="pne-empty" role="status">
+          {t(errors.some((message) => message.startsWith(`${arrivalSceneId}:`)) ? "Could not load this scene" : "Loading scene…")}
+        </p>,
+        arrivalPreviewSlot,
+      ) : null}
       {errors.length || runtime.issues.length || localIssues.length ? (
         <div className="pne-resource-errors" role="alert">
           {[...new Set([...errors, ...runtime.issues, ...localIssues])].map(
@@ -463,17 +527,34 @@ export function EditorViewer({
                   return options.onPreviewCustomAction(event);
                 }}
                 onPopupRequest={({ popup, sceneId }) => setPopupSelection({ id: popup.id, sceneId, preview: true })}
-                renderHotspot={(hotspot, context) => <PreviewHotspot hotspot={hotspot} context={context} test={(item, runtimeContext) => {
-                  if (!testRequest || testRequest.sceneId !== activeId || readyId !== activeId || testRequest.hotspotId !== item.id || tested.current === testRequest.token) return;
-                  tested.current = testRequest.token;
-                  onTestConsumed?.();
+                renderHotspot={(hotspot, context) => <PreviewHotspot hotspot={hotspot} context={context} test={(item, runtimeContext, portalReady) => {
+                  if (!testRequest || testRequest.sceneId !== activeId || readyId !== activeId || !readyScene?.preview ||
+                      testRequest.hotspotId !== item.id || tested.current === testRequest.token) return;
                   if (item.visible === false || item.interactive === false || item.pointerEvents === "none") {
                     onError(t("Show the hotspot and enable pointer interaction to test a click.")); return;
                   }
+                  const trigger = testRequest.trigger ?? "click";
+                  if (item.type === "portal" && trigger === "click") {
+                    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                    const viewer = viewerRef.current;
+                    if (!viewer) return;
+                    if (portalAimStarted.current !== testRequest.token) {
+                      const request = testRequest;
+                      portalAimStarted.current = request.token;
+                      void viewer.lookToHotspot(item.id, { duration: reducedMotion ? 0 : 650 }).then(({ status }) => {
+                        if (pendingTest.current?.token !== request.token || viewer.getActiveSceneId() !== request.sceneId) return;
+                        if (status === "completed") setAimedPortal(request.token);
+                        else if (status === "not-found") reportTestError.current(t("Could not aim at this portal."));
+                        else onTestConsumed?.();
+                      });
+                    }
+                    if (aimedPortal !== testRequest.token || (!portalReady && !reducedMotion)) return;
+                  }
+                  tested.current = testRequest.token;
+                  onTestConsumed?.();
                   const center = (item.type === "image" || item.type === "video") && item.corners
                     ? getHotspotCornerCenter(item.corners) : null;
                   const interaction = { id: item.id, position: center ?? ("position" in item ? item.position : item.vertices[0]!), source: "pointer", nativeEvent: new MouseEvent("click", { cancelable: true }) } as const;
-                  const trigger = testRequest.trigger ?? "click";
                   if (trigger === "click") runtimeContext.onClick(interaction);
                   else runtimeContext.onHoverChange(trigger === "pointerenter", interaction);
                 }} />}

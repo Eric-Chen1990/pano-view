@@ -52,7 +52,7 @@ export type ProjectHotspotRenderContext = {
   onHoverChange: (hovered: boolean, event: HotspotInteractionEvent) => void;
   togglePlayback: () => void;
   reportError: (error: unknown) => void;
-  renderDefault: () => ReactNode;
+  renderDefault: (options?: { onPortalPreviewReady?: () => void }) => ReactNode;
 };
 export type ProjectScenesProps = Omit<
   ScenesProps,
@@ -136,6 +136,7 @@ export function ProjectHotspotSource({
   onEnded,
   onError,
   onAudioBlocked,
+  onPortalPreviewReady,
 }: {
   hotspot: ProjectHotspotDefinition;
   playing: boolean;
@@ -144,6 +145,7 @@ export function ProjectHotspotSource({
   onEnded: () => void;
   onError: (error: unknown) => void;
   onAudioBlocked?: (error: unknown) => void;
+  onPortalPreviewReady?: () => void;
 }) {
   const common = { ariaLabel: hotspot.label || hotspot.id, onClick, onHoverChange };
   // Narrow each variant before passing serializable data to its existing component.
@@ -151,7 +153,8 @@ export function ProjectHotspotSource({
     case "portal": {
       const action = hotspotAction(hotspot, "click");
       return <PortalHotspot {...hotspotProps(hotspot)} {...common}
-        targetSceneId={action?.type === "scene" ? action.sceneId : ""} onError={onError} />;
+        targetSceneId={action?.type === "scene" ? action.sceneId : ""}
+        onPreviewReady={onPortalPreviewReady} onError={onError} />;
     }
     case "image":
       return (
@@ -263,7 +266,7 @@ function ProjectHotspot({
   };
   const onClick = (event: HotspotInteractionEvent) => dispatch("click", event);
   const onHoverChange = (hovered: boolean, event: HotspotInteractionEvent) => dispatch(hovered ? "pointerenter" : "pointerleave", event);
-  const renderDefault = () => (
+  const renderDefault: ProjectHotspotRenderContext["renderDefault"] = (options) => (
     <ProjectHotspotSource
       hotspot={hotspot}
       playing={playing}
@@ -272,6 +275,7 @@ function ProjectHotspot({
       onEnded={() => setPlaying(false)}
       onError={reportError}
       onAudioBlocked={(error) => onHotspotError?.({ sceneId, hotspot, error })}
+      onPortalPreviewReady={options?.onPortalPreviewReady}
     />
   );
   const rendered = renderHotspot?.(hotspot, {

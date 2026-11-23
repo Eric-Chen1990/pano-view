@@ -46,6 +46,7 @@ export function HotspotInspector({
   onCreatePopup,
   onEditPopup,
   onTest,
+  onArrivalPreviewMount,
   customActions,
   t,
 }: {
@@ -65,11 +66,13 @@ export function HotspotInspector({
   onCreatePopup?: (trigger: ProjectHotspotTrigger) => void;
   onEditPopup?: (id: string) => void;
   onTest?: (trigger: ProjectHotspotTrigger) => void;
+  onArrivalPreviewMount?: (node: HTMLDivElement | null) => void;
   t: Translate;
 }) {
   const [advanced, setAdvanced] = useState("");
   const [advancedError, setAdvancedError] = useState("");
-  const surface = hotspot.type === "portal" || ("position" in hotspot && hotspot.mode === "surface");
+  const portal = hotspot.type === "portal" ? hotspot : undefined;
+  const surface = Boolean(portal) || ("mode" in hotspot && hotspot.mode === "surface");
   const update = (name: string, value: unknown) => {
     if (name === "cursor" && value === "custom-image") { onPick("cursor"); return; }
     if (hotspot.type === "portal" && (name === "frame.src" || name === "frame.color") && value === "") value = undefined;
@@ -92,14 +95,19 @@ export function HotspotInspector({
     specs.map((spec) => (
       <Field
         key={spec.name}
-        spec={hotspotFieldSpec({
-          ...spec,
-          disabled: spec.name === "distance" ? surface
-            : spec.name === "soundDistance" ? hotspot.type !== "audio" || !hotspot.spatialAudio
-            : spec.name === "scaleMode" ? surface
-            : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
-          defaultValue: hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
-        })}
+        spec={{
+          ...hotspotFieldSpec({
+            ...spec,
+            disabled: spec.name === "distance" ? surface
+              : spec.name === "soundDistance" ? hotspot.type !== "audio" || !hotspot.spatialAudio
+              : spec.name === "scaleMode" ? surface
+              : spec.name === "tooltipScaleMode" ? hotspot.tooltipMode === "surface" : spec.disabled,
+            defaultValue: portal?.shape === "circle" && spec.name === "width"
+              ? portal.height ?? 10
+              : hotspotFieldDefault(hotspot, spec.name) ?? spec.defaultValue,
+          }),
+          ...(portal && spec.label ? { label: spec.label } : {}),
+        }}
         value={
           spec.name === "tooltip.text" && typeof hotspot.tooltip === "string"
             ? hotspot.tooltip
@@ -112,6 +120,7 @@ export function HotspotInspector({
         onEnd={onEnd}
         onPick={spec.asset ? () => onPick(spec.name) : undefined}
         previewUrl={spec.name === "cursor" ? cursorPreviewUrl : undefined}
+        displayFractionDigits={portal && spec.type === "number" ? 3 : undefined}
         t={t}
       />
     ));
@@ -142,13 +151,91 @@ export function HotspotInspector({
               : []),
           ];
 
+  const actionEditor = (
+    <HotspotActionEditor
+      customActions={customActions}
+      hotspot={hotspot}
+      scenes={scenes}
+      popups={popups}
+      getView={getView ?? (() => ({ ...getViewPosition(), fov: 75 }))}
+      onChange={onChange}
+      onBegin={onBegin}
+      onEnd={onEnd}
+      onCreatePopup={onCreatePopup}
+      onEditPopup={onEditPopup}
+      onTest={onTest}
+      onArrivalPreviewMount={onArrivalPreviewMount}
+      t={t}
+    />
+  );
+  const portalFields = contentFields.portal!;
+  const frameColor = portal?.frame?.color ?? String(hotspotFieldDefault(hotspot, "frame.color"));
+  const frameSwatch = /^#[\da-f]{6}$/i.test(frameColor) ? frameColor
+    : /^#[\da-f]{3}$/i.test(frameColor) ? frameColor.replace(/[\da-f]/gi, (digit) => digit + digit)
+    : "#87ddd4";
+
   return (
     <InspectorTabs
       tabs={[
         {
           id: "general",
-          label: t("General"),
-          content: (
+          label: t(portal ? "Portal settings" : "General"),
+          content: portal ? (
+            <div className="pne-fields pne-portal-fields">
+              {fields(commonFields.slice(0, 1))}
+              <fieldset>
+                <legend>{t("Destination")}</legend>
+                {actionEditor}
+                {fields(portalFields.filter(({ name }) => name === "enterOnZoom"))}
+              </fieldset>
+              <fieldset>
+                <legend>{t("Shape and size")}</legend>
+                {fields(portalFields.filter(({ name }) => name === "shape"))}
+                {fields([
+                  { name: "width", type: "number", ...(portal.shape === "circle" ? { label: "Angular diameter (°)" } : {}) },
+                  ...(portal.shape === "circle" ? [] : pointFields.filter(({ name }) => name === "height")),
+                  ...pointFields.filter(({ name }) => name === "rotation"),
+                ])}
+                <details>
+                  <summary>{t("Position and scale")}</summary>
+                  <div className="pne-fields">{fields(pointFields.filter(({ name }) => name.startsWith("position.") || name === "scale"))}</div>
+                </details>
+              </fieldset>
+              <fieldset>
+                <legend>{t("Portal frame")}</legend>
+                {portal.frame?.src ? (
+                  <>
+                    {fields(portalFields.filter(({ name }) => name === "frame.src").map((spec) => ({ ...spec, asset: false })))}
+                    <button type="button" className="pne-subtle" onClick={() => onPick("frame.src")}>
+                      {t("Replace frame image")}
+                    </button>
+                    <button type="button" className="pne-subtle" onClick={() => update("frame.src", undefined)}>
+                      {t("Remove frame image")}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <label>
+                      {t("Pick frame color")}
+                      <input type="color" value={frameSwatch} onFocus={onBegin} onBlur={onEnd}
+                        onChange={(event) => update("frame.color", event.currentTarget.value)} />
+                    </label>
+                    {fields(portalFields.filter(({ name }) => name === "frame.color"))}
+                    <button type="button" className="pne-subtle" onClick={() => onPick("frame.src")}>
+                      {t("Choose portal frame image")}
+                    </button>
+                  </>
+                )}
+                {fields(portalFields.filter(({ name }) => name === "frame.thickness").map((spec) => portal.frame?.src
+                  ? { ...spec, label: "Opening inset", help: "Aligns the live opening with the transparent area of the frame image." }
+                  : spec))}
+              </fieldset>
+              <details>
+                <summary>{t("Hotspot behavior")}</summary>
+                <div className="pne-fields">{fields(commonFields.slice(1))}</div>
+              </details>
+            </div>
+          ) : (
             <div className="pne-fields">
               {fields(commonFields)}
               <p className="pne-edit-hint">{t("Edit properties below. Drag the hotspot or its vertex handles in the panorama to change its position.")}</p>
@@ -159,22 +246,7 @@ export function HotspotInspector({
         {
           id: "actions",
           label: t("Actions"),
-          content: (
-            <HotspotActionEditor
-              customActions={customActions}
-              hotspot={hotspot}
-              scenes={scenes}
-              popups={popups}
-              getView={getView ?? (() => ({ ...getViewPosition(), fov: 75 }))}
-              onChange={onChange}
-              onBegin={onBegin}
-              onEnd={onEnd}
-              onCreatePopup={onCreatePopup}
-              onEditPopup={onEditPopup}
-              onTest={onTest}
-              t={t}
-            />
-          ),
+          content: actionEditor,
         },
         {
           id: "appearance",
@@ -223,7 +295,7 @@ export function HotspotInspector({
                 </details>
               </div>
               <div className="pne-fields">
-                {fields(contentFields[hotspot.type] ?? [])}
+                {fields(portal ? [] : contentFields[hotspot.type] ?? [])}
                 {fields(graphicFields)}
                 {(hotspot.type === "image" || hotspot.type === "video") && (
                   <ChromaKeyFields hotspot={hotspot} onChange={key => update("chromaKey", key)}
@@ -249,10 +321,7 @@ export function HotspotInspector({
                 />
               ) : null}
               <div className="pne-fields">
-                {fields(hotspot.type === "portal"
-                  ? pointFields.filter(({ name }) => ["position.yaw", "position.pitch", "width", "height", "scale", "rotation"].includes(name) &&
-                    (name !== "height" || hotspot.shape !== "circle"))
-                  : "corners" in hotspot && hotspot.corners ? pointFields.filter(({ name }) => name === "opacity") : pointFields)}
+                {fields("corners" in hotspot && hotspot.corners ? pointFields.filter(({ name }) => name === "opacity") : pointFields)}
               </div>
             </>
           ) : (
@@ -356,7 +425,7 @@ export function HotspotInspector({
             </div>
           ),
         },
-      ]}
+      ].filter(({ id }) => !portal || (id !== "actions" && id !== "position"))}
     />
   );
 }

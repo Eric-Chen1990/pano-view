@@ -1,5 +1,6 @@
 import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import type { CSSProperties } from "react";
+import type { PanoViewerState } from "../types";
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
 import type { PortalHotspotFrame, PortalHotspotShape } from "./portal-geometry";
@@ -63,7 +64,13 @@ export type ImageHotspotDefinition = PointHotspotDefinitionBase & {
 
 export type PortalHotspotDefinition = Omit<
   PointHotspotDefinitionBase, "mode" | "distance" | "scaleMode" | "referenceFov" | "opacity"
-> & { type: "portal"; shape?: PortalHotspotShape; frame?: PortalHotspotFrame; enterOnZoom?: boolean };
+> & {
+  type: "portal";
+  shape?: PortalHotspotShape;
+  frame?: PortalHotspotFrame;
+  enterOnZoom?: boolean;
+  arrivalView?: PanoViewerState;
+};
 
 export type GraphicHotspotDefinition = PointHotspotDefinitionBase & {
   type: "graphic";

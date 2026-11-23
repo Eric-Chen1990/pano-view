@@ -3113,7 +3113,11 @@ The doorway follows the panorama surface. Its preview responds to panning.
 Zooming the current scene changes the size of the opening while the destination
 keeps its field of view. Detail loads for up to two visible doors. A portal arrives at the
 destination scene’s `initialView`, with yaw `0`, pitch `0`, and FOV `75`
-as defaults before applying view limits. Portal clicks use a dedicated
+as defaults before applying view limits. Set `arrivalView={{ yaw: 35, pitch: -5, fov: 65 }}`
+on an individual doorway to set both its centered preview and its arrival view.
+The same optional field works in project JSON. The preview still responds to
+panning around that view.
+Portal clicks use a dedicated
 animation in WebGL and WebGPU. Reduced motion, WebXR and stereo use a direct
 cut once the target is ready. A custom React `onClick` replaces the built-in
 activation. Project callbacks can cancel it with `preventDefault()`.

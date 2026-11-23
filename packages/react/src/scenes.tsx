@@ -166,6 +166,8 @@ export type ScenesProps = {
   transitionWaitForDetailMs?: number;
   onTransitionEnd?: (event: SceneTransitionEndEvent) => void;
   onTransitionError?: (event: SceneTransitionErrorEvent) => void;
+  /** Render configured panorama previews without loading full images or tiles. */
+  previewOnly?: boolean;
   /** Viewer-wide budget shared by every tile scene. Defaults to 128 MiB. */
   maxTextureMemoryMb?: number;
   /** Viewer-wide tile request limit. Defaults to 4. */
@@ -372,6 +374,7 @@ function ScenesController({
   onSceneReady,
   onTransitionEnd,
   onTransitionError,
+  previewOnly = false,
   snapshotMaxPixels = 3_686_400,
   transitionWaitForDetailMs,
   phaseRef: externalPhaseRef,
@@ -501,8 +504,8 @@ function ScenesController({
     releaseInteraction();
   }, [clearPortalTimer, releaseInteraction]);
 
-  const destinationView = useCallback((scene: Scene) => {
-    const view = { ...DEFAULT_PORTAL_VIEW, ...scene.initialView };
+  const destinationView = useCallback((scene: Scene, override?: PanoViewerState) => {
+    const view = override ?? { ...DEFAULT_PORTAL_VIEW, ...scene.initialView };
     return controlsRef?.current?.constrainSceneView(view, scene.viewLimits) ?? view;
   }, [controlsRef]);
 
@@ -519,7 +522,9 @@ function ScenesController({
       if (!source || phaseRef.current !== "idle" || source.id === targetId ||
           !sceneMap.has(targetId)) return;
       failedPortalId.current = null;
-      setPortalRequest({ sourceId: source.id, targetId, hotspotId, requestedAt: performance.now() });
+      const window = portalWindows.get(hotspotId);
+      const arrivalView = window?.targetId === targetId ? window.arrivalView : undefined;
+      setPortalRequest({ sourceId: source.id, targetId, hotspotId, requestedAt: performance.now(), arrivalView });
       requestSceneChange(targetId);
     },
   }), [destinationView, mode, portalWindows, requestSceneChange, sceneMap]);
@@ -720,7 +725,7 @@ function ScenesController({
     const nextScene = slotsRef.current[slot];
     if (run && nextScene) {
       clearPortalTimer();
-      const view = destinationView(sceneMap.get(nextScene.id) ?? nextScene);
+      const view = destinationView(sceneMap.get(nextScene.id) ?? nextScene, run.arrivalView);
       const window = portalWindows.get(run.hotspotId);
       if (!window?.ready() || mode !== null || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
         takeOverPortal(view);
@@ -1047,6 +1052,7 @@ function ScenesController({
                 scene={currentSource(source)}
                 visible={isLive}
                 baseOnly={pendingSceneUsesBaseLayer(phase, isPending)}
+                previewOnly={previewOnly}
                 onReady={() => handleReady(slot)}
                 onError={(error) => {
                   if (source) {

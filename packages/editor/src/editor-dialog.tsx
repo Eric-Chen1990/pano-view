@@ -15,6 +15,7 @@ const mediaDropLabels: Record<LocalMediaKind, string> = {
 
 export type EditorDialogState =
   | { kind: "hotspot" }
+  | { kind: "portal"; sceneId: string; targetId: string }
   | { kind: "scenes"; paths: string[]; selected: string[]; replace?: string }
   | {
       kind: "asset";
@@ -46,6 +47,7 @@ export function EditorDialog({
   onConfirm,
   onDirectory,
   onChooseHotspot,
+  portalTargets,
   t,
 }: {
   dialog: EditorDialogState;
@@ -60,6 +62,7 @@ export function EditorDialog({
   onConfirm: () => Promise<void>;
   onDirectory: (files: File[] | Promise<File[]>) => Promise<void>;
   onChooseHotspot: (kind: HotspotKind) => void;
+  portalTargets: readonly { id: string; title?: string }[];
   t: Translate;
 }) {
   const directoryRef = useRef<HTMLInputElement>(null);
@@ -115,6 +118,8 @@ export function EditorDialog({
           {t(
             dialog.kind === "hotspot"
               ? "Add hotspot"
+              : dialog.kind === "portal"
+              ? "Add portal"
               : dialog.kind === "scenes"
               ? "Choose scenes"
               : dialog.kind === "asset"
@@ -144,6 +149,22 @@ export function EditorDialog({
                 ))}
               </div>
             </>
+          ) : null}
+          {dialog.kind === "portal" ? (
+            portalTargets.length ? (
+              <div className="pne-fields">
+                <label>{t("Target scene")}
+                  <select value={dialog.targetId} onChange={(event) =>
+                    onChange({ ...dialog, targetId: event.currentTarget.value })
+                  }>
+                    <option value="">{t("Select a target scene")}</option>
+                    {portalTargets.map((scene) => (
+                      <option key={scene.id} value={scene.id}>{scene.title ?? scene.id}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : <p className="pne-source-help">{t("Add another scene before creating a portal.")}</p>
           ) : null}
           {dialog.kind === "source" ? (
             <div
@@ -398,6 +419,7 @@ export function EditorDialog({
                 busy ||
                 (dialog.kind === "scenes" && !dialog.selected.length) ||
                 (dialog.kind === "asset" && !dialog.file && !dialog.selected.trim()) ||
+                (dialog.kind === "portal" && !portalTargets.some((scene) => scene.id === dialog.targetId)) ||
                 (dialog.kind === "source" && !dialog.url.trim())
               }
               onClick={() => void onConfirm()}
@@ -412,6 +434,7 @@ export function EditorDialog({
                       : "Remove online map"
                 : dialog.kind === "source"
                 ? (dialog.replace ? "Replace source" : "Add online scene")
+                : dialog.kind === "portal" ? "Place portal"
                 : "Confirm")}
             </button>
           ) : null}

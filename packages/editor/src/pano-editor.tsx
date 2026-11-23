@@ -145,6 +145,7 @@ export function PanoEditor(props: PanoEditorProps) {
   const mapInput = useRef<HTMLInputElement>(null);
   const mapPickField = useRef<"image" | "icon">("image");
   const [testRequest, setTestRequest] = useState<HotspotTestRequest>();
+  const [arrivalPreviewSlot, setArrivalPreviewSlot] = useState<HTMLDivElement | null>(null);
   const testGeneration = useRef(0);
   const previewOrigin = useRef<{ sceneId: string; hotspotId?: string; view: PanoViewerState } | undefined>(undefined);
   const restoreView = useRef<{ sceneId: string; view: PanoViewerState } | undefined>(undefined);
@@ -261,7 +262,9 @@ export function PanoEditor(props: PanoEditorProps) {
     }
     previewOrigin.current = { sceneId: active.id, hotspotId: selectedId, view: viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 } };
     void viewerRef.current?.activateMedia().catch(report);
-    setTestRequest(hotspotId ? { sceneId: active.id, hotspotId, trigger, token: ++testGeneration.current } : undefined);
+    setTestRequest(hotspotId ? {
+      sceneId: active.id, hotspotId, trigger, fromView: previewOrigin.current.view, token: ++testGeneration.current,
+    } : undefined);
     setPreview(true);
     setTool(undefined); setPlacement(undefined); setDraft([]);
   }
@@ -383,6 +386,7 @@ export function PanoEditor(props: PanoEditorProps) {
   function navigate(id: string) {
     history.end();
     pickerOperation.current++;
+    setTestRequest(undefined);
     setActiveId(id);
     setSelectedId(undefined);
     setPlacement(undefined);
@@ -544,6 +548,16 @@ export function PanoEditor(props: PanoEditorProps) {
   }
   async function confirmDialog() {
     if (!dialog) return;
+    if (dialog.kind === "portal") {
+      if (active?.id !== dialog.sceneId || dialog.targetId === active.id ||
+          !project.scenes.some((scene) => scene.id === dialog.targetId)) return;
+      setPlacement(setHotspotAction(newHotspot("portal", { yaw: 0, pitch: 0 }), "click", {
+        type: "scene", sceneId: dialog.targetId,
+      }));
+      setTool("portal");
+      setDialog(undefined);
+      return;
+    }
     const token = generation.current;
     setBusy(true);
     setError("");
@@ -1006,7 +1020,10 @@ export function PanoEditor(props: PanoEditorProps) {
     setPlacement(undefined);
     setSelectedId(undefined);
     setError("");
-    if (["image", "sequence", "video", "audio", "iframe"].includes(kind)) {
+    if (kind === "portal" && active) {
+      setTool(undefined);
+      setDialog({ kind: "portal", sceneId: active.id, targetId: "" });
+    } else if (["image", "sequence", "video", "audio", "iframe"].includes(kind)) {
       setTool(undefined);
       void pickAsset("src", kind);
     } else {
@@ -1059,8 +1076,13 @@ export function PanoEditor(props: PanoEditorProps) {
   function place(position: HotspotPosition) {
     if (tool === "polygon" || tool === "polyline")
       setDraft((vertices) => [...vertices, position]);
-    else if (placement && "position" in placement)
-      appendHotspot({ ...placement, position });
+    else if (placement && "position" in placement) {
+      try {
+        appendHotspot({ ...placement, position });
+      } catch (cause) {
+        report(cause);
+      }
+    }
     else setSelectedId(undefined);
   }
   function undo(redo = false) {
@@ -1754,6 +1776,7 @@ export function PanoEditor(props: PanoEditorProps) {
               }
             }}
             testRequest={testRequest}
+            arrivalPreviewSlot={arrivalPreviewSlot}
             onTestConsumed={() => setTestRequest(undefined)}
             mapEditing={sidebarMode === "map" && mapKind === "image"}
             geoEditing={sidebarMode === "map" && mapKind === "online" && !preview}
@@ -1783,7 +1806,7 @@ export function PanoEditor(props: PanoEditorProps) {
               {draftKind
                 ? t("Click to draw vertices; Enter finishes; Escape cancels")
                 : placement
-                  ? t("Click the panorama to place a hotspot")
+                  ? t(placement.type === "portal" ? "Click the panorama to place the portal" : "Click the panorama to place a hotspot")
                   : (active?.title ?? t("Select a scene to begin"))}
             </span>
             {draftKind ? (
@@ -1840,7 +1863,7 @@ export function PanoEditor(props: PanoEditorProps) {
                     >
                       <IconBack />
                     </button>
-                    <button
+                    {selected.type !== "portal" ? <button
                       type="button"
                       className="pne-icon-button"
                       title={t("Test this hotspot")}
@@ -1848,7 +1871,7 @@ export function PanoEditor(props: PanoEditorProps) {
                       onClick={() => enterPreview(selected.id)}
                     >
                       <IconPlay />
-                    </button>
+                    </button> : null}
                     <button
                       type="button"
                       className="pne-icon-button"
@@ -1947,6 +1970,7 @@ export function PanoEditor(props: PanoEditorProps) {
                 onCreatePopup={(trigger) => createPopup(true, trigger)}
                 onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
                 onTest={(trigger) => enterPreview(selected.id, trigger)}
+                onArrivalPreviewMount={setArrivalPreviewSlot}
                 onChange={updateHotspot}
                 getRectangleCorners={(id) => {
                   const corners = viewerRef.current?.getHotspotCorners(id);
@@ -2023,6 +2047,7 @@ export function PanoEditor(props: PanoEditorProps) {
             setDialog(undefined);
             chooseTool(kind);
           }}
+          portalTargets={dialog.kind === "portal" ? project.scenes.filter((scene) => scene.id !== dialog.sceneId) : []}
           t={t}
         />
       ) : null}

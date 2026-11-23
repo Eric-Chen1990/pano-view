@@ -2726,6 +2726,8 @@ import { ImageHotspot, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 缩放当前全景时，门框改变大小，门内预览保持目标场景的视野范围。
 面积最大的两扇可见门会逐步加载清晰图层。进入后沿用目标场景的 `initialView`，
 默认视角为 yaw `0`、pitch `0`、FOV `75`，并应用目标场景的视角限制。
+可为单扇门设置 `arrivalView={{ yaw: 35, pitch: -5, fov: 65 }}`，同时设定正对门洞时看到的基准视角和进入后的视角。
+项目 JSON 也支持这个可选字段。门内画面仍会随游客转动，以设定的视角为基准产生视差。
 WebGL 和 WebGPU 均支持穿门动画。减少动态效果、WebXR 和双眼模式会在目标就绪后直切。
 React 的自定义 `onClick` 可替换默认进入行为，项目的热点事件可用 `preventDefault()` 取消。
 开启 `enterOnZoom` 后，对准门洞中心并用滚轮或双指放大到近处即可进入。
