@@ -233,13 +233,20 @@ export function SunPage() {
         <div className={pageHeadingWrapClassName}>
           <h1 id="sun-heading" className={pageHeadingTitleClassName}>{t("Panorama sunlight")}</h1>
         </div>
-        <div className={pageControlsClassName} role="group" aria-label={t("Sun examples")}>
-          {(["add", "enhance"] as const).map((option) => (
-            <button key={option} className={segmentedButtonClassName} type="button"
-              aria-pressed={scenario === option} onClick={() => setScenario(option)}>
-              {t(SCENARIOS[option].label)}
-            </button>
-          ))}
+        <div className={pageControlsClassName}>
+          <div className={controlLabelClassName}>{t("Sun examples")}<div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label={t("Sun examples")}
+            >
+              {(["add", "enhance"] as const).map((option) => (
+                <button key={option} className={segmentedButtonClassName} type="button"
+                  aria-pressed={scenario === option} onClick={() => setScenario(option)}>
+                  {t(SCENARIOS[option].label)}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <SunExample scenario={scenario} />
       </section>

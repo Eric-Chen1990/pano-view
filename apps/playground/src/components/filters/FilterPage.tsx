@@ -198,18 +198,19 @@ export function FilterPage() {
           <p className={pageHeadingStatusClassName}>{t("Adjust exposure, color and local detail on panoramic images and video.")}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Panorama source")}>
-            {SOURCES.map(({ id, label }) => (
-              <button
-                aria-pressed={source === id}
-                className={cn(segmentedButtonClassName, source === id && segmentedButtonActiveClassName)}
-                key={id}
-                onClick={() => setSource(id)}
-                type="button"
-              >
-                {t(label)}
-              </button>
-            ))}
+          <div className={controlLabelClassName}>{t("Panorama source")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Panorama source")}>
+              {SOURCES.map(({ id, label }) => (
+                <button
+                  aria-pressed={source === id}
+                  className={cn(segmentedButtonClassName, source === id && segmentedButtonActiveClassName)}
+                  key={id}
+                  onClick={() => setSource(id)}
+                  type="button"
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
           </div>
           <button
             aria-pressed={showOriginal}

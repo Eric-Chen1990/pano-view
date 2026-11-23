@@ -34,6 +34,7 @@ import { ThirdPartyDialog } from "../overlays/third-party-dialog-example";
 import thirdPartyDialogCode from "../overlays/third-party-dialog-example.tsx?raw";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   pageSectionClassName,
   pageHeadingWrapClassName,
   pageHeadingTitleClassName,
@@ -351,31 +352,34 @@ export function ImmersiveTourPage() {
           <h1 className={pageHeadingTitleClassName} id="overlay-title">{t("Immersive tour")}</h1>
           <p className={pageHeadingStatusClassName}>{t("Combine scene navigation, shared dialogs, media, models and VR. Each marker opens its own content; the arrow navigates to the next scene.")}</p>
         </div>
-        <div
-          className={pageControlsClassName}
-          role="group"
-          aria-label={t("Dialog implementation")}
-        >
-          {(["default", "composed", "custom"] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={cn(
-                segmentedButtonClassName,
-                mode === value && segmentedButtonActiveClassName,
-              )}
-              aria-pressed={mode === value}
-              onClick={() => setMode(value)}
+        <div className={pageControlsClassName}>
+          <div className={controlLabelClassName}>{t("Dialog implementation")}<div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label={t("Dialog implementation")}
             >
-              {
-                {
-                  default: t("Default dialog"),
-                  composed: t("Compose parts"),
-                  custom: t("Third-party dialog"),
-                }[value]
-              }
-            </button>
-          ))}
+              {(["default", "composed", "custom"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    segmentedButtonClassName,
+                    mode === value && segmentedButtonActiveClassName,
+                  )}
+                  aria-pressed={mode === value}
+                  onClick={() => setMode(value)}
+                >
+                  {
+                    {
+                      default: t("Default dialog"),
+                      composed: t("Compose parts"),
+                      custom: t("Third-party dialog"),
+                    }[value]
+                  }
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             type="button"
             className={segmentedButtonClassName}

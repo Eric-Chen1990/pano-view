@@ -16,6 +16,7 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import {
+  controlLabelClassName,
   pageSectionClassName,
   pageHeadingTitleClassName,
   shellClassName,
@@ -133,26 +134,27 @@ export function ProjectPage() {
         </p>
         {project ? (
           <>
-            <div
-              className="mb-4 flex flex-wrap gap-2"
-              role="group"
-              aria-label={t("Project scenes")}
-            >
-              {project.scenes.map((entry) => (
-                <button
-                  key={entry.scene.id}
-                  type="button"
-                  className={cn(
-                    segmentedButtonClassName,
-                    activeSceneId === entry.scene.id &&
-                      segmentedButtonActiveClassName
-                  )}
-                  aria-pressed={activeSceneId === entry.scene.id}
-                  onClick={() => { setActiveSceneId(entry.scene.id); setPopup(null); }}
-                >
-                  {entry.title ?? entry.scene.id}
-                </button>
-              ))}
+            <div className={cn(controlLabelClassName, "mb-4")}>{t("Scene")}<div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={t("Project scenes")}
+              >
+                {project.scenes.map((entry) => (
+                  <button
+                    key={entry.scene.id}
+                    type="button"
+                    className={cn(
+                      segmentedButtonClassName,
+                      activeSceneId === entry.scene.id &&
+                        segmentedButtonActiveClassName
+                    )}
+                    aria-pressed={activeSceneId === entry.scene.id}
+                    onClick={() => { setActiveSceneId(entry.scene.id); setPopup(null); }}
+                  >
+                    {entry.title ?? entry.scene.id}
+                  </button>
+                ))}
+              </div>
             </div>
             <PanoViewer style={{ height: 560 }}>
               <ProjectScenes

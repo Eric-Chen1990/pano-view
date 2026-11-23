@@ -15,6 +15,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -52,35 +53,38 @@ export function ControlsExample({ example, onExampleChange }: {
   );
   return (
     <>
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Control example")}
-      >
-        {(["navigation", "automatic", "gyro"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={example === value}
-            className={cn(
-              segmentedButtonClassName,
-              example === value && segmentedButtonActiveClassName,
-            )}
-            onClick={() => {
-              onExampleChange(value);
-              setAutoRotate(false);
-              setGyroEnabled(false);
-            }}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Control example")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Control example")}
           >
-            {
-              {
-                navigation: t("Navigation"),
-                automatic: t("Auto rotate"),
-                gyro: t("Gyro"),
-              }[value]
-            }
-          </button>
-        ))}
+            {(["navigation", "automatic", "gyro"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={example === value}
+                className={cn(
+                  segmentedButtonClassName,
+                  example === value && segmentedButtonActiveClassName,
+                )}
+                onClick={() => {
+                  onExampleChange(value);
+                  setAutoRotate(false);
+                  setGyroEnabled(false);
+                }}
+              >
+                {
+                  {
+                    navigation: t("Navigation"),
+                    automatic: t("Auto rotate"),
+                    gyro: t("Gyro"),
+                  }[value]
+                }
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className={pageControlsClassName}>
         {example === "navigation" ? (

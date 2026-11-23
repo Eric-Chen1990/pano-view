@@ -160,7 +160,6 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Shared track": "共享音轨",
   "Per-scene tracks": "独立场景音轨",
   "Audio tour scenes": "音频导览场景",
-  "Track:": "音轨：",
   "Background audio viewer": "背景音频查看器",
   "Playback failed. Press Play to retry.": "播放失败，请点击播放重试。",
   "Audio could not load. Check the resource and press Play to retry.": "无法加载音频。请检查资源，然后点击播放重试。",

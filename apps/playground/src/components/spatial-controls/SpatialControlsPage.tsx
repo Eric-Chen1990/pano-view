@@ -3,6 +3,7 @@ import { cubeTileJsx } from "../../constants";
 import { useState } from "react";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -115,25 +116,28 @@ export function SpatialControlsPage() {
       title={t("Spatial controls")}
       description={t("Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session.")}
     >
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Spatial control example")}
-      >
-        {examples.map((example) => (
-          <button
-            type="button"
-            key={example.id}
-            aria-pressed={kind === example.id}
-            className={cn(
-              segmentedButtonClassName,
-              kind === example.id && segmentedButtonActiveClassName,
-            )}
-            onClick={() => setKind(example.id)}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Spatial control example")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Spatial control example")}
           >
-            {t(example.label)}
-          </button>
-        ))}
+            {examples.map((example) => (
+              <button
+                type="button"
+                key={example.id}
+                aria-pressed={kind === example.id}
+                className={cn(
+                  segmentedButtonClassName,
+                  kind === example.id && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setKind(example.id)}
+              >
+                {t(example.label)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <SpatialExample key={kind} kind={kind} />
       <p className="px-6 text-sm text-muted-2">{t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls; drag the model, scroll to zoom, or focus it and use arrow keys. Open the model/article before entering VR to observe dialog state across entry and exit.")}</p>

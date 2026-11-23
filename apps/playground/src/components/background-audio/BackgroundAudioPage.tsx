@@ -5,6 +5,7 @@ import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
 import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -56,28 +57,31 @@ export function AudioTour() {
       title={t("Background audio")}
       description={t("Mount BackgroundAudio beside Scenes. A shared track continues across navigation; per-scene sources change the soundtrack as scenes change. Playback starts only after you press Play.")}
     >
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Audio mode")}
-      >
-        {(["shared", "per-scene"] as const).map((value) => (
-          <button
-            type="button"
-            key={value}
-            aria-pressed={mode === value}
-            className={cn(
-              segmentedButtonClassName,
-              mode === value && segmentedButtonActiveClassName,
-            )}
-            onClick={() => {
-              setMode(value);
-              setError(undefined);
-            }}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Audio mode")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Audio mode")}
           >
-            {value === "shared" ? t("Shared track") : t("Per-scene tracks")}
-          </button>
-        ))}
+            {(["shared", "per-scene"] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={mode === value}
+                className={cn(
+                  segmentedButtonClassName,
+                  mode === value && segmentedButtonActiveClassName,
+                )}
+                onClick={() => {
+                  setMode(value);
+                  setError(undefined);
+                }}
+              >
+                {value === "shared" ? t("Shared track") : t("Per-scene tracks")}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           type="button"
           className={segmentedButtonClassName}
@@ -90,33 +94,31 @@ export function AudioTour() {
           {playing ? t("Pause") : t("Play")}
         </button>
       </div>
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Audio tour scenes")}
-      >
-        {CUBE_SCENES.map((scene) => (
-          <button
-            type="button"
-            key={scene.id}
-            aria-pressed={sceneId === scene.id}
-            className={cn(
-              segmentedButtonClassName,
-              sceneId === scene.id && segmentedButtonActiveClassName,
-            )}
-            onClick={() => setSceneId(scene.id)}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Scene")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Audio tour scenes")}
           >
-            {scene.id}
-          </button>
-        ))}
+            {CUBE_SCENES.map((scene) => (
+              <button
+                type="button"
+                key={scene.id}
+                aria-pressed={sceneId === scene.id}
+                className={cn(
+                  segmentedButtonClassName,
+                  sceneId === scene.id && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setSceneId(scene.id)}
+              >
+                {scene.id}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <p role={error ? "alert" : "status"} className="px-6 text-sm">
         {t(error ?? status)}
-      </p>
-      <p className="px-6 text-sm text-muted-2">{t("Track:")}{" "}
-        {mode === "shared"
-          ? sharedSource
-          : sources[sceneId as keyof typeof sources]}
       </p>
       <PanoViewer aria-label={t("Background audio viewer")} style={{ height: 540 }}>
         <BackgroundAudio

@@ -187,24 +187,25 @@ export function SceneTransitionPage() {
           <p className={pageHeadingStatusClassName}>{t(status)}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div
-            className="flex flex-wrap gap-1.5"
-            role="group"
-            aria-label={t("Target panorama scene")}
-          >
-            {CUBE_SCENES.map((scene) => (
-              <button
-                className={cn(
-                  segmentedButtonClassName,
-                  activeSceneId === scene.id && segmentedButtonActiveClassName,
-                )}
-                key={scene.id}
-                onClick={() => selectScene(scene.id)}
-                type="button"
-              >
-                {scene.id}
-              </button>
-            ))}
+          <div className={controlLabelClassName}>{t("Scene")}<div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label={t("Target panorama scene")}
+            >
+              {CUBE_SCENES.map((scene) => (
+                <button
+                  className={cn(
+                    segmentedButtonClassName,
+                    activeSceneId === scene.id && segmentedButtonActiveClassName,
+                  )}
+                  key={scene.id}
+                  onClick={() => selectScene(scene.id)}
+                  type="button"
+                >
+                  {scene.id}
+                </button>
+              ))}
+            </div>
           </div>
           <div className={controlLabelClassName}>{t("Blend")}<BlendSelect onChange={setPreset} value={preset} />
           </div>
