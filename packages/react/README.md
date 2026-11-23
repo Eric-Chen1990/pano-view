@@ -29,6 +29,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
 - [PanoSun](#panosun)
+- [PanoGrid](#panogrid)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -1485,15 +1486,20 @@ browser can pick mp4 / webm and the control bar can switch resolution. Changing
 quality keeps the current time and play/pause state.
 
 A default playback bar is mounted on the viewer overlay: play/pause, seek, time,
-volume, speed, resolution, captions, and fullscreen. Volume is a hover (or tap)
+volume, speed, resolution, captions, VR, and fullscreen. The VR button appears
+when the viewer mounts `WebVR` and a VR mode is available. Volume is a hover (or tap)
 vertical slider when the browser allows `HTMLMediaElement.volume`; iOS Safari
 only exposes mute. The speed menu lists rates the current element accepts. The
 captions menu also includes a settings panel for subtitle font size and
 background opacity. When the viewer is narrow, speed, quality, and captions
 move into a More menu.
-Pass `controls={false}` to hide it, an appearance object to restyle the default
-instance, or render `PanoVideoControls` as a `PanoViewer` child to replace that
-instance.
+Pass `controls={false}` to hide the bar or an options object to configure its
+appearance and buttons. All buttons are enabled by default where supported. Set
+any of `play`, `volume`, `playbackRate`, `quality`, `captions`, `vr`, or
+`fullscreen` to `false` under `controls.buttons` to hide it, including its entry
+in More. For example, `controls={{ buttons: { vr: false, fullscreen: false } }}`
+hides both presentation buttons.
+Render `PanoVideoControls` as a `PanoViewer` child to replace the default instance.
 
 Captions use WebVTT `tracks`. The video element is mounted inside the viewer as a
 transparent 1×1-pixel node; cue text is rendered in a screen-space overlay. `captions={false}` hides the overlay and the language
@@ -1565,7 +1571,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `fallbackVariantId` — optionally try this variant once when the active source fails with a decoding, format support, or texture size error. Restores playback position and state where possible.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
-- `controls` — `true` / omit mounts the default bar; `false` hides it; an object restyles the default instance. Appearance keys: `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `padding` (`"8px 10px"`). Render `PanoVideoControls` as a `PanoViewer` child to replace the bar (same `appearance` prop).
+- `controls` — `true` or omitted mounts the default bar. `false` hides it. A `PanoVideoControlsOptions` object accepts `buttons` and the appearance keys `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), and `padding` (`"8px 10px"`).
 - `clickToTogglePlayback` — Defaults to `true`. Click or tap the panorama to play or pause in screen mode, including fullscreen. Set `false` to disable this gesture. Call `nativeEvent.preventDefault()` in a panorama click callback to cancel the toggle for that click.
 - `showCenterPlayButton` — Defaults to `true`. Shows a translucent play button at the center while playback is paused, blocked, or ended in screen mode. Set `false` to hide it. This button and `clickToTogglePlayback` are configured independently of `controls`.
 - `yawOffset` — horizontal offset in degrees, default `0`.
@@ -1903,7 +1909,7 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 - `onTransitionError` — `{ sceneId, error }`.
 - `maxTextureMemoryMb` — shared budget, default `128`.
 - `maxConcurrentTileLoads` — shared concurrency, default `4`.
-- `snapshotMaxPixels` — max physical-pixel area of the outgoing GPU snapshot, default `3686400` (~2560×1440).
+- `snapshotMaxPixels` — max physical-pixel area of the outgoing GPU snapshot, default `3686400` (~2560×1440). In immersive WebGL, both eye snapshots share this budget.
 
 Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source component. Per-scene cube cache fields are ignored under the shared cache — see [Tile](#tile).
 
@@ -2331,6 +2337,36 @@ import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 
 In the [sunlight Playground](https://pano-view-playground.vercel.app/sun), choose **Edit sun** to zoom in. Click the image or drag the center marker to align the sun, then adjust **Disc size** until the outline fits and select **Done**. Use **Preview light** to compare the effect with the photo, then copy the generated props. With an overexposed photo, align the center and set the glow width independently. For a tour, update the sun props in `Scenes.onSceneReady`. Use `enabled` or `intensity` to control visibility when the photographed sky contains occluders. Shadows and reflections come from the source panorama.
 
+## PanoGrid
+
+`PanoGrid` is a debug and test reference for panorama space. Mount it alone inside `PanoViewer` when no panorama image is loaded—the grid itself forms the spherical shell—or place it beside `Sphere`, `Tile`, `SphereTile`, `PanoVideo`, or `Scenes` to check alignment. It draws screen-space strokes on WebGPU and WebGL so line width stays stable while you look around, and it does not participate in pointer hit-testing.
+
+```tsx
+import { PanoGrid, PanoViewer } from "@ericchen1990/pano-view";
+
+// Empty viewer: the grid is the panorama shell.
+<PanoViewer style={{ height: 480 }}>
+  <PanoGrid projection="sphere" divisions={16} color="#7dffe1" />
+</PanoViewer>
+
+// Overlay a cube face grid on tiled cube content.
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...cubeTileProps} />
+  <PanoGrid projection="cube" divisions={8} color="#ffffff" opacity={0.45} />
+</PanoViewer>
+```
+
+| Prop | Default | Meaning |
+| --- | --- | --- |
+| `projection` | `"sphere"` | `"sphere"` draws latitude/longitude lines; `"cube"` draws a grid on the six inward cube faces |
+| `divisions` | `8` | Density as cells across a ~90° cube-face span. Cube uses that count per face edge. Sphere uses the same angular step (`90° / divisions`) around the full shell, so the same value looks similarly dense. Sphere clamps to `2–64`; cube clamps to `1–64` |
+| `color` | `"#ffffff"` | Line color |
+| `opacity` | `0.8` | Line opacity; lower it when overlaying a panorama image |
+| `levelCorrection` | — | Optional `{ pitch, roll }` matching a leveled panorama source |
+| `radius` | shared panorama radius | World-space shell radius |
+
+Sphere lines follow viewer yaw/pitch (yaw `0` looks forward). Cube lines reuse the same face transforms as `Tile`. Try both projections in the [grid Playground](https://pano-view-playground.vercel.app/grid).
+
 ## BackgroundAudio
 
 `BackgroundAudio` plays background music or ambience for the viewer. It is not
@@ -2591,7 +2627,7 @@ respond to the configured gaze or controller input.
 - `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
 - `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebGL WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session). Native WebGPU XR ignores this value because three.js r185 does not pass `scaleFactor` to its projection layer.
 - `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
-- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
+- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Defaults to `"high"`. If the device rejects the request, the session continues at its current rate.
 - `cursor` — default `true`; `false` hides the center reticle.
 - `cursorDwellMs` — default `1500`; `0` disables auto-click.
 - `wakelock` / `mousePointerLock` — both default to `true`.

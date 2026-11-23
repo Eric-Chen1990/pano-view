@@ -2,12 +2,12 @@ import { createContext, useContext } from "react";
 import type {
   PanoVideoCaptionAppearance,
   PanoVideoController,
-  PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
 } from "./types";
 
 export type PanoVideoHost = {
   controller: PanoVideoController | null;
-  controls: boolean | PanoVideoControlsAppearance;
+  controls: boolean | PanoVideoControlsOptions;
   captions: boolean | PanoVideoCaptionAppearance;
   clickToTogglePlayback: boolean;
   showCenterPlayButton: boolean;

@@ -1,6 +1,7 @@
 import { usePanoUiTranslation } from "../ui-translation";
 import { useSyncExternalStore } from "react";
 import type { PanoContextMenuActionsApi } from "../pano-context-menu";
+import { subscribeWebVRHost, type WebVRHost } from "../webvr/host";
 import {
   getPanoVideoHostRevision,
   subscribePanoVideoHost,
@@ -38,15 +39,25 @@ export function PanoVideoChromeBridge({
   fullscreen,
   host,
   overlayElement,
+  webVRHost,
 }: {
   fullscreen: PanoContextMenuActionsApi;
   host: PanoVideoHost;
   overlayElement: HTMLDivElement | null;
+  webVRHost: WebVRHost;
 }) {
   useSyncExternalStore(
     (onStoreChange) => subscribePanoVideoHost(host, onStoreChange),
     () => getPanoVideoHostRevision(host),
     () => getPanoVideoHostRevision(host),
+  );
+  const vrButtonState = useSyncExternalStore(
+    (listener) => subscribeWebVRHost(webVRHost, listener),
+    () => {
+      const { available, entering, mode } = webVRHost.snapshot;
+      return available && mode === null ? (entering ? "pending" : "ready") : null;
+    },
+    () => null,
   );
 
   if (!overlayElement) {
@@ -57,6 +68,7 @@ export function PanoVideoChromeBridge({
     host.controller !== null &&
     host.controls !== false &&
     host.controlClaims === 0;
+  const options = typeof host.controls === "object" ? host.controls : undefined;
 
   return (
     <>
@@ -65,12 +77,15 @@ export function PanoVideoChromeBridge({
       ) : null}
       {showDefaultControls ? (
         <PanoVideoControlsHud
-          appearance={
-            typeof host.controls === "object" ? host.controls : undefined
-          }
+          appearance={options}
+          buttons={options?.buttons}
           controller={host.controller!}
           fullscreen={fullscreen}
           overlayElement={overlayElement}
+          vrEntry={vrButtonState ? {
+            disabled: vrButtonState === "pending",
+            onEnter: () => void webVRHost.controller?.enterVR(),
+          } : undefined}
         />
       ) : null}
       {host.captions !== false && host.controller ? (

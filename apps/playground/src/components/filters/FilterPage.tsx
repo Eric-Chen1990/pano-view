@@ -1,10 +1,10 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot,
   ImageHotspot,
   PanoFilter,
   PanoVideo,
-  PanoViewer,
   Tile,
   WebVR,
   usePanoViewer,
@@ -259,8 +259,8 @@ export function FilterPage() {
           ))}
         </div>
         <div className="bg-[#020607]">
-          <PanoViewer
-            ref={viewer.ref}
+          <PlaygroundVRViewer
+            viewer={viewer}
             aria-label={t("Panorama filter demo")}
             style={{ height: "min(540px, 68dvh)" }}
           >
@@ -273,7 +273,7 @@ export function FilterPage() {
             />
             <FilterSource source={source} />
             <FilterHotspots />
-          </PanoViewer>
+          </PlaygroundVRViewer>
         </div>
         <div className={pageControlsClassName}>
           <label className={controlLabelClassName}>{t("Preset intensity") + " "}{Math.round(intensity * 100)}%

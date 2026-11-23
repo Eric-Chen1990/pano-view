@@ -48,6 +48,20 @@ export type PanoVideoControlsAppearance = {
   padding?: string;
 };
 
+export type PanoVideoControlButton =
+  | "play"
+  | "volume"
+  | "playbackRate"
+  | "quality"
+  | "captions"
+  | "vr"
+  | "fullscreen";
+
+export type PanoVideoControlsOptions = PanoVideoControlsAppearance & {
+  /** Set a button to false to hide it. Omitted buttons follow media and viewer capabilities. */
+  buttons?: Partial<Record<PanoVideoControlButton, boolean>>;
+};
+
 export type PanoVideoErrorSource = "poster" | "video" | "track";
 
 export type PanoVideoErrorEvent = {

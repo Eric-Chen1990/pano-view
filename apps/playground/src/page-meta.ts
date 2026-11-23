@@ -84,6 +84,11 @@ export const PAGE_META = {
     description:
       "Add sunlight to a 360° panorama or enhance an existing sun with adjustable glow, rays, and lens flare.",
   },
+  "/grid": {
+    title: "Panorama Grid Demo | Pano View",
+    description:
+      "Preview a debug sphere or cube grid in an empty React panorama viewer. Adjust line color and density without loading an image.",
+  },
   "/scene-menu": {
     title: "Panorama Scene Menu Demo | Pano View",
     description:

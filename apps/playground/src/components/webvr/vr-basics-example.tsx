@@ -1,3 +1,4 @@
+import { PlaygroundVRViewer } from "./PlaygroundVRViewer";
 import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
@@ -5,7 +6,6 @@ import { useState, useSyncExternalStore } from "react";
 import {
   GraphicHotspot,
   PanoEvents,
-  PanoViewer,
   Tile,
   WebVR,
   usePanoViewer,
@@ -22,6 +22,7 @@ export function VRBasicsExample() {
     viewer.getVRState,
   );
   const [status, setStatus] = useState<LocalizedMessage>("Detecting VR capabilities…");
+  const [denial, setDenial] = useState<string | null>(null);
   const [interactionMode, setInteractionMode] = useState<WebVRInteractionMode>("auto");
   const [count, setCount] = useState(0);
   return (
@@ -31,18 +32,17 @@ export function VRBasicsExample() {
           type="button"
           className={segmentedButtonClassName}
           disabled={!vr.available}
-          onClick={() =>
+          onClick={() => {
+            setDenial(null);
             void (vr.enabled ? viewer.exitVR() : viewer.enterVR()).catch(() =>
-              setStatus(
-                "VR could not start. Check browser support and permissions, then retry.",
-              ),
-            )
-          }
+              setDenial("VR could not start. Check browser support and permissions, then retry."),
+            );
+          }}
         >
           {vr.enabled ? t("Exit VR") : t("Enter VR")}
         </button>
         <span role="status" className="text-sm">
-          {t(status)}
+          {denial ? t("VR denied: {reason}", { reason: t(denial) }) : t(status)}
         </span>
         <label className="text-sm">{t("Interaction") + " "}<select aria-label={t("VR interaction mode")} value={interactionMode}
           onChange={e => setInteractionMode(e.target.value as WebVRInteractionMode)}>
@@ -52,16 +52,16 @@ export function VRBasicsExample() {
         <span role="status" className="text-sm">{t("Marker activations:") + " "}{count}
         </span>
       </div>
-      <PanoViewer
-        ref={viewer.ref}
+      <PlaygroundVRViewer
+        viewer={viewer}
         aria-label={t("VR basics viewer")}
         style={{ height: 560 }}
       >
         <PanoEvents
           onVRAvailable={() => setStatus("VR available")}
           onVRUnavailable={() => setStatus("VR unavailable in this browser")}
-          onVRDenied={() =>
-            setStatus("VR permission denied; check permissions and retry")
+          onVRDenied={(error) =>
+            setDenial(error instanceof Error ? error.message : "VR permission denied; check permissions and retry")
           }
           onVREnter={(mode) => setStatus(message("Active mode: {mode}", { mode }))}
           onVRExit={() => setStatus("VR session ended")}
@@ -81,7 +81,7 @@ export function VRBasicsExample() {
           tooltip={t("Point and select, or look here in gaze mode")}
           onClick={() => setCount((value) => value + 1)}
         />
-      </PanoViewer>
+      </PlaygroundVRViewer>
     </>
   );
 }

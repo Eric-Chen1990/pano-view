@@ -56,7 +56,7 @@ import { PanoVideoHostContext, notifyPanoVideoHost } from "./host";
 import type {
   PanoVideoCaptionAppearance,
   PanoVideoController,
-  PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
   PanoVideoErrorEvent,
   PanoVideoHlsSelection,
   PanoVideoQualitySwitch,
@@ -84,10 +84,10 @@ export type PanoVideoProps = {
   captions?: boolean | PanoVideoCaptionAppearance;
   /**
    * Playback chrome. `true` / omit mounts the default bar; `false` skips
-   * it; an object mounts the default bar with appearance overrides.
+   * it; an object configures the default bar's appearance and visible buttons.
    * Render `PanoVideoControls` as a PanoViewer child to replace the default.
    */
-  controls?: boolean | PanoVideoControlsAppearance;
+  controls?: boolean | PanoVideoControlsOptions;
   /** Click or tap the panorama to toggle playback in screen mode. Defaults to true. */
   clickToTogglePlayback?: boolean;
   /** Show a centered play button while the visible video is stopped. Defaults to true. */
@@ -322,6 +322,7 @@ export function PanoVideo({
 }: PanoVideoProps) {
   usePanoMediaActivationIntent(autoPlay);
   const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
   const host = useContext(PanoVideoHostContext);
   const variants = useMemo(
     () => resolvePanoVideoVariants({ poster, src, variants: variantsProp }),
@@ -422,6 +423,24 @@ export function PanoVideo({
     return texture;
   }, [gl, ready, video, textureRevision]);
   useEffect(() => () => videoTexture?.dispose(), [videoTexture]);
+
+  useLayoutEffect(() => {
+    if (!video) return;
+    const handlePlaying = () => {
+      if (videoRef.current === video) invalidate();
+    };
+    const handleSeeked = () => {
+      if (videoRef.current !== video || !videoTexture) return;
+      videoTexture.needsUpdate = true;
+      invalidate();
+    };
+    video.addEventListener("playing", handlePlaying);
+    video.addEventListener("seeked", handleSeeked);
+    return () => {
+      video.removeEventListener("playing", handlePlaying);
+      video.removeEventListener("seeked", handleSeeked);
+    };
+  }, [invalidate, video, videoTexture]);
 
   useLayoutEffect(() => {
     if (!video) return;

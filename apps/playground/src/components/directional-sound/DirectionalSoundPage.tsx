@@ -1,3 +1,4 @@
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
@@ -5,7 +6,6 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import {
   AudioHotspot,
   Gyro,
-  PanoViewer,
   Tile,
   WebVR,
   usePanoViewer,
@@ -137,7 +137,7 @@ export function DirectionalSoundPage() {
         </span>
       </div>
       {error && <p role="alert" className="px-6 text-sm">{t(error)}</p>}
-      <PanoViewer ref={viewer.ref} aria-label={t("Directional 3D Sound viewer")} style={{ height: 540 }}>
+      <PlaygroundVRViewer viewer={viewer} aria-label={t("Directional 3D Sound viewer")} style={{ height: 540 }}>
         <Tile {...panorama} />
         <Gyro
           ref={gyro}
@@ -162,7 +162,7 @@ export function DirectionalSoundPage() {
             onError={() => setError(message("Could not load {name}.", { name: name.toLowerCase() }))}
           />
         ))}
-      </PanoViewer>
+      </PlaygroundVRViewer>
       <ExampleCode
         react={{ label: "AudioHotspot", blurb: t("Click a marker to activate audio and toggle that source. soundDistance places the source along its yaw and pitch direction."), code }}
         json={{ format: "project", files: [{

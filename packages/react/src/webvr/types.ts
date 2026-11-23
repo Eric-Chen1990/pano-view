@@ -34,7 +34,7 @@ export type WebVRProfile = {
   k2: number;
 };
 
-/** Target WebXR session refresh rate. Omitting keeps the store default (`"high"`). */
+/** Target WebXR session refresh rate. Defaults to `"high"`. */
 export type WebVRFrameRate = "low" | "mid" | "high" | number;
 
 export type WebVRChromeAppearance = {
@@ -110,7 +110,8 @@ export type WebVRProps = {
    */
   foveation?: number;
   /**
-   * Target WebXR refresh rate. Omit to keep the store default (`"high"`).
+   * Preferred WebXR refresh rate. Defaults to `"high"`. If the device rejects
+   * the request, the session continues at its current rate.
    * A numeric Hz picks the closest rate from `session.supportedFrameRates`.
    */
   frameRate?: WebVRFrameRate;

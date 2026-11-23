@@ -10,37 +10,27 @@ export function clampWebVRFoveation(
 }
 
 /**
- * Maps a developer frame-rate preference into a value accepted by
- * `@pmndrs/xr` `setFrameRate`. Numeric Hz picks the closest entry from the
- * rates the store passes into the callback.
+ * Requests the preferred rate after XR presentation starts. The runtime can
+ * reject this optional setting even when it advertises supported rates.
  */
-export function resolveWebVRFrameRateOption(
+export async function applyWebVRFrameRate(
+  session: Pick<XRSession, "supportedFrameRates" | "updateTargetFrameRate">,
   frameRate: WebVRFrameRate | undefined,
-): "low" | "mid" | "high" | ((rates: ArrayLike<number>) => number | false) | undefined {
-  if (frameRate === undefined) {
-    return undefined;
-  }
-  if (frameRate === "low" || frameRate === "mid" || frameRate === "high") {
-    return frameRate;
-  }
-  if (typeof frameRate !== "number" || !Number.isFinite(frameRate)) {
-    return undefined;
-  }
-  const target = frameRate;
-  return (rates: ArrayLike<number>) => {
-    if (rates.length === 0) {
-      return false;
+): Promise<void> {
+  const rates = session.supportedFrameRates;
+  if (!rates?.length || typeof session.updateTargetFrameRate !== "function") return;
+
+  const last = rates.length - 1;
+  let rate = rates[frameRate === "low" ? 0 : frameRate === "mid" ? Math.ceil(last / 2) : last]!;
+  if (typeof frameRate === "number" && Number.isFinite(frameRate)) {
+    rate = rates[0]!;
+    for (const candidate of rates) {
+      if (Math.abs(candidate - frameRate) < Math.abs(rate - frameRate)) rate = candidate;
     }
-    let best = rates[0]!;
-    let bestDelta = Math.abs(best - target);
-    for (let i = 1; i < rates.length; i += 1) {
-      const candidate = rates[i]!;
-      const delta = Math.abs(candidate - target);
-      if (delta < bestDelta) {
-        best = candidate;
-        bestDelta = delta;
-      }
-    }
-    return best;
-  };
+  }
+  try {
+    await session.updateTargetFrameRate(rate);
+  } catch {
+    // Keep presenting at the device's current rate.
+  }
 }

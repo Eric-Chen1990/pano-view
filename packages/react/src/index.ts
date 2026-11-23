@@ -54,6 +54,9 @@ export { PANO_RAIN_PRESETS, PANO_SNOW_PRESETS } from "./weather/presets";
 export type { PanoRainPreset, PanoSnowPreset, PanoWeatherProps } from "./weather/presets";
 export { PanoSun } from "./sun/pano-sun";
 export type { PanoSunProps } from "./sun/sun-settings";
+export { PanoGrid } from "./grid/pano-grid";
+export type { PanoGridProps } from "./grid/pano-grid";
+export type { PanoGridProjection } from "./grid/geometry";
 export { Gyro } from "./gyro";
 export type { GyroHandle, GyroProps, GyroTouchMode } from "./gyro";
 export { WebVR } from "./webvr/webvr";
@@ -177,7 +180,9 @@ export { DEFAULT_PANO_VIDEO_CAPTION_APPEARANCE } from "./video/pano-video-captio
 export { DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE } from "./video/pano-video-controls";
 export type {
   PanoVideoCaptionAppearance,
+  PanoVideoControlButton,
   PanoVideoControlsAppearance,
+  PanoVideoControlsOptions,
   PanoVideoController,
   PanoVideoErrorEvent,
   PanoVideoErrorSource,

@@ -29,6 +29,7 @@
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
 - [PanoSun](#panosun)
+- [PanoGrid](#panogrid)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -1413,7 +1414,10 @@ export function SphereExample() {
 
 `PanoVideo` 将 2:1 等距圆柱视频映射到与 `Sphere` 相同的内表面球体上。可传单个 `src`，或传含多档质量的 `variants`，以便浏览器选择 mp4 / webm，且控制栏可切换分辨率。切换质量时保留当前时间与播放/暂停状态。
 
-默认播放栏挂载在查看器叠加层上：播放/暂停、进度、时间、音量、倍速、分辨率、字幕与全屏。当浏览器允许 `HTMLMediaElement.volume` 时，音量为悬停（或点击）垂直滑块；iOS Safari 仅暴露静音。倍速菜单列出当前元素接受的速率。字幕菜单还包含字幕字号与背景不透明度的设置面板。查看器较窄时，倍速、画质与字幕会收入「更多」菜单。传 `controls={false}` 可隐藏；传外观对象可重设默认实例样式；或将 `PanoVideoControls` 作为 `PanoViewer` 子组件以替换该实例。
+默认播放栏挂载在查看器叠加层上，包含播放／暂停、进度、时间、音量、倍速、画质、字幕、VR 与全屏。查看器挂载 `WebVR` 且可进入 VR 时，会显示头显图标。当浏览器允许 `HTMLMediaElement.volume` 时，音量使用垂直滑块，iOS Safari 则提供静音按钮。字幕菜单提供字号与背景不透明度设置。查看器较窄时，倍速、画质与字幕会收入「更多」菜单。
+
+传 `controls={false}` 可隐藏整条播放栏。传入对象可同时配置按钮和外观。所有可用按钮默认启用，可在 `controls.buttons` 中将 `play`、`volume`、`playbackRate`、`quality`、`captions`、`vr` 或 `fullscreen` 设为 `false`，同时隐藏它在「更多」中的入口。例如，`controls={{ buttons: { vr: false, fullscreen: false } }}` 会隐藏 VR 与全屏按钮。
+也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件以替换默认实例。
 
 字幕使用 WebVTT `tracks`。视频元素以透明的 1×1 像素节点挂载在查看器内，字幕提示文本（cue）通过屏幕空间叠加层渲染。`captions={false}` 会隐藏叠加层与语言菜单；对象会与默认外观合并（`color`、`background`、`fontSize`、`fontFamily`、`textShadow`、`padding`、`borderRadius`、`maxWidth`、`bottom`）。这些值作为字幕初始外观；观众仍可在运行时通过默认控制栏菜单调整字幕大小与背景。
 
@@ -1469,7 +1473,7 @@ export function VideoExample() {
 - `fallbackVariantId` — 可选。在活动源因解码、格式支持或纹理尺寸错误无法继续时，尝试指定变体一次，并恢复可用的播放进度和播放状态。
 - `tracks` — WebVTT 字幕轨。每项可含 `src`、`srcLang`、`label`、`default`、`id`（省略时用 `srcLang`）、`kind`（`"subtitles"` 或 `"captions"`，默认 `"subtitles"`）。
 - `captions` — `true` / 省略显示默认字幕层；`false` 隐藏叠加层与语言菜单；对象与默认外观合并。默认外观：`color` `#ffffff`，`background` `rgba(0, 0, 0, 0.55)`，`fontSize` `16`，`fontFamily` Inter / system-ui，`fontWeight` `500`，`textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`，`padding` `"6px 10px"`，`borderRadius` `6`，`maxWidth` `"72%"`，`bottom` `72`，`lineHeight` `1.35`。
-- `controls` — `true` / 省略挂载默认播放栏；`false` 隐藏；对象重设默认实例外观。外观字段：`background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）、`padding`（`"8px 10px"`）。也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件替换默认条（同样接收 `appearance`）。
+- `controls` — `true` 或省略时挂载默认播放栏，`false` 隐藏播放栏。`PanoVideoControlsOptions` 对象支持 `buttons`，以及 `background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）和 `padding`（`"8px 10px"`）外观字段。
 - `clickToTogglePlayback` — 默认 `true`。在普通观看和全屏时，点击或轻触全景画面可切换播放与暂停。传 `false` 关闭此手势，也可在全景点击回调中调用 `nativeEvent.preventDefault()` 取消本次切换。
 - `showCenterPlayButton` — 默认 `true`。在普通观看和全屏时，视频暂停、自动播放受阻或播完时，画面中央显示半透明播放按钮。传 `false` 隐藏。此按钮与 `clickToTogglePlayback` 均独立于 `controls`。
 - `yawOffset` — 水平偏移，单位为度，默认 `0`。
@@ -1756,7 +1760,7 @@ const scenes: Scene[] = [
 - `onTransitionError` — `{ sceneId, error }`。
 - `maxTextureMemoryMb` — 共享预算，默认 `128`。
 - `maxConcurrentTileLoads` — 共享并发，默认 `4`。
-- `snapshotMaxPixels` — 旧画面 GPU 快照的最大物理像素面积，默认 `3686400`（约 2560×1440）。
+- `snapshotMaxPixels` — 旧画面 GPU 快照的最大物理像素面积，默认 `3686400`（约 2560×1440）。沉浸式 WebGL 的双眼快照共用此预算。
 
 场景对象上的 `viewLimits` 见 FAQ；`yawOffset` 语义与对应源组件相同。`TileScene` 上的单场景缓存字段在共享缓存下会被忽略，见 [Tile](#tile)。
 
@@ -2114,6 +2118,36 @@ import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 
 在 [太阳光效 Playground](https://pano-view-playground.vercel.app/sun) 选择 **Edit sun** 放大。点击画面或拖动中心标记对齐太阳，用 **Disc size** 调整日盘轮廓，确认后复制生成的参数。可用 **Preview light** 对比原图与光效。照片过曝时可只对准中心，独立调节泛光宽度。多场景项目可在 `Scenes.onSceneReady` 更新太阳参数。照片中的遮挡可通过 `enabled` 或 `intensity` 控制，阴影和反光来自全景源。
 
+## PanoGrid
+
+`PanoGrid` 是全景空间的调试与测试参考网格。可在 `PanoViewer` 内单独挂载、不加载全景图——网格本身形成全景壳；也可与 `Sphere`、`Tile`、`SphereTile`、`PanoVideo` 或 `Scenes` 同级叠加，用于检查贴图对齐。线条在 WebGPU 与 WebGL 下都使用屏幕空间描边，转动视角时线宽保持稳定，且不参与指针命中检测。
+
+```tsx
+import { PanoGrid, PanoViewer } from "@ericchen1990/pano-view";
+
+// 空查看器：网格即全景壳。
+<PanoViewer style={{ height: 480 }}>
+  <PanoGrid projection="sphere" divisions={16} color="#7dffe1" />
+</PanoViewer>
+
+// 在立方体瓦片上叠加六面网格。
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...cubeTileProps} />
+  <PanoGrid projection="cube" divisions={8} color="#ffffff" opacity={0.45} />
+</PanoViewer>
+```
+
+| 属性 | 默认值 | 含义 |
+| --- | --- | --- |
+| `projection` | `"sphere"` | `"sphere"` 画经纬线；`"cube"` 在六个内向立方体面上画网格 |
+| `divisions` | `8` | 密度，按约 90° 立方体面跨度上的格数理解。六面体为每条边的格数；球面使用相同角度步长（`90° / divisions`）铺满整壳，因此同一数值的疏密观感接近。球面限制 `2–64`，六面体限制 `1–64` |
+| `color` | `"#ffffff"` | 线条颜色 |
+| `opacity` | `0.8` | 线条透明度；叠在全景图上时可调低 |
+| `levelCorrection` | — | 可选 `{ pitch, roll }`，与做过水平校正的全景源保持一致 |
+| `radius` | 共享全景半径 | 世界空间壳体半径 |
+
+球面线条跟随查看器的 yaw/pitch（yaw `0` 为正前方）。六面体线条复用与 `Tile` 相同的面变换。可在 [网格 Playground](https://pano-view-playground.vercel.app/grid) 试用两种投影。
+
 ## BackgroundAudio
 
 `BackgroundAudio` 在查看器里播放背景音乐或环境声。它不是热点：没有球面位置、没有标记、音量也不随视角变化。必须作为 `PanoViewer` 的子组件，与 `Scenes`、`Sphere` 或 `Tile` **并列**。不要写进 `Scenes` 的 `renderHotspots`：场景过渡时热点会卸载，背景音频也会停止。
@@ -2308,7 +2342,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
 - `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebGL WebXR 在会话开始前设置 framebuffer 缩放（会话中途不可改）。原生 WebGPU XR 忽略该值，因为 three.js r185 不会把 `scaleFactor` 传给投影层。
 - `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
-- `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
+- `frameRate` — 可选 WebXR 目标刷新率，可指定 `"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。默认 `"high"`。设备拒绝请求时，会话以当前刷新率继续运行。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
 - `cursorDwellMs` — 默认 `1500`；`0` 不自动点击。
 - `wakelock` / `mousePointerLock` — 默认均为 `true`。

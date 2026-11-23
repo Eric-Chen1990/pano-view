@@ -30,6 +30,7 @@ export type WebVRHostSnapshot = {
   profileLabel: string;
   input?: WebVRState["input"];
   available: boolean;
+  entering: boolean;
   chrome: WebVRChrome;
   mode: WebVRMode | null;
   setupOpen: boolean;
@@ -41,7 +42,6 @@ export type WebVRHostSnapshot = {
 export type WebVRHost = {
   controller: WebVRController | null;
   pendingXR: { session: XRSession; connecting: boolean; finish: (entered: boolean) => void } | null;
-  requestingXR: boolean;
   hotspotReferenceHeight: number;
   revision: number;
   snapshot: WebVRHostSnapshot;
@@ -87,11 +87,11 @@ export function createWebVRHost(): WebVRHost {
   return {
     controller: null,
     pendingXR: null,
-    requestingXR: false,
     hotspotReferenceHeight: 1,
     revision: 0,
     snapshot: {
       available: false,
+      entering: false,
       chrome: true,
       mode: null,
       setupOpen: false,

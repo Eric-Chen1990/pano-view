@@ -2,9 +2,12 @@ import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./VideoPage.tsx?raw";
 import {
-  PanoViewer,
   PanoVideo,
+  WebVR,
+  usePanoViewer,
   type PanoVideoCaptionAppearance,
+  type PanoVideoControlButton,
+  type PanoVideoControlsOptions,
   type PanoVideoTrack,
   type PanoVideoVariant,
 } from "@ericchen1990/pano-view";
@@ -24,6 +27,7 @@ import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
+import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
 import { VideoMotionSampler, VideoPerformanceMetrics, type VideoMotionStats } from "./VideoPerformance";
 
 const HLS_SAMPLE = "https://storage.web-3d.tech/videos/ZyCNIoP5er5jEpgDwHvHKo6zJ0etSgeY/T3T1UcnAhNPAGK_a/hls/h264/video.m3u8";
@@ -83,6 +87,18 @@ const HLS_TRACKS = VIDEO_TRACKS.map((track) => ({
 type CaptionLang = "zh" | "en" | "off";
 type VideoProfile = "mobile" | "desktop" | "files";
 
+const CONTROL_BUTTONS = {
+  play: "Play / pause",
+  volume: "Volume",
+  playbackRate: "Playback speed",
+  quality: "Quality",
+  captions: "Captions",
+  vr: "VR",
+  fullscreen: "Fullscreen",
+} satisfies Record<PanoVideoControlButton, string>;
+
+type VideoButtons = NonNullable<PanoVideoControlsOptions["buttons"]>;
+
 function buildVideoSnippet(
   loop: boolean,
   captionLang: CaptionLang,
@@ -91,6 +107,7 @@ function buildVideoSnippet(
   profile: VideoProfile,
   clickToTogglePlayback: boolean,
   showCenterPlayButton: boolean,
+  buttons: VideoButtons,
 ): string {
   const defaultTrack = captionLang === "zh" ? "zh" : "en";
   const tracks = profile === "files" ? VIDEO_TRACKS : HLS_TRACKS;
@@ -99,12 +116,12 @@ function buildVideoSnippet(
     `        defaultVariantId="${profile === "files" ? "1024" : AUTO_VARIANT}"`,
     ...(profile === "mobile" ? [`        fallbackVariantId="${AUTO_VARIANT}"`, '        crossOrigin="anonymous"'] : []),
     `        variants={${JSON.stringify(variants, null, 2).replace(/\n/g, "\n        ")}}`,
-  ].join("\n") : `        src="${HLS_EXAMPLE_URL}"\n        crossOrigin="anonymous"`;
+  ].join("\n") : `        src="${HLS_SAMPLE}"\n        crossOrigin="anonymous"`;
   const captionsProp =
     captionLang === "off"
       ? "false"
       : `{ fontSize: ${fontSize}, color: "${captionColor}" }`;
-  return `import { PanoViewer, PanoVideo } from "@ericchen1990/pano-view";
+  return `import { PanoViewer, PanoVideo, WebVR } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaVideo() {
@@ -117,12 +134,14 @@ export function PanoramaVideo() {
       }}
       style={{ height: "min(540px, 68dvh)" }}
     >
+      <WebVR />
       <PanoVideo
         autoPlay
         loop={${loop}}
         clickToTogglePlayback={${clickToTogglePlayback}}
         showCenterPlayButton={${showCenterPlayButton}}
         captions={${captionsProp}}
+        controls={{ buttons: ${JSON.stringify(buttons)} }}
 ${sourceProps}
         tracks={[
 ${tracks.map((track) => `          { src: "${track.src}", srcLang: "${track.srcLang}", label: "${track.label}"${defaultTrack === track.srcLang ? ", default: true" : ""} },`).join("\n")}
@@ -135,6 +154,7 @@ ${tracks.map((track) => `          { src: "${track.src}", srcLang: "${track.srcL
 
 export function VideoPage() {
   const { t } = usePlaygroundLanguage();
+  const viewer = usePanoViewer();
   const [profile, setProfile] = useState<VideoProfile>(() =>
     window.matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop",
   );
@@ -146,6 +166,8 @@ export function VideoPage() {
   const [loop, setLoop] = useState(true);
   const [clickToTogglePlayback, setClickToTogglePlayback] = useState(true);
   const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
+  const [buttons, setButtons] = useState<VideoButtons>({});
+  const controls = useMemo(() => ({ buttons }), [buttons]);
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
@@ -168,8 +190,8 @@ export function VideoPage() {
   }, [captionColor, captionLang, fontSize]);
 
   const snippet = useMemo(
-    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton),
-    [captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton],
+    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton, buttons),
+    [buttons, captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton],
   );
 
   return (
@@ -270,11 +292,33 @@ export function VideoPage() {
             />
           </label>
         </div>
+        <details className="border-b border-line px-6 py-3 text-sm">
+          <summary className="w-fit cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+            {t("Playback buttons")}
+          </summary>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2" role="group" aria-label={t("Playback buttons")}>
+            {(Object.keys(CONTROL_BUTTONS) as PanoVideoControlButton[]).map((button) => (
+              <label className="inline-flex min-h-9 items-center gap-2" key={button}>
+                <input
+                  checked={buttons[button] !== false}
+                  className="accent-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onChange={(event) => {
+                    const checked = event.currentTarget.checked;
+                    setButtons((current) => ({ ...current, [button]: checked }));
+                  }}
+                  type="checkbox"
+                />
+                {t(CONTROL_BUTTONS[button])}
+              </label>
+            ))}
+          </div>
+        </details>
         <div role="status" className={playbackMessage ? "border-b border-line px-6 py-3 text-sm text-[#e7f2f5]" : undefined}>
           {playbackMessage && t(playbackMessage)}
         </div>
         <div className="bg-[#020607]" ref={viewerRoot}>
-          <PanoViewer
+          <PlaygroundVRViewer
+            viewer={viewer}
             aria-label={t("360 panorama video demo")}
             onViewChange={markViewChange}
             mediaActivation={{
@@ -284,12 +328,14 @@ export function VideoPage() {
             }}
             style={{ height: "min(540px, 68dvh)" }}
           >
+            <WebVR />
             <VideoMotionSampler stats={motion} />
             <PanoVideo
               key={profile}
               autoPlay
               captions={captions}
               clickToTogglePlayback={clickToTogglePlayback}
+              controls={controls}
               defaultVariantId={profile === "files" ? "1024" : profile === "mobile" ? AUTO_VARIANT : undefined}
               fallbackVariantId={profile === "mobile" ? AUTO_VARIANT : undefined}
               loop={loop}
@@ -311,7 +357,7 @@ export function VideoPage() {
               }}
               onVariantChange={() => setPlaybackMessage(null)}
             />
-          </PanoViewer>
+          </PlaygroundVRViewer>
         </div>
         <VideoPerformanceMetrics root={viewerRoot} motion={motion} />
         <ExampleCode
