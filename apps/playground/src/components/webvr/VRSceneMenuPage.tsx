@@ -68,6 +68,7 @@ export function VRSceneMenuPage() {
     thumbnailUrl: `${scene.baseUrl}/previews/200.webp`,
   }));
   const [status, setStatus] = useState<LocalizedMessage>("Detecting VR capabilities…");
+  const [denial, setDenial] = useState<string | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const menuProps: WebVRSceneMenuProps = {
     ...settings,
@@ -95,14 +96,19 @@ export function VRSceneMenuPage() {
           <button
             className={segmentedButtonClassName}
             disabled={!vr.available}
-            onClick={() =>
-              void (vr.enabled ? viewer.exitVR() : viewer.enterVR())
-            }
+            onClick={() => {
+              setDenial(null);
+              void (vr.enabled ? viewer.exitVR() : viewer.enterVR()).catch(() =>
+                setDenial("VR could not start. Check browser support and permissions, then retry."),
+              );
+            }}
             type="button"
           >
             {vr.enabled ? t("Exit VR") : t("Enter VR")}
           </button>
-          <span className="font-mono text-xs text-muted-2">{t(status)}</span>
+          <span role="status" className="font-mono text-xs text-muted-2">
+            {denial ? t("VR denied: {reason}", { reason: t(denial) }) : t(status)}
+          </span>
           <span className="font-mono text-xs text-muted-2">{t("Scene:") + " "}{activeSceneId}
           </span>
           <span className="font-mono text-xs text-muted-2">{t(lastClick)}</span>
@@ -352,9 +358,9 @@ export function VRSceneMenuPage() {
             <PanoEvents
               onVRAvailable={() => setStatus("VR is available")}
               onVRDenied={(error) =>
-                setStatus(
+                setDenial(
                   error instanceof Error
-                    ? `VR denied: ${error.message}`
+                    ? error.message
                     : "VR permission was denied",
                 )
               }

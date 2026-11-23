@@ -672,6 +672,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Current scene title": "当前场景标题",
   "VR is available": "VR 可用",
   "VR permission was denied": "VR 权限被拒绝",
+  "VR denied: {reason}": "无法进入 VR：{reason}",
+  "WebGPU XR could not start. Select Enter VR again to use WebGL.": "WebGPU XR 无法启动。请再次选择「进入 VR」，改用 WebGL。",
   "VR session ended": "VR 会话已结束",
   "VR is unavailable": "VR 不可用",
   "Unknown screen size — open VR Setup to calibrate": "屏幕尺寸未知，请打开 VR 设置进行校准",

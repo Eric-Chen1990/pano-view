@@ -1757,7 +1757,7 @@ const scenes: Scene[] = [
 - `onTransitionError` — `{ sceneId, error }`。
 - `maxTextureMemoryMb` — 共享预算，默认 `128`。
 - `maxConcurrentTileLoads` — 共享并发，默认 `4`。
-- `snapshotMaxPixels` — 旧画面 GPU 快照的最大物理像素面积，默认 `3686400`（约 2560×1440）。
+- `snapshotMaxPixels` — 旧画面 GPU 快照的最大物理像素面积，默认 `3686400`（约 2560×1440）。沉浸式 WebGL 的双眼快照共用此预算。
 
 场景对象上的 `viewLimits` 见 FAQ；`yawOffset` 语义与对应源组件相同。`TileScene` 上的单场景缓存字段在共享缓存下会被忽略，见 [Tile](#tile)。
 
@@ -2339,7 +2339,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
 - `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebGL WebXR 在会话开始前设置 framebuffer 缩放（会话中途不可改）。原生 WebGPU XR 忽略该值，因为 three.js r185 不会把 `scaleFactor` 传给投影层。
 - `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
-- `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
+- `frameRate` — 可选 WebXR 目标刷新率，可指定 `"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。默认 `"high"`。设备拒绝请求时，会话以当前刷新率继续运行。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
 - `cursorDwellMs` — 默认 `1500`；`0` 不自动点击。
 - `wakelock` / `mousePointerLock` — 默认均为 `true`。

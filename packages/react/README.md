@@ -1904,7 +1904,7 @@ apply to the whole `Scenes` viewer rather than to each tile scene.
 - `onTransitionError` — `{ sceneId, error }`.
 - `maxTextureMemoryMb` — shared budget, default `128`.
 - `maxConcurrentTileLoads` — shared concurrency, default `4`.
-- `snapshotMaxPixels` — max physical-pixel area of the outgoing GPU snapshot, default `3686400` (~2560×1440).
+- `snapshotMaxPixels` — max physical-pixel area of the outgoing GPU snapshot, default `3686400` (~2560×1440). In immersive WebGL, both eye snapshots share this budget.
 
 Scene `viewLimits` are covered in the FAQ; `yawOffset` matches the source component. Per-scene cube cache fields are ignored under the shared cache — see [Tile](#tile).
 
@@ -2622,7 +2622,7 @@ respond to the configured gaze or controller input.
 - `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
 - `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebGL WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session). Native WebGPU XR ignores this value because three.js r185 does not pass `scaleFactor` to its projection layer.
 - `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
-- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
+- `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Defaults to `"high"`. If the device rejects the request, the session continues at its current rate.
 - `cursor` — default `true`; `false` hides the center reticle.
 - `cursorDwellMs` — default `1500`; `0` disables auto-click.
 - `wakelock` / `mousePointerLock` — both default to `true`.

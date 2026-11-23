@@ -322,6 +322,7 @@ export function PanoVideo({
 }: PanoVideoProps) {
   usePanoMediaActivationIntent(autoPlay);
   const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
   const host = useContext(PanoVideoHostContext);
   const variants = useMemo(
     () => resolvePanoVideoVariants({ poster, src, variants: variantsProp }),
@@ -422,6 +423,24 @@ export function PanoVideo({
     return texture;
   }, [gl, ready, video, textureRevision]);
   useEffect(() => () => videoTexture?.dispose(), [videoTexture]);
+
+  useLayoutEffect(() => {
+    if (!video) return;
+    const handlePlaying = () => {
+      if (videoRef.current === video) invalidate();
+    };
+    const handleSeeked = () => {
+      if (videoRef.current !== video || !videoTexture) return;
+      videoTexture.needsUpdate = true;
+      invalidate();
+    };
+    video.addEventListener("playing", handlePlaying);
+    video.addEventListener("seeked", handleSeeked);
+    return () => {
+      video.removeEventListener("playing", handlePlaying);
+      video.removeEventListener("seeked", handleSeeked);
+    };
+  }, [invalidate, video, videoTexture]);
 
   useLayoutEffect(() => {
     if (!video) return;

@@ -30,7 +30,7 @@ import {
   SceneDetailContext,
   type SceneDetailReporter,
 } from "./scene-detail";
-import type { Snapshot } from "./scene-transitions/overlay-utils";
+import { fitSnapshotSizes, type Snapshot } from "./scene-transitions/overlay-utils";
 import { resolveTransition } from "./scene-transitions/presets";
 import type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
 import { WebGPURuntimeContext } from "./pano-renderer";
@@ -176,7 +176,7 @@ export type ScenesProps = {
   maxTextureMemoryMb?: number;
   /** Viewer-wide tile request limit. Defaults to 4. */
   maxConcurrentTileLoads?: number;
-  /** Maximum physical-pixel area of the outgoing GPU snapshot. */
+  /** Maximum physical-pixel area of the outgoing GPU snapshot, shared across WebGL XR eyes. */
   snapshotMaxPixels?: number;
 };
 
@@ -360,7 +360,15 @@ function SnapshotCapture({
       return;
     }
 
-    const targets = eyes.map(() => createWebGLSnapshotTarget(1, 1));
+    if (eyes.length === 0) return;
+    const fallbackSize = { width: Math.max(1, Math.floor(width / 2)), height };
+    const sizes = presenting ? fitSnapshotSizes(eyes.map((view) => {
+      const rect = "viewport" in view ? view.viewport as Vector4 | undefined : undefined;
+      return rect && rect.z > 0 && rect.w > 0
+        ? { width: rect.z, height: rect.w }
+        : fallbackSize;
+    }), maxPixels) : eyes.map(() => fallbackSize);
+    const targets = sizes.map(({ width, height }) => createWebGLSnapshotTarget(width, height));
     const previousTarget = gl.getRenderTarget();
     const face = gl.getActiveCubeFace();
     const level = gl.getActiveMipmapLevel();
@@ -377,19 +385,7 @@ function SnapshotCapture({
       gl.autoClear = true;
       gl.setScissorTest(false);
       eyes.forEach((view, index) => {
-        let eyeWidth = Math.max(1, Math.floor(width / 2));
-        let eyeHeight = height;
-        if (presenting && "viewport" in view) {
-          const rect = view.viewport as Vector4 | undefined;
-          if (rect && rect.z > 0 && rect.w > 0) {
-            const eyeScale = Math.min(1, Math.sqrt(maxPixels / (rect.z * rect.w)));
-            eyeWidth = Math.max(1, Math.floor(rect.z * eyeScale));
-            eyeHeight = Math.max(1, Math.floor(rect.w * eyeScale));
-          }
-        }
-        const target = targets[index]!;
-        target.setSize(eyeWidth, eyeHeight);
-        gl.setRenderTarget(target);
+        gl.setRenderTarget(targets[index]!);
         const mask = view.layers.mask;
         view.layers.mask &= ~SPATIAL_UI_MASK;
         try {

@@ -473,6 +473,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           domOverlay: false,
           emulate: false,
           enterGrantedSession: false,
+          frameRate: false,
           hitTest: false,
           layers: false,
           meshDetection: false,

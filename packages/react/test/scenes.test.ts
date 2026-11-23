@@ -4,6 +4,7 @@ import { Texture, TextureLoader } from "three";
 import { SceneSource } from "../src/scenes";
 import type { Scene, SphereTileScene } from "../src/index";
 import { viewTilesAreDrawable } from "../src/scene-detail";
+import { fitSnapshotSizes } from "../src/scene-transitions/overlay-utils";
 import {
   acceptDetailWait,
   normalizeTransitionWaitMs,
@@ -20,6 +21,24 @@ import {
   type TextureAddress,
 } from "../src/tile/texture-manager";
 import { sphereTileAddresses } from "../src/sphere-tile/layout";
+
+test("WebGL XR snapshot sizes share one pixel budget", () => {
+  const square = { width: 2_200, height: 2_200 };
+  assert.deepEqual(fitSnapshotSizes([square, square], 3_686_400), [
+    { width: 1_357, height: 1_357 },
+    { width: 1_357, height: 1_357 },
+  ]);
+  const asymmetric = [{ width: 100, height: 200 }, { width: 200, height: 200 }];
+  assert.deepEqual(fitSnapshotSizes(asymmetric, 60_000), asymmetric);
+  assert.deepEqual(fitSnapshotSizes(asymmetric, 15_000), [
+    { width: 50, height: 100 },
+    { width: 100, height: 100 },
+  ]);
+  assert.deepEqual(fitSnapshotSizes([{ width: 100, height: 1 }, { width: 1, height: 100 }], 20), [
+    { width: 10, height: 1 },
+    { width: 1, height: 10 },
+  ]);
+});
 
 const sphereTileScene: SphereTileScene = {
   id: "sphere-tiles",

@@ -20,6 +20,31 @@ export type OverlayProps = {
   onFinish: () => void;
 };
 
+type SnapshotSize = { width: number; height: number };
+
+export function fitSnapshotSizes(sizes: readonly SnapshotSize[], maxPixels: number): SnapshotSize[] {
+  const area = ({ width, height }: SnapshotSize) => width * height;
+  const totalPixels = sizes.reduce((total, size) => total + area(size), 0);
+  const budget = Math.max(sizes.length, maxPixels);
+  const scale = Math.min(1, Math.sqrt(budget / totalPixels));
+  const fit = (scale: number) => sizes.map(({ width, height }) => ({
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+  }));
+  const fitted = fit(scale);
+  if (fitted.reduce((total, size) => total + area(size), 0) <= budget) return fitted;
+
+  // A dimension clamped to one pixel can put a very narrow view over budget.
+  let low = 0;
+  let high = scale;
+  for (let step = 0; step < 24; step++) {
+    const middle = (low + high) / 2;
+    if (fit(middle).reduce((total, size) => total + area(size), 0) <= budget) low = middle;
+    else high = middle;
+  }
+  return fit(low);
+}
+
 export function isPerspectiveCamera(camera: Camera): camera is PerspectiveCamera {
   return (camera as PerspectiveCamera).isPerspectiveCamera === true;
 }

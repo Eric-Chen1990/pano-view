@@ -63,8 +63,8 @@ import {
   useWebVRWakeLock,
 } from "./wakelock";
 import {
+  applyWebVRFrameRate,
   clampWebVRFoveation,
-  resolveWebVRFrameRateOption,
 } from "./xr-quality";
 
 function initializeSettings(
@@ -134,10 +134,6 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   databaseUrlRef.current = databaseUrl;
   const oversamplingRef = useRef(clampWebVROversampling(oversampling));
   oversamplingRef.current = clampWebVROversampling(oversampling);
-  const foveationRef = useRef(clampWebVRFoveation(foveation));
-  foveationRef.current = clampWebVRFoveation(foveation);
-  const frameRateRef = useRef(frameRate);
-  frameRateRef.current = frameRate;
   const screensizePropRef = useRef(screensize);
   screensizePropRef.current = screensize;
   const profilePropRef = useRef(profile);
@@ -283,26 +279,17 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
     return (await gyroRef.current?.requestPermission()) ?? false;
   }, []);
 
-  const applyWebXRQuality = useCallback(() => {
-    const nextFoveation = foveationRef.current;
-    if (nextFoveation !== undefined && typeof gl.xr.setFoveation === "function") {
-      gl.xr.setFoveation(nextFoveation);
-    }
-    xrStore.setFrameRate(resolveWebVRFrameRateOption(frameRateRef.current) ?? "high");
-  }, [gl.xr, xrStore]);
-
   const activateXR = useCallback((session: XRSession) => {
     if (!mounted.current || xrStore.getState().session !== session || !gl.xr.isPresenting) {
       throw new Error("The WebXR session did not start.");
     }
     webXRSessionRef.current = session;
-    applyWebXRQuality();
     session.addEventListener("end", () => {
       webXRSessionRef.current = null;
       deactivate("webxr");
     }, { once: true });
     activate("webxr");
-  }, [activate, applyWebXRQuality, deactivate, gl.xr, xrStore]);
+  }, [activate, deactivate, gl.xr, xrStore]);
 
   useEffect(() => {
     const pending = host.pendingXR;
@@ -637,26 +624,18 @@ export const WebVR = forwardRef<WebVRHandle, WebVRProps>(function WebVR(
   }, [gl.domElement, mode]);
 
   useEffect(() => {
-    if (mode !== "webxr") {
-      return;
+    const session = webXRSessionRef.current;
+    if (mode === "webxr" && session && gl.xr.getSession() === session) {
+      void applyWebVRFrameRate(session, frameRate);
     }
-    const session =
-      webXRSessionRef.current ?? xrStore.getState().session ?? null;
-    if (!session) {
-      return;
-    }
-    const nextFoveation = foveationRef.current;
-    if (
-      nextFoveation !== undefined &&
-      typeof gl.xr.setFoveation === "function"
-    ) {
+  }, [frameRate, gl.xr, mode]);
+
+  useEffect(() => {
+    const nextFoveation = clampWebVRFoveation(foveation);
+    if (mode === "webxr" && nextFoveation !== undefined && typeof gl.xr.setFoveation === "function") {
       gl.xr.setFoveation(nextFoveation);
     }
-    const frameRateOption = resolveWebVRFrameRateOption(frameRateRef.current);
-    if (frameRateOption !== undefined) {
-      xrStore.setFrameRate(frameRateOption);
-    }
-  }, [foveation, frameRate, gl.xr, mode, xrStore]);
+  }, [foveation, gl.xr, mode]);
 
   const pointerLocked = useWebVRPointerLock(
     mousePointerLock && mode === "fake" && !setupOpen,
