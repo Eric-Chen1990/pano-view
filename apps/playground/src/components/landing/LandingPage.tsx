@@ -108,7 +108,7 @@ export function LandingPage() {
               key={demo.demo}
               onClick={() => trackDemoOpened(demo.demo)}
             >
-              <span className={monoLabelClassName}>{demo.eyebrow}</span>
+              <span className={monoLabelClassName}>{t(demo.eyebrow)}</span>
               <h3 className="m-0 mt-5 text-2xl leading-tight font-bold text-[#f5fbfc]">
                 {t(demo.title)}
               </h3>
@@ -165,11 +165,11 @@ export function LandingPage() {
         </div>
         <div className={cardClassName + " p-6"}>
           <p className="m-0 text-base leading-7 text-[#c2d7da]">
-            Copy the existing krpano <code>&lt;cube&gt;</code> URL and multires
-            values into <code>urlTemplate</code>{" " + t("and") + " "}<code>multires</code>, then
-            pass <code>&lt;preview url&gt;</code> to <code>previewUrl</code>.
-            Pano View supports this tile output format, but is not a krpano
-            plugin, wrapper, or affiliated project.
+            {t("Copy the existing krpano")} <code>&lt;cube&gt;</code>{" "}
+            {t("URL and multires values into")} <code>urlTemplate</code>{" "}
+            {t("and")} <code>multires</code>{t(", then pass")} <code>&lt;preview url&gt;</code>{" "}
+            {t("to")} <code>previewUrl</code>
+            {t(". Pano View supports this tile output format, but is not a krpano plugin, wrapper, or affiliated project.")}
           </p>
           <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-sm">
             <a

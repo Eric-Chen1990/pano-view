@@ -237,6 +237,7 @@ export const POPUPS_BY_SCENE: Partial<
 
 // The project must contain these hotspot IDs in entrance / hall.
 export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
+  const { t } = usePlaygroundLanguage();
   const [selected, setSelected] = useState<PopupSelection | null>(null);
   const popup = selected
     ? POPUPS_BY_SCENE[selected.sceneId]?.[selected.hotspotId]
@@ -258,7 +259,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
         onActiveSceneIdChange={() => setSelected(null)}
       />
       <PanoOverlay>
-        <PanoDialog
+        <PanoDialog closeLabel={t("Close")}
           open={popup !== undefined}
           onOpenChange={(open) => {
             if (!open) setSelected(null);

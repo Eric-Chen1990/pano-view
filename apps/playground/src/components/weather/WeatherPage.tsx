@@ -63,7 +63,7 @@ function WeatherPresetSelect<Preset extends PanoRainPreset | PanoSnowPreset>({
           if (preset) onChange(preset);
         }}
       >
-        {options.map((preset) => <option key={preset} value={preset}>{PRESET_LABELS[preset]}</option>)}
+        {options.map((preset) => <option key={preset} value={preset}>{t(PRESET_LABELS[preset])}</option>)}
       </select>
     </label>
   );
@@ -165,7 +165,7 @@ ${optionalWeatherProps}      />
                   if (value !== "off") setType(value);
                 }}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>

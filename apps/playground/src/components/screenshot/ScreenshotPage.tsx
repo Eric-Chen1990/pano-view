@@ -131,7 +131,7 @@ export function ScreenshotPage() {
             className="pointer-events-auto absolute right-3 bottom-3 left-3 flex flex-wrap items-end gap-2 border border-line bg-[#081619]/95 p-2.5"
           >
             <label className={controlLabelClassName}>{t("Capture area")}<select className={controlInputClassName} value={mode} onChange={(event) => setMode(event.target.value as PanoScreenshotMode)}>
-                {Object.entries(modes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                {Object.entries(modes).map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
               </select>
             </label>
             <label className={controlLabelClassName}>{t("Format")}<select className={controlInputClassName} value={format} onChange={(event) => setFormat(event.target.value as PanoScreenshotFormat)}>
@@ -160,7 +160,7 @@ export function ScreenshotPage() {
             {progress.status === "error" && <p role="alert" className="m-0 w-full text-sm">{t("Could not load the panorama.")}</p>}
             {error && <p role="alert" className="m-0 w-full text-sm">{t(error)}</p>}
           </form>
-          <PanoDialog
+          <PanoDialog closeLabel={t("Close")}
             open={image !== null}
             onOpenChange={(open) => { if (!open) setImage(null); }}
             title={t("Screenshot preview")}

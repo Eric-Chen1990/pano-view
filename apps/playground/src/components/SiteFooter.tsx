@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../i18n/language";
 import { RelatedExamples } from "./RelatedExamples";
 import { trackCta } from "../analytics";
 import { FOOTER_LINKS } from "../links";
@@ -8,11 +9,12 @@ type SiteFooterProps = {
 };
 
 export function SiteFooter({ label }: SiteFooterProps) {
+  const { t } = usePlaygroundLanguage();
   return (
     <>
       <RelatedExamples />
       <footer className={footerClassName}>
-        <span>{label}</span>
+        <span>{t(label)}</span>
         <a
           className="text-[#75cbd3] no-underline transition hover:text-[#dcecef]"
           href={FOOTER_LINKS.author}

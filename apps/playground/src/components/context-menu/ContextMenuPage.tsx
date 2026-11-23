@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
@@ -119,7 +120,7 @@ export function ContextMenuPage() {
   const [mode, setMode] = useState<MenuMode>("default");
   const [opacity, setOpacity] = useState(0.95);
   const [borderRadius, setBorderRadius] = useState(8);
-  const [lastAction, setLastAction] = useState("Right-click the panorama.");
+  const [lastAction, setLastAction] = useState<LocalizedMessage>("Right-click the panorama.");
 
   const appearance = useMemo<PanoContextMenuAppearance>(
     () => ({
@@ -138,21 +139,21 @@ export function ContextMenuPage() {
   const copyItem = useMemo<PanoContextMenuEntry>(
     () => ({
       id: "copy",
-      label: "Copy yaw / pitch",
+      label: t("Copy yaw / pitch"),
       icon: <CopyIcon />,
       onSelect: ({ position }) => {
         const text = `${position.yaw.toFixed(2)}, ${position.pitch.toFixed(2)}`;
         void navigator.clipboard?.writeText(text);
-        setLastAction(`Copied ${text}`);
+        setLastAction(message("Copied {value}", { value: text }));
       },
     }),
-    [],
+    [t],
   );
 
   const lookHereItem = useMemo<PanoContextMenuEntry>(
     () => ({
       id: "look-here",
-      label: "Look here",
+      label: t("Look here"),
       image: "/fixtures/hotspots/signal.svg",
       onSelect: ({ position }) => {
         pano.setView({
@@ -160,11 +161,11 @@ export function ContextMenuPage() {
           pitch: position.pitch,
         });
         setLastAction(
-          `Look at ${position.yaw.toFixed(1)}°, ${position.pitch.toFixed(1)}°`,
+          message("Look at {yaw}°, {pitch}°", { yaw: position.yaw.toFixed(1), pitch: position.pitch.toFixed(1) }),
         );
       },
     }),
-    [],
+    [t],
   );
 
   const contextMenu = useMemo(() => {
@@ -208,7 +209,7 @@ export function ContextMenuPage() {
             <p className={eyebrowClassName}>{t("Context menu bench")}</p>
             <h1 className={pageHeadingTitleClassName} id="context-menu-title">{t("Custom right-click menu")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>{lastAction}</p>
+          <p className={pageHeadingStatusClassName}>{t(lastAction)}</p>
         </div>
         <div className={pageControlsClassName}>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>

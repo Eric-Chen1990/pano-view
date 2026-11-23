@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoEvents,
@@ -66,7 +67,7 @@ export function VRSceneMenuPage() {
     title: titles[scene.id] ?? `Scene ${index + 1}`,
     thumbnailUrl: `${scene.baseUrl}/previews/200.webp`,
   }));
-  const [status, setStatus] = useState("Detecting VR capabilities…");
+  const [status, setStatus] = useState<LocalizedMessage>("Detecting VR capabilities…");
   const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const menuProps: WebVRSceneMenuProps = {
     ...settings,
@@ -104,7 +105,7 @@ export function VRSceneMenuPage() {
           <span className="font-mono text-xs text-muted-2">{t(status)}</span>
           <span className="font-mono text-xs text-muted-2">{t("Scene:") + " "}{activeSceneId}
           </span>
-          <span className="font-mono text-xs text-muted-2">{lastClick}</span>
+          <span className="font-mono text-xs text-muted-2">{t(lastClick)}</span>
         </div>
         <div className="space-y-3 border-b border-line p-6">
           <div className="flex gap-4">
@@ -176,7 +177,7 @@ export function VRSceneMenuPage() {
                         }))
                       }
                     />{" "}
-                    {key}
+                    {t(key)}
                   </label>
                 ),
               )}
@@ -226,7 +227,7 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map(([key, min, max, step]) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-20 border p-1"
                     type="number"
@@ -264,7 +265,7 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map((key) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-40 border p-1"
                     value={appearance[key] ?? ""}
@@ -287,7 +288,7 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map(([key, min, max, step]) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-20 border p-1"
                     type="number"
@@ -357,7 +358,7 @@ export function VRSceneMenuPage() {
                     : "VR permission was denied",
                 )
               }
-              onVREnter={(mode) => setStatus(`Active mode: ${mode}`)}
+              onVREnter={(mode) => setStatus(message("Active mode: {mode}", { mode }))}
               onVRExit={() => setStatus("VR session ended")}
               onVRUnavailable={() => setStatus("VR is unavailable")}
               onVRUnknownDevice={() =>

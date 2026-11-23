@@ -179,13 +179,15 @@ export function PanoMediaControls({
   seekSpeed?: number;
   volumeSpeed?: number;
 }) {
+  const t = usePanoUiTranslation();
   useSyncExternalStore(
     controller?.subscribe ?? (() => () => {}),
     controller?.getSnapshot ?? (() => null),
     () => null
   );
   useTarget(controller);
-  const available = mediaActions(controller, seekSpeed, volumeSpeed);
+  const available = mediaActions(controller, seekSpeed, volumeSpeed)
+    .map((action) => ({ ...action, label: t(action.label) }));
   const ordered = ["rewind", "play", "pause", "forward", "mute", "unmute", "vol-", "vol+"]
     .flatMap((id) => available.filter((action) => action.id === id));
   return (
@@ -207,15 +209,18 @@ export function PanoModelControls({
   rotateSpeed?: number;
   zoomSpeed?: number;
 }) {
+  const t = usePanoUiTranslation();
   useTarget(adapter);
   const spatial = useContext(SpatialHostContext);
-  const defaults = modelActions(adapter, rotateSpeed, zoomSpeed).filter(action =>
+  const available = modelActions(adapter, rotateSpeed, zoomSpeed)
+    .map((action) => ({ ...action, label: t(action.label) }));
+  const defaults = available.filter(action =>
     !(spatial?.input.canDrag && adapter.rotateBy && ["left", "right", "up", "down"].includes(action.id)) &&
     !(spatial?.input.hasStick && adapter.zoomBy && ["in", "out"].includes(action.id)));
   return (
     <PanoControlGroup
       {...props}
-      actions={actions || props.children ? choose(modelActions(adapter, rotateSpeed, zoomSpeed), actions) : defaults}
+      actions={actions || props.children ? choose(available, actions) : defaults}
     />
   );
 }
@@ -288,7 +293,8 @@ export function PanoScrollControls({
   }, [targetRef, vr]);
   useTarget(targetRef.current);
   const available = choose(
-    scrollActions(targetRef.current, speed, repeatIntervalMs),
+    scrollActions(targetRef.current, speed, repeatIntervalMs)
+      .map((action) => ({ ...action, label: t(action.label) })),
     actions
   ).filter((action) => action.enabled?.() !== false);
   const spatial = useContext(SpatialHostContext);

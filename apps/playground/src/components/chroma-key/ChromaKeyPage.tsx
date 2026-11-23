@@ -92,7 +92,7 @@ ${Object.entries(props)
                 setHex(undefined);
                 setError("");
               }}>
-              {Object.entries(media).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+              {Object.entries(media).map(([key, item]) => <option key={key} value={key}>{t(item.label)}</option>)}
             </select>
           </label>
           <div className="flex flex-wrap gap-2">
@@ -123,7 +123,7 @@ ${Object.entries(props)
           {(["threshold", "smoothing"] as const).map(name => (
             <label key={name} className={controlLabelClassName}>
               <span className="flex justify-between">
-                {name === "threshold" ? "Threshold" : t("Edge smoothing")}
+                {name === "threshold" ? t("Threshold") : t("Edge smoothing")}
                 <span aria-hidden="true">{settings[name].toFixed(2)}</span>
               </span>
               <input type="range" className={focus} min={0} max={1} step={0.01} value={settings[name]}
@@ -136,10 +136,16 @@ ${Object.entries(props)
           <button type="button" className={button} aria-expanded={sampler} onClick={() => setSampler(value => !value)}>
             {sampler ? t("Close color sampler") : t("Sample from source")}
           </button>
-          {sampler && <ChromaKeyColorSampler kind={kind} src={source.src} className="grid gap-3 text-sm [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-white"
+          {sampler && <ChromaKeyColorSampler labels={{
+            loading: t("Loading source media…"),
+            loadError: t("Could not load the source. Check its URL, format, and cross-origin permissions."),
+            sampleError: t("Could not read this pixel. Check cross-origin permissions or choose another point."),
+            pick: t("Sample a color. Use arrow keys to move and Enter to pick."),
+            time: t("Video frame time"),
+          }} kind={kind} src={source.src} className="grid gap-3 text-sm [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-white"
             onPick={color => { setHex(undefined); setColor(color); }} />}
           {error && <p role="status" className="text-sm">{t(error)}</p>}
-          <label className={controlLabelClassName}>{t("Renderer")}<select value={renderer} className={`${controlInputClassName} ${focus}`}
+          <label className={controlLabelClassName}>{t("Renderer")}<select aria-label={t("Renderer")} value={renderer} className={`${controlInputClassName} ${focus}`}
               onChange={event => {
                 setBackend(undefined);
                 setRenderer(event.currentTarget.value === "webgl" ? "webgl" : "auto");

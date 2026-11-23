@@ -848,6 +848,11 @@ import "@ericchen1990/pano-view/styles.css";
 
 ## PanoViewer
 
+### 翻译内置控件
+
+从 `@ericchen1990/pano-view` 导入 `PanoUiTranslationProvider` 并包裹查看器，即可翻译内置控件的标签。传给 `translate` 的函数接收默认英文文案，返回对应译文。没有译文时返回原文，翻译时保留 `{viewer}` 等占位符。支持自定义标签或 `translate` 属性的控件可直接传入对应值。
+
+
 ### 渲染后端
 
 `PanoViewer` 默认使用 `renderer="auto"`。浏览器可用时优先使用原生 WebGPU，

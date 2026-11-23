@@ -412,7 +412,7 @@ function CaptionsMenu({
               active={Number(snapshot.captionAppearance.fontSize) === option.value}
               appearance={appearance}
               key={option.id}
-              label={option.label}
+              label={t(option.label)}
               onClick={() => {
                 onSetCaptionAppearance({ fontSize: option.value });
               }}
@@ -425,7 +425,7 @@ function CaptionsMenu({
               active={snapshot.captionAppearance.background === option.value}
               appearance={appearance}
               key={option.id}
-              label={option.label}
+              label={t(option.label)}
               onClick={() => {
                 onSetCaptionAppearance({ background: option.value });
               }}
@@ -829,8 +829,8 @@ export function PanoVideoControlsHud({
     variants: snapshot.variants,
     hlsQuality,
     qualitySwitch,
-  });
-  const switchLabel = qualitySwitch ? videoQualitySwitchStatus(qualitySwitch.state) : undefined;
+  }, t);
+  const switchLabel = qualitySwitch ? t(videoQualitySwitchStatus(qualitySwitch.state)) : undefined;
   const showCaptionsMenu = snapshot.captionsEnabled && snapshot.tracks.length > 0;
 
   const closeMenu = () => {
@@ -952,7 +952,7 @@ export function PanoVideoControlsHud({
               ? [
                   {
                     id: "variant",
-                    label: `Quality · ${qualityLabel}`,
+                    label: `${t("Quality")} · ${qualityLabel}`,
                     active: false,
                     onSelect: () => {
                       setMenu("variant");
@@ -1025,7 +1025,7 @@ export function PanoVideoControlsHud({
       {!compact && menu === "variant" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
-        label={switchLabel ? `Resolution, ${qualityLabel}` : t("Resolution")}
+        label={switchLabel ? `${t("Resolution")}, ${qualityLabel}` : t("Resolution")}
         onClick={() => {
           toggleMenu("variant");
         }}

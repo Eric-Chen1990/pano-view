@@ -143,7 +143,7 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
         )}
       </div>
       <PanoViewer
-        ref={viewer.ref} aria-label={label} initialView={initialView} minFov={5}
+        ref={viewer.ref} aria-label={t(label)} initialView={initialView} minFov={5}
         onPanoramaClick={editing ? (event) => {
           if (event.button === 0) moveSun(event.position);
         } : undefined}
@@ -202,13 +202,13 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
           );
         })}
         {DIAMETERS.filter(([key]) => !editing || key !== "angularSize").map(([key, name, min, max]) => (
-          <SunSlider key={key} label={name} value={layers[key]} min={min} max={max} step={0.01} suffix="°"
+          <SunSlider key={key} label={t(name)} value={layers[key]} min={min} max={max} step={0.01} suffix="°"
             onChange={(value) => setSettings((current) => ({ ...current, [key]: value }))} />
         ))}
       </div>
       <div className={pageControlsClassName} role="group" aria-label={t("Light strength")}>
         {STRENGTHS.map(([key, name]) => (
-          <SunSlider key={key} label={name} value={settings[key]} min={0} max={1} step={0.01}
+          <SunSlider key={key} label={t(name)} value={settings[key]} min={0} max={1} step={0.01}
             onChange={(value) => setSettings((current) => ({ ...current, [key]: value }))} />
         ))}
       </div>

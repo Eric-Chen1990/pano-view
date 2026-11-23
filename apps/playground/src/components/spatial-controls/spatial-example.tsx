@@ -135,7 +135,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
               >
                 {t(openLabel)}
               </button>
-              <PanoDialog
+              <PanoDialog closeLabel={t("Close")}
                 open={open}
                 onOpenChange={setOpen}
                 title={

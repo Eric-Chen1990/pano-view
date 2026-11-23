@@ -266,9 +266,9 @@ export function PanoMapOverlay({
   showZoomControls,
   showCollapseControl,
   iconSize,
-  openLabel = "Map",
-  closeLabel = "Close",
-  title = "Map",
+  openLabel: openLabelProp,
+  closeLabel: closeLabelProp,
+  title: titleProp,
   launcher,
   close,
   className,
@@ -277,6 +277,9 @@ export function PanoMapOverlay({
   editorSurface = false,
 }: PanoMapOverlayProps) {
   const t = usePanoUiTranslation();
+  const openLabel = openLabelProp ?? t("Map");
+  const closeLabel = closeLabelProp ?? t("Close");
+  const title = titleProp ?? t("Map");
   const { size } = usePanoOverlay();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);

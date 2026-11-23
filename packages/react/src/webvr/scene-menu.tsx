@@ -138,7 +138,7 @@ function MenuSurface({
   activeId,
   onSelect,
   showVisited = false,
-  visitedLabel = "Visited",
+  visitedLabel: visitedLabelProp,
   layout = "compact",
   displayMode = "paged",
   arcAngle,
@@ -156,6 +156,7 @@ function MenuSurface({
   appearance,
 }: WebVRSceneMenuProps) {
   const t = usePanoUiTranslation();
+  const visitedLabel = visitedLabelProp ?? t("Visited");
   const visitedSceneIds = useVisitedSceneIds(showVisited);
   const { camera, gl } = useThree();
   const runtime = useContext(WebVRRuntimeContext)!;
@@ -474,7 +475,7 @@ function MenuSurface({
       next = sceneMenuNeighbor(items, activeId, 1, loop);
     add(
       "previous",
-      "Previous scene",
+      t("Previous scene"),
       controls.previous.x,
       controls.previous.y,
       controls.previous.w,
@@ -484,7 +485,7 @@ function MenuSurface({
     );
     add(
       "open",
-      "Show scenes",
+      t("Show scenes"),
       controls.center.x,
       controls.center.y,
       controls.center.w,
@@ -505,7 +506,7 @@ function MenuSurface({
     );
     add(
       "next",
-      "Next scene",
+      t("Next scene"),
       controls.next.x,
       controls.next.y,
       controls.next.w,
@@ -533,7 +534,7 @@ function MenuSurface({
     if (!all)
       add(
         "previous-page",
-        "Previous page",
+        t("Previous page"),
         controls.previous.x,
         controls.previous.y,
         controls.previous.w,
@@ -546,7 +547,7 @@ function MenuSurface({
       );
     add(
       "close",
-      "Hide scenes",
+      t("Hide scenes"),
       controls.center.x,
       controls.center.y,
       controls.center.w,
@@ -556,7 +557,7 @@ function MenuSurface({
     if (!all)
       add(
         "next-page",
-        "Next page",
+        t("Next page"),
         controls.next.x,
         controls.next.y,
         controls.next.w,

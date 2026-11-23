@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
@@ -93,7 +94,7 @@ export function ProjectPage() {
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
-  const [status, setStatus] = useState("Loading project.json…");
+  const [status, setStatus] = useState<LocalizedMessage>("Loading project.json…");
   useEffect(() => {
     const controller = new AbortController();
     loadPanoProject(projectUrl, {
@@ -128,7 +129,7 @@ export function ProjectPage() {
           role={error ? "alert" : "status"}
           className="my-4 text-sm text-slate-300"
         >
-          {error ?? status}
+          {t(error ?? status)}
         </p>
         {project ? (
           <>
@@ -160,21 +161,21 @@ export function ProjectPage() {
                 onActiveSceneIdChange={(id) => { setActiveSceneId(id); setPopup(null); }}
                 onPopupRequest={({ popup }) => setPopup(popup)}
                 transition="dissolve"
-                onSceneReady={(id) => setStatus(`Ready: ${id}`)}
+                onSceneReady={(id) => setStatus(message("Ready: {scene}", { scene: id }))}
                 onTransitionError={({ sceneId }) =>
-                  setStatus(`Could not load ${sceneId}`)
+                  setStatus(message("Could not load {name}", { name: sceneId }))
                 }
                 onHotspotClick={({ hotspot }) =>
-                  setStatus(`Clicked: ${hotspot.label ?? hotspot.id}`)
+                  setStatus(message("Clicked: {label}", { label: hotspot.label ?? hotspot.id }))
                 }
                 onHotspotError={({ hotspot }) =>
                   setStatus(
-                    `Could not play or load ${hotspot.label ?? hotspot.id}`
+                    message("Could not play or load {label}", { label: hotspot.label ?? hotspot.id })
                   )
                 }
               />
               <PanoOverlay>
-                <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+                <ProjectPopupDialog closeLabel={t("Close")} popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
               </PanoOverlay>
             </PanoViewer>
           </>

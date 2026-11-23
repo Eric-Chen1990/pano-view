@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot,
@@ -50,7 +51,7 @@ export function ComparePage() {
   const [layout, setLayout] = useState<PanoCompareLayout>("left-right");
   const [presentation, setPresentation] = useState<PanoComparePresentation>("wipe");
   const [activeId, setActiveId] = useState(scenes[0]!.id);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<LocalizedMessage>("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectScene = (id: string) => {
     setError("");
@@ -107,12 +108,12 @@ export function PanoramaComparison() {
           layout={layout}
           dividerColor={dividerColor}
           dividerWidth={dividerWidth}
-          onSceneError={({ side }) => setError(`Unable to load the ${side} image.`)}
+          onSceneError={({ side }) => setError(message("Unable to load the {side} image.", { side }))}
           renderHotspots={() => (
-            <GraphicHotspot id="comparison-info" ariaLabel="About this comparison"
+            <GraphicHotspot id="comparison-info" ariaLabel={t("About this comparison")}
               position={{ yaw: 0, pitch: 0 }} width={4} height={4}
               graphic={{ kind: "circle", fill: "#1578c9", stroke: "#ffffff", strokeWidth: 4 }}
-              tooltip="About this comparison"
+              tooltip={t("About this comparison")}
               onClick={() => setDialogOpen(true)}
             />
           )}
@@ -120,7 +121,7 @@ export function PanoramaComparison() {
         <PanoOverlay>
           <PanoSceneMenu activeId={activeId} items={menu} onSelect={selectScene}
             anchor={{ align: "bottom", inset: 12 }} collapsible />
-          <PanoDialog open={dialogOpen} onOpenChange={setDialogOpen} title={t("About this comparison")}>{t("Both panoramas use the same camera and share this hotspot.")}</PanoDialog>
+          <PanoDialog closeLabel={t("Close")} open={dialogOpen} onOpenChange={setDialogOpen} title={t("About this comparison")}>{t("Both panoramas use the same camera and share this hotspot.")}</PanoDialog>
         </PanoOverlay>
       </PanoViewer>
       <div className="mt-6">

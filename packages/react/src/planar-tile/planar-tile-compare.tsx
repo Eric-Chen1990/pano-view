@@ -162,9 +162,10 @@ export function PlanarTileCompare({
   presentation = "wipe", layout = "left-right", split: controlledSplit, defaultSplit = 0.5, onSplitChange,
   dividerColor, dividerWidth,
   initialScale, minScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
-  onSceneReady, onSceneError, "aria-label": label = "Image comparison", className, style,
+  onSceneReady, onSceneError, "aria-label": labelProp, className, style,
 }: PlanarTileCompareProps) {
   const t = usePanoUiTranslation();
+  const label = labelProp ?? t("Image comparison");
   const [internalId, setInternalId] = useState(() => defaultActiveSceneId ?? scenes[0]?.id);
   const [shown, setShown] = useState<ShownPair | null>(null);
   const [failure, setFailure] = useState<PairFailure | null>(null);
@@ -262,7 +263,7 @@ export function PlanarTileCompare({
       {(pending || error || !visible) && (
         <div className="pano-planar-status">
           <span role="status">
-            {error ? `Could not load the ${error.side} image.` : pending ? t("Loading image pair…") : t("No image pair selected.")}
+            {error ? t(error.side === "before" ? "Could not load the before image." : "Could not load the after image.") : pending ? t("Loading image pair…") : t("No image pair selected.")}
           </span>
           {error && <button type="button" onClick={() => {
             root.current?.focus({ preventScroll: true });

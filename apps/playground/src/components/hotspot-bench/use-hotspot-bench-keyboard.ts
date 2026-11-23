@@ -1,3 +1,4 @@
+import { message } from "../../i18n/locale";
 import { useEffect } from "react";
 import { selectDrawingPath, useHotspotBenchStore } from "./store";
 
@@ -21,14 +22,14 @@ export function useHotspotBenchKeyboard() {
         useHotspotBenchStore.setState({
           draftVertices: [],
           tool: "navigate",
-          lastAction: `${drawingPolyline ? "Polyline" : "Polygon"} draft cancelled.`,
+          lastAction: message("{type} draft cancelled.", { type: drawingPolyline ? "Polyline" : "Polygon" }),
         });
       }
       if (event.key === "Backspace") {
         event.preventDefault();
         useHotspotBenchStore.setState((state) => ({
           draftVertices: state.draftVertices.slice(0, -1),
-          lastAction: `Last ${drawingPolyline ? "polyline" : "polygon"} vertex removed.`,
+          lastAction: message("Last {type} vertex removed.", { type: drawingPolyline ? "polyline" : "polygon" }),
         }));
       }
     };

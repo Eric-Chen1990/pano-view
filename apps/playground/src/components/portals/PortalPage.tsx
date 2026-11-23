@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoViewer,
@@ -164,7 +165,7 @@ export function PortalPage() {
   const [sceneId, setSceneId] = useState(INITIAL_SCENE_ID);
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<LocalizedMessage>("");
   const scene = PORTAL_SCENES.find(({ id }) => id === sceneId);
 
   return (
@@ -215,7 +216,7 @@ export function PortalPage() {
           }}
           onTransitionError={({ sceneId }) => {
             const target = PORTAL_SCENES.find(({ id }) => id === sceneId);
-            setError(`Could not load ${target?.name ?? sceneId}. Try the doorway again.`);
+            setError(message("Could not load {scene}. Try the doorway again.", { scene: target?.name ?? sceneId }));
           }}
           renderHotspots={renderDoors}
         />

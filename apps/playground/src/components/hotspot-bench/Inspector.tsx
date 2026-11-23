@@ -1,3 +1,4 @@
+import { message } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { validatePolygonVertices, type GraphicDefinition, type HotspotMode } from "@ericchen1990/pano-view";
 import { useMemo } from "react";
@@ -122,7 +123,7 @@ export function Inspector() {
         </div>
         {selected ? (
           <span className="border border-[#3e6c73] px-1.5 py-[5px] font-mono text-[0.57rem] uppercase tracking-[0.08em] text-[#df6b42]">
-            {selected.type}
+            {t(selected.type)}
           </span>
         ) : null}
         {selectedPolygon ? (
@@ -181,7 +182,7 @@ export function Inspector() {
           <button
             className={cn(listRowClassName, selectedId === hotspot.id && listRowActiveClassName)}
             key={hotspot.id}
-            onClick={() => selectItem(hotspot.id, `${hotspot.label} selected.`)}
+            onClick={() => selectItem(hotspot.id, message("{hotspot} selected.", { hotspot: hotspot.label }))}
             type="button"
           >
             <span className="row-span-2 pt-0.5 font-mono text-[0.57rem] text-[#df6b42]">
@@ -201,7 +202,7 @@ export function Inspector() {
             key={polygon.id}
             onClick={() => selectItem(
               polygon.id,
-              `${polygon.label} selected. Drag the polygon or a vertex handle.`,
+              message("{hotspot} selected. Drag the polygon or a vertex handle.", { hotspot: polygon.label }),
             )}
             type="button"
           >
@@ -219,7 +220,7 @@ export function Inspector() {
             key={polyline.id}
             onClick={() => selectItem(
               polyline.id,
-              `${polyline.label} selected. Drag the path or a vertex handle.`,
+              message("{hotspot} selected. Drag the path or a vertex handle.", { hotspot: polyline.label }),
             )}
             type="button"
           >

@@ -223,10 +223,10 @@ ${sourceProps}
           <div className="flex w-full flex-wrap items-end gap-4">
             {introFields.map(({ key, label, unit, min, max, step }) => (
               <label className={cn(controlLabelClassName, "w-32 max-w-full")} key={key}>
-                <span>{label} <span className="font-mono normal-case">{intro[key]}{unit}</span></span>
+                <span>{t(label)} <span className="font-mono normal-case">{intro[key]}{unit}</span></span>
                 <input
                   type="range"
-                  aria-label={label}
+                  aria-label={t(label)}
                   min={min}
                   max={max}
                   step={step}
@@ -248,7 +248,7 @@ ${sourceProps}
                   setIntro((current) => ({ ...current, easing }));
                 }}
               >
-                {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
               </select>
             </label>
             <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>{t("Replay intro")}</button>
@@ -265,7 +265,7 @@ ${sourceProps}
           url: viewerUrl,
         }] : [] }}
         react={{
-          label: `${component}: minimal setup`,
+          label: t("{component}: minimal setup", { component }),
           blurb: t("The demo reports load failures and, for tiled sources, the current level and tile counts. These callbacks observe loading without changing the source configuration."),
           code: code,
         }}

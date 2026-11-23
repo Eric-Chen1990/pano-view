@@ -71,14 +71,14 @@ export function CanvasPanel() {
             "audio",
             "text",
             "iframe",
-            t("polygon"),
-            t("polyline"),
+            "polygon",
+            "polyline",
           ] as const
         ).map((type) => (
           <button
             type="button"
             className={segmentedButtonClassName}
-            key={t(type)}
+            key={type}
             onClick={() => {
               const id = selectPreset(type);
               if (!id) return;
@@ -91,7 +91,7 @@ export function CanvasPanel() {
               if (position) void viewer.lookTo(position, { fov: 75 });
             }}
           >
-            {type.charAt(0).toUpperCase() + type.slice(1)}{" " + t("preset")}</button>
+            {t(type.charAt(0).toUpperCase() + type.slice(1))}{" " + t("preset")}</button>
         ))}
       </div>
       <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
@@ -166,7 +166,7 @@ export function CanvasPanel() {
           className="pointer-events-none absolute bottom-[15px] left-[15px] m-0 max-w-[calc(100%-30px)] border border-[rgb(117_203_211_/_0.42)] bg-[rgb(2_6_7_/_0.74)] px-[9px] py-2 font-mono text-[0.62rem] tracking-[0.04em] text-[#dbeef0] max-[760px]:text-[0.56rem]"
           role="status"
         >
-          {lastAction}
+          {t(lastAction)}
         </p>
       </div>
     </section>

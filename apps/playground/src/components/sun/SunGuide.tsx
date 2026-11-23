@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot, PolylineHotspot, panoPositionToVector3, vector3ToPanoPosition,
   type HotspotPosition,
@@ -17,6 +18,7 @@ export function SunGuide({ position, angularSize, onMove }: {
   angularSize: number;
   onMove: (position: HotspotPosition) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const outline = useMemo(() => {
     const center = panoPositionToVector3(position);
     const yaw = MathUtils.degToRad(position.yaw);
@@ -40,7 +42,7 @@ export function SunGuide({ position, angularSize, onMove }: {
         stroke="#081619" strokeWidth={4} strokeOpacity={0.9} />
       <PolylineHotspot id="sun-disc-outline" vertices={outline} interactive={false}
         renderOrder={11} stroke="#fff4de" strokeWidth={2} strokeDashSize={3} strokeGapSize={3} />
-      <GraphicHotspot id="sun-center-marker" ariaLabel="Drag sun center" graphic={CENTER_MARKER}
+      <GraphicHotspot id="sun-center-marker" ariaLabel={t("Drag sun center")} graphic={CENTER_MARKER}
         position={position} width={3.8} height={3.8} cursor="move" draggable
         onPositionChange={({ position: next }) => onMove(next)} />
     </>

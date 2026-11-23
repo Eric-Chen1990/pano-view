@@ -98,7 +98,7 @@ export function IphoneLandscapeFullscreenChrome({
       className="pano-iphone-fullscreen-swipe-prompt"
       role="status"
     >
-      <p className="pano-iphone-fullscreen-swipe-text">{message}</p>
+      <p className="pano-iphone-fullscreen-swipe-text">{t(message)}</p>
     </div>
   );
 }

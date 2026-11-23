@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
@@ -46,7 +47,7 @@ export function ControlsExample({ example, onExampleChange }: {
   const [autoRotate, setAutoRotate] = useState(false);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [gyroStatus, setGyroStatus] = useState("Detecting sensor support…");
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Drag to look around. Focus the canvas to use arrow keys; scroll or pinch to zoom.",
   );
   return (
@@ -73,9 +74,9 @@ export function ControlsExample({ example, onExampleChange }: {
           >
             {
               {
-                navigation: "Navigation",
-                automatic: "Auto rotate",
-                gyro: "Gyro",
+                navigation: t("Navigation"),
+                automatic: t("Auto rotate"),
+                gyro: t("Gyro"),
               }[value]
             }
           </button>
@@ -98,7 +99,7 @@ export function ControlsExample({ example, onExampleChange }: {
               onClick={() =>
                 void viewer
                   .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
-                  .then(({ status }) => setStatus(`Look north: ${status}`))
+                  .then(({ status }) => setStatus(message("Look north: {status}", { status })))
               }
             >{t("Look north")}</button>
             <button
@@ -107,7 +108,7 @@ export function ControlsExample({ example, onExampleChange }: {
               onClick={() =>
                 void viewer
                   .lookToHotspot("target", { fov: 55 })
-                  .then(({ status }) => setStatus(`Look to hotspot: ${status}`))
+                  .then(({ status }) => setStatus(message("Look to hotspot: {status}", { status })))
               }
             >{t("Look to hotspot")}</button>
           </>
@@ -167,12 +168,12 @@ export function ControlsExample({ example, onExampleChange }: {
         <Tile {...cubeTileProps()} />
         <GraphicHotspot
           id="target"
-          ariaLabel="Navigation target"
+          ariaLabel={t("Navigation target")}
           position={{ yaw: -62, pitch: 4 }}
           width={8}
           height={8}
           graphic={{ kind: "circle", fill: "#df6b42" }}
-          tooltip="Navigation target"
+          tooltip={t("Navigation target")}
         />
         <AutoRotate enabled={autoRotate} speed={18} startDelay={1000} />
         <Gyro

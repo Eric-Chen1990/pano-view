@@ -129,7 +129,7 @@ function DialogChrome({
         </button>
       </div>
       {mode === "default" ? (
-        <PanoDialog {...props}>{content}</PanoDialog>
+        <PanoDialog closeLabel={t("Close")} {...props}>{content}</PanoDialog>
       ) : mode === "composed" ? (
         <ComposedHotspotDialog {...props}>{content}</ComposedHotspotDialog>
       ) : (
@@ -164,9 +164,9 @@ export function DialogsExample() {
           >
             {
               {
-                default: "Default dialog",
-                composed: "Compose parts",
-                custom: "Third-party dialog",
+                default: t("Default dialog"),
+                composed: t("Compose parts"),
+                custom: t("Third-party dialog"),
               }[value]
             }
           </button>
@@ -182,7 +182,7 @@ export function DialogsExample() {
           <GraphicHotspot
             key={story.id}
             id={story.id}
-            ariaLabel={`Open ${story.title}`}
+            ariaLabel={t("Open {title}", { title: story.title })}
             position={{ yaw: index * 40 - 20, pitch: 0 }}
             width={8}
             height={8}

@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { useState } from "react";
 import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
@@ -24,7 +25,7 @@ export function BackgroundAudioPage() {
   const [sceneId, setSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [mode, setMode] = useState<"shared" | "per-scene">("shared");
   const [playing, setPlaying] = useState(false);
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Paused. Press Play to start audio, then switch scenes.",
   );
   const [error, setError] = useState<string>();
@@ -110,7 +111,7 @@ export function AudioTour() {
         ))}
       </div>
       <p role={error ? "alert" : "status"} className="px-6 text-sm">
-        {error ?? status}
+        {t(error ?? status)}
       </p>
       <p className="px-6 text-sm text-muted-2">{t("Track:")}{" "}
         {mode === "shared"
@@ -124,7 +125,7 @@ export function AudioTour() {
           sceneId={mode === "per-scene" ? sceneId : undefined}
           playing={playing}
           onPlaybackStateChange={(state) => {
-            setStatus(`Audio: ${state}`);
+            setStatus(message("Audio: {state}", { state }));
             if (state === "blocked") setPlaying(false);
           }}
           onPlaybackError={() => {

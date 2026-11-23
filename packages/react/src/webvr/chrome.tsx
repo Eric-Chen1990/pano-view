@@ -56,11 +56,12 @@ function ChromeButton({
 function formatScreensizeLabel(
   settings: WebVRSettings,
   detectedScreensize: number | null,
+  autoLabel: string,
 ): string {
   if (settings.screensize === "auto") {
     return detectedScreensize === null
-      ? "Auto"
-      : `Auto · ${detectedScreensize.toFixed(1)}`;
+      ? autoLabel
+      : `${autoLabel} · ${detectedScreensize.toFixed(1)}`;
   }
   return settings.screensize.toFixed(1);
 }
@@ -123,7 +124,7 @@ function SetupPanel({
             ‹
           </button>
           <strong className="pano-webvr-setup-value">
-            {formatScreensizeLabel(settings, detectedScreensize)}
+            {formatScreensizeLabel(settings, detectedScreensize, t("Auto"))}
           </strong>
           <button
             disabled={screensizeManaged}

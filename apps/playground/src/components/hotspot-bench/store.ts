@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import {
   normalizePanoPosition,
   validatePolygonVertices,
@@ -51,17 +52,17 @@ type HotspotBenchState = {
   draftVertices: HotspotPosition[];
   draftPolygonFilled: boolean;
   selectedId: string | null;
-  lastAction: string;
+  lastAction: LocalizedMessage;
 };
 
 type HotspotBenchActions = {
-  setLastAction: (message: string) => void;
+  setLastAction: (message: LocalizedMessage) => void;
   toggleDraftFill: () => void;
   selectPreset: (
     type: EditorHotspot["type"] | "polygon" | "polyline",
   ) => string | undefined;
-  selectTool: (tool: EditorTool, message: string) => void;
-  selectItem: (id: string, message?: string) => void;
+  selectTool: (tool: EditorTool, message: LocalizedMessage) => void;
+  selectItem: (id: string, message?: LocalizedMessage) => void;
   startPolygon: () => void;
   startPolyline: () => void;
   updateHotspot: (id: string, patch: HotspotPatch) => void;
@@ -158,7 +159,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
     set({
       selectedId: id,
       tool: "select",
-      lastAction: `${type} example selected. Existing edits are preserved.`,
+      lastAction: message("{type} example selected. Existing edits are preserved.", { type }),
     });
     return id;
   },
@@ -179,7 +180,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       selectedId: null,
       tool: "polygon",
       lastAction: draftVertices.length
-        ? `Continue polygon: ${draftVertices.length} vertices.`
+        ? message("Continue polygon: {count} vertices.", { count: draftVertices.length })
         : "Click the panorama to add polygon vertices.",
     });
   },
@@ -190,7 +191,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       selectedId: null,
       tool: "polyline",
       lastAction: draftVertices.length
-        ? `Continue polyline: ${draftVertices.length} vertices.`
+        ? message("Continue polyline: {count} vertices.", { count: draftVertices.length })
         : "Click the panorama to add polyline vertices.",
     });
   },
@@ -319,7 +320,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         draftVertices: [],
         selectedId: polyline.id,
         tool: "select",
-        lastAction: `Polyline created with ${polyline.vertices.length} vertices.`,
+        lastAction: message("Polyline created with {count} vertices.", { count: polyline.vertices.length }),
       }));
       return;
     }
@@ -328,7 +329,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
     if (issues.length > 0) {
       set({
         draftVertices: vertices,
-        lastAction: `Polygon cannot be completed: ${polygonIssueSummary(issues)}`,
+        lastAction: message("Polygon cannot be completed: {issues}", { issues: polygonIssueSummary(issues) }),
       });
       return;
     }
@@ -352,7 +353,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       draftVertices: [],
       selectedId: polygon.id,
       tool: "select",
-      lastAction: `Polygon created with ${vertices.length} vertices.`,
+      lastAction: message("Polygon created with {count} vertices.", { count: vertices.length }),
     }));
   },
 
@@ -362,7 +363,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
     if (isDrawingPath(tool)) {
       set({
         draftVertices: [...draftVertices, normalizedPosition],
-        lastAction: `${isDrawingPolyline(tool) ? "Polyline" : "Polygon"} vertex ${draftVertices.length + 1} added at ${formatPosition(normalizedPosition)}.`,
+        lastAction: message("{type} vertex {index} added at {position}.", { type: isDrawingPolyline(tool) ? "Polyline" : "Polygon", index: draftVertices.length + 1, position: formatPosition(normalizedPosition) }),
       });
       return;
     }
@@ -389,7 +390,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Image placed at ${formatPosition(position)}.`,
+        lastAction: message("Image placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -416,7 +417,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Graphic placed at ${formatPosition(position)}.`,
+        lastAction: message("Graphic placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -448,7 +449,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Sequence placed at ${formatPosition(position)}.`,
+        lastAction: message("Sequence placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -480,7 +481,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Video placed at ${formatPosition(position)}.`,
+        lastAction: message("Video placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -516,7 +517,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Audio placed at ${formatPosition(position)}.`,
+        lastAction: message("Audio placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -553,7 +554,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Text placed at ${formatPosition(position)}.`,
+        lastAction: message("Text placed at {position}.", { position: formatPosition(position) }),
       }));
       return;
     }
@@ -583,7 +584,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
         hotspots: [...state.hotspots, hotspot],
         selectedId: hotspot.id,
         tool: "select",
-        lastAction: `Iframe placed at ${formatPosition(position)}.`,
+        lastAction: message("Iframe placed at {position}.", { position: formatPosition(position) }),
       }));
     }
   },
@@ -596,7 +597,7 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
       set({
         hotspots: hotspots.filter((hotspot) => hotspot.id !== selected.id),
         selectedId: null,
-        lastAction: `${selected.type[0]!.toUpperCase()}${selected.type.slice(1)} removed.`,
+        lastAction: message("{initial}{rest} removed.", { initial: selected.type[0]!.toUpperCase(), rest: selected.type.slice(1) }),
       });
       return;
     }

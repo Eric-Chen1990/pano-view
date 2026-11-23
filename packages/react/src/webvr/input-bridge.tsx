@@ -39,6 +39,7 @@ export function WebVRInputBridge({ mode, policy, chrome, gazeEnabled }: {
   const direction = useMemo(() => new Vector3(), []);
   const canvas = useMemo(() => { const c = document.createElement('canvas'); c.width = 768; c.height = 128; return c; }, []);
   const painted = useRef("");
+  useEffect(() => { painted.current = ""; }, [t]);
   const texture = useMemo(() => new CanvasTexture(canvas), [canvas]);
   useEffect(() => () => texture.dispose(), [texture]);
   useEffect(() => { anchored.current = false; gaze.current.stop(); }, [mode]);

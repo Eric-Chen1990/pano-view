@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   isOverlayCorner,
@@ -142,7 +143,7 @@ export function MapPage() {
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
-  const [status, setStatus] = useState("Loading map demo…");
+  const [status, setStatus] = useState<LocalizedMessage>("Loading map demo…");
   const [presentation, setPresentation] = useState<PresentationMode>("panel");
   const [align, setAlign] = useState<PanoOverlayAlign>("bottom-left");
   const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
@@ -183,7 +184,7 @@ export function MapPage() {
         <h1 className={pageHeadingTitleClassName} id="map-title">{t("Floor plan map")}</h1>
         <p className="my-4 text-sm text-slate-300">{t("Icons switch scenes. The active sector rotates with panorama yaw. Zoom scales only the floor image; icons and the radar keep their screen size.")}</p>
         <p role={error ? "alert" : "status"} className="my-4 text-sm text-slate-300">
-          {error ?? status}
+          {t(error ?? status)}
         </p>
         {project && map ? (
           <>
@@ -239,7 +240,7 @@ export function MapPage() {
                         aria-pressed={align === value}
                         onClick={() => setAlign(value)}
                       >
-                        {value}
+                        {t(value)}
                       </button>
                     ))}
                   </div>
@@ -258,7 +259,7 @@ export function MapPage() {
                         aria-pressed={axis === value}
                         onClick={() => setAxis(value)}
                       >
-                        {value}
+                        {t(value)}
                       </button>
                     ))}
                   </div>
@@ -284,7 +285,7 @@ export function MapPage() {
                 activeSceneId={activeSceneId}
                 onActiveSceneIdChange={setActiveSceneId}
                 transition="dissolve"
-                onSceneReady={(id) => setStatus(`Ready: ${id}`)}
+                onSceneReady={(id) => setStatus(message("Ready: {scene}", { scene: id }))}
               />
               <PanoOverlay>
                 <PanoMapOverlay
@@ -303,7 +304,7 @@ export function MapPage() {
                   dialogHeight={480}
                   onSelectScene={(sceneId) => {
                     setActiveSceneId(sceneId);
-                    setStatus(`Map selected: ${sceneId}`);
+                    setStatus(message("Map selected: {scene}", { scene: sceneId }));
                   }}
                   toggle={
                     customToggle

@@ -886,6 +886,11 @@ Use [composable parts](./docs/dialogs.md#compose-a-different-layout) for a custo
 
 ## PanoViewer
 
+### Translating built-in controls
+
+Wrap the viewer with `PanoUiTranslationProvider` from `@ericchen1990/pano-view` to translate built-in control labels. Pass a `translate(message)` function that accepts the default English text and returns the localized label. Return the original message for entries without a translation. Keep placeholders such as `{viewer}` in the translated text. For control components that accept custom labels or a `translate` prop, pass those values directly.
+
+
 ### Rendering backend
 
 `PanoViewer` defaults to `renderer="auto"`. It uses native WebGPU when available

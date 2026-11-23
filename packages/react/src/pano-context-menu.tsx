@@ -1,4 +1,4 @@
-import { usePanoUiTranslation } from "./ui-translation";
+import { defaultPanoUiTranslate, usePanoUiTranslation, type PanoUiTranslate } from "./ui-translation";
 import {
   createContext,
   useCallback,
@@ -652,6 +652,7 @@ export function PanoContextMenu({
   separatorClassName,
   children,
 }: PanoContextMenuProps): null {
+  const t = usePanoUiTranslation();
   const eventBus = useContext(PanoEventBusContext);
   const controlsRef = useContext(PanoramaViewContext);
   const overlayApi = useContext(PanoContextMenuOverlayContext);
@@ -715,7 +716,7 @@ export function PanoContextMenu({
 
       const hasCustomChildren = typeof current.children === "function";
       const presets = actions
-        ? createPanoContextMenuPresets(actions)
+        ? createPanoContextMenuPresets(actions, t)
         : null;
       const resolvedItems = presets
         ? composePanoContextMenuItems(current, presets)
@@ -752,7 +753,7 @@ export function PanoContextMenu({
         },
       });
     },
-    [actions, close, controlsRef, instanceId, overlayApi],
+    [actions, close, controlsRef, instanceId, overlayApi, t],
   );
 
   useEffect(() => {
@@ -853,11 +854,12 @@ export type PanoContextMenuPresets = {
  */
 export function createPanoContextMenuPresets(
   actions: PanoContextMenuPresetActions,
+  translate: PanoUiTranslate = defaultPanoUiTranslate,
 ): PanoContextMenuPresets {
   const isFullscreen = actions.isFullscreen === true;
   const resetView: PanoContextMenuActionItem = {
     id: "pano-reset-view",
-    label: "Reset view",
+    label: translate("Reset view"),
     icon: <ResetViewIcon />,
     onSelect: () => {
       actions.reset();
@@ -865,7 +867,7 @@ export function createPanoContextMenuPresets(
   };
   const fullscreen: PanoContextMenuActionItem = {
     id: "pano-fullscreen",
-    label: isFullscreen ? "Exit fullscreen" : "Enter fullscreen",
+    label: translate(isFullscreen ? "Exit fullscreen" : "Enter fullscreen"),
     icon: isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />,
     onSelect: () => {
       actions.toggleFullscreen();

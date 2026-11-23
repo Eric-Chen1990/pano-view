@@ -78,25 +78,26 @@ function FilterSource({ source }: { source: SourceKind }) {
 }
 
 function FilterHotspots() {
+  const { t } = usePlaygroundLanguage();
   return (
     <>
       <ImageHotspot
-        ariaLabel="Unfiltered image hotspot"
+        ariaLabel={t("Unfiltered image hotspot")}
         height={6}
         id="filter-image-marker"
         position={{ yaw: 18, pitch: 5 }}
         src="/fixtures/hotspots/signal.svg"
-        tooltip="Hotspots stay unfiltered"
+        tooltip={t("Hotspots stay unfiltered")}
         tooltipTrigger="hover"
         width={6}
       />
       <GraphicHotspot
-        ariaLabel="Unfiltered graphic hotspot"
+        ariaLabel={t("Unfiltered graphic hotspot")}
         graphic={{ fill: "#df6b42", kind: "circle" }}
         height={8}
         id="filter-graphic-marker"
         position={{ yaw: -28, pitch: -6 }}
-        tooltip="Original hotspot color"
+        tooltip={t("Original hotspot color")}
         tooltipTrigger="hover"
         width={8}
       />
@@ -206,7 +207,7 @@ export function FilterPage() {
                 onClick={() => setSource(id)}
                 type="button"
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -239,9 +240,9 @@ export function FilterPage() {
         <div className={pageControlsClassName} role="group" aria-label={t("Color adjustments")}>
           {ADJUSTMENTS.map(({ key, label, limit, unit }) => (
             <label key={key} className={controlLabelClassName}>
-              {label} {(adjustments[key] ?? 0).toFixed(2)}{unit}
+              {t(label)} {(adjustments[key] ?? 0).toFixed(2)}{unit}
               <input
-                aria-label={label}
+                aria-label={t(label)}
                 className={cn(controlInputClassName, "w-28")}
                 max={limit}
                 min={-limit}
@@ -293,7 +294,7 @@ export function FilterPage() {
               <p className="m-0 font-mono text-[0.68rem] font-semibold tracking-[0.1em] text-[#75cbd3] uppercase">
                 {t(group.label)}
               </p>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${group.label} filters`}>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("{category} filters", { category: t(group.label) })}>
                 {group.presets.map((entry) => (
                   <button
                     aria-pressed={preset === entry.value}

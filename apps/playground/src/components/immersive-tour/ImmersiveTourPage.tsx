@@ -197,7 +197,7 @@ function OverlayDialogs({
       </ComposedHotspotDialog>
     );
   return (
-    <PanoDialog
+    <PanoDialog closeLabel={t("Close")}
       open={open}
       onOpenChange={onOpenChange}
       title={title}
@@ -369,9 +369,9 @@ export function ImmersiveTourPage() {
             >
               {
                 {
-                  default: "Default dialog",
-                  composed: "Compose parts",
-                  custom: "Third-party dialog",
+                  default: t("Default dialog"),
+                  composed: t("Compose parts"),
+                  custom: t("Third-party dialog"),
                 }[value]
               }
             </button>

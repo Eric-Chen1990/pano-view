@@ -72,7 +72,7 @@ export function ExampleCode({ react, json }: {
             React JSX
           </button>
           <button type="button" className={segmentedButtonClassName} aria-pressed={showJson} onClick={() => setSelected("json")}>
-            {jsonLabels[json.format]}
+            {t(jsonLabels[json.format])}
           </button>
         </div>
       )}

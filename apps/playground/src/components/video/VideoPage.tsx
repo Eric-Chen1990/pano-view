@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./VideoPage.tsx?raw";
 import {
@@ -148,7 +149,7 @@ export function VideoPage() {
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
-  const [playbackMessage, setPlaybackMessage] = useState<string | null>(null);
+  const [playbackMessage, setPlaybackMessage] = useState<LocalizedMessage | null>(null);
 
   const tracks = useMemo(() => {
     const sourceTracks = profile === "files" ? VIDEO_TRACKS : HLS_TRACKS;
@@ -299,7 +300,7 @@ export function VideoPage() {
               variants={profile === "files" ? VIDEO_VARIANTS : profile === "mobile" ? MOBILE_VARIANTS : undefined}
               onError={({ source, error }) => {
                 if (error instanceof DOMException && error.name === "NotAllowedError") return;
-                setPlaybackMessage(error instanceof Error ? error.message : `Could not load ${source}.`);
+                setPlaybackMessage(message("Could not load {name}.", { name: source }));
               }}
               onPlaybackStateChange={(state) => {
                 if (state === "blocked") {

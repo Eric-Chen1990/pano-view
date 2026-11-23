@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./SceneTransitionPage.tsx?raw";
 import {
@@ -149,8 +150,9 @@ export function SceneTransitionPage() {
   const [showPercentage, setShowPercentage] = useState(true);
   const [accentColor, setAccentColor] = useState("#72f3d0");
   const [textColor, setTextColor] = useState("#f0fffc");
-  const [loadingText, setLoadingText] = useState(DEFAULT_LOADING_LABEL);
-  const loadingLabel = loadingText.trim() || DEFAULT_LOADING_LABEL;
+  const [loadingText, setLoadingText] = useState<string>();
+  const defaultLoadingLabel = t(DEFAULT_LOADING_LABEL);
+  const loadingLabel = loadingText?.trim() || defaultLoadingLabel;
   const [previewing, setPreviewing] = useState(false);
   const stopPreview = useCallback(() => setPreviewing(false), []);
   const selectScene = useCallback((id: string) => {
@@ -159,7 +161,7 @@ export function SceneTransitionPage() {
   }, [stopPreview]);
   const appearance = useMemo(() => ({ accentColor, color: textColor }), [accentColor, textColor]);
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Choose a scene to compare transition effects.",
   );
   const snippet = useMemo(
@@ -222,7 +224,7 @@ export function SceneTransitionPage() {
               const selected = loadingIndicators.find(({ value }) => value === currentTarget.value);
               if (selected) setIndicator(selected.value);
             }}>
-              {loadingIndicators.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+              {loadingIndicators.map(({ value, label }) => <option key={value} value={value}>{t(label)}</option>)}
             </select>
           </label>
           <label className={controlLabelClassName}>
@@ -238,7 +240,7 @@ export function SceneTransitionPage() {
           <label className={controlLabelClassName}>{t("Loading text")}<input
               className={cn(controlInputClassName, "w-36 focus-visible:outline-2 focus-visible:outline-brand")}
               type="text"
-              value={loadingText}
+              value={loadingText ?? defaultLoadingLabel}
               onChange={({ currentTarget }) => setLoadingText(currentTarget.value)}
             />
           </label>
@@ -277,7 +279,7 @@ export function SceneTransitionPage() {
               }}
               onTransitionError={({ sceneId }) => {
                 setStatus(
-                  `Could not prepare ${sceneId}; current scene remains visible.`,
+                  message("Could not prepare {scene}; current scene remains visible.", { scene: sceneId }),
                 );
               }}
               renderHotspots={(scene) => (
@@ -294,7 +296,7 @@ export function SceneTransitionPage() {
             <PanoOverlay>
               {previewing ? (
                 <LoadingIndicatorPreview
-                  label={t(loadingLabel)}
+                  label={loadingLabel}
                   variant={indicator}
                   showPercentage={showPercentage}
                   appearance={appearance}
@@ -302,7 +304,7 @@ export function SceneTransitionPage() {
                 />
               ) : (
                 <PanoSceneLoadProgress
-                  label={t(loadingLabel)}
+                  label={loadingLabel}
                   variant={indicator}
                   showPercentage={showPercentage}
                   appearance={appearance}

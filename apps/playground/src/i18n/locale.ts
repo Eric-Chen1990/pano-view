@@ -1,9 +1,20 @@
 import { zhCN } from "./zh-CN";
 
 export type PlaygroundLocale = "en" | "zh-CN";
-export type Translate = (message: string, values?: Record<string, string | number>) => string;
+type MessageValues = Readonly<Record<string, string | number>>;
 
-export function translateMessage(locale: PlaygroundLocale, message: string, values?: Record<string, string | number>) {
-  const text = locale === "zh-CN" && Object.prototype.hasOwnProperty.call(zhCN, message) ? zhCN[message] : message;
-  return values ? text.replace(/\{(\w+)\}/g, (token, key: string) => String(values[key] ?? token)) : text;
+export type LocalizedMessage = string | { text: string; values: MessageValues };
+export type Translate = (message: LocalizedMessage, values?: MessageValues) => string;
+
+export function message(text: string, values: MessageValues): LocalizedMessage {
+  return { text, values };
+}
+
+export function translateMessage(locale: PlaygroundLocale, message: LocalizedMessage, values?: MessageValues) {
+  const key = typeof message === "string" ? message : message.text;
+  const parameters = typeof message === "string" ? values : message.values;
+  const text = locale === "zh-CN" && Object.prototype.hasOwnProperty.call(zhCN, key) ? zhCN[key] : key;
+  return parameters
+    ? text.replace(/\{(\w+)\}/g, (token, key: string) => String(parameters[key] ?? token))
+    : text;
 }

@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { useRef, useState, useSyncExternalStore } from "react";
@@ -90,7 +91,7 @@ export function DirectionalSoundPage() {
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [playing, setPlaying] = useState<Partial<Record<SoundId, boolean>>>({});
   const [states, setStates] = useState<Partial<Record<SoundId, AudioPlaybackState>>>({});
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<LocalizedMessage>();
 
   function toggleSound(id: SoundId) {
     if (!playing[id]) void viewer.activateMedia().catch(() => {});
@@ -132,7 +133,7 @@ export function DirectionalSoundPage() {
           {vr.enabled ? t("Exit VR") : t("Enter VR")}
         </button>
         <span role="status" className="text-sm">
-          {sources.map(({ id, name }) => `${name}: ${states[id] ?? "paused"}`).join(" · ")}
+          {sources.map(({ id, name }) => `${name}: ${t(states[id] ?? "paused")}`).join(" · ")}
         </span>
       </div>
       {error && <p role="alert" className="px-6 text-sm">{t(error)}</p>}
@@ -158,7 +159,7 @@ export function DirectionalSoundPage() {
             playing={playing[source.id] ?? false}
             loop
             onPlaybackStateChange={(state) => setStates((current) => ({ ...current, [source.id]: state }))}
-            onError={() => setError(`Could not load ${name.toLowerCase()}.`)}
+            onError={() => setError(message("Could not load {name}.", { name: name.toLowerCase() }))}
           />
         ))}
       </PanoViewer>

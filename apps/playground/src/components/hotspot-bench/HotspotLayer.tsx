@@ -1,3 +1,4 @@
+import { message } from "../../i18n/locale";
 import {
   AudioHotspot,
   GraphicHotspot,
@@ -107,17 +108,17 @@ export const HotspotLayer = memo(function HotspotLayer() {
             if (hotspot.type === "audio") {
               updateAudio(hotspot.id, { playing: !hotspot.playing });
             }
-            setLastAction(`${hotspot.label} selected.`);
+            setLastAction(message("{hotspot} selected.", { hotspot: hotspot.label }));
           },
           onDragStart: () => {
             selectItem(hotspot.id);
-            setLastAction(`Dragging ${hotspot.label}.`);
+            setLastAction(message("Dragging {hotspot}.", { hotspot: hotspot.label }));
           },
           onPositionChange: ({ position }: { position: HotspotPosition }) => {
             updateHotspot(hotspot.id, { position });
           },
           onDragEnd: ({ position }: { position: HotspotPosition }) => {
-            setLastAction(`${hotspot.label} moved to ${formatPosition(position)}.`);
+            setLastAction(message("{hotspot} moved to {position}.", { hotspot: hotspot.label, position: formatPosition(position) }));
           },
         };
 
@@ -228,20 +229,20 @@ export const HotspotLayer = memo(function HotspotLayer() {
           pointerEvents={polygon.pointerEvents}
           onClick={() => {
             selectItem(polygon.id);
-            setLastAction(`${polygon.label} selected.`);
+            setLastAction(message("{hotspot} selected.", { hotspot: polygon.label }));
           }}
           onDragEnd={({ vertices }) => {
             const issues = validatePolygonVertices(vertices);
             if (issues.length === 0) {
               updatePolygon(polygon.id, { vertices });
-              setLastAction(`${polygon.label} moved.`);
+              setLastAction(message("{hotspot} moved.", { hotspot: polygon.label }));
             } else {
-              setLastAction(`Polygon move rejected: ${polygonIssueSummary(issues)}`);
+              setLastAction(message("Polygon move rejected: {issues}", { issues: polygonIssueSummary(issues) }));
             }
           }}
           onDragStart={() => {
             selectItem(polygon.id);
-            setLastAction(`Dragging ${polygon.label}.`);
+            setLastAction(message("Dragging {hotspot}.", { hotspot: polygon.label }));
           }}
           onVerticesChange={({ vertices }) => {
             if (validatePolygonVertices(vertices).length === 0) {
@@ -274,15 +275,15 @@ export const HotspotLayer = memo(function HotspotLayer() {
           pointerEvents={polyline.pointerEvents}
           onClick={() => {
             selectItem(polyline.id);
-            setLastAction(`${polyline.label} selected.`);
+            setLastAction(message("{hotspot} selected.", { hotspot: polyline.label }));
           }}
           onDragEnd={({ vertices }) => {
             updatePolyline(polyline.id, { vertices });
-            setLastAction(`${polyline.label} moved.`);
+            setLastAction(message("{hotspot} moved.", { hotspot: polyline.label }));
           }}
           onDragStart={() => {
             selectItem(polyline.id);
-            setLastAction(`Dragging ${polyline.label}.`);
+            setLastAction(message("Dragging {hotspot}.", { hotspot: polyline.label }));
           }}
           onVerticesChange={({ vertices }) => updatePolyline(polyline.id, { vertices })}
           stroke={polyline.stroke}
@@ -345,12 +346,12 @@ export const HotspotLayer = memo(function HotspotLayer() {
             const issues = validatePolygonVertices(vertices);
             if (issues.length === 0) {
               updatePolygon(selectedPolygon.id, { vertices });
-              setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+              setLastAction(message("Vertex {index} moved to {position}.", { index: index + 1, position: formatPosition(position) }));
             } else {
-              setLastAction(`Vertex move rejected: ${polygonIssueSummary(issues)}`);
+              setLastAction(message("Vertex move rejected: {issues}", { issues: polygonIssueSummary(issues) }));
             }
           }}
-          onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
+          onDragStart={() => setLastAction(message("Dragging vertex {index}.", { index: index + 1 }))}
           onPositionChange={({ position }) => {
             const vertices = selectedPolygon.vertices.map((current, currentIndex) =>
               currentIndex === index ? position : current,
@@ -383,9 +384,9 @@ export const HotspotLayer = memo(function HotspotLayer() {
               currentIndex === index ? position : current,
             );
             updatePolyline(selectedPolyline.id, { vertices });
-            setLastAction(`Vertex ${index + 1} moved to ${formatPosition(position)}.`);
+            setLastAction(message("Vertex {index} moved to {position}.", { index: index + 1, position: formatPosition(position) }));
           }}
-          onDragStart={() => setLastAction(`Dragging vertex ${index + 1}.`)}
+          onDragStart={() => setLastAction(message("Dragging vertex {index}.", { index: index + 1 }))}
           onPositionChange={({ position }) => {
             const vertices = selectedPolyline.vertices.map((current, currentIndex) =>
               currentIndex === index ? position : current,

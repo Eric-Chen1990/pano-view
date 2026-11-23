@@ -1,3 +1,4 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   isOverlayCorner,
@@ -176,7 +177,7 @@ export function SceneMenuPage() {
   const [labelAlign, setLabelAlign] =
     useState<PanoSceneMenuLabelAlign>("center");
   const [customToggle, setCustomToggle] = useState(false);
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Dock the thumbnail strip and tune chrome.",
   );
 
@@ -252,11 +253,11 @@ export function SceneMenuPage() {
                   key={value}
                   onClick={() => {
                     setAlign(value);
-                    setStatus(`Aligned ${value}.`);
+                    setStatus(message("Aligned {align}.", { align: value }));
                   }}
                   type="button"
                 >
-                  {value}
+                  {t(value)}
                 </button>
               ))}
             </div>
@@ -277,11 +278,11 @@ export function SceneMenuPage() {
                     key={value}
                     onClick={() => {
                       setAxis(value);
-                      setStatus(`Axis ${value}.`);
+                      setStatus(message("Axis {axis}.", { axis: value }));
                     }}
                     type="button"
                   >
-                    {value}
+                    {t(value)}
                   </button>
                 ))}
               </div>
@@ -306,11 +307,11 @@ export function SceneMenuPage() {
                     key={value}
                     onClick={() => {
                       setLabelAlign(value);
-                      setStatus(`Title labels ${value}-aligned.`);
+                      setStatus(message("Title labels {align}-aligned.", { align: value }));
                     }}
                     type="button"
                   >
-                    {value}
+                    {t(value)}
                   </button>
                 ))}
               </div>
@@ -472,7 +473,7 @@ export function SceneMenuPage() {
                 loop={loop}
                 onSelect={(id) => {
                   setActiveSceneId(id);
-                  setStatus(`Selected ${id}.`);
+                  setStatus(message("Selected {id}.", { id }));
                 }}
                 showArrows={showArrows}
                 showVisited={showVisited}

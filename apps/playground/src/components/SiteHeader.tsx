@@ -294,7 +294,7 @@ export function SiteHeader() {
                     <span>{t(activeRoute.navLabel)}</span>
                   </span>
                 ) : (
-                  section.label
+                  t(section.label)
                 )}
                 <ChevronIcon open={open} />
               </button>
@@ -350,15 +350,14 @@ export function SiteHeader() {
       </nav>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <ProjectLinks className="max-[380px]:hidden" />
-        <select
-          aria-label={t("Language")}
-          className="h-9 rounded-none border border-[#3e6c73] bg-canvas-2 px-1.5 text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          value={locale}
-          onChange={(event) => setLocale(event.currentTarget.value === "zh-CN" ? "zh-CN" : "en")}
+        <button
+          type="button"
+          aria-label={locale === "en" ? "Switch to Simplified Chinese" : "切换到英文"}
+          className="h-9 border border-[#3e6c73] bg-canvas-2 px-2 text-xs text-ink transition hover:border-[#75cbd3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          onClick={() => setLocale(locale === "en" ? "zh-CN" : "en")}
         >
-          <option value="en" lang="en">English</option>
-          <option value="zh-CN" lang="zh-CN">简体中文</option>
-        </select>
+          {locale === "en" ? <span lang="zh-CN">简体中文</span> : <span lang="en">English</span>}
+        </button>
       </div>
       <details className="group relative min-[1280px]:hidden" ref={detailsRef}>
         <summary
@@ -395,6 +394,7 @@ export function SiteHeader() {
               ))}
             </div>
           ))}
+          <ProjectLinks className="mt-1 border-t border-[#244047] px-2 pt-1 min-[380px]:hidden" />
         </nav>
       </details>
     </header>

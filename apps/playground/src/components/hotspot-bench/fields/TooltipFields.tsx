@@ -137,7 +137,7 @@ export function TooltipFields({
           >
             {(Object.keys(TOOLTIP_TRIGGER_LABELS) as HotspotTooltipTrigger[]).map((trigger) => (
               <option key={trigger} value={trigger}>
-                {TOOLTIP_TRIGGER_LABELS[trigger]}
+                {t(TOOLTIP_TRIGGER_LABELS[trigger])}
               </option>
             ))}
           </select>
@@ -156,7 +156,7 @@ export function TooltipFields({
             {(Object.keys(TOOLTIP_PLACEMENT_LABELS) as HotspotTooltipPlacement[]).map(
               (placement) => (
                 <option key={placement} value={placement}>
-                  {TOOLTIP_PLACEMENT_LABELS[placement]}
+                  {t(TOOLTIP_PLACEMENT_LABELS[placement])}
                 </option>
               ),
             )}

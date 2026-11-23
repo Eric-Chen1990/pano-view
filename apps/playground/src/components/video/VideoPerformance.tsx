@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useState, type RefObject } from "react";
 
@@ -36,6 +37,7 @@ export function VideoPerformanceMetrics({
   root: RefObject<HTMLDivElement | null>;
   motion: VideoMotionStats;
 }) {
+  const { t } = usePlaygroundLanguage();
   const [metrics, setMetrics] = useState(EMPTY_METRICS);
 
   useEffect(() => {
@@ -134,7 +136,7 @@ export function VideoPerformanceMetrics({
     const timer = window.setInterval(() => {
       if (!document.hidden) sample?.();
     }, 1_000);
-    return () => {
+  return () => {
       window.clearInterval(timer);
       observer.disconnect();
       container.removeEventListener("loadstart", onMediaTiming, true);
@@ -155,7 +157,7 @@ export function VideoPerformanceMetrics({
     <dl className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line px-5 py-3 text-xs">
       {readings.map(([label, value]) => (
         <div key={label}>
-          <dt>{label}</dt>
+          <dt>{t(label)}</dt>
           <dd className="font-mono font-semibold tabular-nums">{value}</dd>
         </div>
       ))}
