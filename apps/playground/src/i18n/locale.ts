@@ -1,6 +1,16 @@
 import { zhCN } from "./zh-CN";
 
-export type PlaygroundLocale = "en" | "zh-CN";
+export const playgroundLocales = [
+  { id: "en", nativeName: "English" },
+  { id: "zh-CN", nativeName: "简体中文" },
+] as const;
+
+export type PlaygroundLocale = (typeof playgroundLocales)[number]["id"];
+
+export function isPlaygroundLocale(value: string | null): value is PlaygroundLocale {
+  return playgroundLocales.some((item) => item.id === value);
+}
+
 type MessageValues = Readonly<Record<string, string | number>>;
 
 export type LocalizedMessage = string | { text: string; values: MessageValues };

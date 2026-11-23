@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { PanoUiTranslationProvider } from "@ericchen1990/pano-view";
-import { translateMessage, type PlaygroundLocale, type Translate } from "./locale";
+import { isPlaygroundLocale, translateMessage, type PlaygroundLocale, type Translate } from "./locale";
 
 const storageKey = "pano-view.playground.locale";
 
@@ -14,7 +14,8 @@ const LanguageContext = createContext<PlaygroundLanguage | null>(null);
 
 function initialLocale(): PlaygroundLocale {
   try {
-    return window.localStorage.getItem(storageKey) === "zh-CN" ? "zh-CN" : "en";
+    const stored = window.localStorage.getItem(storageKey);
+    return isPlaygroundLocale(stored) ? stored : "en";
   } catch {
     return "en";
   }

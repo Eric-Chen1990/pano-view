@@ -1,4 +1,5 @@
 import { usePlaygroundLanguage } from "../i18n/language";
+import { playgroundLocales, type PlaygroundLocale } from "../i18n/locale";
 import { useEffect, useId, useRef, useState } from "react";
 import { trackCta } from "../analytics";
 import { cn } from "../cn";
@@ -141,8 +142,154 @@ function ProjectLinks({ className }: { className?: string }) {
   );
 }
 
-export function SiteHeader() {
+function LanguageMenu() {
   const { locale, setLocale, t } = usePlaygroundLanguage();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef(new Map<PlaygroundLocale, HTMLButtonElement>());
+  const listId = useId();
+  const current = playgroundLocales.find((item) => item.id === locale) ?? playgroundLocales[0];
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function close() {
+      setOpen(false);
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        close();
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+      close();
+      buttonRef.current?.focus();
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  function openMenu() {
+    setOpen(true);
+    requestAnimationFrame(() => optionRefs.current.get(current.id)?.focus());
+  }
+
+  function selectLocale(next: PlaygroundLocale) {
+    setLocale(next);
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        aria-controls={listId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="inline-flex h-9 items-center gap-1 border border-[#3e6c73] bg-canvas-2 px-2 text-xs text-ink transition hover:border-[#75cbd3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+            return;
+          }
+          openMenu();
+        }}
+        onKeyDown={(event) => {
+          if (open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) {
+            return;
+          }
+          event.preventDefault();
+          openMenu();
+        }}
+        ref={buttonRef}
+        type="button"
+      >
+        <span className="sr-only">{t("Language")}</span>
+        <span lang={current.id}>{current.nativeName}</span>
+        <ChevronIcon open={open} />
+      </button>
+      {open ? (
+        <div
+          aria-label={t("Language")}
+          className={cn(menuPanelClassName, "absolute top-[calc(100%+6px)] right-0 min-w-36")}
+          id={listId}
+          onKeyDown={(event) => {
+            const index = playgroundLocales.findIndex(
+              (item) => optionRefs.current.get(item.id) === document.activeElement,
+            );
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              const nextIndex = event.key === "ArrowDown" ? index + 1 : index - 1;
+              if (nextIndex < 0) {
+                buttonRef.current?.focus();
+                return;
+              }
+              const next = playgroundLocales[Math.min(nextIndex, playgroundLocales.length - 1)];
+              if (next) {
+                optionRefs.current.get(next.id)?.focus();
+              }
+            } else if (event.key === "Home" || event.key === "End") {
+              event.preventDefault();
+              const next = event.key === "Home" ? playgroundLocales[0] : playgroundLocales.at(-1);
+              if (next) {
+                optionRefs.current.get(next.id)?.focus();
+              }
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+              buttonRef.current?.focus();
+            }
+          }}
+          role="listbox"
+        >
+          {playgroundLocales.map((item) => {
+            const selected = item.id === locale;
+            return (
+              <button
+                aria-selected={selected}
+                className={cn(
+                  "block w-full px-3 py-2 text-left text-xs text-[#dcecef] transition hover:bg-[#102b31] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+                  selected && "bg-[#102b31] shadow-[inset_2px_0_0_0_#df6b42]",
+                )}
+                key={item.id}
+                lang={item.id}
+                onClick={() => selectLocale(item.id)}
+                ref={(node) => {
+                  if (node) {
+                    optionRefs.current.set(item.id, node);
+                  } else {
+                    optionRefs.current.delete(item.id);
+                  }
+                }}
+                role="option"
+                type="button"
+              >
+                {item.nativeName}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function SiteHeader() {
+  const { t } = usePlaygroundLanguage();
   const activeRoute = matchPlaygroundRoute(window.location.pathname);
   const sections = playgroundNavSections();
   const navId = useId();
@@ -350,14 +497,7 @@ export function SiteHeader() {
       </nav>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <ProjectLinks className="max-[380px]:hidden" />
-        <button
-          type="button"
-          aria-label={locale === "en" ? "Switch to Simplified Chinese" : "切换到英文"}
-          className="h-9 border border-[#3e6c73] bg-canvas-2 px-2 text-xs text-ink transition hover:border-[#75cbd3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          onClick={() => setLocale(locale === "en" ? "zh-CN" : "en")}
-        >
-          {locale === "en" ? <span lang="zh-CN">简体中文</span> : <span lang="en">English</span>}
-        </button>
+        <LanguageMenu />
       </div>
       <details className="group relative min-[1280px]:hidden" ref={detailsRef}>
         <summary
