@@ -2,6 +2,7 @@ import type { RootState } from "@react-three/fiber";
 import { createContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CanvasTarget, WebGPURenderer } from "three/webgpu";
 import type { Line2 } from "three/addons/lines/webgpu/Line2.js";
+import type { LineSegments2 } from "three/addons/lines/webgpu/LineSegments2.js";
 import type { PanoRendererBackend } from "./types";
 import { endWebXRSession, hasWebGPUXRBinding } from "./webvr/webgpu-xr";
 import { createWebGPUFramePasses, type WebGPUFramePasses } from "./webgpu-frame";
@@ -19,12 +20,14 @@ type PreparedRenderer = {
   passes: WebGPUFramePasses;
   nativeXR: boolean;
   Line2: typeof Line2;
+  LineSegments2: typeof LineSegments2;
 };
 
 type WebGPURuntime = {
   passes: WebGPUFramePasses;
   nativeXR: boolean;
   Line2: typeof Line2;
+  LineSegments2: typeof LineSegments2;
   fallback: () => void;
 };
 
@@ -73,10 +76,11 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
 
     async function prepare() {
       try {
-        const [three, tsl, { Line2 }] = await Promise.all([
+        const [three, tsl, { Line2 }, { LineSegments2 }] = await Promise.all([
           import("three/webgpu"),
           import("three/tsl"),
           import("three/addons/lines/webgpu/Line2.js"),
+          import("three/addons/lines/webgpu/LineSegments2.js"),
         ]);
         if (cancelled) return;
         const { WebGPURenderer, CanvasTarget } = three;
@@ -112,7 +116,14 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
           fallback();
           return;
         }
-        setPrepared({ renderer, CanvasTarget, Line2, nativeXR, passes: createWebGPUFramePasses(renderer, { three, tsl }) });
+        setPrepared({
+          renderer,
+          CanvasTarget,
+          Line2,
+          LineSegments2,
+          nativeXR,
+          passes: createWebGPUFramePasses(renderer, { three, tsl }),
+        });
       } catch {
         if (!cancelled) fallback();
       } finally {
@@ -194,6 +205,17 @@ export function usePanoRenderer(preference: "auto" | "webgl", beforeReplace: () 
     gl: gpu?.renderer ?? WEBGL_OPTIONS,
     attachCanvas,
     onCreated,
-    runtime: useMemo(() => gpu ? { Line2: gpu.Line2, passes: gpu.passes, nativeXR: gpu.nativeXR, fallback } : null, [gpu, fallback]),
+    runtime: useMemo(
+      () => gpu
+        ? {
+            Line2: gpu.Line2,
+            LineSegments2: gpu.LineSegments2,
+            passes: gpu.passes,
+            nativeXR: gpu.nativeXR,
+            fallback,
+          }
+        : null,
+      [gpu, fallback],
+    ),
   };
 }

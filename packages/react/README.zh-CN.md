@@ -29,6 +29,7 @@
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
 - [PanoSun](#panosun)
+- [PanoGrid](#panogrid)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -2113,6 +2114,36 @@ import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 | `color` | `"#fff4de"` | 泛光、射线和镜头光斑的十六进制颜色 |
 
 在 [太阳光效 Playground](https://pano-view-playground.vercel.app/sun) 选择 **Edit sun** 放大。点击画面或拖动中心标记对齐太阳，用 **Disc size** 调整日盘轮廓，确认后复制生成的参数。可用 **Preview light** 对比原图与光效。照片过曝时可只对准中心，独立调节泛光宽度。多场景项目可在 `Scenes.onSceneReady` 更新太阳参数。照片中的遮挡可通过 `enabled` 或 `intensity` 控制，阴影和反光来自全景源。
+
+## PanoGrid
+
+`PanoGrid` 是全景空间的调试与测试参考网格。可在 `PanoViewer` 内单独挂载、不加载全景图——网格本身形成全景壳；也可与 `Sphere`、`Tile`、`SphereTile`、`PanoVideo` 或 `Scenes` 同级叠加，用于检查贴图对齐。线条在 WebGPU 与 WebGL 下都使用屏幕空间描边，转动视角时线宽保持稳定，且不参与指针命中检测。
+
+```tsx
+import { PanoGrid, PanoViewer } from "@ericchen1990/pano-view";
+
+// 空查看器：网格即全景壳。
+<PanoViewer style={{ height: 480 }}>
+  <PanoGrid projection="sphere" divisions={16} color="#7dffe1" />
+</PanoViewer>
+
+// 在立方体瓦片上叠加六面网格。
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...cubeTileProps} />
+  <PanoGrid projection="cube" divisions={8} color="#ffffff" opacity={0.45} />
+</PanoViewer>
+```
+
+| 属性 | 默认值 | 含义 |
+| --- | --- | --- |
+| `projection` | `"sphere"` | `"sphere"` 画经纬线；`"cube"` 在六个内向立方体面上画网格 |
+| `divisions` | `8` | 密度，按约 90° 立方体面跨度上的格数理解。六面体为每条边的格数；球面使用相同角度步长（`90° / divisions`）铺满整壳，因此同一数值的疏密观感接近。球面限制 `2–64`，六面体限制 `1–64` |
+| `color` | `"#ffffff"` | 线条颜色 |
+| `opacity` | `0.8` | 线条透明度；叠在全景图上时可调低 |
+| `levelCorrection` | — | 可选 `{ pitch, roll }`，与做过水平校正的全景源保持一致 |
+| `radius` | 共享全景半径 | 世界空间壳体半径 |
+
+球面线条跟随查看器的 yaw/pitch（yaw `0` 为正前方）。六面体线条复用与 `Tile` 相同的面变换。可在 [网格 Playground](https://pano-view-playground.vercel.app/grid) 试用两种投影。
 
 ## BackgroundAudio
 

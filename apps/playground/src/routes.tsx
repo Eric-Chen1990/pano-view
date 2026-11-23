@@ -11,6 +11,7 @@ import { SceneTransitionPage } from "./components/scene-transitions/SceneTransit
 import { VideoPage } from "./components/video/VideoPage";
 import { WeatherPage } from "./components/weather/WeatherPage";
 import { SunPage } from "./components/sun/SunPage";
+import { GridPage } from "./components/grid/GridPage";
 import { WebVRPage } from "./components/webvr/WebVRPage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { BasicsPage } from "./components/basics/BasicsPage";
@@ -156,6 +157,13 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Panorama sunlight",
     group: "scenes",
     Component: SunPage,
+  },
+  {
+    path: "/grid",
+    jsonExample: "none",
+    navLabel: "Panorama grid",
+    group: "start",
+    Component: GridPage,
   },
   {
     path: "/scene-menu",

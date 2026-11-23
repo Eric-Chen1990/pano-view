@@ -29,6 +29,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [PanoFilter](#panofilter)
 - [PanoWeather](#panoweather)
 - [PanoSun](#panosun)
+- [PanoGrid](#panogrid)
 - [AutoRotate](#autorotate)
 - [BackgroundAudio](#backgroundaudio)
 - [Gyro](#gyro)
@@ -2330,6 +2331,36 @@ import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 | `color` | `"#fff4de"` | Hex tint for the glow, rays, and flare |
 
 In the [sunlight Playground](https://pano-view-playground.vercel.app/sun), choose **Edit sun** to zoom in. Click the image or drag the center marker to align the sun, then adjust **Disc size** until the outline fits and select **Done**. Use **Preview light** to compare the effect with the photo, then copy the generated props. With an overexposed photo, align the center and set the glow width independently. For a tour, update the sun props in `Scenes.onSceneReady`. Use `enabled` or `intensity` to control visibility when the photographed sky contains occluders. Shadows and reflections come from the source panorama.
+
+## PanoGrid
+
+`PanoGrid` is a debug and test reference for panorama space. Mount it alone inside `PanoViewer` when no panorama image is loaded—the grid itself forms the spherical shell—or place it beside `Sphere`, `Tile`, `SphereTile`, `PanoVideo`, or `Scenes` to check alignment. It draws screen-space strokes on WebGPU and WebGL so line width stays stable while you look around, and it does not participate in pointer hit-testing.
+
+```tsx
+import { PanoGrid, PanoViewer } from "@ericchen1990/pano-view";
+
+// Empty viewer: the grid is the panorama shell.
+<PanoViewer style={{ height: 480 }}>
+  <PanoGrid projection="sphere" divisions={16} color="#7dffe1" />
+</PanoViewer>
+
+// Overlay a cube face grid on tiled cube content.
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...cubeTileProps} />
+  <PanoGrid projection="cube" divisions={8} color="#ffffff" opacity={0.45} />
+</PanoViewer>
+```
+
+| Prop | Default | Meaning |
+| --- | --- | --- |
+| `projection` | `"sphere"` | `"sphere"` draws latitude/longitude lines; `"cube"` draws a grid on the six inward cube faces |
+| `divisions` | `8` | Density as cells across a ~90° cube-face span. Cube uses that count per face edge. Sphere uses the same angular step (`90° / divisions`) around the full shell, so the same value looks similarly dense. Sphere clamps to `2–64`; cube clamps to `1–64` |
+| `color` | `"#ffffff"` | Line color |
+| `opacity` | `0.8` | Line opacity; lower it when overlaying a panorama image |
+| `levelCorrection` | — | Optional `{ pitch, roll }` matching a leveled panorama source |
+| `radius` | shared panorama radius | World-space shell radius |
+
+Sphere lines follow viewer yaw/pitch (yaw `0` looks forward). Cube lines reuse the same face transforms as `Tile`. Try both projections in the [grid Playground](https://pano-view-playground.vercel.app/grid).
 
 ## BackgroundAudio
 
