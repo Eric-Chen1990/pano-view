@@ -66,9 +66,10 @@ const introEasings = {
   linear: "Linear",
 } as const;
 
-function SourceExample({ source, renderer, intro }: {
+function SourceExample({ source, renderer, frameloop, intro }: {
   source: SourceKind;
   renderer: "auto" | "webgl";
+  frameloop: "always" | "demand";
   intro: false | PanoLittlePlanetIntroOptions;
 }) {
   const { t } = usePlaygroundLanguage();
@@ -104,7 +105,7 @@ function SourceExample({ source, renderer, intro }: {
           {t(error)}
         </p>
       ) : null}
-      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} renderer={renderer} frameloop={frameloop} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: 540 }}>
         {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
@@ -136,6 +137,7 @@ export function BasicsPage() {
   const { t } = usePlaygroundLanguage();
   const [source, setSource] = useState<SourceKind>("tile");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
+  const [frameloop, setFrameloop] = useState<"always" | "demand">("always");
   const [intro, setIntro] = useState(defaultIntro);
   const [playback, setPlayback] = useState<{ key: number; options: false | PanoLittlePlanetIntroOptions }>(
     { key: 0, options: false },
@@ -161,6 +163,7 @@ export function Panorama() {
   return (
     <PanoViewer
       renderer="${renderer}"
+      frameloop="${frameloop}"
 ${introCode}      style={{ height: 540 }}
     >
       <${component}
@@ -174,38 +177,68 @@ ${sourceProps}
       title={t("Panorama basics")}
       description={t("Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source.")}
     >
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Panorama source")}
-      >
-        {sourceOrder.map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={source === value}
-            className={cn(
-              segmentedButtonClassName,
-              source === value && segmentedButtonActiveClassName,
-            )}
-            onClick={() => setSource(value)}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Panorama source")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Panorama source")}
           >
-            {t(sources[value].label)}
-          </button>
-        ))}
+            {sourceOrder.map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={source === value}
+                className={cn(
+                  segmentedButtonClassName,
+                  source === value && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setSource(value)}
+              >
+                {t(sources[value].label)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className={pageControlsClassName} role="group" aria-label={t("Renderer preference")}>
-        {(["auto", "webgl"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={renderer === value}
-            className={cn(segmentedButtonClassName, renderer === value && segmentedButtonActiveClassName)}
-            onClick={() => setRenderer(value)}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Renderer preference")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Renderer preference")}
           >
-            {value === "auto" ? t("Auto") : "WebGL"}
-          </button>
-        ))}
+            {(["auto", "webgl"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={renderer === value}
+                className={cn(segmentedButtonClassName, renderer === value && segmentedButtonActiveClassName)}
+                onClick={() => setRenderer(value)}
+              >
+                {value === "auto" ? t("Auto") : "WebGL"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Render loop")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Render loop")}
+          >
+            {(["always", "demand"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={frameloop === value}
+                className={cn(segmentedButtonClassName, frameloop === value && segmentedButtonActiveClassName)}
+                onClick={() => setFrameloop(value)}
+              >
+                {value === "always" ? t("Always render") : t("On demand")}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <fieldset className={cn(pageControlsClassName, "min-w-0")}>
         <legend className="px-6 text-sm">{t("Little Planet Intro")}</legend>
@@ -255,7 +288,7 @@ ${sourceProps}
           </div>
         )}
       </fieldset>
-      <SourceExample key={`${renderer}:${playback.key}`} source={source} renderer={renderer} intro={playback.options} />
+      <SourceExample key={`${renderer}:${frameloop}:${playback.key}`} source={source} renderer={renderer} frameloop={frameloop} intro={playback.options} />
       <p className="px-6 text-sm text-muted-2">{t("Single-image previews resolve beside the image. Cube and spherical tile previews and templates resolve below baseUrl. Use the template and multires values from your converted files.")}</p>
       <ExampleCode
         key={source}

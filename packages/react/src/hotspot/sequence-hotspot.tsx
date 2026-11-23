@@ -212,10 +212,11 @@ export function SequenceHotspot({
     }
   }, [playing, texture]);
 
-  useFrame((_, deltaSeconds) => {
+  useFrame((state, deltaSeconds) => {
     if (!texture || !playing || endedRef.current) {
       return;
     }
+    state.invalidate();
     elapsedRef.current += deltaSeconds;
     const steps = Math.floor(elapsedRef.current * safeFps);
     if (steps === 0) {

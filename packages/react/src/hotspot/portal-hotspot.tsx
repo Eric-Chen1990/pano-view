@@ -7,6 +7,7 @@ import { WebGPURuntimeContext } from "../pano-renderer";
 import { toLeveledPanoPosition } from "../level-correction";
 import { HotspotLevelCorrectionContext } from "../level-rotation";
 import { SceneSource } from "../scenes";
+import type { PanoViewerState } from "../types";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { useHotspotImageTexture } from "./image-hotspot";
 import { DEFAULT_PORTAL_FRAME_COLOR, DEFAULT_PORTAL_FRAME_THICKNESS, portalFrameGeometry,
@@ -19,10 +20,14 @@ export type PortalHotspotProps = Omit<
   HotspotCommonProps, "mode" | "distance" | "scaleMode" | "referenceFov" | "opacity"
 > & {
   targetSceneId: string;
+  /** Base view through the portal and the camera view after entering the scene. */
+  arrivalView?: PanoViewerState;
   /** Enter when the visitor aims at the opening and zooms in. Defaults to false. */
   enterOnZoom?: boolean;
   shape?: PortalHotspotShape;
   frame?: PortalHotspotFrame;
+  /** Called when the destination first paints through this opening. */
+  onPreviewReady?: () => void;
   onError?: (error: unknown) => void;
 };
 
@@ -73,7 +78,7 @@ function useWindowMaterial() {
 
 export function PortalHotspot({
   targetSceneId, width, height, shape = "rectangle", frame, visible = true, ariaLabel, enterOnZoom = false,
-  onClick, onError, ...anchor
+  arrivalView, onClick, onPreviewReady, onError, ...anchor
 }: PortalHotspotProps) {
   const host = useContext(PortalHostContext);
   const target = host?.scenes.get(targetSceneId);
@@ -84,6 +89,9 @@ export function PortalHotspot({
   const [detail, setDetail] = useState(false);
   const detailRequested = useRef(false);
   const readiness = useRef(false);
+  const painted = useRef(false);
+  const previewReady = useRef(onPreviewReady);
+  previewReady.current = onPreviewReady;
   const sourceLocation = target?.type === "sphere" ? target.src : target?.baseUrl;
   const preview = useMemo(() => new ThreeScene(), [targetSceneId, target?.type, target?.previewUrl, sourceLocation]);
   const camera = useMemo(() => new PerspectiveCamera(), []);
@@ -102,13 +110,14 @@ export function PortalHotspot({
   const autoEntry = enterOnZoom && anchor.interactive !== false && anchor.pointerEvents !== "none" && activate;
   useLayoutEffect(() => {
     readiness.current = false;
+    painted.current = false;
   }, [preview, canPreview]);
   useLayoutEffect(() => {
     if (!host || !mesh.current || !placeholder.current || !target) return;
     const surface = mesh.current;
     const fallback = placeholder.current;
     return host.register(anchor.id, {
-      targetId: targetSceneId, position: worldPosition, mesh: mesh.current, outline: geometry.inner, preview, camera,
+      targetId: targetSceneId, arrivalView, position: worldPosition, mesh: mesh.current, outline: geometry.inner, preview, camera,
       visible: () => visible && canPreview,
       ready: () => readiness.current,
       enterOnZoom: autoEntry ? (nativeEvent) => autoEntry({ id: anchor.id, position, nativeEvent, source: "pointer" }) : undefined,
@@ -124,10 +133,14 @@ export function PortalHotspot({
           const { x, y, width, height } = aperture.bounds;
           visual.bounds.set(x, y, width, height);
           visual.setTexture(texture);
+          if (!painted.current) {
+            painted.current = true;
+            previewReady.current?.();
+          }
         }
       },
     });
-  }, [host, target, preview, camera, geometry, anchor.id, position, worldPosition, targetSceneId, visible, canPreview, visual, autoEntry]);
+  }, [host, target, preview, camera, geometry, anchor.id, position, worldPosition, targetSceneId, arrivalView, visible, canPreview, visual, autoEntry]);
 
   return (
     <HotspotAnchor

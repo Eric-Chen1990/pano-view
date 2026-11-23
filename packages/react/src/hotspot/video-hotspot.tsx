@@ -3,7 +3,7 @@ import { getTextureAnisotropy, fitImageTexture } from "../renderer-capabilities"
 import { mediaControllers } from "../controls/media";
 import { usePanoMediaController } from "../controls/media";
 import type { PanoMediaController } from "../controls/actions";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import {
   ClampToEdgeWrapping,
@@ -344,6 +344,12 @@ export function VideoHotspot({
       active = false;
     };
   }, [playing, video]);
+
+  useFrame((state) => {
+    if (playing && resource?.ready && video && !video.paused && !video.ended) {
+      state.invalidate();
+    }
+  });
 
   const activeTexture = resource?.ready ? resource.texture : posterTexture;
 

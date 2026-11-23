@@ -153,21 +153,22 @@ ${optionalWeatherProps}      />
           <h1 id="weather-title" className={pageHeadingTitleClassName}>{t("360° weather")}</h1>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Weather")}>
-            {MODES.map(({ label, value }) => (
-              <button
-                key={value}
-                type="button"
-                className={segmentedButtonClassName}
-                aria-pressed={mode === value}
-                onClick={() => {
-                  setEnabled(value !== "off");
-                  if (value !== "off") setType(value);
-                }}
-              >
-                {t(label)}
-              </button>
-            ))}
+          <div className={controlLabelClassName}>{t("Weather")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Weather")}>
+              {MODES.map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={segmentedButtonClassName}
+                  aria-pressed={mode === value}
+                  onClick={() => {
+                    setEnabled(value !== "off");
+                    if (value !== "off") setType(value);
+                  }}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
           </div>
           {mode === "rain" && <WeatherPresetSelect options={PANO_RAIN_PRESETS} value={rain} onChange={setRain} />}
           {mode === "snow" && <WeatherPresetSelect options={PANO_SNOW_PRESETS} value={snow} onChange={setSnow} />}

@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from "react";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   eyebrowClassName,
   pageControlsClassName,
   pageHeadingStatusClassName,
@@ -212,31 +213,32 @@ export function ContextMenuPage() {
           <p className={pageHeadingStatusClassName}>{t(lastAction)}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                mode === "default" && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setMode("default")}
-              type="button"
-            >{t("Default")}</button>
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                mode === "append" && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setMode("append")}
-              type="button"
-            >{t("Append custom")}</button>
-            <button
-              className={cn(
-                segmentedButtonClassName,
-                mode === "presets" && segmentedButtonActiveClassName,
-              )}
-              onClick={() => setMode("presets")}
-              type="button"
-            >{t("Compose presets")}</button>
+          <div className={controlLabelClassName}>{t("Menu mode")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  mode === "default" && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setMode("default")}
+                type="button"
+              >{t("Default")}</button>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  mode === "append" && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setMode("append")}
+                type="button"
+              >{t("Append custom")}</button>
+              <button
+                className={cn(
+                  segmentedButtonClassName,
+                  mode === "presets" && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setMode("presets")}
+                type="button"
+              >{t("Compose presets")}</button>
+            </div>
           </div>
           <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Opacity")}<input
               className="accent-[#df6b42]"

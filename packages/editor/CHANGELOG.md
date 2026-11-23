@@ -1,5 +1,15 @@
 # @ericchen1990/pano-editor
 
+## 3.6.0
+
+### Minor Changes
+
+- Let a portal doorway set its own arrival view, and author that doorway in the tour editor.
+
+  A portal hotspot accepts optional `arrivalView` with `yaw`, `pitch`, and `fov`. It sets both the centered preview and the view after entry, in React and in project JSON. Without it, entry still uses the destination scene's `initialView`. `Scenes` accepts `previewOnly` to render configured previews without loading full images or tiles.
+
+  In the tour editor, add a portal hotspot, resize and rotate its frame, choose the destination, and set a custom arrival view. Test portal entry plays the transition into that view.
+
 ## 3.5.0
 
 ### Minor Changes

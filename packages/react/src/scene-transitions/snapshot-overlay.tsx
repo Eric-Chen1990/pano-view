@@ -1,12 +1,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
-import { Mesh, Vector3 } from "three";
+import { useContext, useEffect, useMemo, useRef } from "react";
+import { Mesh } from "three";
+import { WebVRRuntimeContext } from "../webvr/host";
 import {
   FULLSCREEN_PLANE,
   OVERLAY_RENDER_ORDER,
-  isPerspectiveCamera,
+  bindSnapshotEyeTexture,
   overlayProgress,
-  placeFullscreenOverlay,
 } from "./overlay-utils";
 import type { OverlayProps } from "./overlay-utils";
 import { isSnapshotTransition } from "./presets";
@@ -19,11 +19,10 @@ export function SnapshotOverlay({
   runId,
   onFinish,
 }: OverlayProps) {
-  const { camera, gl } = useThree();
-  const meshRef = useRef<Mesh>(null);
+  const gl = useThree((state) => state.gl);
+  const vr = useContext(WebVRRuntimeContext);
   const startRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
-  const directionRef = useRef(new Vector3());
   const material = useMemo(() => {
     if (!isSnapshotTransition(transition.preset)) {
       return null;
@@ -40,18 +39,27 @@ export function SnapshotOverlay({
     }
   }, [material, runId]);
 
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh || !material || !isPerspectiveCamera(camera)) {
-      return;
-    }
-    placeFullscreenOverlay(mesh, camera, directionRef.current);
-    const context = gl.getContext();
-    material.uniforms.resolution.value.set(context.drawingBufferWidth, context.drawingBufferHeight);
+  const bindView: Mesh["onBeforeRender"] = (_renderer, _scene, camera) => {
+    if (!material) return;
+    const rightEye = gl.xr.isPresenting
+      ? gl.xr.getCamera().cameras[1]
+      : vr?.stereoView.active
+        ? vr.stereoView.stereo.cameraR
+        : undefined;
+    bindSnapshotEyeTexture(
+      snapshot,
+      camera,
+      rightEye,
+      material.uniforms.map,
+      material.uniforms.resolution,
+    );
+  };
 
-    if (!running || finishedRef.current) {
+  useFrame((state) => {
+    if (!material || !running || finishedRef.current) {
       return;
     }
+    state.invalidate();
     const next = overlayProgress(state.clock.elapsedTime, transition.duration, startRef.current);
     startRef.current = next.startTime;
     material.uniforms.progress.value = next.progress;
@@ -66,7 +74,11 @@ export function SnapshotOverlay({
   }
 
   return (
-    <mesh ref={meshRef} renderOrder={OVERLAY_RENDER_ORDER} frustumCulled={false}>
+    <mesh
+      renderOrder={OVERLAY_RENDER_ORDER}
+      frustumCulled={false}
+      onBeforeRender={bindView}
+    >
       <primitive attach="geometry" object={FULLSCREEN_PLANE} />
       <primitive attach="material" object={material} />
     </mesh>

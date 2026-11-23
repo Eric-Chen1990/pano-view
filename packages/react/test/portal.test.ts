@@ -125,3 +125,30 @@ test("project portal uses a scene action and rejects invalid destinations on exp
   assert.throws(() => parsePanoProject(project("a")), /different scene/);
   assert.throws(() => parsePanoProject(project("missing")), /scene does not exist/);
 });
+
+test("a portal's optional arrival view survives project parsing and asset resolution", () => {
+  const source = { viewerUrl: "viewer.json" };
+  const arrivalView = { yaw: -42, pitch: 12, fov: 56 };
+  const door = {
+    type: "portal", id: "door", position: { yaw: 20, pitch: 0 }, arrivalView,
+    events: { click: { type: "scene", sceneId: "hall" } },
+  };
+  const project = (view: unknown) => ({
+    schemaVersion: 1,
+    scenes: [
+      { id: "lobby", source, hotspots: [{ ...door, arrivalView: view }] },
+      { id: "hall", source, initialView: { yaw: 10, pitch: 0, fov: 75 } },
+    ],
+  });
+  const parsed = parsePanoProject(project(arrivalView));
+  const hotspot = parsed.scenes[0]!.hotspots![0]!;
+  assert.ok(hotspot.type === "portal");
+  assert.deepEqual(hotspot.arrivalView, arrivalView);
+  assert.deepEqual(parsePanoProject(JSON.parse(JSON.stringify(parsed))), parsed);
+  const resolved = resolveProjectHotspotAssets(hotspot, "https://example.com/", "lobby");
+  assert.deepEqual(resolved.type === "portal" && resolved.arrivalView, arrivalView);
+  assert.equal(parsed.scenes[1]!.initialView?.yaw, 10);
+  assert.throws(() => parsePanoProject(project({ ...arrivalView, pitch: 91 })), /arrivalView.pitch/);
+  assert.throws(() => parsePanoProject(project({ ...arrivalView, fov: 180 })), /arrivalView.fov/);
+  assert.throws(() => parsePanoProject(project({ yaw: 0 })), /arrivalView.pitch/);
+});

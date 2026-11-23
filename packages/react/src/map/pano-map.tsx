@@ -137,11 +137,9 @@ export function PanoMap({
 }: PanoMapProps) {
   const t = usePanoUiTranslation();
   const reactId = useId().replace(/:/g, "");
-  const view = useMapView(controlledView);
   const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sectorNodeRef = useRef<SVGGElement | null>(null);
-  const yawRef = useRef(view.yaw);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
@@ -158,6 +156,25 @@ export function PanoMap({
   const scaleRef = useRef(scale);
   const initialViewKeyRef = useRef<string | null>(null);
   const spots = map.spots;
+  const spotsRef = useRef(spots);
+  spotsRef.current = spots;
+  const activeSceneIdRef = useRef(activeSceneId);
+  activeSceneIdRef.current = activeSceneId;
+  const sectorEnabledRef = useRef(Boolean(map.sector));
+  sectorEnabledRef.current = Boolean(map.sector);
+  const onYawChange = useRef<(yaw: number) => void>((yaw) => {
+    const node = sectorNodeRef.current;
+    if (!node || !sectorEnabledRef.current) return;
+    const active = spotsRef.current.find(
+      (spot) => spot.sceneId === activeSceneIdRef.current,
+    );
+    if (!active) return;
+    node.setAttribute(
+      "transform",
+      `rotate(${sectorRotation(active.heading, yaw)})`,
+    );
+  });
+  const { fov, yawRef } = useMapView(controlledView, onYawChange);
   const iconSize = map.iconSize ?? DEFAULT_ICON_SIZE;
   const interaction = map.interaction ?? "fixed";
   const gestureZoom = interaction === "zoom";
@@ -208,16 +225,8 @@ export function PanoMap({
   }, [collapsed]);
 
   useEffect(() => {
-    yawRef.current = view.yaw;
-    const node = sectorNodeRef.current;
-    if (!node) return;
-    const active = spots.find((spot) => spot.sceneId === activeSceneId);
-    if (!active || !map.sector) return;
-    node.setAttribute(
-      "transform",
-      `rotate(${sectorRotation(active.heading, view.yaw)})`,
-    );
-  }, [view.yaw, activeSceneId, spots, map.sector]);
+    onYawChange.current(yawRef.current);
+  }, [activeSceneId, spots, map.sector, yawRef]);
 
   const setCollapsed = (next: boolean) => {
     onCollapsedChange?.(next);
@@ -461,7 +470,7 @@ export function PanoMap({
         sceneId: placementSceneId,
         x: clamp01(image.x),
         y: clamp01(image.y),
-        heading: normalizeDegrees(-view.yaw),
+        heading: normalizeDegrees(-yawRef.current),
       };
       updateSpots([...spots, spot], spot.id);
       onSelectedSpotIdChange?.(spot.id);
@@ -545,8 +554,9 @@ export function PanoMap({
     const spot = spots.find((entry) => entry.id === drag.spotId);
     if (!spot) return;
     const center = imagePointToContainer(spot, viewport);
+    const yaw = yawRef.current;
     const heading = normalizeDegrees(
-      headingFromVector(point.x - center.x, point.y - center.y) - view.yaw,
+      headingFromVector(point.x - center.x, point.y - center.y) - yaw,
     );
     updateSpots(
       spots.map((entry) =>
@@ -556,7 +566,7 @@ export function PanoMap({
     if (sectorNodeRef.current && spot.sceneId === activeSceneId) {
       sectorNodeRef.current.setAttribute(
         "transform",
-        `rotate(${sectorRotation(heading, view.yaw)})`,
+        `rotate(${sectorRotation(heading, yaw)})`,
       );
     }
     event.preventDefault();
@@ -589,7 +599,7 @@ export function PanoMap({
     if (!map.sector) return 0;
     if (!map.sector.followFov) return map.sector.angle;
     const aspect = size.width > 0 && size.height > 0 ? size.width / size.height : 1;
-    return horizontalFov(view.fov, aspect);
+    return horizontalFov(fov, aspect);
   })();
 
   const activeSpot = spots.find((spot) => spot.sceneId === activeSceneId);
@@ -756,7 +766,7 @@ export function PanoMap({
               <SectorShape
                 sector={map.sector}
                 angle={sectorAngle}
-                rotation={sectorRotation(activeSpot.heading, view.yaw)}
+                rotation={sectorRotation(activeSpot.heading, yawRef.current)}
                 gradientId={defaultGradientId(reactId)}
                 interactive={editing}
                 onHeadingPointerDown={(event) => {

@@ -219,6 +219,13 @@ export type PanoViewerProps = Omit<
   onPanoramaPointerMove?: (event: PanoramaPointerEvent) => void;
   /** Canvas pixel ratio. Defaults to a capped range of 1–2. */
   dpr?: number | [number, number];
+  /**
+   * Render-loop policy. `"always"` (default) renders every display frame.
+   * `"demand"` renders only after input, animations, media, or other wakes —
+   * better for battery when the view is idle. Forced back to `"always"` while
+   * WebVR / XR, Spatial UI, or Compare is active.
+   */
+  frameloop?: "always" | "demand";
 };
 
 type ChannelMount<T> =
@@ -338,6 +345,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       onPanoramaDoubleClick,
       onPanoramaPointerMove,
       dpr = [1, 2],
+      frameloop = "always",
       style,
       "aria-label": providedAriaLabel,
       ...divProps
@@ -401,7 +409,19 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     });
     const getRendererBackend = rendererRuntime.getBackend;
     const compareHost = useMemo(createCompareHost, []);
+    const compareActive = useSyncExternalStore(
+      compareHost.subscribe,
+      () => compareHost.config !== null,
+      () => false,
+    );
     const isComparing = useCallback(() => compareHost.config !== null, [compareHost]);
+    // VR / Spatial / Compare keep continuous frames; demand mode is opt-in elsewhere.
+    const canvasFrameloop =
+      !rendererRuntime.renderChildren
+        ? "never"
+        : frameloop === "demand" && !vrActive && !spatialOpen && !compareActive
+          ? "demand"
+          : "always";
     const captureScreenshot = useCallback((options?: PanoScreenshotOptions) => screenshot.capture(options, () => {
       if (webVRHost.snapshot.mode !== null) {
         throw new DOMException("Screenshots are unavailable in VR.", "NotSupportedError");
@@ -967,7 +987,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           key={rendererRuntime.key}
           ref={rendererRuntime.attachCanvas}
           onCreated={rendererRuntime.onCreated}
-          frameloop={rendererRuntime.renderChildren ? "always" : "never"}
+          frameloop={canvasFrameloop}
           // WebGPU tone mapping affects the whole frame, including panorama textures.
           flat={rendererRuntime.key === "webgpu"}
           aria-label={t("{viewer} canvas").replace("{viewer}", ariaLabel)}

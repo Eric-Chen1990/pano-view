@@ -866,7 +866,8 @@ Viewer 会切换到 WebGL，并通过 `onDenied` 提示可以再次点击进入 
 
 原生 WebGPU XR 会话内，`Scenes` 在目标场景可绘制时直接切换，并报告
 `preset: "none"`。Three.js r185 在原生 WebGPU XR 中关闭 MSAA 和 multiview，
-其投影层也不应用 XR 帧缓冲超采样设置。宿主使用自定义 GLSL 或调用 WebGL 专用
+其投影层也不应用 XR 帧缓冲超采样设置。沉浸式 WebGL 会话会保留配置的
+`Scenes` 转场预设，并逐眼捕获快照。宿主使用自定义 GLSL 或调用 WebGL 专用
 API 时，可设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射以保留全景原始色彩。
 
 ```tsx
@@ -967,6 +968,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。
+- `frameloop` — `"always"`（默认）每显示帧都渲染。`"demand"` 仅在输入、动画、媒体或其他唤醒后渲染，静止时更省电。WebVR / XR、Spatial UI 或 Compare 激活时会强制回退为 `"always"`。
 - `controls` — `false` 关掉全部用户输入。对象可配置共享项与 `mouse` / `touch` / `keyboard` 通道；通道细节见[鼠标、触控与键盘控件](#鼠标触控与键盘控件)。共享项中：`enabled` 默认 `true`，`inertia` 默认 `true`，`invert` 默认 `false`，`bouncingLimits` 默认 `false`，`frictionStop` 默认 `0.01`，`rotateSpeed` 默认 `0.35`，`zoomSpeed` 默认 `0.08`，`rotateDamping` / `zoomDamping` 默认 `14` / `16`。`fovSpeed` 省略时不额外限速；滚轮按单次位移 `deltaY * zoomSpeed` 夹到 `±fovSpeed`，键盘按键按「度/秒 × 帧时间」再与 `fovSpeed` 比较。
 - `cursors` — `true` / 省略使用 grab / grabbing / pointer / move；`false` 不改画布光标；对象可覆盖四个状态。
 - `contextMenu` — `true` / 省略挂载「重置视图 + 全屏」；`false` 不挂默认菜单；对象可改外观或 `items` / `prepend` / `append`。详见 [PanoContextMenu](#panocontextmenu)。
@@ -2304,7 +2306,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
 - `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。
 - `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
-- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebXR 则在会话开始前设置 framebuffer 缩放（会话中途不可改）。
+- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebGL WebXR 在会话开始前设置 framebuffer 缩放（会话中途不可改）。原生 WebGPU XR 忽略该值，因为 three.js r185 不会把 `scaleFactor` 传给投影层。
 - `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
 - `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
@@ -2726,6 +2728,8 @@ import { ImageHotspot, PanoViewer, Sphere } from "@ericchen1990/pano-view";
 缩放当前全景时，门框改变大小，门内预览保持目标场景的视野范围。
 面积最大的两扇可见门会逐步加载清晰图层。进入后沿用目标场景的 `initialView`，
 默认视角为 yaw `0`、pitch `0`、FOV `75`，并应用目标场景的视角限制。
+可为单扇门设置 `arrivalView={{ yaw: 35, pitch: -5, fov: 65 }}`，同时设定正对门洞时看到的基准视角和进入后的视角。
+项目 JSON 也支持这个可选字段。门内画面仍会随游客转动，以设定的视角为基准产生视差。
 WebGL 和 WebGPU 均支持穿门动画。减少动态效果、WebXR 和双眼模式会在目标就绪后直切。
 React 的自定义 `onClick` 可替换默认进入行为，项目的热点事件可用 `preventDefault()` 取消。
 开启 `enterOnZoom` 后，对准门洞中心并用滚轮或双指放大到近处即可进入。

@@ -14,6 +14,7 @@ import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { cn } from "../../cn";
 import {
+  controlLabelClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -146,31 +147,34 @@ export function DialogsExample() {
   const [selected, setSelected] = useState<string | null>(null);
   return (
     <>
-      <div
-        className={pageControlsClassName}
-        role="group"
-        aria-label={t("Dialog implementation")}
-      >
-        {(["default", "composed", "custom"] as const).map((value) => (
-          <button
-            type="button"
-            key={value}
-            aria-pressed={mode === value}
-            className={cn(
-              segmentedButtonClassName,
-              mode === value && segmentedButtonActiveClassName,
-            )}
-            onClick={() => setMode(value)}
+      <div className={pageControlsClassName}>
+        <div className={controlLabelClassName}>{t("Dialog implementation")}<div
+            className="flex flex-wrap gap-1.5"
+            role="group"
+            aria-label={t("Dialog implementation")}
           >
-            {
-              {
-                default: t("Default dialog"),
-                composed: t("Compose parts"),
-                custom: t("Third-party dialog"),
-              }[value]
-            }
-          </button>
-        ))}
+            {(["default", "composed", "custom"] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={mode === value}
+                className={cn(
+                  segmentedButtonClassName,
+                  mode === value && segmentedButtonActiveClassName,
+                )}
+                onClick={() => setMode(value)}
+              >
+                {
+                  {
+                    default: t("Default dialog"),
+                    composed: t("Compose parts"),
+                    custom: t("Third-party dialog"),
+                  }[value]
+                }
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <PanoViewer
         ref={viewer.ref}

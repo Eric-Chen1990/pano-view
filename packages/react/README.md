@@ -907,9 +907,10 @@ that viewer mount. A switch recreates the canvas and may reload the scene and me
 In an immersive WebGPU session, `Scenes` switches as soon as the destination
 scene can draw and reports `preset: "none"`. Three.js r185 disables XR MSAA and
 multiview and does not apply the XR framebuffer oversampling setting to its
-native WebGPU projection layer. For custom GLSL or integrations that call
-WebGL-specific APIs, set `renderer="webgl"`. The WebGPU path disables
-frame-wide tone mapping to preserve panorama colors.
+native WebGPU projection layer. Immersive WebGL sessions keep the configured
+`Scenes` transition presets and capture per-eye snapshots. For custom GLSL or
+integrations that call WebGL-specific APIs, set `renderer="webgl"`. The WebGPU
+path disables frame-wide tone mapping to preserve panorama colors.
 
 ```tsx
 const viewer = usePanoViewer();
@@ -1011,6 +1012,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 - `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
 - `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
 - `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.
+- `frameloop` — `"always"` (default) renders every display frame. `"demand"` renders only after input, animations, media, or other wakes, which is better for battery when the view is idle. Forced back to `"always"` while WebVR / XR, Spatial UI, or Compare is active.
 - `controls` — `false` disables all user input. An object configures shared options and `mouse` / `touch` / `keyboard` channels; see [Mouse, touch, and keyboard controls](#mouse-touch-and-keyboard-controls). Shared defaults: `enabled` `true`, `inertia` `true`, `invert` `false`, `bouncingLimits` `false`, `frictionStop` `0.01`, `rotateSpeed` `0.35`, `zoomSpeed` `0.08`, `rotateDamping` / `zoomDamping` `14` / `16`. Omit `fovSpeed` for no extra cap: mouse wheel clamps each step `deltaY * zoomSpeed` to `±fovSpeed`; keyboard zoom compares degrees-per-second × frame time against `fovSpeed`.
 - `cursors` — `true` / omit uses grab / grabbing / pointer / move; `false` leaves the canvas cursor unchanged; an object overrides those four states.
 - `contextMenu` — `true` / omit mounts Reset view + Fullscreen; `false` skips the default menu; an object can change appearance or `items` / `prepend` / `append`. See [PanoContextMenu](#panocontextmenu).
@@ -2587,7 +2589,7 @@ respond to the configured gaze or controller input.
 - `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
 - `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
 - `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
-- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session).
+- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebGL WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session). Native WebGPU XR ignores this value because three.js r185 does not pass `scaleFactor` to its projection layer.
 - `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
 - `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
 - `cursor` — default `true`; `false` hides the center reticle.
@@ -3113,7 +3115,11 @@ The doorway follows the panorama surface. Its preview responds to panning.
 Zooming the current scene changes the size of the opening while the destination
 keeps its field of view. Detail loads for up to two visible doors. A portal arrives at the
 destination scene’s `initialView`, with yaw `0`, pitch `0`, and FOV `75`
-as defaults before applying view limits. Portal clicks use a dedicated
+as defaults before applying view limits. Set `arrivalView={{ yaw: 35, pitch: -5, fov: 65 }}`
+on an individual doorway to set both its centered preview and its arrival view.
+The same optional field works in project JSON. The preview still responds to
+panning around that view.
+Portal clicks use a dedicated
 animation in WebGL and WebGPU. Reduced motion, WebXR and stereo use a direct
 cut once the target is ready. A custom React `onClick` replaces the built-in
 activation. Project callbacks can cancel it with `preventDefault()`.

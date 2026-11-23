@@ -102,7 +102,7 @@ export function usePanoEvents({
 }: PanoEventsProps): void {
   const eventBus = useContext(PanoEventBusContext);
   const controlsRef = useContext(PanoramaViewContext);
-  const { gl } = useThree();
+  const { gl, invalidate } = useThree();
 
   if (!eventBus || !controlsRef) {
     throw new Error("usePanoEvents must be used inside <PanoViewer>.");
@@ -175,8 +175,36 @@ export function usePanoEvents({
 
   const idleElapsedRef = useRef(0);
   const isIdleRef = useRef(false);
+  const idleTimerRef = useRef<number | null>(null);
   const idleTimeRef = useRef(resolveIdleTime(idleTime));
   idleTimeRef.current = resolveIdleTime(idleTime);
+  const invalidateRef = useRef(invalidate);
+  invalidateRef.current = invalidate;
+
+  const clearIdleTimer = () => {
+    if (idleTimerRef.current !== null) {
+      window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  };
+
+  const armIdleTimerRef = useRef<(delay?: number) => void>(() => {});
+  armIdleTimerRef.current = (delay = idleTimeRef.current) => {
+    clearIdleTimer();
+    idleTimerRef.current = window.setTimeout(() => {
+      idleTimerRef.current = null;
+      if (controlsRef.current?.isUserInteracting()) {
+        armIdleTimerRef.current();
+        return;
+      }
+      if (!isIdleRef.current) {
+        isIdleRef.current = true;
+        idleElapsedRef.current = idleTimeRef.current;
+        callbacksRef.current.onIdle?.();
+        invalidateRef.current();
+      }
+    }, Math.max(0, delay));
+  };
 
   useEffect(() => {
     idleElapsedRef.current = 0;
@@ -350,6 +378,7 @@ export function usePanoEvents({
     const interacting = controlsRef.current?.isUserInteracting() ?? false;
     if (interacting) {
       idleElapsedRef.current = 0;
+      clearIdleTimer();
       if (isIdleRef.current) {
         isIdleRef.current = false;
         callbacksRef.current.onIdleEnd?.();
@@ -363,9 +392,25 @@ export function usePanoEvents({
       idleElapsedRef.current >= idleTimeRef.current
     ) {
       isIdleRef.current = true;
+      clearIdleTimer();
       callbacksRef.current.onIdle?.();
     }
   });
+
+  // Demand mode stops drawing after settle; wake once the idle delay elapses.
+  useEffect(() => {
+    const wakeAfterSettle = () => {
+      if (isIdleRef.current) return;
+      const remaining = Math.max(0, idleTimeRef.current - idleElapsedRef.current);
+      armIdleTimerRef.current(remaining);
+    };
+    wakeAfterSettle();
+    const unsubscribe = eventBus.subscribe("viewsettled", wakeAfterSettle);
+    return () => {
+      unsubscribe();
+      clearIdleTimer();
+    };
+  }, [eventBus]);
 }
 
 /**

@@ -80,13 +80,14 @@ function WeatherParticles({ type, style, intensity, windX, windZ, widthRange, gr
     return () => texture.dispose();
   }, [shape]);
 
-  useFrame(({ gl }, delta) => {
+  useFrame(({ gl, invalidate }, delta) => {
     const mesh = meshRef.current;
     if (!mesh) return;
     const session = gl.xr.getSession();
     const hidden = session ? session.visibilityState === "hidden" : gl.domElement.ownerDocument.hidden;
     const seconds = weatherFrameStep(delta, hidden);
     if (seconds === 0) return;
+    invalidate();
 
     const { matrix, rotation, normal, right, up, size } = scratch;
     const count = weatherParticleCount(style.count, intensity);

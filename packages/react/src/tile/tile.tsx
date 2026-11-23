@@ -593,6 +593,7 @@ export function Tile({
   const layerTokenRef = useRef("");
   const currentLevelRef = useRef(1);
   const lastUpdateAtRef = useRef(-Infinity);
+  const lodCatchUpTimerRef = useRef<number | null>(null);
   const visibilityDirtyRef = useRef(true);
   const lastVisibilityQuaternionRef = useRef(camera.quaternion.clone());
   const lastVisibilityFovRef = useRef(Number.NaN);
@@ -632,7 +633,14 @@ export function Tile({
     }
   };
 
-  useFrame(() => {
+  useEffect(() => () => {
+    if (lodCatchUpTimerRef.current !== null) {
+      window.clearTimeout(lodCatchUpTimerRef.current);
+      lodCatchUpTimerRef.current = null;
+    }
+  }, []);
+
+  useFrame((state) => {
     const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
     const worldCamera = pane ? pane.camera : root.camera;
     const size = pane ? pane.rect : root.size;
@@ -674,6 +682,31 @@ export function Tile({
       rotationDelta,
       fovDelta,
     });
+
+    if (!updateLod) {
+      // Demand mode may stop before the 100ms throttle allows a final LOD pass.
+      const wantsUpdate =
+        visibilityDirtyRef.current ||
+        trackedBaseOnlyRef.current !== initialBaseOnly ||
+        viewportChanged ||
+        !lastVisibilityProjectionRef.current.equals(camera.projectionMatrix) ||
+        rotationDelta > VIEW_CHANGE_EPSILON ||
+        fovDelta > VIEW_CHANGE_EPSILON ||
+        loadMode !== trackedLoadModeRef.current;
+      if (wantsUpdate && lodCatchUpTimerRef.current === null) {
+        const delay = Math.max(
+          0,
+          MAX_LOD_UPDATE_INTERVAL_MS - (now - lastUpdateAtRef.current),
+        );
+        lodCatchUpTimerRef.current = window.setTimeout(() => {
+          lodCatchUpTimerRef.current = null;
+          state.invalidate();
+        }, delay);
+      }
+    } else if (lodCatchUpTimerRef.current !== null) {
+      window.clearTimeout(lodCatchUpTimerRef.current);
+      lodCatchUpTimerRef.current = null;
+    }
 
     if (updateLod) {
       trackedLoadModeRef.current = loadMode;

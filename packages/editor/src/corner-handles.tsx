@@ -16,9 +16,9 @@ const referenceHeight = 768;
 const cornerDiameter = 18;
 const rotationDiameter = 32;
 const rotationOffset = 36;
-const cornerGraphic = { kind: "circle", fill: "#ffffff", stroke: "#8a8f9a", strokeWidth: 27 } as const;
-const rotationGraphic = { ...cornerGraphic, strokeWidth: 16 };
-const rotationIcon: GraphicDefinition = {
+export const cornerGraphic = { kind: "circle", fill: "#ffffff", stroke: "#8a8f9a", strokeWidth: 27 } as const;
+export const rotationGraphic = { ...cornerGraphic, strokeWidth: 16 };
+export const rotationIcon: GraphicDefinition = {
   kind: "path",
   path: "M23 14a7 7 0 0 0-12-3l-2 2m0-5v5h5 M9 18a7 7 0 0 0 12 3l2-2m0 5v-5h-5",
   viewBox: [0, 0, 32, 32],
@@ -29,6 +29,22 @@ const rotationIcon: GraphicDefinition = {
 function fixedAngle(pixels: number): number {
   return 2 * Math.atan(pixels / referenceHeight) * 180 / Math.PI;
 }
+
+export function hotspotHandleProps(viewportHeight: number) {
+  return {
+    width: fixedAngle(cornerDiameter),
+    height: fixedAngle(cornerDiameter),
+    distance: 8,
+    renderOrder: 100,
+    mode: "billboard",
+    scaleMode: "fixed",
+    referenceFov: fixedAngle(viewportHeight),
+    draggable: true,
+    cursor: "grab",
+  } as const;
+}
+
+export const rotationHandleSize = fixedAngle(rotationDiameter);
 
 export const cornerLabels = ["Top left", "Top right", "Bottom right", "Bottom left"] as const;
 
@@ -52,17 +68,7 @@ export function CornerHandles({ id, corners, viewportHeight, onChange, onBegin, 
   const minimumGap = Math.atan(2 * rotationOffset * Math.tan(75 * Math.PI / 360) / viewportHeight) * 180 / Math.PI;
   const rotateHandle = getHotspotRotationHandle(corners, "bottom", minimumGap);
   if (!center || !rotateHandle) return null;
-  const common = {
-    width: fixedAngle(cornerDiameter),
-    height: fixedAngle(cornerDiameter),
-    distance: 8,
-    renderOrder: 100,
-    mode: "billboard",
-    scaleMode: "fixed",
-    referenceFov: fixedAngle(viewportHeight),
-    draggable: true,
-    cursor: "grab",
-  } as const;
+  const common = hotspotHandleProps(viewportHeight);
 
   return (
     <>
@@ -87,8 +93,8 @@ export function CornerHandles({ id, corners, viewportHeight, onChange, onBegin, 
         id={`editor-${id}-rotate`}
         ariaLabel={t("Rotate hotspot")}
         position={rotateHandle}
-        width={fixedAngle(rotationDiameter)}
-        height={fixedAngle(rotationDiameter)}
+        width={rotationHandleSize}
+        height={rotationHandleSize}
         graphic={rotationGraphic}
         onDragStart={() => {
           rotationStart.current = { corners, center };
@@ -108,8 +114,8 @@ export function CornerHandles({ id, corners, viewportHeight, onChange, onBegin, 
       <GraphicHotspot
         id={`editor-${id}-rotate-icon`}
         position={rotateHandle}
-        width={fixedAngle(rotationDiameter)}
-        height={fixedAngle(rotationDiameter)}
+        width={rotationHandleSize}
+        height={rotationHandleSize}
         referenceFov={common.referenceFov}
         distance={7.99}
         mode="billboard"

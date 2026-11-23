@@ -152,7 +152,7 @@ export function KeyboardControls({
 }: KeyboardControlsProps) {
   useClaimControlChannel("keyboard");
   const controlsRef = useContext(PanoramaViewContext);
-  const { gl } = useThree();
+  const { gl, invalidate } = useThree();
   const pressedRef = useRef(new Set<KeyboardControlAction>());
   const shiftHeldRef = useRef(false);
   const invertRef = useRef(invert);
@@ -244,6 +244,7 @@ export function KeyboardControls({
 
       pressedRef.current.add(action);
       syncKeyboardActive();
+      invalidate();
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -290,9 +291,9 @@ export function KeyboardControls({
       element.style.outline = previousOutline;
       clearPressed();
     };
-  }, [controlsRef, enabled, gl, keyMap]);
+  }, [controlsRef, enabled, gl, invalidate, keyMap]);
 
-  useFrame((_, deltaSeconds) => {
+  useFrame((state, deltaSeconds) => {
     if (!enabled || pressedRef.current.size === 0) {
       return;
     }
@@ -357,6 +358,7 @@ export function KeyboardControls({
         { source: "keyboard" },
       );
     }
+    state.invalidate();
   });
 
   return null;

@@ -3,6 +3,7 @@ import { mapCursorAssets } from "../../../shared/cursor-assets";
 import {
   parsePanoProject,
   type PanoProjectDefinition,
+  type PanoProjectSceneDefinition,
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view/data";
 import {
@@ -12,6 +13,7 @@ import {
   DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
   type HotspotCorners,
   type HotspotPosition,
+  type PanoViewerState,
 } from "@ericchen1990/pano-view";
 import { translator, type Translate } from "./i18n";
 
@@ -20,6 +22,10 @@ export const emptyProject = (): PanoProjectDefinition => ({
   scenes: [],
 });
 export const newId = () => crypto.randomUUID();
+
+export function sceneStartingView(scene?: PanoProjectSceneDefinition): PanoViewerState {
+  return { yaw: 0, pitch: 0, fov: 75, ...scene?.initialView };
+}
 
 /** Keep empty authoring documents separate from the viewer's nonempty-project requirement. */
 export function readDocument(value: unknown): PanoProjectDefinition {
@@ -39,6 +45,9 @@ export type HotspotGeometryPatch = {
   position?: HotspotPosition;
   vertices?: HotspotPosition[];
   corners?: HotspotCorners;
+  width?: number;
+  height?: number;
+  rotation?: number;
 };
 
 export function geometryIssue(

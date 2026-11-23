@@ -50,7 +50,7 @@ export function PortalPreviewPass({ host, windows }: {
       );
       if (target.width !== bufferWidth || target.height !== bufferHeight) target.setSize(bufferWidth, bufferHeight);
       camera.copy(source, false);
-      const destination = host.destinationView(scene);
+      const destination = host.destinationView(scene, window.arrivalView);
       portalCameraRotation(source.quaternion, window.position, destination, camera.quaternion);
       setPortalCameraProjection(camera, destination.fov, size, aperture.bounds);
       camera.updateMatrixWorld(true);

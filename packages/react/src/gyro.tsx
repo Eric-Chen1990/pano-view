@@ -490,10 +490,11 @@ export const Gyro = forwardRef<GyroHandle, GyroProps>(function Gyro(
     requestPermission,
   ]);
 
-  useFrame((_, deltaSeconds) => {
+  useFrame((state, deltaSeconds) => {
     if (!activeRef.current || !hasRawQuaternionRef.current) {
       return;
     }
+    state.invalidate();
 
     let targetPose: GyroPose;
     if (absolute) {

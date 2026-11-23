@@ -7,6 +7,7 @@ import type { HotspotPosition } from "./types";
 
 export type PortalWindow = {
   targetId: string;
+  arrivalView?: PanoViewerState;
   position: HotspotPosition;
   mesh: Mesh;
   outline: readonly Vector2[];
@@ -21,7 +22,7 @@ export type PortalWindow = {
 
 export type PortalHost = {
   scenes: ReadonlyMap<string, Scene>;
-  destinationView: (scene: Scene) => PanoViewerState;
+  destinationView: (scene: Scene, arrivalView?: PanoViewerState) => PanoViewerState;
   spatial: boolean;
   register: (id: string, window: PortalWindow) => () => void;
   enter: (id: string, targetId: string) => void;
@@ -34,6 +35,7 @@ export type PortalRequest = {
   targetId: string;
   hotspotId: string;
   requestedAt: number;
+  arrivalView?: PanoViewerState;
   error?: unknown;
 };
 

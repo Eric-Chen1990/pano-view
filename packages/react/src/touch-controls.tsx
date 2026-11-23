@@ -43,7 +43,7 @@ export function TouchControls({
 }: TouchControlsProps) {
   useClaimControlChannel("touch");
   const controlsRef = useContext(PanoramaViewContext);
-  const { gl, camera } = useThree();
+  const { gl, camera, invalidate } = useThree();
   const validateDragRef = useRef<((delta: number) => void) | undefined>(undefined);
   useFrame((_, delta) => validateDragRef.current?.(delta), -1);
   const pointersRef = useRef(new Map<number, PointerSample>());
@@ -207,6 +207,8 @@ export function TouchControls({
 
       const speed = resolveSpeed(optionsRef.current.rotateSpeed, DEFAULT_ROTATE_SPEED);
       drag.move(next, previous, speed, optionsRef.current.invert, pointerAt(event));
+      // The move is applied by the next frame's flush; demand mode needs a wake.
+      invalidate();
     };
 
     const releasePointer = (event: PointerEvent) => {
@@ -246,7 +248,7 @@ export function TouchControls({
       element.removeEventListener("lostpointercapture", releasePointer);
       clearPointers();
     };
-  }, [controlsRef, enabled, gl, camera]);
+  }, [controlsRef, enabled, gl, camera, invalidate]);
 
   return null;
 }

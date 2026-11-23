@@ -44,12 +44,10 @@ function parseAction(action: unknown): ProjectHotspotAction {
     return { type: "custom", actionId: requiredString(action.actionId, "action.actionId"), ...(action.params === undefined ? {} : { params: jsonValue(action.params) as JsonObject }) };
   }
   if (action.type === "view") {
-    const position = parsePosition(action.view, "action.view");
-    const fov = finite((action.view as Record<string, unknown>).fov, "action.view.fov");
-    if (fov <= 0 || fov >= 180) throw new Error("action.view.fov: expected 0 < fov < 180");
+    const view = parseView(action.view, "action.view");
     const duration = action.duration === undefined ? undefined : finite(action.duration, "action.duration");
     if (duration !== undefined && duration < 0) throw new Error("action.duration: expected a nonnegative number");
-    return { type: "view", view: { ...position, fov }, ...(duration === undefined ? {} : { duration }) };
+    return { type: "view", view, ...(duration === undefined ? {} : { duration }) };
   }
   throw new Error("action.type: unsupported action");
 }
@@ -95,7 +93,7 @@ const point = [
 ];
 const fields = {
   image: ["src", "corners", "chromaKey"],
-  portal: ["shape", "frame", "enterOnZoom"],
+  portal: ["shape", "frame", "enterOnZoom", "arrivalView"],
   graphic: ["graphic"],
   sequence: ["src", "frameCount", "frameDirection", "playing", "fps", "loop"],
   video: [
@@ -283,6 +281,13 @@ export function parsePosition(value: unknown, field: string): HotspotPosition {
   return { yaw, pitch };
 }
 
+function parseView(value: unknown, field: string): PanoViewerState {
+  const position = parsePosition(value, field);
+  const fov = finite((value as Record<string, unknown>).fov, `${field}.fov`);
+  if (fov <= 0 || fov >= 180) throw new Error(`${field}.fov: expected 0 < fov < 180`);
+  return { ...position, fov };
+}
+
 function parseGraphic(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) throw new Error("graphic: expected an object");
   const kind = requiredString(value.kind, "graphic.kind");
@@ -414,6 +419,7 @@ export function parseHotspot(
       } else if (key === "chromaKey") result[key] = parseHotspotChromaKey(item);
       else if (key === "graphic") result[key] = parseGraphic(item);
       else if (key === "frame") result[key] = parsePortalFrame(item);
+      else if (key === "arrivalView") result[key] = parseView(item, key);
       else if (key === "tooltip") result[key] = parseTooltip(item);
       else if (key === "tooltipAppearance") result[key] = parseAppearance(item);
       else if (booleanFields.has(key)) {

@@ -16,6 +16,7 @@ import {
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
 import { CornerHandles } from "./corner-handles";
+import { PortalHandles } from "./portal-handles";
 import type { Translate } from "./i18n";
 import { type HotspotGeometryPatch, geometryIssue } from "./document";
 import { errorMessage } from "./errors";
@@ -62,6 +63,7 @@ export const HotspotLayer = memo(function HotspotLayer({
   t,
 }: Props) {
   const selected = hotspots.find((hotspot) => hotspot.id === selectedId);
+  const selectedPortal = !drawing && selected?.type === "portal" ? selected : undefined;
   const cornerHotspot = !drawing && (selected?.type === "image" || selected?.type === "video") && selected.corners
     ? selected
     : undefined;
@@ -84,7 +86,7 @@ export const HotspotLayer = memo(function HotspotLayer({
           id: hotspot.id,
           visible: hotspot.id === selectedId || hotspot.visible !== false,
           // A tooltip can cover nearby handles while editing corners.
-          ...(cornerHotspot ? { tooltip: undefined } : {}),
+          ...(cornerHotspot || selectedPortal ? { tooltip: undefined } : {}),
           interactive: !drawing,
           pointerEvents: "auto" as const,
           draggable: !drawing,
@@ -219,6 +221,17 @@ export const HotspotLayer = memo(function HotspotLayer({
           corners={cornerHotspot.corners}
           viewportHeight={viewportHeight}
           onChange={(corners) => onUpdate(cornerHotspot.id, { corners })}
+          onBegin={onBegin}
+          onEnd={onEnd}
+          t={t}
+        />
+      ) : null}
+      {selectedPortal ? (
+        <PortalHandles
+          key={selectedPortal.id}
+          portal={selectedPortal}
+          viewportHeight={viewportHeight}
+          onChange={(patch) => onUpdate(selectedPortal.id, patch)}
           onBegin={onBegin}
           onEnd={onEnd}
           t={t}
