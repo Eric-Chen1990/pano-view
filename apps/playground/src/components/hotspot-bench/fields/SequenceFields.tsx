@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { EditorHotspot } from "../../../types";
 import {
   checkboxLabelClassName,
@@ -19,6 +20,7 @@ export function SequenceFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "sequence" }>, "id" | "type">>,
   ) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-1.5">
       <button
@@ -26,10 +28,10 @@ export function SequenceFields({
         onClick={() => onChange({ playing: !hotspot.playing })}
         type="button"
       >
-        {hotspot.playing ? "Pause sequence" : "Play sequence"}
+        {hotspot.playing ? t("Pause sequence") : t("Play sequence")}
       </button>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Sprite sheet URL</span>
+        <span className={fieldLabelClassName}>{t("Sprite sheet URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ src: event.currentTarget.value })}
@@ -38,7 +40,7 @@ export function SequenceFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Frame count</span>
+          <span className={fieldLabelClassName}>{t("Frame count")}</span>
           <input
             className={fieldInputClassName}
             min="1"
@@ -51,7 +53,7 @@ export function SequenceFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Frames per second</span>
+          <span className={fieldLabelClassName}>{t("Frames per second")}</span>
           <input
             className={fieldInputClassName}
             min="0.1"
@@ -63,7 +65,7 @@ export function SequenceFields({
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Frame direction</span>
+        <span className={fieldLabelClassName}>{t("Frame direction")}</span>
         <select
           className={fieldInputClassName}
           onChange={(event) =>
@@ -73,8 +75,8 @@ export function SequenceFields({
           }
           value={hotspot.frameDirection}
         >
-          <option value="vertical">Top to bottom</option>
-          <option value="horizontal">Left to right</option>
+          <option value="vertical">{t("Top to bottom")}</option>
+          <option value="horizontal">{t("Left to right")}</option>
         </select>
       </label>
       <label className={checkboxLabelClassName}>
@@ -84,7 +86,7 @@ export function SequenceFields({
           onChange={(event) => onChange({ loop: event.currentTarget.checked })}
           type="checkbox"
         />
-        <span>Loop sequence</span>
+        <span>{t("Loop sequence")}</span>
       </label>
     </div>
   );

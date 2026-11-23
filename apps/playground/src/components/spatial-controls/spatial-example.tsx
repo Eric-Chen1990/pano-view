@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
 import {
@@ -31,6 +32,7 @@ export type SpatialExampleKind =
   | "scroll";
 
 function ScrollExample() {
+  const { t } = usePlaygroundLanguage();
   const targetRef = useRef<HTMLDivElement>(null);
   return (
     <>
@@ -38,7 +40,7 @@ function ScrollExample() {
         ref={targetRef}
         className="h-64 overflow-auto border border-line p-3"
         tabIndex={0}
-        aria-label="Scrollable article"
+        aria-label={t("Scrollable article")}
       >
         {Array.from({ length: 12 }, (_, index) => (
           <p key={index}>
@@ -54,6 +56,7 @@ function ScrollExample() {
 }
 
 export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [controller, setController] = useState<PanoMediaController | null>(
     null,
@@ -79,25 +82,23 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
                 ),
               )
           }
-        >
-          Toggle VR
-        </button>
+        >{t("Toggle VR")}</button>
         {hasDialog ? (
           <button
             type="button"
             className={segmentedButtonClassName}
             onClick={() => setOpen(true)}
           >
-            {openLabel}
+            {t(openLabel)}
           </button>
         ) : null}
         <span className="text-sm" role="status">
-          {status}
+          {t(status)}
         </span>
       </div>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="Spatial controls viewer"
+        aria-label={t("Spatial controls viewer")}
         initialView={{
           yaw: kind === "scene-video" ? 145 : 0,
           pitch: 0,
@@ -132,13 +133,13 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
                 className={`${viewerChromeButtonClassName} pointer-events-auto absolute right-4 bottom-4`}
                 onClick={() => setOpen(true)}
               >
-                {openLabel}
+                {t(openLabel)}
               </button>
               <PanoDialog
                 open={open}
                 onOpenChange={setOpen}
                 title={
-                  kind === "model" ? "Host model controls" : "Scroll controls"
+                  kind === "model" ? t("Host model controls") : t("Scroll controls")
                 }
               >
                 {kind === "model" ? <HostModelExample /> : <ScrollExample />}

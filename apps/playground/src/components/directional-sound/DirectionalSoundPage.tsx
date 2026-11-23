@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -81,6 +82,7 @@ export function DirectionalSound() {
 }`;
 
 export function DirectionalSoundPage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const vr = useSyncExternalStore(viewer.subscribeVR, viewer.getVRState, viewer.getVRState);
   const gyro = useRef<GyroHandle>(null);
@@ -97,8 +99,8 @@ export function DirectionalSoundPage() {
 
   return (
     <ExamplePage
-      title="Directional 3D Sound"
-      description="Select a sound marker to play or pause it. Use headphones and turn away from a playing sound to hear it fade. In a headset with positional tracking, step toward a source to hear it get louder."
+      title={t("Directional 3D Sound")}
+      description={t("Select a sound marker to play or pause it. Use headphones and turn away from a playing sound to hear it fade. In a headset with positional tracking, step toward a source to hear it get louder.")}
     >
       <div className={pageControlsClassName}>
         {gyroAvailable && (
@@ -110,9 +112,7 @@ export function DirectionalSoundPage() {
               if (gyroEnabled) setGyroEnabled(false);
               else void gyro.current?.requestPermission().then(setGyroEnabled);
             }}
-          >
-            Device motion
-          </button>
+          >{t("Device motion")}</button>
         )}
         <button
           type="button"
@@ -129,14 +129,14 @@ export function DirectionalSoundPage() {
             }
           }}
         >
-          {vr.enabled ? "Exit VR" : "Enter VR"}
+          {vr.enabled ? t("Exit VR") : t("Enter VR")}
         </button>
         <span role="status" className="text-sm">
           {sources.map(({ id, name }) => `${name}: ${states[id] ?? "paused"}`).join(" · ")}
         </span>
       </div>
-      {error && <p role="alert" className="px-6 text-sm">{error}</p>}
-      <PanoViewer ref={viewer.ref} aria-label="Directional 3D Sound viewer" style={{ height: 540 }}>
+      {error && <p role="alert" className="px-6 text-sm">{t(error)}</p>}
+      <PanoViewer ref={viewer.ref} aria-label={t("Directional 3D Sound viewer")} style={{ height: 540 }}>
         <Tile {...panorama} />
         <Gyro
           ref={gyro}
@@ -163,10 +163,10 @@ export function DirectionalSoundPage() {
         ))}
       </PanoViewer>
       <ExampleCode
-        react={{ label: "AudioHotspot", blurb: "Click a marker to activate audio and toggle that source. soundDistance places the source along its yaw and pitch direction.", code }}
+        react={{ label: "AudioHotspot", blurb: t("Click a marker to activate audio and toggle that source. soundDistance places the source along its yaw and pitch direction."), code }}
         json={{ format: "project", files: [{
-          label: "Directional audio hotspots",
-          blurb: "Add these entries to the scene’s hotspots array in project.json. ProjectScenes toggles each source on marker click.",
+          label: t("Directional audio hotspots"),
+          blurb: t("Add these entries to the scene’s hotspots array in project.json. ProjectScenes toggles each source on marker click."),
           value: projectHotspots,
         }] }}
       />

@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useSyncExternalStore } from "react";
 import type { PanoContextMenuActionsApi } from "../pano-context-menu";
 import {
@@ -10,6 +11,7 @@ import { PanoVideoControlsHud } from "./pano-video-controls";
 import type { PanoVideoController } from "./types";
 
 function CenterPlayButton({ controller }: { controller: PanoVideoController }) {
+  const t = usePanoUiTranslation();
   const playbackState = useSyncExternalStore(
     controller.subscribe,
     () => controller.getSnapshot().playbackState,
@@ -19,7 +21,7 @@ function CenterPlayButton({ controller }: { controller: PanoVideoController }) {
 
   return (
     <button
-      aria-label={playbackState === "ended" ? "Replay video" : "Play video"}
+      aria-label={playbackState === "ended" ? t("Replay video") : t("Play video")}
       className="pano-video-center-play"
       data-pano-video-center-play=""
       onClick={() => void controller.play()}

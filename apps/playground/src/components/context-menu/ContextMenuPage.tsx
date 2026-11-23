@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
@@ -113,6 +114,7 @@ ${entries}      }}
 }
 
 export function ContextMenuPage() {
+  const { t } = usePlaygroundLanguage();
   const pano = usePanoViewer();
   const [mode, setMode] = useState<MenuMode>("default");
   const [opacity, setOpacity] = useState(0.95);
@@ -203,15 +205,13 @@ export function ContextMenuPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Context menu bench</p>
-            <h1 className={pageHeadingTitleClassName} id="context-menu-title">
-              Custom right-click menu
-            </h1>
+            <p className={eyebrowClassName}>{t("Context menu bench")}</p>
+            <h1 className={pageHeadingTitleClassName} id="context-menu-title">{t("Custom right-click menu")}</h1>
           </div>
           <p className={pageHeadingStatusClassName}>{lastAction}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Menu mode">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -219,9 +219,7 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("default")}
               type="button"
-            >
-              Default
-            </button>
+            >{t("Default")}</button>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -229,9 +227,7 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("append")}
               type="button"
-            >
-              Append custom
-            </button>
+            >{t("Append custom")}</button>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -239,13 +235,9 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("presets")}
               type="button"
-            >
-              Compose presets
-            </button>
+            >{t("Compose presets")}</button>
           </div>
-          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-            Opacity
-            <input
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Opacity")}<input
               className="accent-[#df6b42]"
               max={1}
               min={MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY}
@@ -256,9 +248,7 @@ export function ContextMenuPage() {
             />
             <span className="font-mono text-[0.62rem] text-[#dcecef]">{opacity.toFixed(2)}</span>
           </label>
-          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-            Radius
-            <input
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Radius")}<input
               className="accent-[#df6b42]"
               max={20}
               min={0}
@@ -275,7 +265,7 @@ export function ContextMenuPage() {
         <div className="bg-[#020607]">
           <PanoViewer
             ref={pano.ref}
-            aria-label="Panorama context menu demo"
+            aria-label={t("Panorama context menu demo")}
             contextMenu={contextMenu}
             style={{ height: 540 }}
           >

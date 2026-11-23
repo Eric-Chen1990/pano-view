@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoViewer,
   Tile,
@@ -23,6 +24,7 @@ const PLACING_CURSORS = {
 } as const;
 
 export function CanvasPanel() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const selectPreset = useHotspotBenchStore((state) => state.selectPreset);
   const {
@@ -54,11 +56,11 @@ export function CanvasPanel() {
   );
 
   return (
-    <section aria-label="Panorama canvas" className="min-w-0 bg-[#071316]/80">
+    <section aria-label={t("Panorama canvas")} className="min-w-0 bg-[#071316]/80">
       <div
         className="flex flex-wrap gap-2 border-b border-line p-4"
         role="group"
-        aria-label="Hotspot presets"
+        aria-label={t("Hotspot presets")}
       >
         {(
           [
@@ -69,14 +71,14 @@ export function CanvasPanel() {
             "audio",
             "text",
             "iframe",
-            "polygon",
-            "polyline",
+            t("polygon"),
+            t("polyline"),
           ] as const
         ).map((type) => (
           <button
             type="button"
             className={segmentedButtonClassName}
-            key={type}
+            key={t(type)}
             onClick={() => {
               const id = selectPreset(type);
               if (!id) return;
@@ -89,13 +91,12 @@ export function CanvasPanel() {
               if (position) void viewer.lookTo(position, { fov: 75 });
             }}
           >
-            {type.charAt(0).toUpperCase() + type.slice(1)} preset
-          </button>
+            {type.charAt(0).toUpperCase() + type.slice(1)}{" " + t("preset")}</button>
         ))}
       </div>
       <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
         <div
-          aria-label="Viewer controls"
+          aria-label={t("Viewer controls")}
           className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-2"
           role="group"
         >
@@ -103,15 +104,12 @@ export function CanvasPanel() {
             className={segmentedButtonClassName}
             onClick={() => void viewer.toggleFullscreen()}
             type="button"
-          >
-            Fullscreen
-          </button>
+          >{t("Fullscreen")}</button>
         </div>
         {drawingPath ? (
           <div className="ml-auto flex items-center gap-2 max-[760px]:ml-0 max-[760px]:w-full max-[760px]:flex-wrap">
             <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-              {draftVertices.length} vertices
-            </span>
+              {draftVertices.length}{" " + t("vertices")}</span>
             {drawingPolygon ? (
               <button
                 aria-pressed={draftPolygonFilled}
@@ -119,7 +117,7 @@ export function CanvasPanel() {
                 onClick={toggleDraftFill}
                 type="button"
               >
-                {draftPolygonFilled ? "Fill on" : "Outline only"}
+                {draftPolygonFilled ? t("Fill on") : t("Outline only")}
               </button>
             ) : null}
             <button
@@ -128,15 +126,13 @@ export function CanvasPanel() {
               onClick={finishPolygonDraft}
               type="button"
             >
-              {drawingPolyline ? "Finish polyline" : "Finish polygon"}
+              {drawingPolyline ? t("Finish polyline") : t("Finish polygon")}
             </button>
             <button
               className={segmentedButtonClassName}
               onClick={cancelPolygonDraft}
               type="button"
-            >
-              Cancel
-            </button>
+            >{t("Cancel")}</button>
           </div>
         ) : null}
       </div>
@@ -150,7 +146,7 @@ export function CanvasPanel() {
       >
         <PanoViewer
           ref={viewer.ref}
-          aria-label="Panorama hotspot editor"
+          aria-label={t("Panorama hotspot editor")}
           className={cn(
             "h-full w-full",
             (placementTool || drawingPath) && "cursor-crosshair",

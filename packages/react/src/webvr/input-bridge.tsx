@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useContext, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useXRInputSourceStates } from '@react-three/xr';
@@ -12,6 +13,7 @@ import type { WebVRChrome, WebVRInteractionMode, WebVRMode } from './types';
 export function WebVRInputBridge({ mode, policy, chrome, gazeEnabled }: {
   mode: WebVRMode | null; policy: WebVRInteractionMode; chrome: WebVRChrome; gazeEnabled: boolean;
 }) {
+  const t = usePanoUiTranslation();
   const spatial = useContext(SpatialHostContext)!;
   const runtime = useContext(WebVRRuntimeContext)!;
   const sources = useXRInputSourceStates();
@@ -82,10 +84,10 @@ export function WebVRInputBridge({ mode, policy, chrome, gazeEnabled }: {
     ctx.fillStyle = background;
     ctx.beginPath(); ctx.roundRect(0, 0, 768, 128, radius); ctx.fill();
     ctx.fillStyle = color; ctx.font = `${fontSize}px sans-serif`;
-    ctx.fillText(state.mode === 'paused' ? 'Input paused' : state.mode === 'gaze' ? 'Gaze' : 'Pointer', 18, 38);
+    ctx.fillText(state.mode === 'paused' ? t('Input paused') : state.mode === 'gaze' ? t('Gaze') : t('Pointer'), 18, 38);
     ctx.font = '24px sans-serif';
-    ctx.fillText(input.canSwitch ? state.mode === 'gaze' ? 'Use pointer' : gazeEnabled ? 'Enable gaze · look here' : 'Gaze disabled' : 'Input set by host', 18, 88);
-    ctx.fillText('Exit VR', 598, 75);
+    ctx.fillText(input.canSwitch ? state.mode === 'gaze' ? t('Use pointer') : gazeEnabled ? t('Enable gaze · look here') : t('Gaze disabled') : t('Input set by host'), 18, 88);
+    ctx.fillText(t('Exit VR'), 598, 75);
     ctx.fillStyle = accent; ctx.fillRect(0, 120, 552 * progress, 8);
     texture.needsUpdate = true;
   });

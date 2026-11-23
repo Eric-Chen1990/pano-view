@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { pointerInput, pointerStick } from "./input";
 import {
   useContext,
@@ -154,6 +155,7 @@ function MenuSurface({
   showTitles = true,
   appearance,
 }: WebVRSceneMenuProps) {
+  const t = usePanoUiTranslation();
   const visitedSceneIds = useVisitedSceneIds(showVisited);
   const { camera, gl } = useThree();
   const runtime = useContext(WebVRRuntimeContext)!;
@@ -940,7 +942,7 @@ function MenuSurface({
   }, [portal]);
   useEffect(() => {
     domRoot.current?.render(
-      <div role="group" aria-label="VR scenes">
+      <div role="group" aria-label={t("VR scenes")}>
         {targets.map((t) => (
           <button
             key={t.id}

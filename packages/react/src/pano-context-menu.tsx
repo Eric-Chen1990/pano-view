@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "./ui-translation";
 import {
   createContext,
   useCallback,
@@ -233,6 +234,7 @@ function DefaultContextMenuPanel({
   selectContext: PanoContextMenuSelectContext;
   onRequestClose: () => void;
 }) {
+  const t = usePanoUiTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const resolved = { ...DEFAULT_APPEARANCE, ...appearance };
@@ -370,7 +372,7 @@ function DefaultContextMenuPanel({
   return (
     <div
       ref={menuRef}
-      aria-label="Panorama context menu"
+      aria-label={t("Panorama context menu")}
       className={cn("pano-context-menu", className)}
       onKeyDown={handleKeyDown}
       role="menu"

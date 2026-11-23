@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./VideoPage.tsx?raw";
 import {
   PanoViewer,
@@ -132,6 +133,7 @@ ${tracks.map((track) => `          { src: "${track.src}", srcLang: "${track.srcL
 }
 
 export function VideoPage() {
+  const { t } = usePlaygroundLanguage();
   const [profile, setProfile] = useState<VideoProfile>(() =>
     window.matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop",
   );
@@ -178,16 +180,12 @@ export function VideoPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>360 video bench</p>
-            <h1 className={pageHeadingTitleClassName} id="video-bench-title">
-              Play a 360 video
-            </h1>
+            <p className={eyebrowClassName}>{t("360 video bench")}</p>
+            <h1 className={pageHeadingTitleClassName} id="video-bench-title">{t("Play a 360 video")}</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-line px-6 py-4">
-          <label className={controlLabelClassName}>
-            Video source
-            <select
+          <label className={controlLabelClassName}>{t("Video source")}<select
               aria-describedby="video-source-help"
               className={cn(controlInputClassName, "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand")}
               value={profile}
@@ -196,23 +194,23 @@ export function VideoPage() {
                 setProfile(event.currentTarget.value as VideoProfile);
               }}
             >
-              <option value="mobile">Mobile HLS · Auto up to 1080p</option>
-              <option value="desktop">Full HLS ladder · Auto up to 4K</option>
+              <option value="mobile">{t("Mobile HLS · Auto up to 1080p")}</option>
+              <option value="desktop">{t("Full HLS ladder · Auto up to 4K")}</option>
               <option value="files">MP4 / WebM</option>
             </select>
           </label>
           <dl id="video-source-help" className="grid min-w-0 flex-1 basis-80 gap-1 text-xs leading-5 text-[#9ab1b7]">
             <div>
-              <dt className="inline font-semibold text-[#e7f2f5]">Mobile HLS</dt>{" "}
-              <dd className="inline">limits automatic quality to 1080p to reduce playback load. You can still select 4K in the player.</dd>
+              <dt className="inline font-semibold text-[#e7f2f5]">{t("Mobile HLS")}</dt>{" "}
+              <dd className="inline">{t("limits automatic quality to 1080p to reduce playback load. You can still select 4K in the player.")}</dd>
             </div>
             <div>
-              <dt className="inline font-semibold text-[#e7f2f5]">Full HLS ladder</dt>{" "}
-              <dd className="inline">plays the same stream and can select 4K automatically when the connection and device allow it.</dd>
+              <dt className="inline font-semibold text-[#e7f2f5]">{t("Full HLS ladder")}</dt>{" "}
+              <dd className="inline">{t("plays the same stream and can select 4K automatically when the connection and device allow it.")}</dd>
             </div>
             <div>
               <dt className="inline font-semibold text-[#e7f2f5]">MP4 / WebM</dt>{" "}
-              <dd className="inline">plays a separate short clip at the resolution you select.</dd>
+              <dd className="inline">{t("plays a separate short clip at the resolution you select.")}</dd>
             </div>
           </dl>
         </div>
@@ -223,30 +221,22 @@ export function VideoPage() {
               checked={loop}
               onChange={(event) => setLoop(event.currentTarget.checked)}
               type="checkbox"
-            />
-            Loop
-          </label>
+            />{t("Loop")}</label>
           <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             <input
               className="accent-[#df6b42]"
               checked={clickToTogglePlayback}
               onChange={(event) => setClickToTogglePlayback(event.currentTarget.checked)}
               type="checkbox"
-            />
-            Click to play or pause
-          </label>
+            />{t("Click to play or pause")}</label>
           <label className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.08em] text-[#88a6ac]">
             <input
               className="accent-[#df6b42]"
               checked={showCenterPlayButton}
               onChange={(event) => setShowCenterPlayButton(event.currentTarget.checked)}
               type="checkbox"
-            />
-            Center play button
-          </label>
-          <label className={controlLabelClassName}>
-            Captions
-            <select
+            />{t("Center play button")}</label>
+          <label className={controlLabelClassName}>{t("Captions")}<select
               className={controlInputClassName}
               onChange={(event) =>
                 setCaptionLang(event.currentTarget.value as CaptionLang)
@@ -255,12 +245,10 @@ export function VideoPage() {
             >
               <option value="en">English</option>
               <option value="zh">中文</option>
-              <option value="off">Off</option>
+              <option value="off">{t("Off")}</option>
             </select>
           </label>
-          <label className={controlLabelClassName}>
-            Caption size
-            <input
+          <label className={controlLabelClassName}>{t("Caption size")}<input
               className="accent-[#df6b42]"
               disabled={captionLang === "off"}
               max={28}
@@ -272,9 +260,7 @@ export function VideoPage() {
             />
             <span className="font-mono text-[0.62rem] text-[#dcecef]">{fontSize}px</span>
           </label>
-          <label className={controlLabelClassName}>
-            Caption color
-            <input
+          <label className={controlLabelClassName}>{t("Caption color")}<input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px] disabled:opacity-50"
               disabled={captionLang === "off"}
               onChange={(event) => setCaptionColor(event.currentTarget.value)}
@@ -284,11 +270,11 @@ export function VideoPage() {
           </label>
         </div>
         <div role="status" className={playbackMessage ? "border-b border-line px-6 py-3 text-sm text-[#e7f2f5]" : undefined}>
-          {playbackMessage}
+          {playbackMessage && t(playbackMessage)}
         </div>
         <div className="bg-[#020607]" ref={viewerRoot}>
           <PanoViewer
-            aria-label="360 panorama video demo"
+            aria-label={t("360 panorama video demo")}
             onViewChange={markViewChange}
             mediaActivation={{
               onActivate: (media) => {
@@ -329,13 +315,13 @@ export function VideoPage() {
         <VideoPerformanceMetrics root={viewerRoot} motion={motion} />
         <ExampleCode
           react={{
-            blurb: "Replace the sample URLs with your own video sources and captions.",
+            blurb: t("Replace the sample URLs with your own video sources and captions."),
             code: snippet,
             label: "PanoVideo",
           }}
         />
-      <details className="border-t border-line p-5"><summary>Complete running example</summary>
-        <CodeSnippet label="360 video page" blurb="Full page implementation, including the displayed controls, loading/error status and example code generation." code={exampleSource} />
+      <details className="border-t border-line p-5"><summary>{t("Complete running example")}</summary>
+        <CodeSnippet label={t("360 video page")} blurb={t("Full page implementation, including the displayed controls, loading/error status and example code generation.")} code={exampleSource} />
       </details>
       </section>
       <SiteFooter label="@ericchen1990/pano-view · 360 video sphere" />

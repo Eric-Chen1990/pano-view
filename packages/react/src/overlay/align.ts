@@ -66,6 +66,25 @@ export function cssLength(value: number | string): string {
   return typeof value === "number" ? `${value}px` : value;
 }
 
+/**
+ * Resolve a CSS pixel number or percentage of `total` into CSS pixels.
+ * Percentage strings must already be validated (for example `"40%"`).
+ */
+export function resolveOverlayLength(
+  length: number | string | undefined,
+  total: number,
+  fallback: number,
+): number {
+  if (length === undefined) return fallback;
+  if (typeof length === "number")
+    return Number.isFinite(length) && length > 0 ? length : fallback;
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(length.trim());
+  if (!match) return fallback;
+  const percent = Number(match[1]);
+  if (!Number.isFinite(percent) || percent <= 0) return fallback;
+  return (Math.min(percent, 100) / 100) * total;
+}
+
 export function isOverlayCorner(align: PanoOverlayAlign): boolean {
   switch (align) {
     case "top-left":

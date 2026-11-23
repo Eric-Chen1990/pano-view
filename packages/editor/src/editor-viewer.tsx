@@ -524,7 +524,7 @@ export function EditorViewer({
                   onSelectSpot={geoEditing ? onGeoSelect : undefined}
                   onEdit={geoEditing ? onGeoEdit : undefined}
                   onSelectScene={geoEditing ? undefined : onActive}
-                  editorSurface={geoEditing}
+                  editorSurface={!preview}
                   anchor={!geoEditing && runtime.loaded.map && !runtime.loaded.geoMap.presentation?.anchor ? { align: "top-right" } : undefined}
                   translate={t}
                 />

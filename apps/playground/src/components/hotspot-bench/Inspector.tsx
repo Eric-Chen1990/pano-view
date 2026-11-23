@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { validatePolygonVertices, type GraphicDefinition, type HotspotMode } from "@ericchen1990/pano-view";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -43,6 +44,7 @@ import {
 } from "./store";
 
 export function Inspector() {
+  const { t } = usePlaygroundLanguage();
   const {
     selected,
     selectedPolygon,
@@ -104,17 +106,17 @@ export function Inspector() {
 
   return (
     <aside
-      aria-label="Hotspot inspector"
+      aria-label={t("Hotspot inspector")}
       className="min-w-0 border-l border-[#27454d] bg-[#071316]/70 max-[1180px]:col-span-full max-[1180px]:border-t max-[1180px]:border-l-0"
     >
       <div className="flex min-h-[92px] items-center justify-between gap-3 border-b border-[#27454d] p-[17px]">
         <div>
-          <p className={panelLabelClassName}>INSPECTOR</p>
+          <p className={panelLabelClassName}>{t("INSPECTOR")}</p>
           <h2 className="mt-[7px] max-w-[210px] overflow-hidden text-ellipsis whitespace-nowrap text-[0.93rem] leading-[1.2] text-[#f1f8fa]">
             {selected?.label ?? selectedPolygon?.label ?? selectedPolyline?.label ?? (
               drawingPath
-                ? drawingPolyline ? "Drawing polyline" : "Drawing polygon"
-                : "No hotspot selected"
+                ? drawingPolyline ? t("Drawing polyline") : t("Drawing polygon")
+                : t("No hotspot selected")
             )}
           </h2>
         </div>
@@ -124,14 +126,10 @@ export function Inspector() {
           </span>
         ) : null}
         {selectedPolygon ? (
-          <span className="border border-[#3e6c73] px-1.5 py-[5px] font-mono text-[0.57rem] uppercase tracking-[0.08em] text-[#df6b42]">
-            polygon
-          </span>
+          <span className="border border-[#3e6c73] px-1.5 py-[5px] font-mono text-[0.57rem] uppercase tracking-[0.08em] text-[#df6b42]">{t("polygon")}</span>
         ) : null}
         {selectedPolyline ? (
-          <span className="border border-[#3e6c73] px-1.5 py-[5px] font-mono text-[0.57rem] uppercase tracking-[0.08em] text-[#df6b42]">
-            polyline
-          </span>
+          <span className="border border-[#3e6c73] px-1.5 py-[5px] font-mono text-[0.57rem] uppercase tracking-[0.08em] text-[#df6b42]">{t("polyline")}</span>
         ) : null}
       </div>
 
@@ -167,21 +165,17 @@ export function Inspector() {
           vertexCount={draftVertices.length}
         />
       ) : (
-        <p className="m-0 p-[18px] text-[0.78rem] leading-[1.55] text-[#88a6ac]">
-          Choose a hotspot tool, then click the panorama to place it.
-        </p>
+        <p className="m-0 p-[18px] text-[0.78rem] leading-[1.55] text-[#88a6ac]">{t("Choose a hotspot tool, then click the panorama to place it.")}</p>
       )}
 
       <div className="mt-1 border-t border-[#27454d] max-[1180px]:grid max-[1180px]:grid-cols-2 max-[1180px]:gap-0 max-[1180px]:max-[760px]:block">
         <div className="flex items-center justify-between px-[17px] py-[13px] max-[1180px]:col-span-full">
-          <p className={panelLabelClassName}>IN THIS VIEW</p>
+          <p className={panelLabelClassName}>{t("IN THIS VIEW")}</p>
           <button
             className="border border-transparent px-0 py-0 text-[0.7rem] text-[#75cbd3]"
             onClick={resetDemo}
             type="button"
-          >
-            Restore demo
-          </button>
+          >{t("Restore demo")}</button>
         </div>
         {hotspots.map((hotspot) => (
           <button
@@ -211,13 +205,12 @@ export function Inspector() {
             )}
             type="button"
           >
-            <span className="row-span-2 pt-0.5 font-mono text-[0.57rem] text-[#df6b42]">POLY</span>
+            <span className="row-span-2 pt-0.5 font-mono text-[0.57rem] text-[#df6b42]">{t("POLY")}</span>
             <b className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.73rem] text-[#dcecef]">
-              {polygon.label}
+              {t(polygon.label)}
             </b>
             <small className="font-mono text-[0.57rem] text-[#739097]">
-              {polygon.vertices.length} vertices
-            </small>
+              {polygon.vertices.length}{" " + t("vertices")}</small>
           </button>
         ))}
         {polylines.map((polyline) => (
@@ -230,13 +223,12 @@ export function Inspector() {
             )}
             type="button"
           >
-            <span className="row-span-2 pt-0.5 font-mono text-[0.57rem] text-[#df6b42]">LINE</span>
+            <span className="row-span-2 pt-0.5 font-mono text-[0.57rem] text-[#df6b42]">{t("LINE")}</span>
             <b className="overflow-hidden text-ellipsis whitespace-nowrap text-[0.73rem] text-[#dcecef]">
-              {polyline.label}
+              {t(polyline.label)}
             </b>
             <small className="font-mono text-[0.57rem] text-[#739097]">
-              {polyline.vertices.length} vertices
-            </small>
+              {polyline.vertices.length}{" " + t("vertices")}</small>
           </button>
         ))}
       </div>
@@ -267,10 +259,11 @@ function SelectedHotspotFields({
   onUpdateIframe: (id: string, patch: IframePatch) => void;
   onDelete: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-[14px] p-[17px] max-[1180px]:grid-cols-2 max-[760px]:block">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Accessible label</span>
+        <span className={fieldLabelClassName}>{t("Accessible label")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onUpdateHotspot(selected.id, { label: event.currentTarget.value })}
@@ -280,7 +273,7 @@ function SelectedHotspotFields({
 
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Yaw</span>
+          <span className={fieldLabelClassName}>{t("Yaw")}</span>
           <input
             className={fieldInputClassName}
             disabled={Math.abs(selected.position.pitch) >= 90}
@@ -293,7 +286,7 @@ function SelectedHotspotFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Pitch</span>
+          <span className={fieldLabelClassName}>{t("Pitch")}</span>
           <input
             className={fieldInputClassName}
             onChange={(event) => onUpdateHotspot(selected.id, {
@@ -305,7 +298,7 @@ function SelectedHotspotFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Width</span>
+          <span className={fieldLabelClassName}>{t("Width")}</span>
           <input
             className={fieldInputClassName}
             min="0.1"
@@ -316,7 +309,7 @@ function SelectedHotspotFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Height</span>
+          <span className={fieldLabelClassName}>{t("Height")}</span>
           <input
             className={fieldInputClassName}
             min="0.1"
@@ -327,7 +320,7 @@ function SelectedHotspotFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Rotation</span>
+          <span className={fieldLabelClassName}>{t("Rotation")}</span>
           <input
             className={fieldInputClassName}
             onChange={(event) => onUpdateHotspot(selected.id, { rotation: numberValue(event.currentTarget.value, selected.rotation) })}
@@ -337,7 +330,7 @@ function SelectedHotspotFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Scale</span>
+          <span className={fieldLabelClassName}>{t("Scale")}</span>
           <input
             className={fieldInputClassName}
             min="0.01"
@@ -351,7 +344,7 @@ function SelectedHotspotFields({
 
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Hotspot mode</span>
+          <span className={fieldLabelClassName}>{t("Hotspot mode")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) => onUpdateHotspot(selected.id, {
@@ -359,12 +352,12 @@ function SelectedHotspotFields({
             })}
             value={selected.mode}
           >
-            <option value="surface">Attach to panorama</option>
-            <option value="billboard">Float facing viewer</option>
+            <option value="surface">{t("Attach to panorama")}</option>
+            <option value="billboard">{t("Float facing viewer")}</option>
           </select>
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Size on zoom</span>
+          <span className={fieldLabelClassName}>{t("Size on zoom")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) => onUpdateHotspot(selected.id, {
@@ -373,17 +366,15 @@ function SelectedHotspotFields({
             disabled={selected.mode === "surface"}
             value={selected.mode === "surface" ? "fov" : selected.scaleMode}
           >
-            <option value="fov">Follow FOV</option>
-            <option value="fixed">Keep screen size</option>
+            <option value="fov">{t("Follow FOV")}</option>
+            <option value="fixed">{t("Keep screen size")}</option>
           </select>
         </label>
       </div>
 
       {selected.mode === "billboard" ? (
         <label className={fieldWideClassName}>
-          <span className={`${fieldLabelClassName} flex justify-between`}>
-            Floating distance
-            <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+          <span className={`${fieldLabelClassName} flex justify-between`}>{t("Floating distance")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
               {selected.distance.toFixed(1)}
             </b>
           </span>
@@ -402,9 +393,7 @@ function SelectedHotspotFields({
       ) : null}
 
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Opacity
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(selected.opacity * 100)}%
           </b>
         </span>
@@ -426,7 +415,7 @@ function SelectedHotspotFields({
           onChange={(event) => onUpdateHotspot(selected.id, { visible: event.currentTarget.checked })}
           type="checkbox"
         />
-        <span>Visible in panorama</span>
+        <span>{t("Visible in panorama")}</span>
       </label>
       <label className={checkboxLabelClassName}>
         <input
@@ -437,7 +426,7 @@ function SelectedHotspotFields({
           })}
           type="checkbox"
         />
-        <span>Respond to mouse</span>
+        <span>{t("Respond to mouse")}</span>
       </label>
 
       <TooltipFields
@@ -453,7 +442,7 @@ function SelectedHotspotFields({
 
       {selected.type === "image" ? (
         <label className={fieldWideClassName}>
-          <span className={fieldLabelClassName}>Image URL</span>
+          <span className={fieldLabelClassName}>{t("Image URL")}</span>
           <input
             className={fieldInputClassName}
             onChange={(event) => onUpdateImageSource(selected.id, event.currentTarget.value)}
@@ -497,9 +486,7 @@ function SelectedHotspotFields({
         })()
       )}
 
-      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">
-        Delete selected hotspot
-      </button>
+      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">{t("Delete selected hotspot")}</button>
     </div>
   );
 }

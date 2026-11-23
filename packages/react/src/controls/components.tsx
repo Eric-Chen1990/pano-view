@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import {
   createContext,
   useContext,
@@ -229,6 +230,7 @@ export function PanoScrollControls({
   speed?: number;
   repeatIntervalMs?: number;
 }) {
+  const t = usePanoUiTranslation();
   const vr = useVR();
   const [, refresh] = useState(0);
   const [placement, setPlacement] = useState<{
@@ -294,7 +296,7 @@ export function PanoScrollControls({
   return createPortal(
     <PanoControlGroup
       {...props}
-      aria-label={props["aria-label"] ?? "Scroll content"}
+      aria-label={props["aria-label"] ?? t("Scroll content")}
       className={`pano-scroll-controls ${props.className ?? ""}`}
       style={{
         ...props.style,

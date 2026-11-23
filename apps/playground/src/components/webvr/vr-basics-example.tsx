@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
 import { useState, useSyncExternalStore } from "react";
 import {
@@ -12,6 +13,7 @@ import {
 import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
 
 export function VRBasicsExample() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const vr = useSyncExternalStore(
     viewer.subscribeVR,
@@ -36,23 +38,22 @@ export function VRBasicsExample() {
             )
           }
         >
-          {vr.enabled ? "Exit VR" : "Enter VR"}
+          {vr.enabled ? t("Exit VR") : t("Enter VR")}
         </button>
         <span role="status" className="text-sm">
-          {status}
+          {t(status)}
         </span>
-        <label className="text-sm">Interaction <select aria-label="VR interaction mode" value={interactionMode}
+        <label className="text-sm">{t("Interaction") + " "}<select aria-label={t("VR interaction mode")} value={interactionMode}
           onChange={e => setInteractionMode(e.target.value as WebVRInteractionMode)}>
-          <option value="auto">Auto</option><option value="gaze">Gaze</option><option value="pointer">Pointer</option>
+          <option value="auto">{t("Auto")}</option><option value="gaze">{t("Gaze")}</option><option value="pointer">{t("Pointer")}</option>
         </select></label>
-        <span role="status" className="text-sm">Input: {vr.input?.mode ?? "inactive"} · {vr.input?.source ?? "waiting"}</span>
-        <span role="status" className="text-sm">
-          Marker activations: {count}
+        <span role="status" className="text-sm">{t("Input:") + " "}{vr.input?.mode ?? "inactive"} · {vr.input?.source ?? "waiting"}</span>
+        <span role="status" className="text-sm">{t("Marker activations:") + " "}{count}
         </span>
       </div>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="VR basics viewer"
+        aria-label={t("VR basics viewer")}
         style={{ height: 560 }}
       >
         <PanoEvents

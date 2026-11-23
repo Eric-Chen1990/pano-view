@@ -39,6 +39,7 @@ export type {
   PanoMapSectorGradient,
   PanoMapGradientStop,
   PanoMapControlsDefinition,
+  PanoMapLength,
   PanoMapPresentation,
   PanoMapPanelPresentation,
   PanoMapDialogPresentation,

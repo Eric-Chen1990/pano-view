@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   isOverlayCorner,
   PanoOverlay,
@@ -160,6 +161,7 @@ ${sizeProps}
 }
 
 export function SceneMenuPage() {
+  const { t } = usePlaygroundLanguage();
   const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [align, setAlign] = useState<PanoOverlayAlign>("bottom");
   const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
@@ -226,23 +228,19 @@ export function SceneMenuPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Scene menu bench</p>
+            <p className={eyebrowClassName}>{t("Scene menu bench")}</p>
             <h1
               className={pageHeadingTitleClassName}
               id="scene-menu-bench-title"
-            >
-              Layout the scene list
-            </h1>
+            >{t("Layout the scene list")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>{status}</p>
+          <p className={pageHeadingStatusClassName}>{t(status)}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className={controlLabelClassName}>
-            Align
-            <div
+          <div className={controlLabelClassName}>{t("Align")}<div
               className="flex flex-wrap gap-1.5"
               role="group"
-              aria-label="Scene menu align"
+              aria-label={t("Scene menu align")}
             >
               {PANO_OVERLAY_ALIGNS.map((value) => (
                 <button
@@ -264,12 +262,10 @@ export function SceneMenuPage() {
             </div>
           </div>
           {isOverlayCorner(align) ? (
-            <div className={controlLabelClassName}>
-              Axis
-              <div
+            <div className={controlLabelClassName}>{t("Axis")}<div
                 className="flex flex-wrap gap-1.5"
                 role="group"
-                aria-label="Scene menu axis"
+                aria-label={t("Scene menu axis")}
               >
                 {(["horizontal", "vertical"] as const).map((value) => (
                   <button
@@ -293,14 +289,12 @@ export function SceneMenuPage() {
           ) : null}
         </div>
         <details className="border-b border-line">
-          <summary className="px-6 py-4">Appearance and behavior</summary>
+          <summary className="px-6 py-4">{t("Appearance and behavior")}</summary>
           <div className={pageControlsClassName}>
-            <div className={controlLabelClassName}>
-              Label
-              <div
+            <div className={controlLabelClassName}>{t("Label")}<div
                 className="flex flex-wrap gap-1.5"
                 role="group"
-                aria-label="Scene title alignment"
+                aria-label={t("Scene title alignment")}
               >
                 {LABEL_ALIGNS.map((value) => (
                   <button
@@ -323,12 +317,10 @@ export function SceneMenuPage() {
             </div>
           </div>
           <div className={pageControlsClassName}>
-            <div className={controlLabelClassName}>
-              Chrome
-              <div
+            <div className={controlLabelClassName}>{t("Chrome")}<div
                 className="flex flex-wrap gap-1.5"
                 role="group"
-                aria-label="Scene menu chrome"
+                aria-label={t("Scene menu chrome")}
               >
                 <button
                   className={cn(
@@ -345,9 +337,7 @@ export function SceneMenuPage() {
                     );
                   }}
                   type="button"
-                >
-                  Collapsible
-                </button>
+                >{t("Collapsible")}</button>
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -361,9 +351,7 @@ export function SceneMenuPage() {
                     );
                   }}
                   type="button"
-                >
-                  Arrows
-                </button>
+                >{t("Arrows")}</button>
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -372,9 +360,7 @@ export function SceneMenuPage() {
                   aria-pressed={showVisited}
                   onClick={() => setShowVisited((value) => !value)}
                   type="button"
-                >
-                  Show visited
-                </button>
+                >{t("Show visited")}</button>
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -390,9 +376,7 @@ export function SceneMenuPage() {
                     );
                   }}
                   type="button"
-                >
-                  Loop
-                </button>
+                >{t("Loop")}</button>
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -408,9 +392,7 @@ export function SceneMenuPage() {
                     );
                   }}
                   type="button"
-                >
-                  Drag motion
-                </button>
+                >{t("Drag motion")}</button>
                 <button
                   className={cn(
                     segmentedButtonClassName,
@@ -426,16 +408,12 @@ export function SceneMenuPage() {
                     );
                   }}
                   type="button"
-                >
-                  Custom toggle
-                </button>
+                >{t("Custom toggle")}</button>
               </div>
             </div>
           </div>
           <div className={pageControlsClassName}>
-            <label className={controlLabelClassName}>
-              Border width
-              <input
+            <label className={controlLabelClassName}>{t("Border width")}<input
                 className="w-20 border border-line p-1"
                 type="number"
                 min="0"
@@ -446,17 +424,13 @@ export function SceneMenuPage() {
                 }
               />
             </label>
-            <label className={controlLabelClassName}>
-              Selection color
-              <input
+            <label className={controlLabelClassName}>{t("Selection color")}<input
                 type="color"
                 value={selectionColor}
                 onChange={(event) => setSelectionColor(event.target.value)}
               />
             </label>
-            <label className={controlLabelClassName}>
-              Hover / focus color
-              <input
+            <label className={controlLabelClassName}>{t("Hover / focus color")}<input
                 type="color"
                 value={focusColor}
                 onChange={(event) => setFocusColor(event.target.value)}
@@ -466,7 +440,7 @@ export function SceneMenuPage() {
         </details>
         <div className="bg-[#020607] p-0">
           <PanoViewer
-            aria-label="Panorama scene menu demo"
+            aria-label={t("Panorama scene menu demo")}
             style={{ height: "min(640px, 72dvh)" }}
           >
             <Scenes
@@ -521,7 +495,7 @@ export function SceneMenuPage() {
         </div>
         <ExampleCode
           react={{
-            blurb: "PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Align, axis, chrome, and appearance update live.",
+            blurb: t("PanoSceneMenu is host-driven: pass items, activeId, and onSelect inside PanoOverlay. Align, axis, chrome, and appearance update live."),
             code: snippet,
             label: "PanoSceneMenu",
           }}

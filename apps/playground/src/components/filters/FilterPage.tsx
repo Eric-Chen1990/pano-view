@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot,
   ImageHotspot,
@@ -168,6 +169,7 @@ ${sourceAttributes}
 }
 
 export function FilterPage() {
+  const { t } = usePlaygroundLanguage();
   const [source, setSource] = useState<SourceKind>("tile");
   const [preset, setPreset] = useState<PanoFilterPreset>("none");
   const [intensity, setIntensity] = useState(1);
@@ -189,17 +191,13 @@ export function FilterPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Panorama filters</p>
-            <h1 className={pageHeadingTitleClassName} id="filter-bench-title">
-              Real-time color adjustments
-            </h1>
+            <p className={eyebrowClassName}>{t("Panorama filters")}</p>
+            <h1 className={pageHeadingTitleClassName} id="filter-bench-title">{t("Real-time color adjustments")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>
-            Adjust exposure, color and local detail on panoramic images and video.
-          </p>
+          <p className={pageHeadingStatusClassName}>{t("Adjust exposure, color and local detail on panoramic images and video.")}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Panorama source">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Panorama source")}>
             {SOURCES.map(({ id, label }) => (
               <button
                 aria-pressed={source === id}
@@ -217,9 +215,7 @@ export function FilterPage() {
             className={cn(segmentedButtonClassName, showOriginal && segmentedButtonActiveClassName)}
             onClick={() => setShowOriginal((current) => !current)}
             type="button"
-          >
-            Show original
-          </button>
+          >{t("Show original")}</button>
           <button
             className={segmentedButtonClassName}
             onClick={() => {
@@ -229,20 +225,18 @@ export function FilterPage() {
               setShowOriginal(false);
             }}
             type="button"
-          >
-            Reset filters
-          </button>
+          >{t("Reset filters")}</button>
           {vr.available ? (
             <button
               className={segmentedButtonClassName}
               onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
               type="button"
             >
-              {vr.enabled ? "Exit VR" : "Enter VR"}
+              {vr.enabled ? t("Exit VR") : t("Enter VR")}
             </button>
           ) : null}
         </div>
-        <div className={pageControlsClassName} role="group" aria-label="Color adjustments">
+        <div className={pageControlsClassName} role="group" aria-label={t("Color adjustments")}>
           {ADJUSTMENTS.map(({ key, label, limit, unit }) => (
             <label key={key} className={controlLabelClassName}>
               {label} {(adjustments[key] ?? 0).toFixed(2)}{unit}
@@ -265,7 +259,7 @@ export function FilterPage() {
         <div className="bg-[#020607]">
           <PanoViewer
             ref={viewer.ref}
-            aria-label="Panorama filter demo"
+            aria-label={t("Panorama filter demo")}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <WebVR />
@@ -280,10 +274,9 @@ export function FilterPage() {
           </PanoViewer>
         </div>
         <div className={pageControlsClassName}>
-          <label className={controlLabelClassName}>
-            Preset intensity {Math.round(intensity * 100)}%
+          <label className={controlLabelClassName}>{t("Preset intensity") + " "}{Math.round(intensity * 100)}%
             <input
-              aria-label="Filter intensity"
+              aria-label={t("Filter intensity")}
               className={cn(controlInputClassName, "w-40")}
               max={1}
               min={0}
@@ -298,7 +291,7 @@ export function FilterPage() {
           {FILTER_PRESET_GROUPS.map((group) => (
             <div className="grid gap-2" key={group.label}>
               <p className="m-0 font-mono text-[0.68rem] font-semibold tracking-[0.1em] text-[#75cbd3] uppercase">
-                {group.label}
+                {t(group.label)}
               </p>
               <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${group.label} filters`}>
                 {group.presets.map((entry) => (
@@ -312,7 +305,7 @@ export function FilterPage() {
                     onClick={() => setPreset(entry.value)}
                     type="button"
                   >
-                    {entry.label}
+                    {t(entry.label)}
                   </button>
                 ))}
               </div>
@@ -321,7 +314,7 @@ export function FilterPage() {
         </div>
         <ExampleCode
           react={{
-            blurb: "Pass an adjustments object to PanoFilter. Its values apply to the panorama source.",
+            blurb: t("Pass an adjustments object to PanoFilter. Its values apply to the panorama source."),
             code: snippet,
             label: "PanoFilter",
           }}

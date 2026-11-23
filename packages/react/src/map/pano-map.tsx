@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import {
   useCallback,
   useEffect,
@@ -134,6 +135,7 @@ export function PanoMap({
   renderChrome,
   initialScale,
 }: PanoMapProps) {
+  const t = usePanoUiTranslation();
   const reactId = useId().replace(/:/g, "");
   const view = useMapView(controlledView);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -599,7 +601,7 @@ export function PanoMap({
         <button
           type="button"
           className="pano-map-control"
-          aria-label={collapsed ? "Expand map" : "Collapse map"}
+          aria-label={collapsed ? t("Expand map") : t("Collapse map")}
           aria-pressed={!collapsed}
           style={{
             background: "rgba(15, 23, 42, 0.92)",
@@ -616,7 +618,7 @@ export function PanoMap({
           <button
             type="button"
             className="pano-map-control"
-            aria-label="Zoom in"
+            aria-label={t("Zoom in")}
             style={{
               background: "rgba(15, 23, 42, 0.92)",
               border: "1px solid rgba(255, 255, 255, 0.28)",
@@ -629,7 +631,7 @@ export function PanoMap({
           <button
             type="button"
             className="pano-map-control"
-            aria-label="Zoom out"
+            aria-label={t("Zoom out")}
             style={{
               background: "rgba(15, 23, 42, 0.92)",
               border: "1px solid rgba(255, 255, 255, 0.28)",

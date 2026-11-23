@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { PlanarZoomControls } from "./zoom-controls";
 import { loadPlanarManifest, type Size } from "./manifest";
@@ -22,6 +23,7 @@ export function PlanarTileViewer({
   manifestUrl, alt, maxScale, initialScale, dragMotion,
   showZoomControls = true, showMinimap = false, className, style,
 }: PlanarTileViewerProps) {
+  const t = usePanoUiTranslation();
   const viewport = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const options = useRef<PlanarViewOptions>({ maxScale, initialScale, dragMotion });
@@ -69,11 +71,11 @@ export function PlanarTileViewer({
       </div>
       {status !== "ready" && (
         <div className="pano-planar-status">
-          <span role="status">{status === "loading" ? "Loading image…" : "Could not load image."}</span>
+          <span role="status">{status === "loading" ? t("Loading image…") : t("Could not load image.")}</span>
           {status === "error" && <button type="button" onClick={() => {
             viewport.current?.focus();
             setAttempt((value) => value + 1);
-          }}>Retry</button>}
+          }}>{t("Retry")}</button>}
         </div>
       )}
       {showZoomControls && (

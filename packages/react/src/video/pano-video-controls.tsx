@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import {
   useCallback,
   useContext,
@@ -354,6 +355,7 @@ function CaptionsMenu({
   panel: CaptionsPanel;
   snapshot: ReturnType<PanoVideoController["getSnapshot"]>;
 }) {
+  const t = usePanoUiTranslation();
   return (
     <ChromeMenuSurface
       appearance={appearance}
@@ -367,7 +369,7 @@ function CaptionsMenu({
             <ChromeMenuRadioItem
               active={snapshot.trackId === null}
               appearance={appearance}
-              label="Off"
+              label={t("Off")}
               onClick={() => {
                 onSelectTrack(null);
               }}
@@ -390,7 +392,7 @@ function CaptionsMenu({
           <ChromeMenuDivider />
           <ChromeMenuActionItem
             appearance={appearance}
-            label="Settings"
+            label={t("Settings")}
             onClick={onOpenSettings}
             secondary={<span aria-hidden>›</span>}
           />
@@ -399,12 +401,12 @@ function CaptionsMenu({
         <>
           <ChromeMenuActionItem
             appearance={appearance}
-            label="Back"
+            label={t("Back")}
             onClick={onShowTracks}
             secondary={<span aria-hidden>‹</span>}
           />
           <ChromeMenuDivider />
-          <ChromeMenuSectionLabel>Font size</ChromeMenuSectionLabel>
+          <ChromeMenuSectionLabel>{t("Font size")}</ChromeMenuSectionLabel>
           {CAPTION_SIZE_OPTIONS.map((option) => (
             <ChromeMenuRadioItem
               active={Number(snapshot.captionAppearance.fontSize) === option.value}
@@ -417,7 +419,7 @@ function CaptionsMenu({
             />
           ))}
           <ChromeMenuDivider />
-          <ChromeMenuSectionLabel>Background</ChromeMenuSectionLabel>
+          <ChromeMenuSectionLabel>{t("Background")}</ChromeMenuSectionLabel>
           {CAPTION_BACKGROUND_OPTIONS.map((option) => (
             <ChromeMenuRadioItem
               active={snapshot.captionAppearance.background === option.value}
@@ -444,6 +446,7 @@ function VerticalVolumeSlider({
   onVolume: (volume: number) => void;
   volume: number;
 }) {
+  const t = usePanoUiTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
 
   const applyPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -498,7 +501,7 @@ function VerticalVolumeSlider({
         }}
       >
         <div
-          aria-label="Volume"
+          aria-label={t("Volume")}
           aria-valuemax={1}
           aria-valuemin={0}
           aria-valuenow={volume}
@@ -577,6 +580,7 @@ function VolumeControl({
   volume: number;
   volumeAdjustable: boolean;
 }) {
+  const t = usePanoUiTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const displayVolume = muted ? 0 : volume;
@@ -609,7 +613,7 @@ function VolumeControl({
     return (
       <ChromeButton
         appearance={appearance}
-        label={mutedOrSilent ? "Unmute" : "Mute"}
+        label={mutedOrSilent ? t("Unmute") : t("Mute")}
         onClick={onToggleMuted}
       >
         <Icon name={volumeIcon} />
@@ -653,7 +657,7 @@ function VolumeControl({
       ) : null}
       <ChromeButton
         appearance={appearance}
-        label={mutedOrSilent ? "Unmute" : "Mute"}
+        label={mutedOrSilent ? t("Unmute") : t("Mute")}
         onClick={() => {
           if (!hasFinePointerHover()) {
             setOpen(true);
@@ -678,6 +682,7 @@ export function PanoVideoControlsHud({
   fullscreen: PanoContextMenuActionsApi | null;
   overlayElement: HTMLDivElement;
 }) {
+  const t = usePanoUiTranslation();
   const resolved = useMemo(
     () => resolveControlsAppearance(appearance),
     [appearance],
@@ -937,7 +942,7 @@ export function PanoVideoControlsHud({
           items={[
             {
               id: "rate",
-              label: "Speed",
+              label: t("Speed"),
               active: false,
               onSelect: () => {
                 setMenu("rate");
@@ -959,7 +964,7 @@ export function PanoVideoControlsHud({
               ? [
                   {
                     id: "captions",
-                    label: "Captions",
+                    label: t("Captions"),
                     active: false,
                     onSelect: () => {
                       setMenu("captions");
@@ -1003,7 +1008,7 @@ export function PanoVideoControlsHud({
       {!compact && menu === "rate" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
-        label="Playback speed"
+        label={t("Playback speed")}
         onClick={() => {
           toggleMenu("rate");
         }}
@@ -1020,7 +1025,7 @@ export function PanoVideoControlsHud({
       {!compact && menu === "variant" ? menuNode : null}
       <ChromeButton
         appearance={resolved}
-        label={switchLabel ? `Resolution, ${qualityLabel}` : "Resolution"}
+        label={switchLabel ? `Resolution, ${qualityLabel}` : t("Resolution")}
         onClick={() => {
           toggleMenu("variant");
         }}
@@ -1040,7 +1045,7 @@ export function PanoVideoControlsHud({
       <ChromeButton
         appearance={resolved}
         id={`${barId}-captions-btn`}
-        label="Captions"
+        label={t("Captions")}
         onClick={() => {
           toggleMenu("captions");
         }}
@@ -1059,7 +1064,7 @@ export function PanoVideoControlsHud({
     >
       <ChromeButton
         appearance={resolved}
-        label={snapshot.playing ? "Pause" : "Play"}
+        label={snapshot.playing ? t("Pause") : t("Play")}
         onClick={() => {
           controller.togglePlay();
         }}
@@ -1072,7 +1077,7 @@ export function PanoVideoControlsHud({
         </span>
       )}
       <input
-        aria-label="Seek"
+        aria-label={t("Seek")}
         max={duration || 1}
         min={0}
         onChange={(event) => {
@@ -1114,7 +1119,7 @@ export function PanoVideoControlsHud({
           <ChromeButton
             appearance={resolved}
             id={`${barId}-more-btn`}
-            label="More"
+            label={t("More")}
             onClick={() => {
               toggleMenu("more");
             }}
@@ -1132,7 +1137,7 @@ export function PanoVideoControlsHud({
       {showFullscreen ? (
         <ChromeButton
           appearance={resolved}
-          label={fullscreen?.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          label={fullscreen?.isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
           onClick={() => {
             fullscreen?.toggleFullscreen();
           }}

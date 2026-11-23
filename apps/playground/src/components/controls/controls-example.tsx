@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
 import {
@@ -20,6 +21,7 @@ import {
 } from "../../ui";
 
 function FullscreenButton({ toggle }: { toggle: () => void }) {
+  const { t } = usePlaygroundLanguage();
   const { isFullscreen } = usePanoOverlay();
   return (
     <button
@@ -27,7 +29,7 @@ function FullscreenButton({ toggle }: { toggle: () => void }) {
       className={`${viewerChromeButtonClassName} absolute right-4 bottom-4 pointer-events-auto`}
       onClick={toggle}
     >
-      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+      {isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
     </button>
   );
 }
@@ -38,6 +40,7 @@ export function ControlsExample({ example, onExampleChange }: {
   example: ControlExampleKind;
   onExampleChange: (example: ControlExampleKind) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const gyro = useRef<GyroHandle>(null);
   const [autoRotate, setAutoRotate] = useState(false);
@@ -51,7 +54,7 @@ export function ControlsExample({ example, onExampleChange }: {
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Control example"
+        aria-label={t("Control example")}
       >
         {(["navigation", "automatic", "gyro"] as const).map((value) => (
           <button
@@ -88,9 +91,7 @@ export function ControlsExample({ example, onExampleChange }: {
                 viewer.reset();
                 setStatus("View reset");
               }}
-            >
-              Reset view
-            </button>
+            >{t("Reset view")}</button>
             <button
               type="button"
               className={segmentedButtonClassName}
@@ -99,9 +100,7 @@ export function ControlsExample({ example, onExampleChange }: {
                   .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
                   .then(({ status }) => setStatus(`Look north: ${status}`))
               }
-            >
-              Look north
-            </button>
+            >{t("Look north")}</button>
             <button
               type="button"
               className={segmentedButtonClassName}
@@ -110,9 +109,7 @@ export function ControlsExample({ example, onExampleChange }: {
                   .lookToHotspot("target", { fov: 55 })
                   .then(({ status }) => setStatus(`Look to hotspot: ${status}`))
               }
-            >
-              Look to hotspot
-            </button>
+            >{t("Look to hotspot")}</button>
           </>
         ) : null}
         {example === "automatic" ? (
@@ -122,7 +119,7 @@ export function ControlsExample({ example, onExampleChange }: {
             aria-pressed={autoRotate}
             onClick={() => setAutoRotate((value) => !value)}
           >
-            {autoRotate ? "Stop rotation" : "Start rotation"}
+            {autoRotate ? t("Stop rotation") : t("Start rotation")}
           </button>
         ) : null}
         {example === "gyro" ? (
@@ -150,20 +147,20 @@ export function ControlsExample({ example, onExampleChange }: {
                 });
               }}
             >
-              {gyroEnabled ? "Disable gyro" : "Enable gyro"}
+              {gyroEnabled ? t("Disable gyro") : t("Enable gyro")}
             </button>
             <span role="status" className="text-sm">
-              {gyroStatus}
+              {t(gyroStatus)}
             </span>
           </>
         ) : null}
       </div>
       <p role="status" className="px-6 text-sm">
-        {status}
+        {t(status)}
       </p>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="View controls viewer"
+        aria-label={t("View controls viewer")}
         controls={{ keyboard: true, inertia: true }}
         style={{ height: 540 }}
       >

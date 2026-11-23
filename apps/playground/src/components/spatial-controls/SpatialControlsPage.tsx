@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
 import { useState } from "react";
 import { cn } from "../../cn";
@@ -107,16 +108,17 @@ ${state}
 }
 
 export function SpatialControlsPage() {
+  const { t } = usePlaygroundLanguage();
   const [kind, setKind] = useState<SpatialExampleKind>("scene-video");
   return (
     <ExamplePage
-      title="Spatial controls"
-      description="Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session."
+      title={t("Spatial controls")}
+      description={t("Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session.")}
     >
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Spatial control example"
+        aria-label={t("Spatial control example")}
       >
         {examples.map((example) => (
           <button
@@ -129,40 +131,35 @@ export function SpatialControlsPage() {
             )}
             onClick={() => setKind(example.id)}
           >
-            {example.label}
+            {t(example.label)}
           </button>
         ))}
       </div>
       <SpatialExample key={kind} kind={kind} />
-      <p className="px-6 text-sm text-muted-2">
-        Icon groups appear only in VR. Outside VR, click the scene video or use
-        the 360 player controls; drag the model, scroll to zoom, or focus it and
-        use arrow keys. Open the model/article before entering VR to observe
-        dialog state across entry and exit.
-      </p>
+      <p className="px-6 text-sm text-muted-2">{t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls; drag the model, scroll to zoom, or focus it and use arrow keys. Open the model/article before entering VR to observe dialog state across entry and exit.")}</p>
       <ExampleCode react={{
         label: examples.find(({ id }) => id === kind)!.label,
-        blurb: "Connect the selected target to its controls inside the viewer.",
+        blurb: t("Connect the selected target to its controls inside the viewer."),
         code: spatialSnippet(kind),
       }} />
       <details className="border-t border-line p-5">
-        <summary>Complete spatial controls example</summary>
+        <summary>{t("Complete spatial controls example")}</summary>
         <CodeSnippet
-        label="Spatial controls: complete integration"
-        blurb="The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below."
+        label={t("Spatial controls: complete integration")}
+        blurb={t("The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below.")}
         code={source}
         />
       {kind === "scene-video" || kind === "360-video" ? (
         <CodeSnippet
-          label="Media controllers"
-          blurb="VideoHotspot supplies a controller ref; the 360 player supplies its controller through usePanoViewer. Both feed PanoMediaControls inside PanoSpatialControls."
+          label={t("Media controllers")}
+          blurb={t("VideoHotspot supplies a controller ref; the 360 player supplies its controller through usePanoViewer. Both feed PanoMediaControls inside PanoSpatialControls.")}
           code={mediaSource}
         />
       ) : null}
       {kind === "model" ? (
         <CodeSnippet
-          label="Host model adapter"
-          blurb="The host owns model view state. usePanoSpatialControls connects rotation, zoom and reset to the VR control adapter."
+          label={t("Host model adapter")}
+          blurb={t("The host owns model view state. usePanoSpatialControls connects rotation, zoom and reset to the VR control adapter.")}
           code={modelSource}
         />
       ) : null}

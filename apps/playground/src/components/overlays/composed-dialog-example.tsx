@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useRef, type ReactNode } from "react";
 import {
   PanoDialogBackdrop,
@@ -23,6 +24,7 @@ export function ComposedHotspotDialog({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = usePlaygroundLanguage();
   const scrollTargetRef = useRef<HTMLDivElement>(null);
   return (
     <PanoDialogRoot scrollTargetRef={scrollTargetRef} open={open} onOpenChange={onOpenChange}>
@@ -31,11 +33,9 @@ export function ComposedHotspotDialog({
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-orange-400 p-4">
           <div>
             <PanoDialogTitle className="m-0 text-xl">{title}</PanoDialogTitle>
-            <PanoDialogDescription className="m-0 text-sm text-slate-300">
-              A custom header built from dialog parts.
-            </PanoDialogDescription>
+            <PanoDialogDescription className="m-0 text-sm text-slate-300">{t("A custom header built from dialog parts.")}</PanoDialogDescription>
           </div>
-          <PanoDialogClose className={closeButtonClassName}>Close</PanoDialogClose>
+          <PanoDialogClose className={closeButtonClassName}>{t("Close")}</PanoDialogClose>
         </header>
         <div ref={scrollTargetRef} className="min-h-0 overflow-auto p-4">{children}</div>
       </PanoDialogContent>

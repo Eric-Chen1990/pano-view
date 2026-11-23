@@ -30,7 +30,8 @@ export type EditorDialogState =
     }
   | { kind: "source"; replace?: string; url: string; root: string }
   | { kind: "delete"; target: "scene"; id: string; title: string; hotspotCount: number }
-  | { kind: "delete"; target: "hotspot"; id: string; sceneId: string; title: string; sceneTitle: string };
+  | { kind: "delete"; target: "hotspot"; id: string; sceneId: string; title: string; sceneTitle: string }
+  | { kind: "delete"; target: "map" | "geoMap"; title: string; spotCount: number };
 
 export function EditorDialog({
   dialog,
@@ -119,7 +120,13 @@ export function EditorDialog({
               : dialog.kind === "asset"
                 ? dialog.title
                 : dialog.kind === "delete"
-                  ? (dialog.target === "scene" ? "Delete scene?" : "Delete hotspot?")
+                  ? dialog.target === "scene"
+                    ? "Delete scene?"
+                    : dialog.target === "hotspot"
+                      ? "Delete hotspot?"
+                      : dialog.target === "map"
+                        ? "Remove floor plan?"
+                        : "Remove online map?"
                   : "Scene source",
           )}
         </h2>
@@ -325,9 +332,14 @@ export function EditorDialog({
               {dialog.target === "scene" ? <>
                 <p>{t("This deletes the scene and all its hotspots, and removes incoming scene links. You can undo the deletion.")}</p>
                 <p>{t("Hotspots")}: {dialog.hotspotCount} · {t("Incoming links")}: {incoming}</p>
-              </> : <>
+              </> : dialog.target === "hotspot" ? <>
                 <p>{t("Scene")}: {dialog.sceneTitle}</p>
                 <p>{t("This removes only this hotspot from its scene. You can undo the deletion.")}</p>
+              </> : <>
+                <p>{t(dialog.target === "map"
+                  ? "This removes the floor plan and all of its spots. You can undo the deletion."
+                  : "This removes the online map and all of its points. You can undo the deletion.")}</p>
+                <p>{t("spots")}: {dialog.spotCount}</p>
               </>}
             </div>
           ) : online && dialog.kind === "source" ? (
@@ -391,7 +403,13 @@ export function EditorDialog({
               onClick={() => void onConfirm()}
             >
               {t(dialog.kind === "delete"
-                ? (dialog.target === "scene" ? "Delete scene" : "Delete hotspot")
+                ? dialog.target === "scene"
+                  ? "Delete scene"
+                  : dialog.target === "hotspot"
+                    ? "Delete hotspot"
+                    : dialog.target === "map"
+                      ? "Remove floor plan"
+                      : "Remove online map"
                 : dialog.kind === "source"
                 ? (dialog.replace ? "Replace source" : "Add online scene")
                 : "Confirm")}

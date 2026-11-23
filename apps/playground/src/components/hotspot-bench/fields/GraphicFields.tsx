@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { GraphicDefinition } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
 import {
@@ -16,13 +17,14 @@ export function GraphicFields({
   hotspot: Extract<EditorHotspot, { type: "graphic" }>;
   onChange: (graphic: GraphicDefinition) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const graphic = hotspot.graphic;
   const selectableKind = graphic.kind === "path" ? "circle" : graphic.kind;
 
   return (
     <div className="grid gap-1.5">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Graphic type</span>
+        <span className={fieldLabelClassName}>{t("Graphic type")}</span>
         <select
           className={fieldInputClassName}
           onChange={(event) =>
@@ -42,20 +44,20 @@ export function GraphicFields({
           }
           value={selectableKind}
         >
-          <option value="circle">Circle</option>
-          <option value="triangle">Triangle</option>
-          <option value="diamond">Diamond</option>
-          <option value="star">Star</option>
-          <option value="arrow">Arrow</option>
-          <option value="rectangle">Rounded rectangle</option>
-          <option value="ring">Ring</option>
-          <option value="svg">SVG asset</option>
+          <option value="circle">{t("Circle")}</option>
+          <option value="triangle">{t("Triangle")}</option>
+          <option value="diamond">{t("Diamond")}</option>
+          <option value="star">{t("Star")}</option>
+          <option value="arrow">{t("Arrow")}</option>
+          <option value="rectangle">{t("Rounded rectangle")}</option>
+          <option value="ring">{t("Ring")}</option>
+          <option value="svg">{t("SVG asset")}</option>
         </select>
       </label>
 
       {graphic.kind === "svg" ? (
         <label className={fieldWideClassName}>
-          <span className={fieldLabelClassName}>SVG URL</span>
+          <span className={fieldLabelClassName}>{t("SVG URL")}</span>
           <input
             className={fieldInputClassName}
             onChange={(event) => onChange({ ...graphic, src: event.currentTarget.value })}
@@ -65,7 +67,7 @@ export function GraphicFields({
       ) : (
         <div className={fieldGridClassName}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Fill</span>
+            <span className={fieldLabelClassName}>{t("Fill")}</span>
             <input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
               onChange={(event) => onChange({ ...graphic, fill: event.currentTarget.value })}
@@ -74,7 +76,7 @@ export function GraphicFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Stroke</span>
+            <span className={fieldLabelClassName}>{t("Stroke")}</span>
             <input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
               onChange={(event) => onChange({ ...graphic, stroke: event.currentTarget.value })}
@@ -83,7 +85,7 @@ export function GraphicFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Stroke width</span>
+            <span className={fieldLabelClassName}>{t("Stroke width")}</span>
             <input
               className={fieldInputClassName}
               min="0"
@@ -99,7 +101,7 @@ export function GraphicFields({
           </label>
           {graphic.kind === "rectangle" ? (
             <label className={fieldClassName}>
-              <span className={fieldLabelClassName}>Corner radius (0-0.5)</span>
+              <span className={fieldLabelClassName}>{t("Corner radius (0-0.5)")}</span>
               <input
                 className={fieldInputClassName}
                 max="0.5"
@@ -118,7 +120,7 @@ export function GraphicFields({
           ) : null}
           {graphic.kind === "ring" ? (
             <label className={fieldClassName}>
-              <span className={fieldLabelClassName}>Inner radius</span>
+              <span className={fieldLabelClassName}>{t("Inner radius")}</span>
               <input
                 className={fieldInputClassName}
                 max="0.95"

@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoSun, PanoViewer, Scenes, WebVR, usePanoViewer,
   type HotspotPosition, type PanoSunProps,
@@ -84,6 +85,7 @@ const STRENGTHS = [
 ] as const;
 
 function SunExample({ scenario }: { scenario: Scenario }) {
+  const { t } = usePlaygroundLanguage();
   const [displayedScenario, setDisplayedScenario] = useState(scenario);
   const { label, panorama, initialView, settings: defaults } = SCENARIOS[displayedScenario];
   const [settings, setSettings] = useState<SunSettings>(defaults);
@@ -129,21 +131,15 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
           className={cn(segmentedButtonClassName, "disabled:opacity-50")} type="button"
           aria-pressed={enabled} disabled={editing}
           onClick={() => setEnabled((value) => !value)}
-        >
-          Sun effect
-        </button>
+        >{t("Sun effect")}</button>
         {!vr.enabled && !editing && (
           <button className={segmentedButtonClassName} type="button" onClick={() => {
             setEdit({ position, angularSize: layers.angularSize, preview: false });
             focusSun(position);
-          }}>
-            Edit sun
-          </button>
+          }}>{t("Edit sun")}</button>
         )}
         {vr.available && !vr.enabled && !editing && (
-          <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.enterVR()}>
-            Enter VR
-          </button>
+          <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.enterVR()}>{t("Enter VR")}</button>
         )}
       </div>
       <PanoViewer
@@ -154,23 +150,21 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
         renderOverlay={() => editing && edit && (
           <div className="pointer-events-none absolute inset-x-2 bottom-2 flex justify-center sm:inset-x-4 sm:bottom-4">
             <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-[#3e6c73] bg-[#081619]/95 px-3 py-2 text-[#f5fbfc] sm:max-w-xl"
-              role="group" aria-label="Sun editing controls">
-              <p className="m-0 basis-full text-xs text-[#b9d7db]">Select a point in the sky or drag the center marker.</p>
-              <SunSlider label="Disc size" value={edit.angularSize} min={0.2} max={6} step={0.01} suffix="°"
+              role="group" aria-label={t("Sun editing controls")}>
+              <p className="m-0 basis-full text-xs text-[#b9d7db]">{t("Select a point in the sky or drag the center marker.")}</p>
+              <SunSlider label={t("Disc size")} value={edit.angularSize} min={0.2} max={6} step={0.01} suffix="°"
                 onChange={(angularSize) => setEdit((current) => current && { ...current, angularSize })} />
-              <button type="button" className={segmentedButtonClassName} onClick={() => focusSun(edit.position)}>Focus sun</button>
+              <button type="button" className={segmentedButtonClassName} onClick={() => focusSun(edit.position)}>{t("Focus sun")}</button>
               <button type="button"
                 className={cn(segmentedButtonClassName, "aria-pressed:border-[#75cbd3] aria-pressed:bg-[#173136]")}
                 aria-pressed={edit.preview}
-                onClick={() => setEdit((current) => current && { ...current, preview: !current.preview })}>
-                Preview light
-              </button>
-              <button type="button" className={segmentedButtonClassName} onClick={() => setEdit(null)}>Cancel</button>
+                onClick={() => setEdit((current) => current && { ...current, preview: !current.preview })}>{t("Preview light")}</button>
+              <button type="button" className={segmentedButtonClassName} onClick={() => setEdit(null)}>{t("Cancel")}</button>
               <button type="button" className={cn(segmentedButtonClassName, segmentedButtonActiveClassName)}
                 onClick={() => {
                   setSettings((current) => ({ ...current, position: edit.position, angularSize: edit.angularSize }));
                   setEdit(null);
-                }}>Done</button>
+                }}>{t("Done")}</button>
             </div>
           </div>
         )}
@@ -194,11 +188,11 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
         <PanoSun {...layers} position={position} enabled={editing ? edit.preview : enabled} />
         {editing && <SunGuide position={position} angularSize={layers.angularSize} onMove={moveSun} />}
       </PanoViewer>
-      <div className={pageControlsClassName} role="group" aria-label="Sun placement and size">
+      <div className={pageControlsClassName} role="group" aria-label={t("Sun placement and size")}>
         {(["yaw", "pitch"] as const).map((axis) => {
           const limit = axis === "yaw" ? 180 : 90;
           return (
-            <SunSlider key={axis} label={axis === "yaw" ? "Yaw" : "Pitch"}
+            <SunSlider key={axis} label={axis === "yaw" ? t("Yaw") : t("Pitch")}
               value={position[axis]} min={-limit} max={limit} step={0.1} suffix="°"
               onChange={(value) => {
                 const next = { ...position, [axis]: value };
@@ -212,7 +206,7 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
             onChange={(value) => setSettings((current) => ({ ...current, [key]: value }))} />
         ))}
       </div>
-      <div className={pageControlsClassName} role="group" aria-label="Light strength">
+      <div className={pageControlsClassName} role="group" aria-label={t("Light strength")}>
         {STRENGTHS.map(([key, name]) => (
           <SunSlider key={key} label={name} value={settings[key]} min={0} max={1} step={0.01}
             onChange={(value) => setSettings((current) => ({ ...current, [key]: value }))} />
@@ -222,7 +216,7 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
         react={{
           code: code,
           label: "PanoSun",
-          blurb: "Copy the current sun position, sizes, and strengths.",
+          blurb: t("Copy the current sun position, sizes, and strengths."),
         }}
       />
     </>
@@ -230,19 +224,20 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
 }
 
 export function SunPage() {
+  const { t } = usePlaygroundLanguage();
   const [scenario, setScenario] = useState<Scenario>("add");
   return (
     <main className={shellClassName}>
       <SiteHeader />
       <section aria-labelledby="sun-heading" className={cn(pageSectionClassName, "mt-8")}>
         <div className={pageHeadingWrapClassName}>
-          <h1 id="sun-heading" className={pageHeadingTitleClassName}>Panorama sunlight</h1>
+          <h1 id="sun-heading" className={pageHeadingTitleClassName}>{t("Panorama sunlight")}</h1>
         </div>
-        <div className={pageControlsClassName} role="group" aria-label="Sun examples">
+        <div className={pageControlsClassName} role="group" aria-label={t("Sun examples")}>
           {(["add", "enhance"] as const).map((option) => (
             <button key={option} className={segmentedButtonClassName} type="button"
               aria-pressed={scenario === option} onClick={() => setScenario(option)}>
-              {SCENARIOS[option].label}
+              {t(SCENARIOS[option].label)}
             </button>
           ))}
         </div>

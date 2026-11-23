@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useEffect, useRef } from "react";
 import { containRect, type MapPoint, type MapRect } from "../map/geometry";
 import { visibleImageRect } from "./geometry";
@@ -9,6 +10,7 @@ const VIEWPORT_FRACTION = 0.3;
 const KEYBOARD_STEP = 48;
 
 export function PlanarMinimap({ source, controls }: { source: Size; controls: PlanarControls }) {
+  const t = usePanoUiTranslation();
   const minimap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const rectangle = useRef<HTMLDivElement>(null);
@@ -114,7 +116,7 @@ export function PlanarMinimap({ source, controls }: { source: Size; controls: Pl
   }, [source, controls]);
 
   return (
-    <div ref={minimap} className="pano-planar-minimap" role="region" aria-label="Image minimap"
+    <div ref={minimap} className="pano-planar-minimap" role="region" aria-label={t("Image minimap")}
       aria-description="Use the arrow keys to pan." tabIndex={0} hidden>
       <canvas ref={canvas} aria-hidden="true" />
       <div ref={rectangle} className="pano-planar-minimap-rectangle" aria-hidden="true" />

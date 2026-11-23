@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -70,19 +71,20 @@ const examples = {
 } satisfies Record<ControlExampleKind, { label: string; blurb: string; code: string }>;
 
 export function ControlsPage() {
+  const { t } = usePlaygroundLanguage();
   const [example, setExample] = useState<ControlExampleKind>("navigation");
   return (
     <ExamplePage
-      title="View controls"
-      description="Learn direct input and imperative view navigation, then try automatic rotation or device orientation independently. The fullscreen button stays inside the viewer."
+      title={t("View controls")}
+      description={t("Learn direct input and imperative view navigation, then try automatic rotation or device orientation independently. The fullscreen button stays inside the viewer.")}
     >
       <ControlsExample example={example} onExampleChange={setExample} />
       <ExampleCode react={examples[example]} />
       <details className="border-t border-line p-5">
-        <summary>Complete controls example</summary>
+        <summary>{t("Complete controls example")}</summary>
         <CodeSnippet
-          label="View controls: complete example"
-          blurb="The running example uses reset, lookTo, lookToHotspot and toggleFullscreen. Gyro requests permission from the Enable button; switching topics stops rotation and sensor control."
+          label={t("View controls: complete example")}
+          blurb={t("The running example uses reset, lookTo, lookToHotspot and toggleFullscreen. Gyro requests permission from the Enable button; switching topics stops rotation and sensor control.")}
           code={source}
         />
       </details>

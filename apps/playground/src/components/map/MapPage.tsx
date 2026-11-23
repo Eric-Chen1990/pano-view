@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   isOverlayCorner,
   PanoMapOverlay,
@@ -137,6 +138,7 @@ ${customToggle ? `          toggle={{
 }
 
 export function MapPage() {
+  const { t } = usePlaygroundLanguage();
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
@@ -178,22 +180,15 @@ export function MapPage() {
     <main className={shellClassName}>
       <SiteHeader />
       <section className={cn(pageSectionClassName, "mt-8")} aria-labelledby="map-title">
-        <h1 className={pageHeadingTitleClassName} id="map-title">
-          Floor plan map
-        </h1>
-        <p className="my-4 text-sm text-slate-300">
-          Icons switch scenes. The active sector rotates with panorama yaw.
-          Zoom scales only the floor image; icons and the radar keep their screen size.
-        </p>
+        <h1 className={pageHeadingTitleClassName} id="map-title">{t("Floor plan map")}</h1>
+        <p className="my-4 text-sm text-slate-300">{t("Icons switch scenes. The active sector rotates with panorama yaw. Zoom scales only the floor image; icons and the radar keep their screen size.")}</p>
         <p role={error ? "alert" : "status"} className="my-4 text-sm text-slate-300">
           {error ?? status}
         </p>
         {project && map ? (
           <>
             <div className={pageControlsClassName}>
-              <div className={controlLabelClassName}>
-                Presentation
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map presentation">
+              <div className={controlLabelClassName}>{t("Presentation")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Map presentation")}>
                   {(["panel", "dialog"] as const).map((mode) => (
                     <button
                       key={mode}
@@ -205,14 +200,12 @@ export function MapPage() {
                       aria-pressed={presentation === mode}
                       onClick={() => setPresentation(mode)}
                     >
-                      {mode === "panel" ? "Panel" : "Dialog button"}
+                      {mode === "panel" ? t("Panel") : t("Dialog button")}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className={controlLabelClassName}>
-                Scene
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Scenes">
+              <div className={controlLabelClassName}>{t("Scene")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Scenes")}>
                   {project.scenes.map((entry) => (
                     <button
                       key={entry.scene.id}
@@ -231,12 +224,10 @@ export function MapPage() {
               </div>
             </div>
             <details className="border-b border-line">
-              <summary className="px-6 py-4">Placement and appearance</summary>
+              <summary className="px-6 py-4">{t("Placement and appearance")}</summary>
               <div className={pageControlsClassName}>
               {presentation === "panel" ? (
-                <div className={controlLabelClassName}>
-                  Align
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map align">
+                <div className={controlLabelClassName}>{t("Align")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Map align")}>
                     {PANO_OVERLAY_ALIGNS.map((value) => (
                       <button
                         key={value}
@@ -255,9 +246,7 @@ export function MapPage() {
                 </div>
               ) : null}
               {presentation === "panel" && isOverlayCorner(align) ? (
-                <div className={controlLabelClassName}>
-                  Axis
-                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map axis">
+                <div className={controlLabelClassName}>{t("Axis")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Map axis")}>
                     {(["horizontal", "vertical"] as const).map((value) => (
                       <button
                         key={value}
@@ -275,9 +264,7 @@ export function MapPage() {
                   </div>
                 </div>
               ) : null}
-              <div className={controlLabelClassName}>
-                Edge tab
-                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Map edge tab">
+              <div className={controlLabelClassName}>{t("Edge tab")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Map edge tab")}>
                   <button
                     type="button"
                     className={cn(
@@ -286,9 +273,7 @@ export function MapPage() {
                     )}
                     aria-pressed={customToggle}
                     onClick={() => setCustomToggle((value) => !value)}
-                  >
-                    Custom toggle
-                  </button>
+                  >{t("Custom toggle")}</button>
                 </div>
               </div>
               </div>
@@ -338,9 +323,9 @@ export function MapPage() {
           </>
         ) : null}
         <ExampleCode
-          json={{ format: "project", files: [{ label: "Floor plan map", blurb: "Set the top-level map field of project.json to this object. Its spot scene IDs must exist in the project.", value: DEMO_MAP }] }}
+          json={{ format: "project", files: [{ label: t("Floor plan map"), blurb: t("Set the top-level map field of project.json to this object. Its spot scene IDs must exist in the project."), value: DEMO_MAP }] }}
           react={{
-            blurb: "Mount PanoMapOverlay inside PanoOverlay and share activeSceneId with ProjectScenes. presentation switches between a panel and a dialog launcher. anchor.align uses the same eight positions as the scene menu.",
+            blurb: t("Mount PanoMapOverlay inside PanoOverlay and share activeSceneId with ProjectScenes. presentation switches between a panel and a dialog launcher. anchor.align uses the same eight positions as the scene menu."),
             code: snippet,
             label: "PanoMapOverlay",
           }}

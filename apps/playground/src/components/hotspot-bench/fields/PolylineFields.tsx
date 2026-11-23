@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { EditorPolyline } from "../../../types";
 import {
   checkboxLabelClassName,
@@ -21,10 +22,11 @@ export function PolylineFields({
   onChange: (patch: Partial<Omit<EditorPolyline, "id">>) => void;
   onDelete: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-[14px] p-[17px] max-[1180px]:grid-cols-2 max-[760px]:block">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Accessible label</span>
+        <span className={fieldLabelClassName}>{t("Accessible label")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ label: event.currentTarget.value })}
@@ -33,7 +35,7 @@ export function PolylineFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Stroke</span>
+          <span className={fieldLabelClassName}>{t("Stroke")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ stroke: event.currentTarget.value })}
@@ -42,7 +44,7 @@ export function PolylineFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Stroke width (px)</span>
+          <span className={fieldLabelClassName}>{t("Stroke width (px)")}</span>
           <input
             className={fieldInputClassName}
             min="0.5"
@@ -56,9 +58,7 @@ export function PolylineFields({
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Stroke opacity
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Stroke opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(polyline.strokeOpacity * 100)}%
           </b>
         </span>
@@ -88,7 +88,7 @@ export function PolylineFields({
           onChange={(event) => onChange({ visible: event.currentTarget.checked })}
           type="checkbox"
         />
-        <span>Visible in panorama</span>
+        <span>{t("Visible in panorama")}</span>
       </label>
       <label className={`${checkboxLabelClassName} col-span-full`}>
         <input
@@ -101,7 +101,7 @@ export function PolylineFields({
           }
           type="checkbox"
         />
-        <span>Respond to mouse</span>
+        <span>{t("Respond to mouse")}</span>
       </label>
       <TooltipFields
         onChange={onChange}
@@ -114,7 +114,7 @@ export function PolylineFields({
         tooltipTrigger={polyline.tooltipTrigger ?? "always"}
       />
       <div
-        aria-label="Polyline vertices"
+        aria-label={t("Polyline vertices")}
         className="col-span-full grid gap-[5px] border-t border-[#27454d] pt-[11px]"
       >
         {polyline.vertices.map((vertex, index) => (
@@ -126,9 +126,7 @@ export function PolylineFields({
           </span>
         ))}
       </div>
-      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">
-        Delete polyline
-      </button>
+      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">{t("Delete polyline")}</button>
     </div>
   );
 }

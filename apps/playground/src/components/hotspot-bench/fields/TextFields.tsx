@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { TextHotspotFontStyle } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
 import {
@@ -33,6 +34,7 @@ export function TextFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "text" }>, "id" | "type">>,
   ) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const knownFontFamily = FONT_FAMILY_PRESETS.some(
     (preset) => preset.value === hotspot.fontFamily,
   );
@@ -43,7 +45,7 @@ export function TextFields({
   return (
     <div className="grid gap-1.5">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Text</span>
+        <span className={fieldLabelClassName}>{t("Text")}</span>
         <textarea
           className={fieldInputClassName}
           onChange={(event) => onChange({ text: event.currentTarget.value })}
@@ -52,7 +54,7 @@ export function TextFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Font family</span>
+        <span className={fieldLabelClassName}>{t("Font family")}</span>
         <select
           className={fieldInputClassName}
           onChange={(event) => onChange({ fontFamily: event.currentTarget.value })}
@@ -63,14 +65,14 @@ export function TextFields({
           )}
           {FONT_FAMILY_PRESETS.map((preset) => (
             <option key={preset.value} value={preset.value}>
-              {preset.label}
+              {t(preset.label)}
             </option>
           ))}
         </select>
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Weight</span>
+          <span className={fieldLabelClassName}>{t("Weight")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -85,13 +87,13 @@ export function TextFields({
             )}
             {FONT_WEIGHT_PRESETS.map((preset) => (
               <option key={preset.value} value={preset.value}>
-                {preset.label}
+                {t(preset.label)}
               </option>
             ))}
           </select>
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Style</span>
+          <span className={fieldLabelClassName}>{t("Style")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -101,15 +103,13 @@ export function TextFields({
             }
             value={hotspot.fontStyle}
           >
-            <option value="normal">Normal</option>
-            <option value="italic">Italic</option>
+            <option value="normal">{t("Normal")}</option>
+            <option value="italic">{t("Italic")}</option>
           </select>
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Font size
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Font size")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(hotspot.fontSize)}px
           </b>
         </span>
@@ -129,7 +129,7 @@ export function TextFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Text color</span>
+          <span className={fieldLabelClassName}>{t("Text color")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ color: event.currentTarget.value })}
@@ -138,7 +138,7 @@ export function TextFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Background</span>
+          <span className={fieldLabelClassName}>{t("Background")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ background: event.currentTarget.value })}
@@ -148,9 +148,7 @@ export function TextFields({
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Background opacity
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Background opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(hotspot.backgroundOpacity * 100)}%
           </b>
         </span>
@@ -173,7 +171,7 @@ export function TextFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Align</span>
+          <span className={fieldLabelClassName}>{t("Align")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -186,13 +184,13 @@ export function TextFields({
             }
             value={hotspot.align}
           >
-            <option value="left">Left</option>
-            <option value="center">Center</option>
-            <option value="right">Right</option>
+            <option value="left">{t("Left")}</option>
+            <option value="center">{t("Center")}</option>
+            <option value="right">{t("Right")}</option>
           </select>
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Vertical</span>
+          <span className={fieldLabelClassName}>{t("Vertical")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -205,14 +203,14 @@ export function TextFields({
             }
             value={hotspot.verticalAlign}
           >
-            <option value="top">Top</option>
-            <option value="middle">Middle</option>
-            <option value="bottom">Bottom</option>
+            <option value="top">{t("Top")}</option>
+            <option value="middle">{t("Middle")}</option>
+            <option value="bottom">{t("Bottom")}</option>
           </select>
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Wrapping</span>
+        <span className={fieldLabelClassName}>{t("Wrapping")}</span>
         <select
           className={fieldInputClassName}
           onChange={(event) =>
@@ -225,8 +223,8 @@ export function TextFields({
           }
           value={hotspot.whiteSpace}
         >
-          <option value="normal">Wrap to width</option>
-          <option value="nowrap">Single line</option>
+          <option value="normal">{t("Wrap to width")}</option>
+          <option value="nowrap">{t("Single line")}</option>
         </select>
       </label>
     </div>

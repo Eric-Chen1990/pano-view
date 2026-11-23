@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../i18n/language";
 import { Highlight, themes } from "prism-react-renderer";
 import { useEffect, useRef, useState } from "react";
 
@@ -14,6 +15,7 @@ export function CodeSnippet({
   language?: string;
   onCopy?: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const [copyStatus, setCopyStatus] = useState<{ code: string; copied: boolean }>();
   const copiedTimerRef = useRef<number>(0);
   const status = copyStatus?.code === code ? copyStatus : undefined;
@@ -27,9 +29,9 @@ export function CodeSnippet({
       <div className="flex items-start justify-between gap-4 border-b border-[#244047] px-5 py-4 max-[760px]:flex-col">
         <div className="min-w-0 max-w-full">
           <span className="block text-[0.82rem] font-semibold tracking-[0.02em] text-[#f5fbfc]">
-            {label}
+            {t(label)}
           </span>
-          <p className="m-0 mt-1 wrap-anywhere text-[0.72rem] leading-6 text-[#88a6ac]">{blurb}</p>
+          <p className="m-0 mt-1 wrap-anywhere text-[0.72rem] leading-6 text-[#88a6ac]">{t(blurb)}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded border border-[#3e6c73] px-2 py-1 font-mono text-[0.58rem] uppercase tracking-[0.08em] text-[#75cbd3]">
@@ -51,12 +53,12 @@ export function CodeSnippet({
             }}
             type="button"
           >
-            {status?.copied ? "Copied" : "Copy"}
+            {status?.copied ? t("Copied") : t("Copy")}
           </button>
         </div>
       </div>
       <span role="status" className={status?.copied === false ? "block px-5 py-2 text-sm" : "sr-only"}>
-        {status ? status.copied ? "Code copied." : "Could not copy. Select the code to copy it manually." : ""}
+        {status ? status.copied ? t("Code copied.") : t("Could not copy. Select the code to copy it manually.") : ""}
       </span>
       <Highlight code={code} language={language} theme={themes.oneDark}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (

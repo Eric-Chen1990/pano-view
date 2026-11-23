@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import {
   checkboxLabelClassName,
   fieldClassName,
@@ -19,6 +20,7 @@ export function StrokeDashFields({
   strokeGapSize: number;
   onChange: (patch: { strokeDashSize: number; strokeGapSize: number }) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const dashed = strokeDashSize > 0;
 
   return (
@@ -39,12 +41,12 @@ export function StrokeDashFields({
           }
           type="checkbox"
         />
-        <span>Dashed stroke</span>
+        <span>{t("Dashed stroke")}</span>
       </label>
       {dashed ? (
         <div className={`${fieldGridClassName} col-span-full`}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Dash (px)</span>
+            <span className={fieldLabelClassName}>{t("Dash (px)")}</span>
             <input
               className={fieldInputClassName}
               min="0.5"
@@ -63,7 +65,7 @@ export function StrokeDashFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Gap (px)</span>
+            <span className={fieldLabelClassName}>{t("Gap (px)")}</span>
             <input
               className={fieldInputClassName}
               min="0"

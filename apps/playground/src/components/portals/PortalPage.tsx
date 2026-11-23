@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoViewer,
   PortalHotspot,
@@ -158,6 +159,7 @@ function renderDoors(scene: Scene) {
 }
 
 export function PortalPage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = useRef<PanoViewerHandle>(null);
   const [sceneId, setSceneId] = useState(INITIAL_SCENE_ID);
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
@@ -167,16 +169,14 @@ export function PortalPage() {
 
   return (
     <ExamplePage
-      title="Panorama portals"
-      description="Click a doorway, or look directly at it and zoom in to travel."
+      title={t("Panorama portals")}
+      description={t("Click a doorway, or look directly at it and zoom in to travel.")}
     >
       <div className={pageControlsClassName}>
-        <output className={controlLabelClassName} aria-label="Current panorama">
+        <output className={controlLabelClassName} aria-label={t("Current panorama")}>
           {scene?.name}
         </output>
-        <label className={controlLabelClassName}>
-          Renderer
-          <select
+        <label className={controlLabelClassName}>{t("Renderer")}<select
             className={controlInputClassName}
             value={renderer}
             onChange={({ currentTarget }) => {
@@ -185,22 +185,22 @@ export function PortalPage() {
               setRenderer(currentTarget.value === "webgl" ? "webgl" : "auto");
             }}
           >
-            <option value="auto">Auto</option>
+            <option value="auto">{t("Auto")}</option>
             <option value="webgl">WebGL</option>
           </select>
         </label>
         {backend && (
-          <output className={controlLabelClassName} aria-label="Active renderer">
+          <output className={controlLabelClassName} aria-label={t("Active renderer")}>
             {backend}
           </output>
         )}
-        {error && <p role="status">{error}</p>}
+        {error && <p role="status">{t(error)}</p>}
       </div>
       <PanoViewer
         key={renderer}
         ref={viewer}
         renderer={renderer}
-        aria-label="Panorama portal demo"
+        aria-label={t("Panorama portal demo")}
         style={{ height: "min(540px, 58dvh)" }}
       >
         <Scenes
@@ -221,18 +221,18 @@ export function PortalPage() {
         />
       </PanoViewer>
       <ExampleCode
-        react={{ label: "PortalHotspot", blurb: "Render each doorway with the target scene ID and its position.", code: buildPortalSnippet(sceneId, renderer) }}
+        react={{ label: "PortalHotspot", blurb: t("Render each doorway with the target scene ID and its position."), code: buildPortalSnippet(sceneId, renderer) }}
         json={{ format: "project", files: [{
-          label: "Three-scene portal project",
-          blurb: "Load this project.json with loadPanoProject and pass it to ProjectScenes. Each portal’s click event points to its destination scene.",
+          label: t("Three-scene portal project"),
+          blurb: t("Load this project.json with loadPanoProject and pass it to ProjectScenes. Each portal’s click event points to its destination scene."),
           value: { ...project, initialSceneId: sceneId },
         }] }}
       />
       <details className="border-t border-line p-5">
-        <summary>Complete portal example</summary>
+        <summary>{t("Complete portal example")}</summary>
         <CodeSnippet
           label="PortalHotspot"
-          blurb="Each source scene maps a doorway to each destination by scene ID."
+          blurb={t("Each source scene maps a doorway to each destination by scene ID.")}
           code={source}
         />
       </details>

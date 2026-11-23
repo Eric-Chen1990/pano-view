@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot,
   PanoCompare,
@@ -44,6 +45,7 @@ const menu = scenes.map((scene, index) => ({
 }));
 
 export function ComparePage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [layout, setLayout] = useState<PanoCompareLayout>("left-right");
   const [presentation, setPresentation] = useState<PanoComparePresentation>("wipe");
@@ -76,29 +78,25 @@ export function PanoramaComparison() {
 }`;
 
   return (
-    <ExamplePage title="Panorama comparison" description="Drag either image to look around. Choose how the two panoramas share the viewer.">
+    <ExamplePage title={t("Panorama comparison")} description={t("Drag either image to look around. Choose how the two panoramas share the viewer.")}>
       <div className={pageControlsClassName}>
-        <label className={controlLabelClassName}>
-          Display
-          <select className={controlInputClassName} value={presentation}
+        <label className={controlLabelClassName}>{t("Display")}<select className={controlInputClassName} value={presentation}
             onChange={(event) => setPresentation(event.target.value as PanoComparePresentation)}>
-            <option value="wipe">Wipe</option>
-            <option value="split-view">Split view</option>
+            <option value="wipe">{t("Wipe")}</option>
+            <option value="split-view">{t("Split view")}</option>
           </select>
         </label>
-        <label className={controlLabelClassName}>
-          Layout
-          <select className={controlInputClassName} value={layout}
+        <label className={controlLabelClassName}>{t("Layout")}<select className={controlInputClassName} value={layout}
             onChange={(event) => setLayout(event.target.value as PanoCompareLayout)}>
-            <option value="left-right">Left and right</option>
-            <option value="top-bottom">Top and bottom</option>
+            <option value="left-right">{t("Left and right")}</option>
+            <option value="top-bottom">{t("Top and bottom")}</option>
           </select>
         </label>
-        <button className={segmentedButtonClassName} type="button" onClick={() => viewer.reset()}>Reset view</button>
-        <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.toggleFullscreen()}>Fullscreen</button>
+        <button className={segmentedButtonClassName} type="button" onClick={() => viewer.reset()}>{t("Reset view")}</button>
+        <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.toggleFullscreen()}>{t("Fullscreen")}</button>
       </div>
-      {error && <p role="alert" className="mb-3 text-sm text-red-300">{error}</p>}
-      <PanoViewer ref={viewer.ref} aria-label="Panorama comparison" className="rounded-xl bg-slate-900"
+      {error && <p role="alert" className="mb-3 text-sm text-red-300">{t(error)}</p>}
+      <PanoViewer ref={viewer.ref} aria-label={t("Panorama comparison")} className="rounded-xl bg-slate-900"
         viewLimits={viewLimits}
         style={{ height: "clamp(340px, 65dvh, 620px)" }}>
         <PanoCompare
@@ -122,16 +120,14 @@ export function PanoramaComparison() {
         <PanoOverlay>
           <PanoSceneMenu activeId={activeId} items={menu} onSelect={selectScene}
             anchor={{ align: "bottom", inset: 12 }} collapsible />
-          <PanoDialog open={dialogOpen} onOpenChange={setDialogOpen} title="About this comparison">
-            Both panoramas use the same camera and share this hotspot.
-          </PanoDialog>
+          <PanoDialog open={dialogOpen} onOpenChange={setDialogOpen} title={t("About this comparison")}>{t("Both panoramas use the same camera and share this hotspot.")}</PanoDialog>
         </PanoOverlay>
       </PanoViewer>
       <div className="mt-6">
         <ExampleCode
           react={{
             label: "React",
-            blurb: "Pass a list of panorama pairs to PanoCompare.",
+            blurb: t("Pass a list of panorama pairs to PanoCompare."),
             code: snippet,
           }}
         />

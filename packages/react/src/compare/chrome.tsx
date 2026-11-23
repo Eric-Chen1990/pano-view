@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useCallback, useLayoutEffect, useRef, useSyncExternalStore, type CSSProperties, type PointerEvent } from "react";
 import type { CompareConfig, createCompareHost } from "./view";
 
@@ -49,6 +50,7 @@ function stopDrag(drag: DividerDrag) {
 }
 
 export function CompareDivider({ layout, presentation, split, dividerColor, dividerWidth }: CompareConfig) {
+  const t = usePanoUiTranslation();
   const slider = useRef<HTMLInputElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<DividerDrag | null>(null);
@@ -129,7 +131,7 @@ export function CompareDivider({ layout, presentation, split, dividerColor, divi
         >
           <input type="range" min={0} max={100} step={1}
             ref={slider} defaultValue={Math.round(split.get() * 100)}
-            aria-label="Comparison divider" aria-orientation={horizontal ? "horizontal" : "vertical"}
+            aria-label={t("Comparison divider")} aria-orientation={horizontal ? "horizontal" : "vertical"}
             onChange={(event) => {
               const input = event.currentTarget;
               split.change(input.valueAsNumber / 100);

@@ -112,6 +112,7 @@ export {
   PANO_OVERLAY_ALIGNS,
   parseOverlayAnchor,
   resolveOverlayAnchor,
+  resolveOverlayLength,
 } from "./overlay/align";
 export type {
   PanoOverlayAlign,
@@ -389,3 +390,6 @@ export { PanoGeoMapOverlay } from "./geo-map/pano-geo-map-overlay";
 export type { PanoGeoMapProps, PanoGeoMapEdit } from "./geo-map/pano-geo-map";
 export type { PanoGeoMapOverlayProps } from "./geo-map/pano-geo-map-overlay";
 export type { PanoGeoMapSource } from "./geo-map/engine";
+
+export { PanoUiTranslationProvider } from "./ui-translation";
+export type { PanoUiTranslate } from "./ui-translation";

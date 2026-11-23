@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CompareDivider } from "../compare/chrome";
 import { useCompareSplit } from "../compare/split";
@@ -163,6 +164,7 @@ export function PlanarTileCompare({
   initialScale, minScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
   onSceneReady, onSceneError, "aria-label": label = "Image comparison", className, style,
 }: PlanarTileCompareProps) {
+  const t = usePanoUiTranslation();
   const [internalId, setInternalId] = useState(() => defaultActiveSceneId ?? scenes[0]?.id);
   const [shown, setShown] = useState<ShownPair | null>(null);
   const [failure, setFailure] = useState<PairFailure | null>(null);
@@ -245,14 +247,14 @@ export function PlanarTileCompare({
       )}
       {showScenePicker && scenes.length > 1 && (
         <div className="pano-planar-scene-picker">
-          <select aria-label="Image pair" value={requested?.id ?? ""}
+          <select aria-label={t("Image pair")} value={requested?.id ?? ""}
             onChange={(event) => {
               const id = event.currentTarget.value;
               if (activeSceneId === undefined) setInternalId(id);
               onActiveSceneIdChange?.(id);
             }}
           >
-            {!requested && <option value="" disabled>Select image pair</option>}
+            {!requested && <option value="" disabled>{t("Select image pair")}</option>}
             {scenes.map(({ id, title }) => <option key={id} value={id}>{title ?? id}</option>)}
           </select>
         </div>
@@ -260,12 +262,12 @@ export function PlanarTileCompare({
       {(pending || error || !visible) && (
         <div className="pano-planar-status">
           <span role="status">
-            {error ? `Could not load the ${error.side} image.` : pending ? "Loading image pair…" : "No image pair selected."}
+            {error ? `Could not load the ${error.side} image.` : pending ? t("Loading image pair…") : t("No image pair selected.")}
           </span>
           {error && <button type="button" onClick={() => {
             root.current?.focus({ preventScroll: true });
             setFailure(null);
-          }}>Retry</button>}
+          }}>{t("Retry")}</button>}
         </div>
       )}
       {showZoomControls && (

@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useState } from "react";
 import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
 import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
@@ -19,6 +20,7 @@ const sources = {
 } satisfies Record<(typeof CUBE_SCENES)[number]["id"], string>;
 
 export function BackgroundAudioPage() {
+  const { t } = usePlaygroundLanguage();
   const [sceneId, setSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [mode, setMode] = useState<"shared" | "per-scene">("shared");
   const [playing, setPlaying] = useState(false);
@@ -50,13 +52,13 @@ export function AudioTour() {
 }`;
   return (
     <ExamplePage
-      title="Background audio"
-      description="Mount BackgroundAudio beside Scenes. A shared track continues across navigation; per-scene sources change the soundtrack as scenes change. Playback starts only after you press Play."
+      title={t("Background audio")}
+      description={t("Mount BackgroundAudio beside Scenes. A shared track continues across navigation; per-scene sources change the soundtrack as scenes change. Playback starts only after you press Play.")}
     >
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Audio mode"
+        aria-label={t("Audio mode")}
       >
         {(["shared", "per-scene"] as const).map((value) => (
           <button
@@ -72,7 +74,7 @@ export function AudioTour() {
               setError(undefined);
             }}
           >
-            {value === "shared" ? "Shared track" : "Per-scene tracks"}
+            {value === "shared" ? t("Shared track") : t("Per-scene tracks")}
           </button>
         ))}
         <button
@@ -84,13 +86,13 @@ export function AudioTour() {
             setPlaying((value) => !value);
           }}
         >
-          {playing ? "Pause" : "Play"}
+          {playing ? t("Pause") : t("Play")}
         </button>
       </div>
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Audio tour scenes"
+        aria-label={t("Audio tour scenes")}
       >
         {CUBE_SCENES.map((scene) => (
           <button
@@ -110,13 +112,12 @@ export function AudioTour() {
       <p role={error ? "alert" : "status"} className="px-6 text-sm">
         {error ?? status}
       </p>
-      <p className="px-6 text-sm text-muted-2">
-        Track:{" "}
+      <p className="px-6 text-sm text-muted-2">{t("Track:")}{" "}
         {mode === "shared"
           ? sharedSource
           : sources[sceneId as keyof typeof sources]}
       </p>
-      <PanoViewer aria-label="Background audio viewer" style={{ height: 540 }}>
+      <PanoViewer aria-label={t("Background audio viewer")} style={{ height: 540 }}>
         <BackgroundAudio
           src={mode === "shared" ? sharedSource : undefined}
           sources={mode === "per-scene" ? sources : undefined}
@@ -152,7 +153,7 @@ export function AudioTour() {
       <ExampleCode
         react={{
           label: "BackgroundAudio + Scenes",
-          blurb: "The selected soundtrack configuration and play/pause state are separate from scene loading. This example logs the playback callbacks; the demo displays their status above.",
+          blurb: t("The selected soundtrack configuration and play/pause state are separate from scene loading. This example logs the playback callbacks; the demo displays their status above."),
           code: code,
         }}
       />

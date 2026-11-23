@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import type { SceneTransitionPreset } from "@ericchen1990/pano-view";
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "../../cn";
@@ -10,6 +11,7 @@ type BlendSelectProps = {
 };
 
 export function BlendSelect({ value, onChange }: BlendSelectProps) {
+  const { t } = usePlaygroundLanguage();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -54,7 +56,7 @@ export function BlendSelect({ value, onChange }: BlendSelectProps) {
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
-        <span>{selected?.label}</span>
+        <span>{t(selected?.label)}</span>
         <span aria-hidden className="text-[0.65rem] text-[#88a6ac]">
           {open ? "▴" : "▾"}
         </span>
@@ -72,7 +74,7 @@ export function BlendSelect({ value, onChange }: BlendSelectProps) {
               ) : null}
               {group.label ? (
                 <div className="px-3 pt-1.5 pb-1 font-mono text-[0.68rem] font-semibold tracking-[0.1em] text-[#75cbd3] uppercase">
-                  {group.label}
+                  {t(group.label)}
                 </div>
               ) : null}
               {group.presets.map((entry) => {
@@ -95,7 +97,7 @@ export function BlendSelect({ value, onChange }: BlendSelectProps) {
                     <span aria-hidden className="w-3.5 text-[#df6b42]">
                       {isSelected ? "✓" : ""}
                     </span>
-                    {entry.label}
+                    {t(entry.label)}
                   </button>
                 );
               })}

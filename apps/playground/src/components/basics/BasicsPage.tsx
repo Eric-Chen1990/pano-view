@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./BasicsPage.tsx?raw";
 import { useEffect, useState } from "react";
 import {
@@ -70,6 +71,7 @@ function SourceExample({ source, renderer, intro }: {
   renderer: "auto" | "webgl";
   intro: false | PanoLittlePlanetIntroOptions;
 }) {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [displayed, setDisplayed] = useState(source);
   const [error, setError] = useState<string>();
@@ -99,10 +101,10 @@ function SourceExample({ source, renderer, intro }: {
     <>
       {error ? (
         <p className="px-6 text-sm" role="alert">
-          {error}
+          {t(error)}
         </p>
       ) : null}
-      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label="Panorama basics viewer" style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: 540 }}>
         {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
@@ -123,17 +125,15 @@ function SourceExample({ source, renderer, intro }: {
         ) : null}
       </PanoViewer>
       {source !== "sphere" ? (
-        <p className="px-6 text-sm" aria-live="polite">
-          Level {level} · tiles {progress?.loaded ?? 0}/
-          {progress?.requested ?? 0} · failed {progress?.failed ?? 0}. Counts
-          change as you look around and zoom.
-        </p>
+        <p className="px-6 text-sm" aria-live="polite">{t("Level") + " "}{level}{" " + t("· tiles") + " "}{progress?.loaded ?? 0}/
+          {progress?.requested ?? 0}{" " + t("· failed") + " "}{progress?.failed ?? 0}{t(". Counts change as you look around and zoom.")}</p>
       ) : null}
     </>
   );
 }
 
 export function BasicsPage() {
+  const { t } = usePlaygroundLanguage();
   const [source, setSource] = useState<SourceKind>("tile");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [intro, setIntro] = useState(defaultIntro);
@@ -171,13 +171,13 @@ ${sourceProps}
 }`;
   return (
     <ExamplePage
-      title="Panorama basics"
-      description="Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source."
+      title={t("Panorama basics")}
+      description={t("Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source.")}
     >
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Panorama source"
+        aria-label={t("Panorama source")}
       >
         {sourceOrder.map((value) => (
           <button
@@ -190,11 +190,11 @@ ${sourceProps}
             )}
             onClick={() => setSource(value)}
           >
-            {sources[value].label}
+            {t(sources[value].label)}
           </button>
         ))}
       </div>
-      <div className={pageControlsClassName} role="group" aria-label="Renderer preference">
+      <div className={pageControlsClassName} role="group" aria-label={t("Renderer preference")}>
         {(["auto", "webgl"] as const).map((value) => (
           <button
             key={value}
@@ -203,12 +203,12 @@ ${sourceProps}
             className={cn(segmentedButtonClassName, renderer === value && segmentedButtonActiveClassName)}
             onClick={() => setRenderer(value)}
           >
-            {value === "auto" ? "Auto" : "WebGL"}
+            {value === "auto" ? t("Auto") : "WebGL"}
           </button>
         ))}
       </div>
       <fieldset className={cn(pageControlsClassName, "min-w-0")}>
-        <legend className="px-6 text-sm">Little Planet Intro</legend>
+        <legend className="px-6 text-sm">{t("Little Planet Intro")}</legend>
         <label className="inline-flex min-h-9 items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -218,9 +218,7 @@ ${sourceProps}
               if (event.currentTarget.checked) replayIntro();
               else setPlayback((current) => ({ ...current, options: false }));
             }}
-          />
-          Enable intro
-        </label>
+          />{t("Enable intro")}</label>
         {introEnabled && (
           <div className="flex w-full flex-wrap items-end gap-4">
             {introFields.map(({ key, label, unit, min, max, step }) => (
@@ -241,10 +239,8 @@ ${sourceProps}
                 />
               </label>
             ))}
-            <label className={controlLabelClassName}>
-              Easing
-              <select
-                aria-label="Easing"
+            <label className={controlLabelClassName}>{t("Easing")}<select
+                aria-label={t("Easing")}
                 value={intro.easing}
                 className={cn(controlInputClassName, "focus-visible:outline-2 focus-visible:outline-offset-2")}
                 onChange={(event) => {
@@ -255,34 +251,30 @@ ${sourceProps}
                 {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
             </label>
-            <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>Replay intro</button>
+            <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>{t("Replay intro")}</button>
           </div>
         )}
       </fieldset>
       <SourceExample key={`${renderer}:${playback.key}`} source={source} renderer={renderer} intro={playback.options} />
-      <p className="px-6 text-sm text-muted-2">
-        Single-image previews resolve beside the image. Cube and spherical
-        tile previews and templates resolve below baseUrl. Use the template
-        and multires values from your converted files.
-      </p>
+      <p className="px-6 text-sm text-muted-2">{t("Single-image previews resolve beside the image. Cube and spherical tile previews and templates resolve below baseUrl. Use the template and multires values from your converted files.")}</p>
       <ExampleCode
         key={source}
         json={{ format: "viewer", files: viewerUrl ? [{
           label: "viewer.json",
-          blurb: "Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes.",
+          blurb: t("Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes."),
           url: viewerUrl,
         }] : [] }}
         react={{
           label: `${component}: minimal setup`,
-          blurb: "The demo reports load failures and, for tiled sources, the current level and tile counts. These callbacks observe loading without changing the source configuration.",
+          blurb: t("The demo reports load failures and, for tiled sources, the current level and tile counts. These callbacks observe loading without changing the source configuration."),
           code: code,
         }}
       />
       <details className="border-t border-line p-5">
-        <summary>Complete running example</summary>
+        <summary>{t("Complete running example")}</summary>
         <CodeSnippet
-          label="Panorama basics page"
-          blurb="Full page implementation, including the displayed controls, error status and example code generation."
+          label={t("Panorama basics page")}
+          blurb={t("Full page implementation, including the displayed controls, error status and example code generation.")}
           code={fullSource}
         />
       </details>

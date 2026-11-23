@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./ImmersiveTourPage.tsx?raw";
 import {
   SceneMovie,
@@ -126,6 +127,7 @@ function dialogSnippet(mode: DialogMode): {
 }
 
 function NestedTooltip() {
+  const { t } = usePlaygroundLanguage();
   const { portalContainer } = usePanoOverlay();
   const [visible, setVisible] = useState(false);
   return (
@@ -138,18 +140,14 @@ function NestedTooltip() {
         onBlur={() => setVisible(false)}
         onPointerEnter={() => setVisible(true)}
         onPointerLeave={() => setVisible(false)}
-      >
-        About this story
-      </button>
+      >{t("About this story")}</button>
       {visible && portalContainer
         ? createPortal(
             <div
               id="overlay-tip"
               role="tooltip"
               className="absolute top-16 right-4 max-w-64 border border-cyan-300 bg-slate-900 p-3 text-sm text-white"
-            >
-              This tooltip shares the dialog’s fullscreen container.
-            </div>,
+            >{t("This tooltip shares the dialog’s fullscreen container.")}</div>,
             portalContainer,
           )
         : null}
@@ -166,6 +164,7 @@ function OverlayDialogs({
   selected: PopupSelection | null;
   onClose: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const popup = selected
     ? POPUPS_BY_SCENE[selected.sceneId]?.[selected.hotspotId]
     : undefined;
@@ -202,7 +201,7 @@ function OverlayDialogs({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description="Explore this hotspot without leaving the panorama."
+      description={t("Explore this hotspot without leaving the panorama.")}
     >
       {content}
     </PanoDialog>
@@ -228,6 +227,7 @@ function OverlayChrome({
   selected: PopupSelection | null;
   toggleFullscreen: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const { isFullscreen } = usePanoOverlay();
   return (
     <>
@@ -243,8 +243,7 @@ function OverlayChrome({
                 className={viewerChromeButtonClassName}
                 key={hotspotId}
                 onClick={() => onSelect({ sceneId: activeSceneId, hotspotId })}
-              >
-                Open {popup.title}
+              >{t("Open") + " "}{popup.title}
               </button>
             ) : null,
         )}
@@ -253,16 +252,14 @@ function OverlayChrome({
           className={viewerChromeButtonClassName}
           onClick={toggleFullscreen}
         >
-          {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          {isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
         </button>
         <button
           type="button"
           className={viewerChromeButtonClassName}
           disabled={!projectReady}
           onClick={onNextScene}
-        >
-          Next scene
-        </button>
+        >{t("Next scene")}</button>
       </div>
       <OverlayDialogs mode={mode} selected={selected} onClose={onClose} />
     </>
@@ -270,6 +267,7 @@ function OverlayChrome({
 }
 
 export function ImmersiveTourPage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [movieController, setMovieController] =
     useState<PanoMediaController | null>(null);
@@ -350,18 +348,13 @@ export function ImmersiveTourPage() {
         aria-labelledby="overlay-title"
       >
         <div className={pageHeadingWrapClassName}>
-          <h1 className={pageHeadingTitleClassName} id="overlay-title">
-            Immersive tour
-          </h1>
-          <p className={pageHeadingStatusClassName}>
-            Combine scene navigation, shared dialogs, media, models and VR. Each
-            marker opens its own content; the arrow navigates to the next scene.
-          </p>
+          <h1 className={pageHeadingTitleClassName} id="overlay-title">{t("Immersive tour")}</h1>
+          <p className={pageHeadingStatusClassName}>{t("Combine scene navigation, shared dialogs, media, models and VR. Each marker opens its own content; the arrow navigates to the next scene.")}</p>
         </div>
         <div
           className={pageControlsClassName}
           role="group"
-          aria-label="Dialog implementation"
+          aria-label={t("Dialog implementation")}
         >
           {(["default", "composed", "custom"] as const).map((value) => (
             <button
@@ -387,21 +380,17 @@ export function ImmersiveTourPage() {
             type="button"
             className={segmentedButtonClassName}
             onClick={() => void viewer.toggleVR()}
-          >
-            Toggle VR
-          </button>
+          >{t("Toggle VR")}</button>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={autoRotate}
               onChange={(event) => setAutoRotate(event.target.checked)}
-            />
-            Auto rotate
-          </label>
+            />{t("Auto rotate")}</label>
         </div>
         <PanoViewer
           ref={viewer.ref}
-          aria-label="Immersive tour viewer"
+          aria-label={t("Immersive tour viewer")}
           style={{ height: 560 }}
         >
           <WebVR />
@@ -447,26 +436,21 @@ export function ImmersiveTourPage() {
         </PanoViewer>
         {error ? (
           <p role="alert" className="p-4">
-            {error}
+            {t(error)}
           </p>
         ) : null}
         <section
           aria-labelledby="hotspot-mapping-title"
           className="overflow-x-auto border-t border-[#244047] p-5"
         >
-          <h2 id="hotspot-mapping-title" className="m-0 text-lg font-semibold">
-            Hotspot → content
-          </h2>
-          <p className="my-3 text-sm text-slate-300" aria-live="polite">
-            Scene: {activeSceneId}. Both scenes reuse these IDs with their own
-            titles and content. Close the dialog before choosing another marker.
-          </p>
+          <h2 id="hotspot-mapping-title" className="m-0 text-lg font-semibold">{t("Hotspot → content")}</h2>
+          <p className="my-3 text-sm text-slate-300" aria-live="polite">{t("Scene:") + " "}{activeSceneId}{t(". Both scenes reuse these IDs with their own titles and content. Close the dialog before choosing another marker.")}</p>
           <table className="w-full text-left text-sm">
             <thead>
               <tr>
-                <th className="p-2">Hotspot ID</th>
-                <th className="p-2">Content type</th>
-                <th className="p-2">Dialog title</th>
+                <th className="p-2">{t("Hotspot ID")}</th>
+                <th className="p-2">{t("Content type")}</th>
+                <th className="p-2">{t("Dialog title")}</th>
               </tr>
             </thead>
             <tbody>
@@ -483,38 +467,30 @@ export function ImmersiveTourPage() {
             </tbody>
           </table>
         </section>
-        <p className="p-4 text-sm">
-          In VR, hold your gaze to operate icons. Translucent arrows appear at
-          the edges where content can scroll. Look right for the scene video,
-          which stays on the panorama surface.
-          Outside VR, drag the model and scroll to zoom.
-        </p>
-        <p className="p-4 text-sm">
-          This tour combines <a href="/overlays">dialogs</a>,{" "}
-          <a href="/spatial-controls">spatial controls</a>,{" "}
-          <a href="/webvr">VR</a> and{" "}
-          <a href="/scene-transitions">scene transitions</a>. Choose a topic to
-          learn its individual setup.
-        </p>
+        <p className="p-4 text-sm">{t("In VR, hold your gaze to operate icons. Translucent arrows appear at the edges where content can scroll. Look right for the scene video, which stays on the panorama surface. Outside VR, drag the model and scroll to zoom.")}</p>
+        <p className="p-4 text-sm">{t("This tour combines") + " "}<a href="/overlays">{t("dialogs")}</a>,{" "}
+          <a href="/spatial-controls">{t("spatial controls")}</a>,{" "}
+          <a href="/webvr">VR</a>{" " + t("and")}{" "}
+          <a href="/scene-transitions">{t("scene transitions")}</a>{t(". Choose a topic to learn its individual setup.")}</p>
         <ExampleCode
-          react={{ label: "Immersive JSON tour", blurb: "Load scenes and shared popup content, then enable headset entry with WebVR.", code: reactCode }}
+          react={{ label: t("Immersive JSON tour"), blurb: t("Load scenes and shared popup content, then enable headset entry with WebVR."), code: reactCode }}
           json={{ format: "project", files: [{
             label: "project.json",
-            blurb: "This file supplies the base scenes and hotspots. The tour adds its interactive dialog content in React.",
+            blurb: t("This file supplies the base scenes and hotspots. The tour adds its interactive dialog content in React."),
             url: projectUrl,
           }] }}
         />
         <details className="border-t border-line p-5">
-          <summary>Complete tour integration and selected dialog</summary>
+          <summary>{t("Complete tour integration and selected dialog")}</summary>
           <CodeSnippet
-            label="VR media controls"
-            blurb="Scene video, shared media controls, and a 360° video control bar."
+            label={t("VR media controls")}
+            blurb={t("Scene video, shared media controls, and a 360° video control bar.")}
             code={spatialControlsCode}
           />
           <CodeSnippet key={mode} {...dialogSnippet(mode)} />
           <CodeSnippet
-            label="Immersive tour page"
-            blurb="Full page wiring: project loading, marker mapping, scene navigation, dialog selection, automatic rotation and spatial media. The supporting content and dialog implementations are included here or on their linked topic pages."
+            label={t("Immersive tour page")}
+            blurb={t("Full page wiring: project loading, marker mapping, scene navigation, dialog selection, automatic rotation and spatial media. The supporting content and dialog implementations are included here or on their linked topic pages.")}
             code={fullSource}
           />
         </details>

@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
@@ -21,30 +22,26 @@ export function VRPanorama() {
 }`;
 
 export function WebVRPage() {
+  const { t } = usePlaygroundLanguage();
   return (
     <ExamplePage
-      title="VR basics"
-      description="Enter VR, then look at the orange marker until the reticle fills. Supported headsets use WebXR; phones use stereoscopic gyro viewing; desktop browsers provide a simulated preview. Exit and Setup controls appear within the session."
+      title={t("VR basics")}
+      description={t("Enter VR, then look at the orange marker until the reticle fills. Supported headsets use WebXR; phones use stereoscopic gyro viewing; desktop browsers provide a simulated preview. Exit and Setup controls appear within the session.")}
     >
       <VRBasicsExample />
-      <p className="px-6 text-sm text-muted-2">
-        In desktop preview, right-click releases the pointer. Left-click locks
-        it again; gaze pauses while unlocked. Phones need HTTPS and sensor
-        permission. Use a supported physical device to verify its immersive
-        mode.
-      </p>
+      <p className="px-6 text-sm text-muted-2">{t("In desktop preview, right-click releases the pointer. Left-click locks it again; gaze pauses while unlocked. Phones need HTTPS and sensor permission. Use a supported physical device to verify its immersive mode.")}</p>
       <ExampleCode
         react={{
-          label: "VR basics: minimal setup",
-          blurb: "WebVR supplies immersive presentation and gaze activation. The complete example adds capability and permission status, an activation counter, and host-owned entry/exit controls.",
+          label: t("VR basics: minimal setup"),
+          blurb: t("WebVR supplies immersive presentation and gaze activation. The complete example adds capability and permission status, an activation counter, and host-owned entry/exit controls."),
           code: minimalCode,
         }}
       />
       <details className="border-t border-line p-5">
-        <summary>Complete VR example</summary>
+        <summary>{t("Complete VR example")}</summary>
         <CodeSnippet
-          label="VR basics: complete example"
-          blurb="Mount WebVR beside a source and hotspots. usePanoViewer controls entry/exit; PanoEvents reports support, permission and session state."
+          label={t("VR basics: complete example")}
+          blurb={t("Mount WebVR beside a source and hotspots. usePanoViewer controls entry/exit; PanoEvents reports support, permission and session state.")}
           code={source}
         />
       </details>

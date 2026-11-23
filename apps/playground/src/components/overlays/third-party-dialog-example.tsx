@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useRef, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { PanoOverlayPortalProvider, usePanoDialogSurface } from "@ericchen1990/pano-view";
@@ -17,6 +18,7 @@ export function ThirdPartyDialog({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = usePlaygroundLanguage();
   const { portalContainer, visibleRect, contentRef, presentation, onInteractOutside } = usePanoDialogSurface({ open, onOpenChange });
   const [nestedContainer, setNestedContainer] = useState<HTMLDivElement | null>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
@@ -53,7 +55,7 @@ export function ThirdPartyDialog({
           >
             <header className="flex shrink-0 items-center justify-between gap-4 border-b border-cyan-300 p-4">
               <Dialog.Title className="m-0 text-lg">{title}</Dialog.Title>
-              <Dialog.Close className={closeButtonClassName}>Close</Dialog.Close>
+              <Dialog.Close className={closeButtonClassName}>{t("Close")}</Dialog.Close>
             </header>
             <PanoOverlayPortalProvider container={nestedContainer}>
               <div className="min-h-0 overflow-auto p-4">{children}</div>
