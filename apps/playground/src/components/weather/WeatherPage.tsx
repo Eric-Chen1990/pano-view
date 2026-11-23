@@ -1,9 +1,11 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   PANO_RAIN_PRESETS,
   PANO_SNOW_PRESETS,
   PanoViewer,
   PanoWeather,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type PanoRainPreset,
@@ -26,8 +28,6 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const src = "/fixtures/panorama/panos/1/sphere.webp";
-const previewUrl = "preview.webp";
 const MODES = [
   { value: "off", label: "Off" },
   { value: "rain", label: "Rain" },
@@ -53,10 +53,9 @@ function WeatherPresetSelect<Preset extends PanoRainPreset | PanoSnowPreset>({
   onChange: (preset: Preset) => void;
   value: Preset;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
-    <label className={controlLabelClassName}>
-      Preset
-      <select
+    <label className={controlLabelClassName}>{t("Preset")}<select
         className={cn(controlInputClassName, "focus-visible:border-[#75cbd3]")}
         value={value}
         onChange={(event) => {
@@ -64,7 +63,7 @@ function WeatherPresetSelect<Preset extends PanoRainPreset | PanoSnowPreset>({
           if (preset) onChange(preset);
         }}
       >
-        {options.map((preset) => <option key={preset} value={preset}>{PRESET_LABELS[preset]}</option>)}
+        {options.map((preset) => <option key={preset} value={preset}>{t(PRESET_LABELS[preset])}</option>)}
       </select>
     </label>
   );
@@ -98,6 +97,7 @@ function WeatherSlider({
 }
 
 export function WeatherPage() {
+  const { t } = usePlaygroundLanguage();
   const [type, setType] = useState<PanoWeatherProps["type"]>("rain");
   const [enabled, setEnabled] = useState(true);
   const [rain, setRain] = useState<PanoRainPreset>("steady");
@@ -121,22 +121,26 @@ export function WeatherPage() {
         groundY: groundEnabled ? groundY : undefined,
       }
     : { type: "rain", preset: rain };
-  const weatherCode = `  <PanoWeather
-    type="${weather.type}"
-    preset="${weather.preset}"
-    intensity={${intensity}}
-    wind={[${windX}, ${windZ}]}${!enabled ? "\n    enabled={false}" : ""}${type === "snow" && customSize
-      ? `\n    sizeRange={[${sizeRange[0]}, ${sizeRange[1]}]}`
-      : ""}${type === "snow" && groundEnabled ? `\n    groundY={${groundY}}` : ""}
-  />`;
-  const code = `import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
+  const optionalWeatherProps = [
+    !enabled ? "        enabled={false}\n" : "",
+    weather.type === "snow" && weather.sizeRange
+      ? `        sizeRange={[${weather.sizeRange[0]}, ${weather.sizeRange[1]}]}\n` : "",
+    weather.type === "snow" && weather.groundY !== undefined
+      ? `        groundY={${weather.groundY}}\n` : "",
+  ].join("");
+  const code = `import { PanoViewer, PanoWeather, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaWeather() {
   return (
     <PanoViewer style={{ height: 480 }}>
-      <Sphere src="${src}" previewUrl="${previewUrl}" />
-    ${weatherCode}
+      ${cubeTileJsx()}
+      <PanoWeather
+        type="${weather.type}"
+        preset="${weather.preset}"
+        intensity={${intensity}}
+        wind={[${windX}, ${windZ}]}
+${optionalWeatherProps}      />
     </PanoViewer>
   );
 }`;
@@ -146,10 +150,10 @@ export function PanoramaWeather() {
       <SiteHeader />
       <section aria-labelledby="weather-title" className={cn(pageSectionClassName, "mt-8")}>
         <div className={pageHeadingWrapClassName}>
-          <h1 id="weather-title" className={pageHeadingTitleClassName}>360° weather</h1>
+          <h1 id="weather-title" className={pageHeadingTitleClassName}>{t("360° weather")}</h1>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Weather">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Weather")}>
             {MODES.map(({ label, value }) => (
               <button
                 key={value}
@@ -161,7 +165,7 @@ export function PanoramaWeather() {
                   if (value !== "off") setType(value);
                 }}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -173,54 +177,48 @@ export function PanoramaWeather() {
               className={segmentedButtonClassName}
               onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
             >
-              {vr.enabled ? "Exit VR" : "Enter VR"}
+              {vr.enabled ? t("Exit VR") : t("Enter VR")}
             </button>
           )}
         </div>
-        <div className={pageControlsClassName} role="group" aria-label="Weather settings">
-          <WeatherSlider label="Intensity" min={0} value={intensity} valueText={`${Math.round(intensity * 100)}%`} onChange={setIntensity} />
-          <WeatherSlider label="Wind X" min={-1} value={windX} onChange={setWindX} />
-          <WeatherSlider label="Wind Z" min={-1} value={windZ} onChange={setWindZ} />
-          <p className="m-0 hidden text-sm text-[#9ab1b7] motion-reduce:block">
-            Particles are paused because your system requests reduced motion.
-          </p>
+        <div className={pageControlsClassName} role="group" aria-label={t("Weather settings")}>
+          <WeatherSlider label={t("Intensity")} min={0} value={intensity} valueText={`${Math.round(intensity * 100)}%`} onChange={setIntensity} />
+          <WeatherSlider label={t("Wind X")} min={-1} value={windX} onChange={setWindX} />
+          <WeatherSlider label={t("Wind Z")} min={-1} value={windZ} onChange={setWindZ} />
+          <p className="m-0 hidden text-sm text-[#9ab1b7] motion-reduce:block">{t("Particles are paused because your system requests reduced motion.")}</p>
         </div>
         {mode === "snow" && (
-          <div className={pageControlsClassName} role="group" aria-label="Snowflake size and ground">
+          <div className={pageControlsClassName} role="group" aria-label={t("Snowflake size and ground")}>
             <label className="flex min-h-9 items-center gap-2 text-sm">
-              <input type="checkbox" checked={customSize} onChange={(event) => setCustomSize(event.currentTarget.checked)} />
-              Custom size
-            </label>
+              <input type="checkbox" checked={customSize} onChange={(event) => setCustomSize(event.currentTarget.checked)} />{t("Custom size")}</label>
             {customSize && (
               <>
                 <WeatherSlider
-                  label="Minimum size" min={0.02} max={2} step={0.01} value={sizeRange[0]}
+                  label={t("Minimum size")} min={0.02} max={2} step={0.01} value={sizeRange[0]}
                   onChange={(min) => setSizeRange(([, max]) => [min, Math.max(min, max)])}
                 />
                 <WeatherSlider
-                  label="Maximum size" min={0.02} max={2} step={0.01} value={sizeRange[1]}
+                  label={t("Maximum size")} min={0.02} max={2} step={0.01} value={sizeRange[1]}
                   onChange={(max) => setSizeRange(([min]) => [Math.min(min, max), max])}
                 />
               </>
             )}
             <label className="flex min-h-9 items-center gap-2 text-sm">
-              <input type="checkbox" checked={groundEnabled} onChange={(event) => setGroundEnabled(event.currentTarget.checked)} />
-              Ground cutoff
-            </label>
+              <input type="checkbox" checked={groundEnabled} onChange={(event) => setGroundEnabled(event.currentTarget.checked)} />{t("Ground cutoff")}</label>
             {groundEnabled && (
-              <WeatherSlider label="Ground Y" min={-100} max={0} step={1} value={groundY} valueText={String(groundY)} onChange={setGroundY} />
+              <WeatherSlider label={t("Ground Y")} min={-100} max={0} step={1} value={groundY} valueText={String(groundY)} onChange={setGroundY} />
             )}
           </div>
         )}
-        <PanoViewer ref={viewer.ref} aria-label="Weather demo" style={{ height: "min(540px, 68dvh)" }}>
+        <PanoViewer ref={viewer.ref} aria-label={t("Weather demo")} style={{ height: "min(540px, 68dvh)" }}>
           <WebVR />
-          <Sphere src={src} previewUrl={previewUrl} />
+          <Tile {...cubeTileProps()} />
           <PanoWeather {...weather} enabled={enabled} intensity={intensity} wind={[windX, windZ]} />
         </PanoViewer>
         <ExampleCode
           react={{
             label: "PanoWeather",
-            blurb: "Use the current weather settings in your viewer.",
+            blurb: t("Use the current weather settings in your viewer."),
             code: code,
           }}
         />

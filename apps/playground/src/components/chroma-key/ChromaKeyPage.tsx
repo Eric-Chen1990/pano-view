@@ -1,3 +1,5 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { ImageHotspot, PanoViewer, Scenes, VideoHotspot, type ProjectHotspotDefinition, type PanoViewerHandle } from "@ericchen1990/pano-view";
 import { ChromaKeyColorSampler } from "@ericchen1990/pano-view/ui";
 import { useRef, useState } from "react";
@@ -11,11 +13,13 @@ const media = {
   video: { label: "Blue-screen video", src: "/fixtures/chroma-key-v1/robot-blue.mp4", poster: "/fixtures/chroma-key-v1/robot-blue.png", color: "#1853E6" },
 } as const;
 const position = { yaw: 0, pitch: 0 };
-const scenes = [{ id: "chroma-key", type: "sphere", src: "/fixtures/panorama/panos/1/sphere.webp", previewUrl: "preview.webp" }] as const;
+const panorama = cubeTileProps();
+const scenes = [{ id: "chroma-key", type: "tile", ...panorama }] as const;
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#75cbd3]";
 const button = `${segmentedButtonClassName} ${focus}`;
 
 export function ChromaKeyPage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = useRef<PanoViewerHandle>(null);
   const [kind, setKind] = useState<keyof typeof media>("image");
   const [enabled, setEnabled] = useState(true);
@@ -42,13 +46,13 @@ export function ChromaKeyPage() {
     : { type: "video", ...hotspot, ...video };
   const component = kind === "image" ? "ImageHotspot" : "VideoHotspot";
   const props = kind === "image" ? hotspot : { ...hotspot, ...video };
-  const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+  const code = `import { ${component}, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function ChromaKeyPanorama() {
   return (
     <PanoViewer renderer="${renderer}" style={{ height: 540 }} initialView={{ yaw: 0, pitch: 0, fov: 62 }}>
-      <Sphere src="${scenes[0].src}" previewUrl="${scenes[0].previewUrl}" />
+      ${cubeTileJsx(panorama)}
       <${component}
 ${Object.entries(props)
   .filter(([, value]) => value !== undefined)
@@ -64,10 +68,10 @@ ${Object.entries(props)
   }
 
   return (
-    <ExamplePage title="Chroma key" description="Remove a solid color from an image or video hotspot and blend the subject into a panorama.">
+    <ExamplePage title={t("Chroma key")} description={t("Remove a solid color from an image or video hotspot and blend the subject into a panorama.")}>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
         <PanoViewer
-          key={renderer} ref={viewer} renderer={renderer} aria-label="Chroma key panorama"
+          key={renderer} ref={viewer} renderer={renderer} aria-label={t("Chroma key panorama")}
           style={{ height: "clamp(320px, 62dvh, 600px)" }} initialView={{ ...position, fov: 62 }}
         >
           <Scenes scenes={scenes} onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? undefined)} />
@@ -80,9 +84,7 @@ ${Object.entries(props)
           )}
         </PanoViewer>
         <div className="grid content-start gap-4 border-t border-[#244047] p-5 lg:border-t-0 lg:border-l">
-          <label className={controlLabelClassName}>
-            Source
-            <select value={kind} className={`${controlInputClassName} ${focus}`}
+          <label className={controlLabelClassName}>{t("Source")}<select value={kind} className={`${controlInputClassName} ${focus}`}
               onChange={event => {
                 const next = event.currentTarget.value as keyof typeof media;
                 setKind(next);
@@ -90,23 +92,19 @@ ${Object.entries(props)
                 setHex(undefined);
                 setError("");
               }}>
-              {Object.entries(media).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
+              {Object.entries(media).map(([key, item]) => <option key={key} value={key}>{t(item.label)}</option>)}
             </select>
           </label>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={button} aria-pressed={enabled} onClick={() => setEnabled(value => !value)}>
-              Chroma key
-            </button>
+            <button type="button" className={button} aria-pressed={enabled} onClick={() => setEnabled(value => !value)}>{t("Chroma key")}</button>
             {kind === "video" && (
               <button type="button" className={button} onClick={() => { setError(""); setPlaying(value => !value); }}>
-                {playing ? "Pause video" : "Play video"}
+                {playing ? t("Pause video") : t("Play video")}
               </button>
             )}
           </div>
           <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3">
-            <label className={controlLabelClassName}>
-              Key color
-              <input type="color" className={`h-9 w-14 ${focus}`} value={settings.color}
+            <label className={controlLabelClassName}>{t("Key color")}<input type="color" className={`h-9 w-14 ${focus}`} value={settings.color}
                 onChange={event => { setHex(undefined); setColor(event.currentTarget.value.toUpperCase()); }} />
             </label>
             <label className={controlLabelClassName}>
@@ -125,7 +123,7 @@ ${Object.entries(props)
           {(["threshold", "smoothing"] as const).map(name => (
             <label key={name} className={controlLabelClassName}>
               <span className="flex justify-between">
-                {name === "threshold" ? "Threshold" : "Edge smoothing"}
+                {name === "threshold" ? t("Threshold") : t("Edge smoothing")}
                 <span aria-hidden="true">{settings[name].toFixed(2)}</span>
               </span>
               <input type="range" className={focus} min={0} max={1} step={0.01} value={settings[name]}
@@ -136,30 +134,34 @@ ${Object.entries(props)
             </label>
           ))}
           <button type="button" className={button} aria-expanded={sampler} onClick={() => setSampler(value => !value)}>
-            {sampler ? "Close color sampler" : "Sample from source"}
+            {sampler ? t("Close color sampler") : t("Sample from source")}
           </button>
-          {sampler && <ChromaKeyColorSampler kind={kind} src={source.src} className="grid gap-3 text-sm [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-white"
+          {sampler && <ChromaKeyColorSampler labels={{
+            loading: t("Loading source media…"),
+            loadError: t("Could not load the source. Check its URL, format, and cross-origin permissions."),
+            sampleError: t("Could not read this pixel. Check cross-origin permissions or choose another point."),
+            pick: t("Sample a color. Use arrow keys to move and Enter to pick."),
+            time: t("Video frame time"),
+          }} kind={kind} src={source.src} className="grid gap-3 text-sm [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-white"
             onPick={color => { setHex(undefined); setColor(color); }} />}
-          {error && <p role="status" className="text-sm">{error}</p>}
-          <label className={controlLabelClassName}>
-            Renderer
-            <select value={renderer} className={`${controlInputClassName} ${focus}`}
+          {error && <p role="status" className="text-sm">{t(error)}</p>}
+          <label className={controlLabelClassName}>{t("Renderer")}<select aria-label={t("Renderer")} value={renderer} className={`${controlInputClassName} ${focus}`}
               onChange={event => {
                 setBackend(undefined);
                 setRenderer(event.currentTarget.value === "webgl" ? "webgl" : "auto");
               }}>
-              <option value="auto">Auto</option>
+              <option value="auto">{t("Auto")}</option>
               <option value="webgl">WebGL</option>
             </select>
           </label>
-          {backend && <output aria-label="Active renderer" className={controlLabelClassName}>{backend}</output>}
+          {backend && <output aria-label={t("Active renderer")} className={controlLabelClassName}>{backend}</output>}
         </div>
       </div>
       <ExampleCode
-        react={{ label: component, blurb: "Use the current media and key settings in a panorama.", code }}
+        react={{ label: component, blurb: t("Use the current media and key settings in a panorama."), code }}
         json={{ format: "project", files: [{
-          label: "Chroma key hotspot",
-          blurb: "Add this object to the scene’s hotspots array in project.json.",
+          label: t("Chroma key hotspot"),
+          blurb: t("Add this object to the scene’s hotspots array in project.json."),
           value: projectHotspot,
         }] }}
       />

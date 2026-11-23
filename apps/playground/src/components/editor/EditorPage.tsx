@@ -1,5 +1,6 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { GEO_MAP_SOURCES, OPEN_STREET_MAP } from "../geo-map/geo-map-example";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { PanoEditor } from "@ericchen1990/pano-editor";
 import {
   PanoDataError,
@@ -63,16 +64,18 @@ export function TourEditor() {
 }
 
 export function EditorPage() {
-  const [locale, setLocale] = useState<"en" | "zh-CN">("en");
+  const { locale, t } = usePlaygroundLanguage();
   const [project, setProject] = useState<PanoProjectDefinition>();
+  const [editedProject, setEditedProject] = useState<PanoProjectDefinition>();
   const [error, setError] = useState<string>();
   const snippet = useMemo(() => buildEditorSnippet(locale), [locale]);
+  const exampleProject = useDeferredValue(editedProject ?? project);
   useEffect(() => {
     const controller = new AbortController();
     fetch(sampleProjectUrl, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok)
-          throw new Error(`Failed to load sample project (${response.status})`);
+          throw new Error(`HTTP ${response.status}`);
         return response.json() as Promise<unknown>;
       })
       .then((value) => {
@@ -94,34 +97,22 @@ export function EditorPage() {
   return (
     <main className={shellClassName}>
       <SiteHeader />
-      <h1 className="mb-0 mt-8 text-3xl font-bold">Tour editor</h1>
+      <h1 className="mb-0 mt-8 text-3xl font-bold">{t("Tour editor")}</h1>
       <div className="flex flex-wrap items-center justify-between gap-4 py-5">
         <p className="m-0 text-sm text-muted-2">
           {locale === "en"
             ? "Select the image or video hotspot in Entrance to drag its corners or rotate it. Click the video in Preview to play it."
             : "在入口场景选中图片或视频热点，即可拖动四角或旋转。在预览中点击视频即可播放。"}
         </p>
-        <label className="shrink-0 text-xs text-muted-2">
-          Language{" "}
-          <select
-            className="ml-2 border border-line bg-canvas-2 px-2 py-1 text-ink"
-            value={locale}
-            onChange={(event) =>
-              setLocale(event.currentTarget.value as "en" | "zh-CN")
-            }
-          >
-            <option value="en">English</option>
-            <option value="zh-CN">简体中文</option>
-          </select>
-        </label>
       </div>
       {error ? (
         <p role="alert" className="m-0 text-sm text-muted-2">
-          {error}
+          {t("Could not load the sample project.")} {t(error)}
         </p>
       ) : project ? (
         <PanoEditor
           defaultValue={project}
+          onChange={setEditedProject}
           geoMapSources={GEO_MAP_SOURCES}
           baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
           locale={locale}
@@ -148,15 +139,19 @@ export function EditorPage() {
       </a>
       <div className="mt-6">
         <ExampleCode
-          json={{ format: "project", files: [{ label: "project.json", blurb: "Load this file with parsePanoProject. Resolve relative assets from the directory containing the file.", url: sampleProjectUrl }] }}
+          json={{ format: "project", files: [{
+            label: "project.json",
+            blurb: t("This is the current editor document. Parse it with parsePanoProject and use the sample project directory as the base URL for relative assets."),
+            ...(exampleProject ? { value: exampleProject } : { url: sampleProjectUrl }),
+          }] }}
           react={{
-            blurb: "Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings.",
+            blurb: t("Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings."),
             code: snippet,
             label: "PanoEditor",
           }}
         />
       </div>
-      <SiteFooter label="@ericchen1990/pano-view · tour editor" />
+      <SiteFooter label={`@ericchen1990/pano-view · ${t("Tour editor")}`} />
     </main>
   );
 }

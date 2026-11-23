@@ -1640,8 +1640,7 @@
 .pano-geo-map-status button { pointer-events: auto; }
 
 .pano-geo-map-source,
-.pano-geo-map-tools button,
-.pano-geo-map-status button {
+.pano-geo-map .pano-geo-map-status button {
   border: 1px solid #c7d1db;
   border-radius: 5px;
   background: #fff;
@@ -1651,6 +1650,42 @@
   min-height: 30px;
   padding: 3px 6px;
   cursor: pointer;
+}
+
+.pano-geo-map .pano-geo-map-tools button {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #c7d1db;
+  border-radius: 5px;
+  background: #fff;
+  color: #16202c;
+  font: 16px/1 system-ui, sans-serif;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.pano-geo-map .pano-geo-map-tools button svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+}
+
+.pano-geo-map .pano-geo-map-tools button:hover:not(:disabled),
+.pano-geo-map .pano-geo-map-status button:hover:not(:disabled) {
+  background: #f4f7fa;
+  border-color: #9aabba;
+  color: #16202c;
 }
 
 .pano-geo-map button:disabled { opacity: .55; cursor: default; }
@@ -1667,11 +1702,6 @@
   top: 6px;
   max-width: 45%;
   z-index: 2;
-}
-
-.pano-geo-map-tools button {
-  display: grid;
-  place-items: center;
 }
 
 .pano-geo-map-status {

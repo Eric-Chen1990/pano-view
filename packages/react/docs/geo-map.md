@@ -28,22 +28,27 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 }
 ```
 
-Save settings in the optional top-level `geoMap` field of `project.json`. `loadPanoProject` resolves point icon paths relative to the project. `controlsLayout` is `"horizontal"` by default and accepts `"vertical"`. The component prop can override the saved value. The four buttons zoom in, zoom out, center the active scene and fit all points available on the current basemap. Use a separate scene menu or list if your tour needs search or navigation when the basemap is unavailable.
+Save settings in the optional top-level `geoMap` field of `project.json`. `initialSourceId` is the basemap that opens first from the runtime `sources` / `geoMapSources` list; provider keys and tile URLs stay in that host list, not in the project. Tour Editor can switch OpenStreetMap, Google, AMap, or Baidu while editing and accepts browser keys for that session only; those keys are not saved in `project.json`. `loadPanoProject` resolves point icon paths relative to the project. `controlsLayout` is `"horizontal"` by default and accepts `"vertical"`. The component prop can override the saved value. The four buttons zoom in, zoom out, center the active scene and fit all points available on the current basemap. Use a separate scene menu or list if your tour needs search or navigation when the basemap is unavailable.
 
 ```json
 {
   "initialSourceId": "osm",
-  "presentation": { "mode": "panel" },
+  "presentation": { "mode": "panel", "width": "40%", "height": 230 },
   "controlsLayout": "vertical",
+  "minZoom": 3,
+  "maxZoom": 18,
+  "initialZoom": 14,
   "spots": [
     { "id": "deck", "sceneId": "bridge", "positions": { "wgs84": { "lat": 37.81993, "lng": -122.47831 } }, "heading": 90 }
   ]
 }
 ```
 
-Point names default to `spot.label`, then `sceneTitles[sceneId]`, then the scene ID. They appear above each marker on hover or keyboard focus (`markerLabels="hover"`, the default). Pass `markerLabels="always"` to keep names visible. Touch screens have no hover, so only `"always"` or focus shows the name. Set `icon` on a point, `iconSize` on the map, or use `renderMarker({ spot, active, selected })` to replace the contents of its accessible button. Set `heading` to the clockwise bearing from true north when panorama yaw is zero. Omit the heading until calibrated. Use `sector` for the same styles as a floor-plan sector, or set it to `false`.
+Optional `minZoom` / `maxZoom` clamp wheel, pinch, buttons, fit, and locate to that inclusive Web Mercator range (0–24). The effective range is the intersection with the active basemap’s own tile limits. Optional `initialZoom` sets the zoom the first time a basemap opens; the center still follows spots, geolocation, or the default overview. Omit it to keep auto-fit.
 
-Dialog presentation uses the shared map dialog shell. `title` is the dialog heading (default `"Online map"`). `openLabel` / `closeLabel` are the accessible names for the launcher and close buttons. Pass `launcher` or `close` as `ReactNode` to replace the button contents; omit them to keep the text label and built-in X icon.
+Point names default to `spot.label`, then `sceneTitles[sceneId]`, then the scene ID. They appear above each marker on hover or keyboard focus (`markerLabels="hover"`, the default). Pass `markerLabels="always"` to keep names visible. Touch screens have no hover, so only `"always"` or focus shows the name. Set `icon` on a point, `iconSize` on the map, or use `renderMarker({ spot, active, selected })` to replace the contents of its accessible button. Set a scene's `northYaw` to the panorama yaw when looking due north. Inside a viewer, the map reads it from `Scenes` or `ProjectScenes` and shows the bearing `yaw - northYaw`. Pass `northYaw` on a standalone map with a controlled view. The point's optional `heading` is used when the scene has no calibration and represents the clockwise bearing at yaw zero. Use `sector` for the same styles as a floor-plan sector, or set it to `false`.
+
+`presentation.width` / `height` accept CSS pixels as numbers or a viewer-relative percentage string such as `"40%"`. Dialog presentation uses the shared map dialog shell; in dialog mode those sizes apply to the dialog body. `title` is the dialog heading (default `"Online map"`). `openLabel` / `closeLabel` are the accessible names for the launcher and close buttons. Pass `launcher` or `close` as `ReactNode` to replace the button contents; omit them to keep the text label and built-in X icon.
 
 ## Basemaps
 
@@ -51,7 +56,7 @@ Provide the available sources as runtime props. Each source has its own stable `
 
 | `kind` | Runtime settings | Coordinate system |
 | --- | --- | --- |
-| `xyz` | `urlTemplate` with `{z}/{x}/{y}`, `attribution`, optional `attributionUrl` and `maxZoom` | WGS84, Web Mercator limits |
+| `xyz` | `urlTemplate` with `{z}/{x}/{y}`, `attribution`, optional `attributionUrl`, `minZoom` (default 0), and `maxZoom` (default 19) | WGS84, Web Mercator limits |
 | `google` | Browser `apiKey`, optional `region`, `coordinateSystem`, `mapType: "road" \| "satellite"` | WGS84 by default, explicitly configure a GCJ-02 source if its coverage uses those coordinates |
 | `amap` | Web `apiKey`, `serviceHost` ending in `/_AMapService`, optional `mapType` | GCJ-02 |
 | `baidu` | JSAPI 4.0 browser `ak`, optional `mapType` | BD-09 |

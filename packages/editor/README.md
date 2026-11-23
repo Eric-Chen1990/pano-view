@@ -148,6 +148,10 @@ Store content structure in project.json and media as files. A host backend can p
 
 ### Scene view limits
 
+Use **Scene settings → Virtual north** to enter the yaw of true north or mark the current direction. The online map shares this calibration across the scene's points. Clearing it restores each point's saved heading, if any.
+
+In **Horizon correction**, turn on the horizon guide and adjust pitch and roll until the panorama aligns with it. Turn through the scene to check several directions. Image-relative hotspots move with the panorama. Both settings support undo and are saved in `project.json` and ZIP exports.
+
 Scene settings separate **Initial view** from **View limits**. Enable Yaw, Pitch or FOV individually, then enter minimum and maximum angles. Defaults on enabling are −180 / 180, −90 / 90 and 30 / 100 respectively. Limits apply immediately in editing and preview and support undo/redo. Invalid values are reported beside the field and do not update the project. Yaw min > max crosses ±180°; equal bounds lock an axis. Limits constrain the camera center, not the entire visible frame. They are saved as each scene's optional `viewLimits` in `project.json`; the source path is hidden in the settings panel, while Replace source remains available.
 
 ZIP export uses package-relative references for scene documents, previews, tiles, hotspot resources, cursor/tooltip images, popup media, the floor-plan image, and spot icons. Unzip and serve the complete directory at any HTTP subdirectory. Prose URLs remain unchanged. JSON-only export keeps online URLs and does not bundle their resources.
@@ -210,4 +214,4 @@ Hotspot placement and tooltip sizing follow the viewer rules: floating point hot
 
 ## Online map
 
-Pass `geoMapSources` with the same [basemap configuration](../react/docs/geo-map.md) as your player. In **Map → Online map**, choose a scene and place a point, drag it to move, or enter its coordinates. To fill in a position on another basemap, select the point in the sidebar and choose **Set point on this basemap**. Drag its radar to calibrate its view direction. JSON and ZIP preserve all explicitly placed positions. ZIP also includes custom marker icons.
+Pass `geoMapSources` with the same [basemap configuration](../react/docs/geo-map.md) as your player. In the editor **Basemap** tab, switch the editing map among OpenStreetMap, Google, AMap, and Baidu, including road or satellite where the provider supports it. Browser keys typed there stay in the editor session and are not written to `project.json`; published playback still uses the host `geoMapSources`. Host-supplied keys, when present, prefill that session. In **Map → Online map**, choose a scene and place a point, drag it to move, or enter its coordinates. To fill in a position on another basemap, select the point in the sidebar and choose **Set point on this basemap**. Drag its radar to calibrate its view direction. Under **Layout**, set optional `minZoom`, `maxZoom`, and `initialZoom` (Web Mercator 0–24). Leave a zoom field blank to omit it; the player intersects project limits with each basemap’s tile range. JSON and ZIP preserve all explicitly placed positions. ZIP also includes custom marker icons.

@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PlanarTileCompare, type PlanarTileCompareScene, type PanoCompareLayout, type PanoComparePresentation,
 } from "@ericchen1990/pano-view";
@@ -19,6 +20,7 @@ const scenes: PlanarTileCompareScene[] = [
 ];
 
 export function PlanarComparePage() {
+  const { t } = usePlaygroundLanguage();
   const [presentation, setPresentation] = useState<PanoComparePresentation>("wipe");
   const [layout, setLayout] = useState<PanoCompareLayout>("left-right");
 
@@ -44,26 +46,22 @@ export function FlatImageComparison() {
 }`;
 
   return (
-    <ExamplePage title="Flat image comparison"
-      description="Drag either image to pan both. Use the scroll wheel or pinch to zoom."
+    <ExamplePage title={t("Flat image comparison")}
+      description={t("Drag either image to pan both. Use the scroll wheel or pinch to zoom.")}
     >
       <div className={pageControlsClassName}>
-        <label className={controlLabelClassName}>
-          Display
-          <select aria-label="Display" className={controlInputClassName} value={presentation}
+        <label className={controlLabelClassName}>{t("Display")}<select aria-label={t("Display")} className={controlInputClassName} value={presentation}
             onChange={(event) => setPresentation(event.target.value as PanoComparePresentation)}
           >
-            <option value="wipe">Wipe</option>
-            <option value="split-view">Split view</option>
+            <option value="wipe">{t("Wipe")}</option>
+            <option value="split-view">{t("Split view")}</option>
           </select>
         </label>
-        <label className={controlLabelClassName}>
-          Layout
-          <select aria-label="Layout" className={controlInputClassName} value={layout}
+        <label className={controlLabelClassName}>{t("Layout")}<select aria-label={t("Layout")} className={controlInputClassName} value={layout}
             onChange={(event) => setLayout(event.target.value as PanoCompareLayout)}
           >
-            <option value="left-right">Left and right</option>
-            <option value="top-bottom">Top and bottom</option>
+            <option value="left-right">{t("Left and right")}</option>
+            <option value="top-bottom">{t("Top and bottom")}</option>
           </select>
         </label>
       </div>
@@ -74,12 +72,12 @@ export function FlatImageComparison() {
       <div className="mt-6">
         <ExampleCode
           json={{ format: "manifest", files: [
-              { label: "Original manifest.json", blurb: "Use this URL for the original image.", url: before.manifestUrl },
-              { label: "Stylized manifest.json", blurb: "Use this URL for the stylized image.", url: after.manifestUrl },
+              { label: t("Original manifest.json"), blurb: t("Use this URL for the original image."), url: before.manifestUrl },
+              { label: t("Stylized manifest.json"), blurb: t("Use this URL for the stylized image."), url: after.manifestUrl },
             ] }}
           react={{
             label: "React",
-            blurb: "Give each pair two planar tile manifests.",
+            blurb: t("Give each pair two planar tile manifests."),
             code: snippet,
           }}
         />

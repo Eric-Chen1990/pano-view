@@ -112,6 +112,7 @@ export {
   PANO_OVERLAY_ALIGNS,
   parseOverlayAnchor,
   resolveOverlayAnchor,
+  resolveOverlayLength,
 } from "./overlay/align";
 export type {
   PanoOverlayAlign,
@@ -357,6 +358,7 @@ export type {
   VideoHotspotDefinition,
 } from "./hotspot/definitions";
 
+export { toLeveledPanoPosition, toSourcePanoPosition, type PanoLevelCorrection } from "./level-correction";
 export type { PanoViewLimits } from "./view-limits";
 
 export { PanoMap } from "./map/pano-map";
@@ -388,3 +390,6 @@ export { PanoGeoMapOverlay } from "./geo-map/pano-geo-map-overlay";
 export type { PanoGeoMapProps, PanoGeoMapEdit } from "./geo-map/pano-geo-map";
 export type { PanoGeoMapOverlayProps } from "./geo-map/pano-geo-map-overlay";
 export type { PanoGeoMapSource } from "./geo-map/engine";
+
+export { PanoUiTranslationProvider } from "./ui-translation";
+export type { PanoUiTranslate } from "./ui-translation";

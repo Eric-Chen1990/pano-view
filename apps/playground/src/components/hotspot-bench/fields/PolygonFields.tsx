@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { EditorPolygon } from "../../../types";
 import {
   checkboxLabelClassName,
@@ -22,10 +23,11 @@ export function PolygonFields({
   onChange: (patch: Partial<Omit<EditorPolygon, "id">>) => void;
   onDelete: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-[14px] p-[17px] max-[1180px]:grid-cols-2 max-[760px]:block">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Accessible label</span>
+        <span className={fieldLabelClassName}>{t("Accessible label")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ label: event.currentTarget.value })}
@@ -34,7 +36,7 @@ export function PolygonFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Fill</span>
+          <span className={fieldLabelClassName}>{t("Fill")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ fill: event.currentTarget.value })}
@@ -43,7 +45,7 @@ export function PolygonFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Stroke</span>
+          <span className={fieldLabelClassName}>{t("Stroke")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) => onChange({ stroke: event.currentTarget.value })}
@@ -52,7 +54,7 @@ export function PolygonFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Stroke width (px)</span>
+          <span className={fieldLabelClassName}>{t("Stroke width (px)")}</span>
           <input
             className={fieldInputClassName}
             min="0.5"
@@ -65,14 +67,12 @@ export function PolygonFields({
           />
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Vertices</span>
+          <span className={fieldLabelClassName}>{t("Vertices")}</span>
           <output className={fieldOutputClassName}>{polygon.vertices.length}</output>
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Fill opacity
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Fill opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(polygon.fillOpacity * 100)}%
           </b>
         </span>
@@ -89,9 +89,7 @@ export function PolygonFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Stroke opacity
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Stroke opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(polygon.strokeOpacity * 100)}%
           </b>
         </span>
@@ -123,7 +121,7 @@ export function PolygonFields({
           }
           type="checkbox"
         />
-        <span>Fill closed polygon</span>
+        <span>{t("Fill closed polygon")}</span>
       </label>
       <label className={`${checkboxLabelClassName} col-span-full`}>
         <input
@@ -132,7 +130,7 @@ export function PolygonFields({
           onChange={(event) => onChange({ visible: event.currentTarget.checked })}
           type="checkbox"
         />
-        <span>Visible in panorama</span>
+        <span>{t("Visible in panorama")}</span>
       </label>
       <label className={`${checkboxLabelClassName} col-span-full`}>
         <input
@@ -145,7 +143,7 @@ export function PolygonFields({
           }
           type="checkbox"
         />
-        <span>Respond to mouse</span>
+        <span>{t("Respond to mouse")}</span>
       </label>
       <TooltipFields
         onChange={onChange}
@@ -158,7 +156,7 @@ export function PolygonFields({
         tooltipTrigger={polygon.tooltipTrigger ?? "always"}
       />
       <div
-        aria-label="Polygon vertices"
+        aria-label={t("Polygon vertices")}
         className="col-span-full grid gap-[5px] border-t border-[#27454d] pt-[11px]"
       >
         {polygon.vertices.map((vertex, index) => (
@@ -170,9 +168,7 @@ export function PolygonFields({
           </span>
         ))}
       </div>
-      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">
-        Delete polygon
-      </button>
+      <button className={`${deleteButtonClassName} col-span-full`} onClick={onDelete} type="button">{t("Delete polygon")}</button>
     </div>
   );
 }

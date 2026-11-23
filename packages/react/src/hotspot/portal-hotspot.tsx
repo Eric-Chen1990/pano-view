@@ -4,6 +4,8 @@ import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } fro
 import { DataTexture, DoubleSide, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene as ThreeScene, ShaderMaterial, Vector4, type Texture } from "three";
 import type { Node } from "three/webgpu";
 import { WebGPURuntimeContext } from "../pano-renderer";
+import { toLeveledPanoPosition } from "../level-correction";
+import { HotspotLevelCorrectionContext } from "../level-rotation";
 import { SceneSource } from "../scenes";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { useHotspotImageTexture } from "./image-hotspot";
@@ -94,6 +96,8 @@ export function PortalHotspot({
   [shape, outerWidth, outerHeight, anchor.scale, thickness]);
   const frameImage = useHotspotImageTexture(frame?.src ?? "", undefined, onError);
   const position = anchor.position;
+  const correction = useContext(HotspotLevelCorrectionContext);
+  const worldPosition = useMemo(() => toLeveledPanoPosition(position, correction), [position, correction]);
   const activate = onClick ?? (target && host ? () => host.enter(anchor.id, targetSceneId) : undefined);
   const autoEntry = enterOnZoom && anchor.interactive !== false && anchor.pointerEvents !== "none" && activate;
   useLayoutEffect(() => {
@@ -104,7 +108,7 @@ export function PortalHotspot({
     const surface = mesh.current;
     const fallback = placeholder.current;
     return host.register(anchor.id, {
-      targetId: targetSceneId, position, mesh: mesh.current, outline: geometry.inner, preview, camera,
+      targetId: targetSceneId, position: worldPosition, mesh: mesh.current, outline: geometry.inner, preview, camera,
       visible: () => visible && canPreview,
       ready: () => readiness.current,
       enterOnZoom: autoEntry ? (nativeEvent) => autoEntry({ id: anchor.id, position, nativeEvent, source: "pointer" }) : undefined,
@@ -123,7 +127,7 @@ export function PortalHotspot({
         }
       },
     });
-  }, [host, target, preview, camera, geometry, anchor.id, position, targetSceneId, visible, canPreview, visual, autoEntry]);
+  }, [host, target, preview, camera, geometry, anchor.id, position, worldPosition, targetSceneId, visible, canPreview, visual, autoEntry]);
 
   return (
     <HotspotAnchor

@@ -1,13 +1,17 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./BasicsPage.tsx?raw";
 import { useEffect, useState } from "react";
 import {
   PanoViewer,
   Sphere,
+  SphereTile,
   Tile,
   usePanoViewer,
   type PanoLittlePlanetIntroOptions,
   type TileLoadProgress,
+  type SphereTileProps,
 } from "@ericchen1990/pano-view";
+import { cubeTileProps } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -24,12 +28,22 @@ const sphere = {
   src: "/fixtures/panorama/panos/1/sphere.webp",
   previewUrl: "preview.webp",
 };
-const tile = {
-  baseUrl: "/fixtures/panorama/cube-tiles/4",
-  multires: "512,1000,2000",
-  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-  previewUrl: "previews/cube-vertical.webp",
-};
+const tile = cubeTileProps(4);
+const sphereTile = {
+  baseUrl: "/fixtures/panorama/sphere-tiles-v2",
+  multires: "512,512x256,2048x1024,4096x2048,8000x4000",
+  previewUrl: "previews/400.webp",
+  urlTemplate: "tiles/%l/%h_%v.webp",
+  indexBase: 1,
+} satisfies SphereTileProps;
+
+const sources = {
+  tile: { label: "Cube tiles", component: "Tile", props: tile },
+  sphere: { label: "Single image", component: "Sphere", props: sphere },
+  sphereTile: { label: "Sphere tiles", component: "SphereTile", props: sphereTile },
+} as const;
+const sourceOrder = ["tile", "sphere", "sphereTile"] as const;
+type SourceKind = (typeof sourceOrder)[number];
 
 const defaultIntro: Required<PanoLittlePlanetIntroOptions> = {
   holdDuration: 500,
@@ -53,10 +67,11 @@ const introEasings = {
 } as const;
 
 function SourceExample({ source, renderer, intro }: {
-  source: "sphere" | "tile";
+  source: SourceKind;
   renderer: "auto" | "webgl";
   intro: false | PanoLittlePlanetIntroOptions;
 }) {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [displayed, setDisplayed] = useState(source);
   const [error, setError] = useState<string>();
@@ -64,14 +79,32 @@ function SourceExample({ source, renderer, intro }: {
   const [level, setLevel] = useState(1);
   useEffect(() => setError(undefined), [source]);
 
+  function tileLoading(kind: "tile" | "sphereTile") {
+    return {
+      visible: displayed === kind,
+      loadMode: displayed === kind ? "full" as const : "base" as const,
+      onReady: () => {
+        if (source === kind) setDisplayed(kind);
+      },
+      onPreviewError: () => {
+        if (source === kind) setError("Preview could not load. Reload to retry.");
+      },
+      onTileError: () => {
+        if (source === kind) setError("Some tiles could not load; the preview remains available.");
+      },
+      onLoadProgress: setProgress,
+      onLevelChange: setLevel,
+    };
+  }
+
   return (
     <>
       {error ? (
         <p className="px-6 text-sm" role="alert">
-          {error}
+          {t(error)}
         </p>
       ) : null}
-      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label="Panorama basics viewer" style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} renderer={renderer} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: 540 }}>
         {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
@@ -85,39 +118,23 @@ function SourceExample({ source, renderer, intro }: {
           />
         ) : null}
         {source === "tile" || displayed === "tile" ? (
-          <Tile
-            {...tile}
-            visible={displayed === "tile"}
-            loadMode={displayed === "tile" ? "full" : "base"}
-            onReady={() => {
-              if (source === "tile") setDisplayed("tile");
-            }}
-            onPreviewError={() =>
-              source === "tile" && setError("Preview could not load. Reload to retry.")
-            }
-            onTileError={() =>
-              source === "tile" && setError(
-                "Some tiles could not load; the preview remains available.",
-              )
-            }
-            onLoadProgress={setProgress}
-            onLevelChange={setLevel}
-          />
+          <Tile {...tile} {...tileLoading("tile")} />
+        ) : null}
+        {source === "sphereTile" || displayed === "sphereTile" ? (
+          <SphereTile {...sphereTile} {...tileLoading("sphereTile")} />
         ) : null}
       </PanoViewer>
-      {source === "tile" ? (
-        <p className="px-6 text-sm" aria-live="polite">
-          Level {level} · tiles {progress?.loaded ?? 0}/
-          {progress?.requested ?? 0} · failed {progress?.failed ?? 0}. Counts
-          change as you look around and zoom.
-        </p>
+      {source !== "sphere" ? (
+        <p className="px-6 text-sm" aria-live="polite">{t("Level") + " "}{level}{" " + t("· tiles") + " "}{progress?.loaded ?? 0}/
+          {progress?.requested ?? 0}{" " + t("· failed") + " "}{progress?.failed ?? 0}{t(". Counts change as you look around and zoom.")}</p>
       ) : null}
     </>
   );
 }
 
 export function BasicsPage() {
-  const [source, setSource] = useState<"sphere" | "tile">("sphere");
+  const { t } = usePlaygroundLanguage();
+  const [source, setSource] = useState<SourceKind>("tile");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [intro, setIntro] = useState(defaultIntro);
   const [playback, setPlayback] = useState<{ key: number; options: false | PanoLittlePlanetIntroOptions }>(
@@ -125,20 +142,27 @@ export function BasicsPage() {
   );
   const introEnabled = playback.options !== false;
   const replayIntro = () => setPlayback((current) => ({ key: current.key + 1, options: intro }));
-  const props = source === "sphere" ? sphere : tile;
-  const component = source === "sphere" ? "Sphere" : "Tile";
+  const { component, props } = sources[source];
+  const viewerUrl = source === "sphere" ? undefined : `${sources[source].props.baseUrl}/viewer.json`;
   const introCode = introEnabled
-    ? ` littlePlanetIntro={{\n${Object.entries(intro).map(([key, value]) => `  ${key}: ${JSON.stringify(value)},`).join("\n")}\n}}`
+    ? `      littlePlanetIntro={{
+${Object.entries(intro).map(([key, value]) => `        ${key}: ${JSON.stringify(value)},`).join("\n")}
+      }}\n`
     : "";
   const sourceProps = Object.entries(props)
-    .map(([key, value]) => `        ${key}=${JSON.stringify(value)}`)
+    .map(([key, value]) => typeof value === "string"
+      ? `        ${key}=${JSON.stringify(value)}`
+      : `        ${key}={${JSON.stringify(value)}}`)
     .join("\n");
   const code = `import { PanoViewer, ${component} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function Panorama() {
   return (
-    <PanoViewer renderer="${renderer}"${introCode} style={{ height: 540 }}>
+    <PanoViewer
+      renderer="${renderer}"
+${introCode}      style={{ height: 540 }}
+    >
       <${component}
 ${sourceProps}
       />
@@ -147,15 +171,15 @@ ${sourceProps}
 }`;
   return (
     <ExamplePage
-      title="Panorama basics"
-      description="Start with one panorama source. Compare a 2:1 image with multiresolution cube tiles, then inspect the required resource paths and loading state."
+      title={t("Panorama basics")}
+      description={t("Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source.")}
     >
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Panorama source"
+        aria-label={t("Panorama source")}
       >
-        {(["sphere", "tile"] as const).map((value) => (
+        {sourceOrder.map((value) => (
           <button
             key={value}
             type="button"
@@ -166,11 +190,11 @@ ${sourceProps}
             )}
             onClick={() => setSource(value)}
           >
-            {value === "sphere" ? "Sphere" : "Cube tiles"}
+            {t(sources[value].label)}
           </button>
         ))}
       </div>
-      <div className={pageControlsClassName} role="group" aria-label="Renderer preference">
+      <div className={pageControlsClassName} role="group" aria-label={t("Renderer preference")}>
         {(["auto", "webgl"] as const).map((value) => (
           <button
             key={value}
@@ -179,12 +203,12 @@ ${sourceProps}
             className={cn(segmentedButtonClassName, renderer === value && segmentedButtonActiveClassName)}
             onClick={() => setRenderer(value)}
           >
-            {value === "auto" ? "Auto" : "WebGL"}
+            {value === "auto" ? t("Auto") : "WebGL"}
           </button>
         ))}
       </div>
       <fieldset className={cn(pageControlsClassName, "min-w-0")}>
-        <legend className="px-6 text-sm">Little Planet Intro</legend>
+        <legend className="px-6 text-sm">{t("Little Planet Intro")}</legend>
         <label className="inline-flex min-h-9 items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -194,17 +218,15 @@ ${sourceProps}
               if (event.currentTarget.checked) replayIntro();
               else setPlayback((current) => ({ ...current, options: false }));
             }}
-          />
-          Enable intro
-        </label>
+          />{t("Enable intro")}</label>
         {introEnabled && (
           <div className="flex w-full flex-wrap items-end gap-4">
             {introFields.map(({ key, label, unit, min, max, step }) => (
               <label className={cn(controlLabelClassName, "w-32 max-w-full")} key={key}>
-                <span>{label} <span className="font-mono normal-case">{intro[key]}{unit}</span></span>
+                <span>{t(label)} <span className="font-mono normal-case">{intro[key]}{unit}</span></span>
                 <input
                   type="range"
-                  aria-label={label}
+                  aria-label={t(label)}
                   min={min}
                   max={max}
                   step={step}
@@ -217,10 +239,8 @@ ${sourceProps}
                 />
               </label>
             ))}
-            <label className={controlLabelClassName}>
-              Easing
-              <select
-                aria-label="Easing"
+            <label className={controlLabelClassName}>{t("Easing")}<select
+                aria-label={t("Easing")}
                 value={intro.easing}
                 className={cn(controlInputClassName, "focus-visible:outline-2 focus-visible:outline-offset-2")}
                 onChange={(event) => {
@@ -228,37 +248,33 @@ ${sourceProps}
                   setIntro((current) => ({ ...current, easing }));
                 }}
               >
-                {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                {Object.entries(introEasings).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}
               </select>
             </label>
-            <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>Replay intro</button>
+            <button type="button" className={segmentedButtonClassName} onClick={replayIntro}>{t("Replay intro")}</button>
           </div>
         )}
       </fieldset>
       <SourceExample key={`${renderer}:${playback.key}`} source={source} renderer={renderer} intro={playback.options} />
-      <p className="px-6 text-sm text-muted-2">
-        Sphere previews resolve beside the image. Tile previews and tile
-        templates resolve below baseUrl. Use the template and multires values
-        matching your converted files.
-      </p>
+      <p className="px-6 text-sm text-muted-2">{t("Single-image previews resolve beside the image. Cube and spherical tile previews and templates resolve below baseUrl. Use the template and multires values from your converted files.")}</p>
       <ExampleCode
         key={source}
-        json={{ format: "viewer", files: source === "tile" ? [{
+        json={{ format: "viewer", files: viewerUrl ? [{
           label: "viewer.json",
-          blurb: "Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes.",
-          url: `${tile.baseUrl}/viewer.json`,
+          blurb: t("Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes."),
+          url: viewerUrl,
         }] : [] }}
         react={{
-          label: `${component}: minimal setup`,
-          blurb: "The demo reports load failures and, for cube tiles, the current level and tile counts. These callbacks observe loading without changing the source configuration.",
+          label: t("{component}: minimal setup", { component }),
+          blurb: t("The demo reports load failures and, for tiled sources, the current level and tile counts. These callbacks observe loading without changing the source configuration."),
           code: code,
         }}
       />
       <details className="border-t border-line p-5">
-        <summary>Complete running example</summary>
+        <summary>{t("Complete running example")}</summary>
         <CodeSnippet
-          label="Panorama basics page"
-          blurb="Full page implementation, including the displayed controls, error status and example code generation."
+          label={t("Panorama basics page")}
+          blurb={t("Full page implementation, including the displayed controls, error status and example code generation.")}
           code={fullSource}
         />
       </details>

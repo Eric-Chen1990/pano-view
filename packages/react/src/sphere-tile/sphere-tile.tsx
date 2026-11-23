@@ -1,5 +1,6 @@
 import { SceneLoadSourceContext, useStandaloneSceneLoad } from "../scene-load-progress";
 import { fitImageTexture, getTextureAnisotropy } from "../renderer-capabilities";
+import { cameraInSourceSpace, useLevelRotation } from "../level-rotation";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CompareHostContext, CompareSourceSideContext } from "../compare/view";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -202,6 +203,7 @@ function SphereTileSource({
   indexBase = 1,
   resolveTileUrl,
   yawOffset = 0,
+  levelCorrection,
   maxTextureMemoryMb = 128,
   maxConcurrentLoads = 4,
   retryCount = 1,
@@ -215,6 +217,9 @@ function SphereTileSource({
 }: Omit<SphereTileProps, "multires"> & { config: SphereTileMultiresConfig }) {
   const root = useThree();
   const { camera, gl } = root;
+  const rotation = useLevelRotation(levelCorrection);
+  const inverse = useMemo(() => rotation?.clone().invert() ?? null, [rotation]);
+  const sourceCamera = useMemo(() => new PerspectiveCamera(), []);
   const compareHost = useContext(CompareHostContext);
   const compareSide = useContext(CompareSourceSideContext);
   const anisotropy = getTextureAnisotropy(gl);
@@ -387,9 +392,10 @@ function SphereTileSource({
   );
   useFrame(() => {
     const pane = compareSide && compareHost?.getPane(root.camera, root.size, gl.getPixelRatio(), compareSide);
-    const camera = pane ? pane.camera : root.camera;
+    const worldCamera = pane ? pane.camera : root.camera;
     const size = pane ? pane.rect : root.size;
-    if (!(camera instanceof PerspectiveCamera)) return;
+    if (!(worldCamera instanceof PerspectiveCamera)) return;
+    const camera = cameraInSourceSpace(worldCamera, inverse, sourceCamera);
     const now = performance.now(),
       dpr = gl.getPixelRatio();
     const managerChanged = scratch.manager !== manager;
@@ -507,7 +513,7 @@ function SphereTileSource({
     );
   });
   return (
-    <group ref={introRoot} visible={visible}>
+    <group ref={introRoot} quaternion={rotation ?? [0, 0, 0, 1]} visible={visible}>
       {preview ? (
         <SpherePatch
           address={previewAddress}

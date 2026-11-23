@@ -4,7 +4,16 @@ type SourceBase = { id: string; label: string };
 type Style = { mapType?: "road" | "satellite" };
 
 export type PanoGeoMapSource = SourceBase & (
-  | { kind: "xyz"; urlTemplate: string; attribution: string; attributionUrl?: string; maxZoom?: number }
+  | {
+    kind: "xyz";
+    urlTemplate: string;
+    attribution: string;
+    attributionUrl?: string;
+    /** Lowest tile zoom this XYZ service provides. Defaults to 0. */
+    minZoom?: number;
+    /** Highest tile zoom this XYZ service provides. Defaults to 19. */
+    maxZoom?: number;
+  }
   | ({ kind: "google"; apiKey: string; region?: string; coordinateSystem?: "wgs84" | "gcj02" } & Style)
   | ({ kind: "amap"; apiKey: string; serviceHost: string } & Style)
   | ({ kind: "baidu"; ak: string } & Style)
@@ -13,6 +22,35 @@ export type PanoGeoMapSource = SourceBase & (
 export type Pixel = { x: number; y: number };
 export type Insets = { top: number; right: number; bottom: number; left: number };
 export type Camera = { center: PanoGeoPosition; zoom: number };
+/** Inclusive Web Mercator zoom range applied by a map engine. */
+export type ZoomLimits = { min: number; max: number };
+
+const clampZoom = (n: number, low: number, high: number) => Math.max(low, Math.min(n, high));
+
+/** Tile / SDK capability for a basemap before intersecting with project limits. */
+export function sourceZoomLimits(source: PanoGeoMapSource): ZoomLimits {
+  if (source.kind === "xyz") {
+    const min = Number.isFinite(source.minZoom) ? clampZoom(Math.floor(source.minZoom!), 0, 24) : 0;
+    const max = Number.isFinite(source.maxZoom) ? clampZoom(Math.floor(source.maxZoom!), 0, 24) : 19;
+    return min <= max ? { min, max } : { min: max, max: min };
+  }
+  return { min: 0, max: 24 };
+}
+
+/** Effective zoom range: intersection of project settings and basemap capability. */
+export function resolveZoomLimits(
+  geoMap: { minZoom?: number; maxZoom?: number },
+  source?: PanoGeoMapSource,
+): ZoomLimits {
+  const sourceRange = source ? sourceZoomLimits(source) : { min: 0, max: 24 };
+  const min = geoMap.minZoom !== undefined ? Math.max(sourceRange.min, geoMap.minZoom) : sourceRange.min;
+  const max = geoMap.maxZoom !== undefined ? Math.min(sourceRange.max, geoMap.maxZoom) : sourceRange.max;
+  return min <= max ? { min, max } : { min: max, max: min };
+}
+
+export function clampCameraZoom(zoom: number, limits: ZoomLimits): number {
+  return clampZoom(zoom, limits.min, limits.max);
+}
 
 export type MapEngine = {
   project(point: PanoGeoPosition): Pixel | undefined;
@@ -61,13 +99,17 @@ export function withTimeout<T>(promise: Promise<T>, milliseconds = 14000): Promi
 }
 
 export async function createMapEngine(
-  source: PanoGeoMapSource, container: HTMLDivElement, events: EngineEvents, signal: AbortSignal,
+  source: PanoGeoMapSource,
+  container: HTMLDivElement,
+  events: EngineEvents,
+  signal: AbortSignal,
+  limits: ZoomLimits = resolveZoomLimits({}, source),
 ): Promise<MapEngine> {
   if (source.kind === "xyz") {
     const { createXyzEngine } = await import("./xyz");
     signal.throwIfAborted();
-    return createXyzEngine(source, container, events);
+    return createXyzEngine(source, container, events, limits);
   }
   const { createProviderEngine } = await import("./providers");
-  return createProviderEngine(source, container, events, signal);
+  return createProviderEngine(source, container, events, signal, limits);
 }

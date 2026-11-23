@@ -24,11 +24,27 @@ export type PanoGeoMapDefinition = {
   iconSize?: number;
   controlsLayout?: "horizontal" | "vertical";
   sector?: PanoMapSectorDefinition | false;
+  /** Lowest allowed Web Mercator zoom (inclusive). */
+  minZoom?: number;
+  /** Highest allowed Web Mercator zoom (inclusive). */
+  maxZoom?: number;
+  /** Zoom used the first time a basemap opens. */
+  initialZoom?: number;
 };
 
 export function isPanoGeoPosition(value: unknown): value is PanoGeoPosition {
   return isRecord(value) && typeof value.lat === "number" && Math.abs(value.lat) <= 90 &&
     typeof value.lng === "number" && Math.abs(value.lng) <= 180;
+}
+
+function optionalZoom(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value))
+    throw new Error(`geoMap.${key}: expected a finite number`);
+  if (value < 0 || value > 24)
+    throw new Error(`geoMap.${key}: expected a number between 0 and 24`);
+  return value;
 }
 
 export function parsePanoGeoMap(value: unknown, sceneIds: ReadonlySet<string>): PanoGeoMapDefinition | undefined {
@@ -84,6 +100,20 @@ export function parsePanoGeoMap(value: unknown, sceneIds: ReadonlySet<string>): 
         throw new Error("geoMap.iconSize: expected a positive number");
       result.iconSize = value.iconSize;
     }
+    const minZoom = optionalZoom(value, "minZoom");
+    const maxZoom = optionalZoom(value, "maxZoom");
+    const initialZoom = optionalZoom(value, "initialZoom");
+    if (minZoom !== undefined && maxZoom !== undefined && minZoom > maxZoom)
+      throw new Error("geoMap.minZoom: expected a number <= geoMap.maxZoom");
+    if (initialZoom !== undefined) {
+      if (minZoom !== undefined && initialZoom < minZoom)
+        throw new Error("geoMap.initialZoom: expected a number >= geoMap.minZoom");
+      if (maxZoom !== undefined && initialZoom > maxZoom)
+        throw new Error("geoMap.initialZoom: expected a number <= geoMap.maxZoom");
+    }
+    if (minZoom !== undefined) result.minZoom = minZoom;
+    if (maxZoom !== undefined) result.maxZoom = maxZoom;
+    if (initialZoom !== undefined) result.initialZoom = initialZoom;
     return result;
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Invalid online map";

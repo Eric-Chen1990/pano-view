@@ -150,6 +150,53 @@ test("parsePanoMap validates spots against scenes", () => {
       ),
     /dragMotion\.inertia/,
   );
+  assert.equal(
+    parsePanoMap(
+      {
+        image: "floor.png",
+        presentation: { mode: "panel", width: "40%", height: 180 },
+        spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+      },
+      new Set(["entrance"]),
+    )?.presentation?.width,
+    "40%",
+  );
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          presentation: { mode: "panel", width: "0%" },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /width/,
+  );
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          presentation: { mode: "panel", width: "120%" },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /width/,
+  );
+  assert.throws(
+    () =>
+      parsePanoMap(
+        {
+          image: "floor.png",
+          presentation: { mode: "panel", width: "40px" },
+          spots: [{ id: "a", sceneId: "entrance", x: 0.2, y: 0.4, heading: 0 }],
+        },
+        new Set(["entrance"]),
+      ),
+    /width/,
+  );
 });
 
 test("parsePanoProject keeps map optional and resolves assets", () => {

@@ -1,3 +1,6 @@
+import { normalizePanoYaw } from "./hotspot/position-math";
+import type { PanoLevelCorrection } from "./level-correction";
+import { HotspotLevelCorrectionContext } from "./level-rotation";
 import type { PanoViewLimits } from "./view-limits";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -44,6 +47,7 @@ import {
 } from "./scene-transition-policy";
 import {
   markSceneVisited,
+  notifyScenesHost,
   ScenesHostContext,
 } from "./scenes-host";
 import {
@@ -70,7 +74,12 @@ import type { TileProps } from "./tile/types";
 
 export type { SceneTransition, SceneTransitionPreset } from "./scene-transitions/presets";
 
-type SceneViewOptions = { viewLimits?: PanoViewLimits; initialView?: Partial<PanoViewerState> };
+type SceneViewOptions = {
+  viewLimits?: PanoViewLimits;
+  initialView?: Partial<PanoViewerState>;
+  /** Viewer yaw when facing true north, in degrees. */
+  northYaw?: number;
+};
 
 export type SphereScene = SceneViewOptions & {
   id: string;
@@ -78,6 +87,7 @@ export type SphereScene = SceneViewOptions & {
   src: string;
   previewUrl: string;
   yawOffset?: number;
+  levelCorrection?: PanoLevelCorrection;
 };
 
 export type TileScene = Omit<
@@ -194,6 +204,7 @@ export function SceneSource({
           src={scene.src}
           previewUrl={scene.previewUrl}
           yawOffset={scene.yawOffset}
+          levelCorrection={scene.levelCorrection}
           visible={visible}
           previewOnly={previewOnly}
           onReady={onReady}
@@ -203,7 +214,7 @@ export function SceneSource({
       );
     }
     case "tile": {
-      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, northYaw: _northYaw, ...tileProps } = scene;
       return (
         <Tile
           {...tileProps}
@@ -215,7 +226,7 @@ export function SceneSource({
       );
     }
     case "sphereTile": {
-      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, ...tileProps } = scene;
+      const { id: _id, type: _type, viewLimits: _limits, initialView: _view, northYaw: _northYaw, ...tileProps } = scene;
       return (
         <SphereTile
           {...tileProps}
@@ -388,6 +399,20 @@ function ScenesController({
     () => new Map(scenes.map((scene) => [scene.id, scene])),
     [scenes],
   );
+  useLayoutEffect(() => {
+    if (!scenesHost) return;
+    const northYaws = new Map<string, number>();
+    for (const { id, northYaw } of scenes) {
+      if (northYaw !== undefined && Number.isFinite(northYaw)) northYaws.set(id, normalizePanoYaw(northYaw));
+    }
+    scenesHost.sceneNorthYaws = northYaws;
+    notifyScenesHost(scenesHost);
+    return () => {
+      if (scenesHost.sceneNorthYaws !== northYaws) return;
+      scenesHost.sceneNorthYaws = undefined;
+      notifyScenesHost(scenesHost);
+    };
+  }, [scenes, scenesHost]);
   const initialScene = sceneMap.get(activeSceneId) ?? null;
   const [slots, setSlots] = useState<[Scene | null, Scene | null]>([
     initialScene,
@@ -956,7 +981,15 @@ function ScenesController({
     };
   }, [cancelPortal, clearDetailWait, gl, loadOwner, loadStore, manager, releaseInteraction, snapshot]);
 
-  const renderedScene = slots[liveSlot];
+  const currentSource = (source: Scene | null): Scene | null => {
+    if (!source) return null;
+    const latest = sceneMap.get(source.id);
+    // Slots own the textures and load lifecycle. Calibration is live metadata.
+    if (latest?.type !== source.type ||
+        (latest.levelCorrection === source.levelCorrection && latest.northYaw === source.northYaw)) return source;
+    return { ...source, levelCorrection: latest.levelCorrection, northYaw: latest.northYaw };
+  };
+  const renderedScene = currentSource(slots[liveSlot]);
   const snapshotVisible = snapshot !== null && (
     phase === "transitioning" ||
     phase === "recapturing" ||
@@ -1011,7 +1044,7 @@ function ScenesController({
           >
             <SceneLoadSourceContext.Provider value={loadReporters[slot]}>
               <SceneSource
-                scene={source}
+                scene={currentSource(source)}
                 visible={isLive}
                 baseOnly={pendingSceneUsesBaseLayer(phase, isPending)}
                 onReady={() => handleReady(slot)}
@@ -1054,7 +1087,9 @@ function ScenesController({
         />
       ) : null}
       {(phase === "idle" || portalRun.current?.sourceId === renderedScene?.id) && renderedScene
-        ? renderHotspots?.(renderedScene) : null}
+        ? <HotspotLevelCorrectionContext.Provider value={renderedScene.levelCorrection}>
+            {renderHotspots?.(renderedScene)}
+          </HotspotLevelCorrectionContext.Provider> : null}
       {portalEntry ? <PortalEntry window={portalEntry.window} destination={portalEntry.view}
         maxPixels={Math.max(1, snapshotMaxPixels)} onTakeover={() => takeOverPortal(portalEntry.view)}
         onFinish={finishPortal} /> : null}

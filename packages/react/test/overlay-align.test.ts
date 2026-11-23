@@ -7,6 +7,7 @@ import {
   parseOverlayAnchor,
   resolveOverlayAnchor,
   resolveOverlayAxis,
+  resolveOverlayLength,
 } from "../src/overlay/align";
 
 test("edges infer axis and corners keep the requested axis", () => {
@@ -85,4 +86,12 @@ test("parseOverlayAnchor accepts eight aligns and rejects removed fields via map
     () => parseOverlayAnchor({ axis: "diagonal" }, "anchor"),
     /anchor\.axis/,
   );
+});
+
+test("resolveOverlayLength keeps pixels and converts percentages of the viewer", () => {
+  assert.equal(resolveOverlayLength(240, 800, 100), 240);
+  assert.equal(resolveOverlayLength("40%", 800, 100), 320);
+  assert.equal(resolveOverlayLength(undefined, 800, 100), 100);
+  assert.equal(resolveOverlayLength("0%", 800, 100), 100);
+  assert.equal(resolveOverlayLength("bogus", 800, 100), 100);
 });

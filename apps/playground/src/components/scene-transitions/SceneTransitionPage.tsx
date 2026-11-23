@@ -1,3 +1,5 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
 import fullSource from "./SceneTransitionPage.tsx?raw";
 import {
   ImageHotspot,
@@ -11,7 +13,7 @@ import {
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TRANSITION_SCENES } from "../../constants";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -60,7 +62,7 @@ import {
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes: Scene[] = ${JSON.stringify(TRANSITION_SCENES, null, 2)};
+const scenes: Scene[] = ${JSON.stringify(CUBE_SCENES, null, 2)};
 
 export function SceneTransitions() {
   const [activeSceneId, setActiveSceneId] = useState("${sceneId}");
@@ -139,7 +141,8 @@ function LoadingIndicatorPreview({
 }
 
 export function SceneTransitionPage() {
-  const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+  const { t } = usePlaygroundLanguage();
+  const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState("");
   const viewer = useRef<PanoViewerHandle>(null);
@@ -147,8 +150,9 @@ export function SceneTransitionPage() {
   const [showPercentage, setShowPercentage] = useState(true);
   const [accentColor, setAccentColor] = useState("#72f3d0");
   const [textColor, setTextColor] = useState("#f0fffc");
-  const [loadingText, setLoadingText] = useState(DEFAULT_LOADING_LABEL);
-  const loadingLabel = loadingText.trim() || DEFAULT_LOADING_LABEL;
+  const [loadingText, setLoadingText] = useState<string>();
+  const defaultLoadingLabel = t(DEFAULT_LOADING_LABEL);
+  const loadingLabel = loadingText?.trim() || defaultLoadingLabel;
   const [previewing, setPreviewing] = useState(false);
   const stopPreview = useCallback(() => setPreviewing(false), []);
   const selectScene = useCallback((id: string) => {
@@ -157,7 +161,7 @@ export function SceneTransitionPage() {
   }, [stopPreview]);
   const appearance = useMemo(() => ({ accentColor, color: textColor }), [accentColor, textColor]);
   const [preset, setPreset] = useState<SceneTransitionPreset>("dissolve");
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Choose a scene to compare transition effects.",
   );
   const snippet = useMemo(
@@ -174,23 +178,21 @@ export function SceneTransitionPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Scene transition bench</p>
+            <p className={eyebrowClassName}>{t("Scene transition bench")}</p>
             <h1
               className={pageHeadingTitleClassName}
               id="transition-bench-title"
-            >
-              Blend between scenes
-            </h1>
+            >{t("Blend between scenes")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>{status}</p>
+          <p className={pageHeadingStatusClassName}>{t(status)}</p>
         </div>
         <div className={pageControlsClassName}>
           <div
             className="flex flex-wrap gap-1.5"
             role="group"
-            aria-label="Target panorama scene"
+            aria-label={t("Target panorama scene")}
           >
-            {TRANSITION_SCENES.map((scene) => (
+            {CUBE_SCENES.map((scene) => (
               <button
                 className={cn(
                   segmentedButtonClassName,
@@ -204,31 +206,25 @@ export function SceneTransitionPage() {
               </button>
             ))}
           </div>
-          <div className={controlLabelClassName}>
-            Blend
-            <BlendSelect onChange={setPreset} value={preset} />
+          <div className={controlLabelClassName}>{t("Blend")}<BlendSelect onChange={setPreset} value={preset} />
           </div>
-          <label className={controlLabelClassName}>
-            Renderer
-            <select value={renderer} onChange={({ currentTarget }) => {
+          <label className={controlLabelClassName}>{t("Renderer")}<select value={renderer} onChange={({ currentTarget }) => {
               stopPreview();
               setBackend("");
               setRenderer(currentTarget.value === "webgl" ? "webgl" : "auto");
             }}>
-              <option value="auto">Auto</option>
+              <option value="auto">{t("Auto")}</option>
               <option value="webgl">WebGL</option>
             </select>
           </label>
-          {backend ? <output className={controlLabelClassName} aria-label="Active renderer">{backend}</output> : null}
+          {backend ? <output className={controlLabelClassName} aria-label={t("Active renderer")}>{backend}</output> : null}
         </div>
-        <div className={pageControlsClassName} role="group" aria-label="Loading indicator settings">
-          <label className={controlLabelClassName}>
-            Loading indicator
-            <select value={indicator} onChange={({ currentTarget }) => {
+        <div className={pageControlsClassName} role="group" aria-label={t("Loading indicator settings")}>
+          <label className={controlLabelClassName}>{t("Loading indicator")}<select value={indicator} onChange={({ currentTarget }) => {
               const selected = loadingIndicators.find(({ value }) => value === currentTarget.value);
               if (selected) setIndicator(selected.value);
             }}>
-              {loadingIndicators.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+              {loadingIndicators.map(({ value, label }) => <option key={value} value={value}>{t(label)}</option>)}
             </select>
           </label>
           <label className={controlLabelClassName}>
@@ -236,23 +232,15 @@ export function SceneTransitionPage() {
               type="checkbox"
               checked={showPercentage}
               onChange={({ currentTarget }) => setShowPercentage(currentTarget.checked)}
-            />
-            Show percentage
+            />{t("Show percentage")}</label>
+          <label className={controlLabelClassName}>{t("Indicator color")}<input type="color" value={accentColor} onChange={({ currentTarget }) => setAccentColor(currentTarget.value)} />
           </label>
-          <label className={controlLabelClassName}>
-            Indicator color
-            <input type="color" value={accentColor} onChange={({ currentTarget }) => setAccentColor(currentTarget.value)} />
+          <label className={controlLabelClassName}>{t("Loading label color")}<input type="color" value={textColor} onChange={({ currentTarget }) => setTextColor(currentTarget.value)} />
           </label>
-          <label className={controlLabelClassName}>
-            Loading label color
-            <input type="color" value={textColor} onChange={({ currentTarget }) => setTextColor(currentTarget.value)} />
-          </label>
-          <label className={controlLabelClassName}>
-            Loading text
-            <input
+          <label className={controlLabelClassName}>{t("Loading text")}<input
               className={cn(controlInputClassName, "w-36 focus-visible:outline-2 focus-visible:outline-brand")}
               type="text"
-              value={loadingText}
+              value={loadingText ?? defaultLoadingLabel}
               onChange={({ currentTarget }) => setLoadingText(currentTarget.value)}
             />
           </label>
@@ -261,7 +249,7 @@ export function SceneTransitionPage() {
             className={cn(segmentedButtonClassName, previewing && segmentedButtonActiveClassName)}
             onClick={() => setPreviewing((current) => !current)}
           >
-            {previewing ? "Stop simulation" : "Simulate loading"}
+            {previewing ? t("Stop simulation") : t("Simulate loading")}
           </button>
         </div>
         <div className="bg-[#020607] p-0">
@@ -269,7 +257,7 @@ export function SceneTransitionPage() {
             key={renderer}
             ref={viewer}
             renderer={renderer}
-            aria-label="Panorama scene transition demo"
+            aria-label={t("Panorama scene transition demo")}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <Scenes
@@ -277,7 +265,7 @@ export function SceneTransitionPage() {
               onActiveSceneIdChange={selectScene}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
-              scenes={TRANSITION_SCENES}
+              scenes={CUBE_SCENES}
               transition={preset}
               onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? "")}
               onTransitionEnd={({
@@ -291,7 +279,7 @@ export function SceneTransitionPage() {
               }}
               onTransitionError={({ sceneId }) => {
                 setStatus(
-                  `Could not prepare ${sceneId}; current scene remains visible.`,
+                  message("Could not prepare {scene}; current scene remains visible.", { scene: sceneId }),
                 );
               }}
               renderHotspots={(scene) => (
@@ -327,16 +315,16 @@ export function SceneTransitionPage() {
         </div>
         <ExampleCode
           react={{
-            blurb: "Switch scenes to compare transitions, or simulate loading to preview the selected indicator, colors, and loading text.",
+            blurb: t("Switch scenes to compare transitions, or simulate loading to preview the selected indicator, colors, and loading text."),
             code: snippet,
-            label: "Scenes: transition presets",
+            label: t("Scenes: transition presets"),
           }}
         />
         <details className="border-t border-line p-5">
-          <summary>Complete running example</summary>
+          <summary>{t("Complete running example")}</summary>
           <CodeSnippet
-            label="Scene transitions page"
-            blurb="Full page implementation, including the displayed controls, loading/error status and example code generation."
+            label={t("Scene transitions page")}
+            blurb={t("Full page implementation, including the displayed controls, loading/error status and example code generation.")}
             code={fullSource}
           />
         </details>

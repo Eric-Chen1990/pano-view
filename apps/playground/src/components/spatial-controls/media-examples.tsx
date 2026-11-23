@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useState, useSyncExternalStore } from "react";
 import {
   PanoMediaControls,
@@ -38,6 +39,7 @@ export function SceneMovie({
   mode?: HotspotMode;
   onController: (controller: PanoMediaController | null) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const [playing, setPlaying] = useState(false);
   return (
     <VideoHotspot
@@ -51,7 +53,7 @@ export function SceneMovie({
       playing={playing}
       onPlaybackStateChange={(state) => setPlaying(state === "playing")}
       onClick={() => setPlaying((value) => !value)}
-      ariaLabel="Play or pause scene video"
+      ariaLabel={t("Play or pause scene video")}
     />
   );
 }

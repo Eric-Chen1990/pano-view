@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import {
   createContext,
   useCallback,
@@ -116,9 +117,10 @@ export function useHotspotAccessibilityLayer(): {
     () => ({ register }),
     [register],
   );
+  const t = usePanoUiTranslation();
   const controls = useMemo(
     () => (
-      <div aria-label="Panorama hotspots" style={{ pointerEvents: "none" }}>
+      <div aria-label={t("Panorama hotspots")} style={{ pointerEvents: "none" }}>
         {Array.from(entries.values()).map((entry) => (
           <button
             aria-label={entry.label}
@@ -140,7 +142,7 @@ export function useHotspotAccessibilityLayer(): {
         ))}
       </div>
     ),
-    [entries],
+    [entries, t],
   );
 
   return { controls, registry };

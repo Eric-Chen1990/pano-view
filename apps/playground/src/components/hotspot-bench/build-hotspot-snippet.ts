@@ -1,3 +1,4 @@
+import { cubeTileJsx } from "../../constants";
 import type {
   EditorHotspot,
   EditorPolygon,
@@ -20,13 +21,13 @@ function wrapSnippet(
       return `        ${key}=${plainString ? literal : `{${literal}}`}`;
     })
     .join("\n");
-  const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+  const code = `import { ${component}, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaHotspot() {
   return (
     <PanoViewer style={{ height: 560 }}>
-      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      ${cubeTileJsx()}
       <${component}
 ${propLines}
       />

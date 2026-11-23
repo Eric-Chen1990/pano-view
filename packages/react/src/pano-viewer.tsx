@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "./ui-translation";
 import { getWebVRIframeSupport } from "./webvr/host";
 import { SpatialHostContext, createSpatialHost } from "./spatial/host";
 import { SpatialPanels } from "./spatial/panel";
@@ -338,11 +339,13 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       onPanoramaPointerMove,
       dpr = [1, 2],
       style,
-      "aria-label": ariaLabel = "Panorama viewer",
+      "aria-label": providedAriaLabel,
       ...divProps
     },
     ref,
   ) {
+    const t = usePanoUiTranslation();
+    const ariaLabel = providedAriaLabel ?? t("Panorama viewer");
     const rootRef = useRef<HTMLDivElement>(null);
     const controlsRef = useRef<PanoramaViewRuntimeHandle>(null);
     const spatialHost = useMemo(() => createSpatialHost(), []);
@@ -967,7 +970,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
           frameloop={rendererRuntime.renderChildren ? "always" : "never"}
           // WebGPU tone mapping affects the whole frame, including panorama textures.
           flat={rendererRuntime.key === "webgpu"}
-          aria-label={`${ariaLabel} canvas`}
+          aria-label={t("{viewer} canvas").replace("{viewer}", ariaLabel)}
           className="pano-render-surface"
           data-pano-screenshot-canvas=""
           events={pointerEvents}

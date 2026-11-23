@@ -1,10 +1,12 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileProps } from "../../constants";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
   GraphicHotspot,
   PanoOverlay,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoOverlay,
   usePanoViewer,
 } from "@ericchen1990/pano-view";
@@ -38,6 +40,7 @@ const stories = [
 type DialogMode = "default" | "composed" | "custom";
 
 function StoryTip() {
+  const { t } = usePlaygroundLanguage();
   const { portalContainer } = usePanoOverlay();
   const [visible, setVisible] = useState(false);
   return (
@@ -56,19 +59,14 @@ function StoryTip() {
             setVisible(false);
           }
         }}
-      >
-        About this story
-      </button>
+      >{t("About this story")}</button>
       {visible && portalContainer
         ? createPortal(
             <div
               role="tooltip"
               id="story-tip"
               className="pointer-events-none absolute top-16 right-4 z-10 max-w-64 border border-accent bg-canvas-2 p-3 text-sm"
-            >
-              This nested tooltip uses the dialog portal container, including in
-              fullscreen.
-            </div>,
+            >{t("This nested tooltip uses the dialog portal container, including in fullscreen.")}</div>,
             portalContainer,
           )
         : null}
@@ -89,6 +87,7 @@ function DialogChrome({
   select: (id: string) => void;
   fullscreen: () => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const { isFullscreen } = usePanoOverlay();
   const story = stories.find((entry) => entry.id === selected);
   const props = {
@@ -118,8 +117,7 @@ function DialogChrome({
             key={entry.id}
             className={viewerChromeButtonClassName}
             onClick={() => select(entry.id)}
-          >
-            Open {entry.title}
+          >{t("Open") + " "}{t(entry.title)}
           </button>
         ))}
         <button
@@ -127,11 +125,11 @@ function DialogChrome({
           className={viewerChromeButtonClassName}
           onClick={fullscreen}
         >
-          {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          {isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
         </button>
       </div>
       {mode === "default" ? (
-        <PanoDialog {...props}>{content}</PanoDialog>
+        <PanoDialog closeLabel={t("Close")} {...props}>{content}</PanoDialog>
       ) : mode === "composed" ? (
         <ComposedHotspotDialog {...props}>{content}</ComposedHotspotDialog>
       ) : (
@@ -142,6 +140,7 @@ function DialogChrome({
 }
 
 export function DialogsExample() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const [mode, setMode] = useState<DialogMode>("default");
   const [selected, setSelected] = useState<string | null>(null);
@@ -150,7 +149,7 @@ export function DialogsExample() {
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Dialog implementation"
+        aria-label={t("Dialog implementation")}
       >
         {(["default", "composed", "custom"] as const).map((value) => (
           <button
@@ -165,9 +164,9 @@ export function DialogsExample() {
           >
             {
               {
-                default: "Default dialog",
-                composed: "Compose parts",
-                custom: "Third-party dialog",
+                default: t("Default dialog"),
+                composed: t("Compose parts"),
+                custom: t("Third-party dialog"),
               }[value]
             }
           </button>
@@ -175,18 +174,15 @@ export function DialogsExample() {
       </div>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="Dialogs and overlays viewer"
+        aria-label={t("Dialogs and overlays viewer")}
         style={{ height: 560 }}
       >
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         {stories.map((story, index) => (
           <GraphicHotspot
             key={story.id}
             id={story.id}
-            ariaLabel={`Open ${story.title}`}
+            ariaLabel={t("Open {title}", { title: story.title })}
             position={{ yaw: index * 40 - 20, pitch: 0 }}
             width={8}
             height={8}

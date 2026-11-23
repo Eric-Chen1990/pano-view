@@ -1,17 +1,13 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoViewer,
-  Sphere,
   Tile,
   usePanoViewer,
 } from "@ericchen1990/pano-view";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../cn";
-import { INITIAL_VIEW } from "../../constants";
-import {
-  segmentedButtonClassName,
-  segmentedControlClassName,
-  segmentedControlOptionClassName,
-} from "../../ui";
+import { cubeTileProps, INITIAL_VIEW } from "../../constants";
+import { segmentedButtonClassName } from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
   selectDrawingPath,
@@ -28,10 +24,10 @@ const PLACING_CURSORS = {
 } as const;
 
 export function CanvasPanel() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const selectPreset = useHotspotBenchStore((state) => state.selectPreset);
   const {
-    mode,
     placementTool,
     drawingPath,
     drawingPolygon,
@@ -39,14 +35,12 @@ export function CanvasPanel() {
     draftVertices,
     draftPolygonFilled,
     lastAction,
-    selectMode,
     addHotspot,
     finishPolygonDraft,
     cancelPolygonDraft,
     toggleDraftFill,
   } = useHotspotBenchStore(
     useShallow((state) => ({
-      mode: state.mode,
       placementTool: selectPlacementTool(state),
       drawingPath: selectDrawingPath(state),
       drawingPolygon: selectDrawingPolygon(state),
@@ -54,7 +48,6 @@ export function CanvasPanel() {
       draftVertices: state.draftVertices,
       draftPolygonFilled: state.draftPolygonFilled,
       lastAction: state.lastAction,
-      selectMode: state.selectMode,
       addHotspot: state.addHotspot,
       finishPolygonDraft: state.finishPolygonDraft,
       cancelPolygonDraft: state.cancelPolygonDraft,
@@ -63,11 +56,11 @@ export function CanvasPanel() {
   );
 
   return (
-    <section aria-label="Panorama canvas" className="min-w-0 bg-[#071316]/80">
+    <section aria-label={t("Panorama canvas")} className="min-w-0 bg-[#071316]/80">
       <div
         className="flex flex-wrap gap-2 border-b border-line p-4"
         role="group"
-        aria-label="Hotspot presets"
+        aria-label={t("Hotspot presets")}
       >
         {(
           [
@@ -98,51 +91,12 @@ export function CanvasPanel() {
               if (position) void viewer.lookTo(position, { fov: 75 });
             }}
           >
-            {type.charAt(0).toUpperCase() + type.slice(1)} preset
-          </button>
+            {t(type.charAt(0).toUpperCase() + type.slice(1))}{" " + t("preset")}</button>
         ))}
       </div>
       <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
         <div
-          aria-label="Panorama source"
-          className={segmentedControlClassName}
-          role="radiogroup"
-        >
-          <button
-            aria-checked={mode === "sphere"}
-            className={cn(
-              segmentedControlOptionClassName,
-              mode === "sphere"
-                ? "bg-[#df6b42] text-white"
-                : "text-[#f5fbfc] hover:bg-[#102b31]",
-            )}
-            onClick={() => selectMode("sphere")}
-            role="radio"
-            type="button"
-          >
-            Sphere
-          </button>
-          <button
-            aria-checked={mode === "tile"}
-            className={cn(
-              segmentedControlOptionClassName,
-              mode === "tile"
-                ? "bg-[#df6b42] text-white"
-                : "text-[#f5fbfc] hover:bg-[#102b31]",
-            )}
-            onClick={() => selectMode("tile")}
-            role="radio"
-            type="button"
-          >
-            Cube Tile
-          </button>
-        </div>
-        <div
-          aria-hidden="true"
-          className="h-6 w-px shrink-0 bg-[#3e6c73] max-[760px]:hidden"
-        />
-        <div
-          aria-label="Viewer controls"
+          aria-label={t("Viewer controls")}
           className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-2"
           role="group"
         >
@@ -150,15 +104,12 @@ export function CanvasPanel() {
             className={segmentedButtonClassName}
             onClick={() => void viewer.toggleFullscreen()}
             type="button"
-          >
-            Fullscreen
-          </button>
+          >{t("Fullscreen")}</button>
         </div>
         {drawingPath ? (
           <div className="ml-auto flex items-center gap-2 max-[760px]:ml-0 max-[760px]:w-full max-[760px]:flex-wrap">
             <span className="font-mono text-[0.62rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-              {draftVertices.length} vertices
-            </span>
+              {draftVertices.length}{" " + t("vertices")}</span>
             {drawingPolygon ? (
               <button
                 aria-pressed={draftPolygonFilled}
@@ -166,7 +117,7 @@ export function CanvasPanel() {
                 onClick={toggleDraftFill}
                 type="button"
               >
-                {draftPolygonFilled ? "Fill on" : "Outline only"}
+                {draftPolygonFilled ? t("Fill on") : t("Outline only")}
               </button>
             ) : null}
             <button
@@ -175,15 +126,13 @@ export function CanvasPanel() {
               onClick={finishPolygonDraft}
               type="button"
             >
-              {drawingPolyline ? "Finish polyline" : "Finish polygon"}
+              {drawingPolyline ? t("Finish polyline") : t("Finish polygon")}
             </button>
             <button
               className={segmentedButtonClassName}
               onClick={cancelPolygonDraft}
               type="button"
-            >
-              Cancel
-            </button>
+            >{t("Cancel")}</button>
           </div>
         ) : null}
       </div>
@@ -196,9 +145,8 @@ export function CanvasPanel() {
         )}
       >
         <PanoViewer
-          key={mode}
           ref={viewer.ref}
-          aria-label={`${mode} panorama hotspot editor`}
+          aria-label={t("Panorama hotspot editor")}
           className={cn(
             "h-full w-full",
             (placementTool || drawingPath) && "cursor-crosshair",
@@ -211,26 +159,14 @@ export function CanvasPanel() {
             if (drawingPath) finishPolygonDraft();
           }}
         >
-          {mode === "sphere" ? (
-            <Sphere
-              src="/fixtures/panorama/panos/1/sphere.webp"
-              previewUrl="preview.webp"
-            />
-          ) : (
-            <Tile
-              baseUrl="/fixtures/panorama/cube-tiles/4"
-              multires="512,1000,2000"
-              urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
-              previewUrl="previews/cube-vertical.webp"
-            />
-          )}
+          <Tile {...cubeTileProps()} />
           <HotspotLayer />
         </PanoViewer>
         <p
           className="pointer-events-none absolute bottom-[15px] left-[15px] m-0 max-w-[calc(100%-30px)] border border-[rgb(117_203_211_/_0.42)] bg-[rgb(2_6_7_/_0.74)] px-[9px] py-2 font-mono text-[0.62rem] tracking-[0.04em] text-[#dbeef0] max-[760px]:text-[0.56rem]"
           role="status"
         >
-          {lastAction}
+          {t(lastAction)}
         </p>
       </div>
     </section>

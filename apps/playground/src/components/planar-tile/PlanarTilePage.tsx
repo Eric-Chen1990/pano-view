@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { PlanarTileViewer } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import {
@@ -11,6 +12,7 @@ import { SiteHeader } from "../SiteHeader";
 const manifestUrl = "/fixtures/planar-compare/v1/image1.tiles/manifest.json";
 const alt = "Original plaza photograph";
 export function PlanarTilePage() {
+  const { t } = usePlaygroundLanguage();
   const [maxScale, setMaxScale] = useState<number>();
   const [bounce, setBounce] = useState(true);
   const [showMinimap, setShowMinimap] = useState(false);
@@ -36,31 +38,23 @@ ${options}      style={{ height: 480 }}
     <div className={shellClassName}>
       <SiteHeader />
       <main className={pageSectionClassName}>
-        <h1 className={pageHeadingTitleClassName}>Tiled flat image</h1>
-        <p className="mb-5 text-sm text-slate-400">
-          Drag to pan, scroll or pinch to zoom, and choose Fit to see the full image.
-        </p>
+        <h1 className={pageHeadingTitleClassName}>{t("Tiled flat image")}</h1>
+        <p className="mb-5 text-sm text-slate-400">{t("Drag to pan, scroll or pinch to zoom, and choose Fit to see the full image.")}</p>
         <div className={pageControlsClassName}>
-          <label className={controlLabelClassName}>
-            Maximum zoom
-            <select
+          <label className={controlLabelClassName}>{t("Maximum zoom")}<select
               className={controlInputClassName}
               value={maxScale ?? ""}
               onChange={(event) => setMaxScale(event.target.value ? Number(event.target.value) : undefined)}
             >
-              <option value="">Automatic</option>
+              <option value="">{t("Automatic")}</option>
               <option value={2}>2×</option>
               <option value={3}>3×</option>
             </select>
           </label>
           <label className={checkboxLabelClassName}>
-            <input type="checkbox" checked={bounce} onChange={(event) => setBounce(event.target.checked)} />
-            Edge bounce
-          </label>
+            <input type="checkbox" checked={bounce} onChange={(event) => setBounce(event.target.checked)} />{t("Edge bounce")}</label>
           <label className={checkboxLabelClassName}>
-            <input type="checkbox" checked={showMinimap} onChange={(event) => setShowMinimap(event.target.checked)} />
-            Minimap
-          </label>
+            <input type="checkbox" checked={showMinimap} onChange={(event) => setShowMinimap(event.target.checked)} />{t("Minimap")}</label>
         </div>
         <PlanarTileViewer
           manifestUrl={manifestUrl}
@@ -73,16 +67,16 @@ ${options}      style={{ height: 480 }}
         />
         <div className="mt-6">
           <ExampleCode
-            json={{ format: "manifest", files: [{ label: "manifest.json", blurb: "Use this converter manifest URL as PlanarTileViewer’s manifestUrl.", url: manifestUrl }] }}
+            json={{ format: "manifest", files: [{ label: "manifest.json", blurb: t("Use this converter manifest URL as PlanarTileViewer’s manifestUrl."), url: manifestUrl }] }}
             react={{
               label: "React",
-              blurb: "Point the viewer at the generated manifest.",
+              blurb: t("Point the viewer at the generated manifest."),
               code: snippet,
             }}
           />
         </div>
       </main>
-      <SiteFooter label="Pano View Playground by" />
+      <SiteFooter label={t("Pano View Playground by")} />
     </div>
   );
 }

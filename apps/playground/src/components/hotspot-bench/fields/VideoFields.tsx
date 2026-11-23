@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { EditorHotspot } from "../../../types";
 import {
   checkboxLabelClassName,
@@ -17,6 +18,7 @@ export function VideoFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "video" }>, "id" | "type">>,
   ) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-1.5">
       <button
@@ -24,10 +26,10 @@ export function VideoFields({
         onClick={() => onChange({ playing: !hotspot.playing })}
         type="button"
       >
-        {hotspot.playing ? "Pause video" : "Play video"}
+        {hotspot.playing ? t("Pause video") : t("Play video")}
       </button>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Video URL</span>
+        <span className={fieldLabelClassName}>{t("Video URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ src: event.currentTarget.value })}
@@ -35,7 +37,7 @@ export function VideoFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Poster URL</span>
+        <span className={fieldLabelClassName}>{t("Poster URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ poster: event.currentTarget.value })}
@@ -43,9 +45,7 @@ export function VideoFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Volume
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Volume")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(hotspot.volume * 100)}%
           </b>
         </span>
@@ -69,7 +69,7 @@ export function VideoFields({
             onChange={(event) => onChange({ loop: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Loop video</span>
+          <span>{t("Loop video")}</span>
         </label>
         <label className={checkboxLabelClassName}>
           <input
@@ -78,7 +78,7 @@ export function VideoFields({
             onChange={(event) => onChange({ muted: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Muted</span>
+          <span>{t("Muted")}</span>
         </label>
       </div>
     </div>

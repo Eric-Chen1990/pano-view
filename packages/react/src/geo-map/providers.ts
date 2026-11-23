@@ -1,5 +1,8 @@
 import type { PanoGeoPosition } from "../data/geo-map";
-import { position, withTimeout, type EngineEvents, type MapEngine, type Insets, type PanoGeoMapSource, type Pixel } from "./engine";
+import {
+  clampCameraZoom, position, withTimeout,
+  type EngineEvents, type MapEngine, type Insets, type PanoGeoMapSource, type Pixel, type ZoomLimits,
+} from "./engine";
 
 type Geo = PanoGeoPosition;
 type Pair = [number, number];
@@ -49,7 +52,7 @@ function load(
 
 type GoogleLatLng = { lat(): number; lng(): number };
 type GoogleMap = {
-  addListener(event: string, callback: (e: { latLng?: GoogleLatLng }) => void): { remove(): void };
+  addListener(event: string, callback: (...args: never[]) => void): { remove(): void };
   getCenter(): GoogleLatLng | undefined;
   getZoom(): number | undefined;
   setCenter(center: Geo): void;
@@ -76,12 +79,13 @@ type Google = {
 const INITIAL = { center: { lat: 0, lng: 0 }, zoom: 2 };
 
 function googleEngine(
-  api: Google, host: HTMLDivElement, events: EngineEvents, satellite: boolean,
+  api: Google, host: HTMLDivElement, events: EngineEvents, satellite: boolean, limits: ZoomLimits,
 ): MapEngine {
   const map = new api.Map(host, {
     ...INITIAL, mapTypeId: satellite ? "satellite" : "roadmap", disableDefaultUI: true,
     keyboardShortcuts: false, gestureHandling: "greedy", clickableIcons: false, tilt: 0, heading: 0,
     tiltInteractionEnabled: false, headingInteractionEnabled: false,
+    minZoom: limits.min, maxZoom: limits.max,
   });
   const overlay = new api.OverlayView();
   overlay.onAdd = events.draw;
@@ -89,21 +93,29 @@ function googleEngine(
   overlay.onRemove = () => {};
   overlay.setMap(map);
   const read = (p?: GoogleLatLng | null) => p ? position(p.lat(), p.lng()) : undefined;
-  const click = map.addListener("click", ({ latLng }) => {
+  const clampZoom = (zoom: number) => clampCameraZoom(zoom, limits);
+  const click = map.addListener("click", (({ latLng }: { latLng?: GoogleLatLng }) => {
     const point = read(latLng);
     if (point) events.click(point);
-  });
+  }) as (...args: never[]) => void);
   return {
     project: (p) => overlay.getProjection()?.fromLatLngToContainerPixel(new api.LatLng(p.lat, p.lng)) ?? undefined,
     unproject: (p) => read(overlay.getProjection()?.fromContainerPixelToLatLng(new api.Point(p.x, p.y))),
-    getCamera: () => ({ center: read(map.getCenter()) ?? INITIAL.center, zoom: map.getZoom() ?? INITIAL.zoom }),
-    setCamera: ({ center, zoom }) => { map.setCenter(center); map.setZoom(zoom); },
+    getCamera: () => ({
+      center: read(map.getCenter()) ?? INITIAL.center,
+      zoom: clampZoom(map.getZoom() ?? INITIAL.zoom),
+    }),
+    setCamera: ({ center, zoom }) => { map.setCenter(center); map.setZoom(clampZoom(zoom)); },
     fit: (points, insets) => {
       const bounds = new api.LatLngBounds();
       points.forEach((point) => bounds.extend(point));
       map.fitBounds(bounds, insets);
+      const idle = map.addListener("idle", (() => {
+        idle.remove();
+        map.setZoom(clampZoom(map.getZoom() ?? INITIAL.zoom));
+      }) as (...args: never[]) => void);
     },
-    zoomBy: (delta) => map.setZoom((map.getZoom() ?? INITIAL.zoom) + delta),
+    zoomBy: (delta) => map.setZoom(clampZoom((map.getZoom() ?? INITIAL.zoom) + delta)),
     panBy: (x, y) => map.panBy(x, y),
     resize: () => api.event.trigger(map, "resize"),
     setDraggable: (enabled) => map.setOptions({ gestureHandling: enabled ? "greedy" : "none" }),
@@ -137,10 +149,14 @@ type AMap = {
 };
 const pair = ({ lng, lat }: Geo): Pair => [lng, lat];
 
-function amapEngine(api: AMap, host: HTMLDivElement, events: EngineEvents, satellite: boolean): MapEngine {
+function amapEngine(
+  api: AMap, host: HTMLDivElement, events: EngineEvents, satellite: boolean, limits: ZoomLimits,
+): MapEngine {
+  const clampZoom = (zoom: number) => clampCameraZoom(zoom, limits);
   const map = new api.Map(host, {
-    zoom: INITIAL.zoom, center: pair(INITIAL.center), viewMode: "2D",
+    zoom: clampZoom(INITIAL.zoom), center: pair(INITIAL.center), viewMode: "2D",
     rotateEnable: false, pitchEnable: false, keyboardEnable: false, isHotspot: false,
+    zooms: [limits.min, limits.max],
     ...(satellite ? { layers: [new api.TileLayer.Satellite()] } : {}),
   });
   const read = (p: AMapLatLng) => position(p.lat, p.lng);
@@ -155,8 +171,8 @@ function amapEngine(api: AMap, host: HTMLDivElement, events: EngineEvents, satel
   return {
     project: (p) => map.lngLatToContainer(new api.LngLat(p.lng, p.lat)),
     unproject: (p) => read(map.containerToLngLat(new api.Pixel(p.x, p.y))),
-    getCamera: () => ({ center: read(map.getCenter()) ?? INITIAL.center, zoom: map.getZoom() }),
-    setCamera: ({ center, zoom }) => map.setZoomAndCenter(zoom, pair(center), true),
+    getCamera: () => ({ center: read(map.getCenter()) ?? INITIAL.center, zoom: clampZoom(map.getZoom()) }),
+    setCamera: ({ center, zoom }) => map.setZoomAndCenter(clampZoom(zoom), pair(center), true),
     fit: (points, insets) => {
       let south = 90, north = -90, west = 180, east = -180;
       for (const { lat, lng } of points) {
@@ -166,8 +182,9 @@ function amapEngine(api: AMap, host: HTMLDivElement, events: EngineEvents, satel
         east = Math.max(east, lng);
       }
       map.setBounds(new api.Bounds([west, south], [east, north]), true, [insets.top, insets.right, insets.bottom, insets.left]);
+      map.setZoom(clampZoom(map.getZoom()));
     },
-    zoomBy: (delta) => map.setZoom(map.getZoom() + delta),
+    zoomBy: (delta) => map.setZoom(clampZoom(map.getZoom() + delta)),
     panBy: (x, y) => map.panBy(-x, -y),
     resize: () => map.resize?.(),
     setDraggable: (enabled) => map.setStatus({ dragEnable: enabled, touchZoom: enabled }),
@@ -194,6 +211,8 @@ type BaiduMap = {
   getCenter(): Geo;
   getZoom(): number;
   setZoom(zoom: number): void;
+  setMinZoom?(zoom: number): void;
+  setMaxZoom?(zoom: number): void;
   setViewport(points: Geo[], options: object): void;
   panBy(x: number, y: number, options?: object): void;
   enableDragging(): void;
@@ -215,11 +234,16 @@ type Baidu = {
   };
 };
 
-function baiduEngine(api: Baidu, host: HTMLDivElement, events: EngineEvents, mapType: unknown): MapEngine {
-  const map = new api.Map(host, { mapType, enableMapClick: false });
+function baiduEngine(
+  api: Baidu, host: HTMLDivElement, events: EngineEvents, mapType: unknown, limits: ZoomLimits,
+): MapEngine {
+  const clampZoom = (zoom: number) => clampCameraZoom(zoom, limits);
+  const map = new api.Map(host, { mapType, enableMapClick: false, minZoom: limits.min, maxZoom: limits.max });
   const native = (p: Geo) => new api.Point(p.lng, p.lat);
   const read = (p: Geo) => position(p.lat, p.lng);
-  map.centerAndZoom(native(INITIAL.center), 3);
+  map.setMinZoom?.(limits.min);
+  map.setMaxZoom?.(limits.max);
+  map.centerAndZoom(native(INITIAL.center), clampZoom(3));
   map.enableScrollWheelZoom();
   map.disableKeyboard?.();
   map.disableRotate?.();
@@ -235,11 +259,17 @@ function baiduEngine(api: Baidu, host: HTMLDivElement, events: EngineEvents, map
   return {
     project: (p) => map.pointToPixel(native(p)),
     unproject: (p) => read(map.pixelToPoint(new api.Pixel(p.x, p.y))),
-    getCamera: () => ({ center: read(map.getCenter()) ?? INITIAL.center, zoom: map.getZoom() }),
-    setCamera: ({ center, zoom }) => map.centerAndZoom(native(center), zoom),
-    fit: (points, insets) => map.setViewport(points.map(native), { margins: [insets.top, insets.right, insets.bottom, insets.left], enableAnimation: false }),
+    getCamera: () => ({ center: read(map.getCenter()) ?? INITIAL.center, zoom: clampZoom(map.getZoom()) }),
+    setCamera: ({ center, zoom }) => map.centerAndZoom(native(center), clampZoom(zoom)),
+    fit: (points, insets) => {
+      map.setViewport(points.map(native), {
+        margins: [insets.top, insets.right, insets.bottom, insets.left],
+        enableAnimation: false,
+      });
+      map.setZoom(clampZoom(map.getZoom()));
+    },
     panBy: (x, y) => map.panBy(-x, -y, { noAnimation: true }),
-    zoomBy: (delta) => map.setZoom(map.getZoom() + delta),
+    zoomBy: (delta) => map.setZoom(clampZoom(map.getZoom() + delta)),
     resize: events.draw,
     setDraggable: (enabled) => enabled ? map.enableDragging() : map.disableDragging(),
     dispose: () => {
@@ -276,7 +306,10 @@ function watchGoogleAuth(win: Global, onError: Callback) {
 
 export async function createProviderEngine(
   source: Exclude<PanoGeoMapSource, { kind: "xyz" }>,
-  host: HTMLDivElement, events: EngineEvents, signal: AbortSignal,
+  host: HTMLDivElement,
+  events: EngineEvents,
+  signal: AbortSignal,
+  limits: ZoomLimits,
 ): Promise<MapEngine> {
   const win = host.ownerDocument.defaultView as Global;
   const satellite = source.mapType === "satellite";
@@ -291,7 +324,7 @@ export async function createProviderEngine(
         return `https://maps.googleapis.com/maps/api/js?${query}`;
       }, () => !!win.google?.maps.Map);
       signal.throwIfAborted();
-      const engine = googleEngine(win.google!.maps, host, events, satellite);
+      const engine = googleEngine(win.google!.maps, host, events, satellite, limits);
       return { ...engine, dispose: () => { releaseAuth(); engine.dispose(); } };
     } catch (error) {
       releaseAuth();
@@ -306,11 +339,11 @@ export async function createProviderEngine(
     await load(win, "amap", source.apiKey, (cb) =>
       `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(source.apiKey)}&callback=${cb}`, () => !!win.AMap?.Map);
     signal.throwIfAborted();
-    return amapEngine(win.AMap!, host, events, satellite);
+    return amapEngine(win.AMap!, host, events, satellite, limits);
   }
   if (!source.ak) throw new Error("Missing Baidu Maps browser key");
   await load(win, "baidu", source.ak, (cb) =>
     `https://api.map.baidu.com/api?v=4.0&ak=${encodeURIComponent(source.ak)}&callback=${cb}`, () => !!win.BMap?.Map);
   signal.throwIfAborted();
-  return baiduEngine(win.BMap!, host, events, satellite ? win.BMAP_SATELLITE_MAP : win.BMAP_NORMAL_MAP);
+  return baiduEngine(win.BMap!, host, events, satellite ? win.BMAP_SATELLITE_MAP : win.BMAP_NORMAL_MAP, limits);
 }

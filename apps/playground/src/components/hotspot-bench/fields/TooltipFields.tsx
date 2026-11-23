@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import {
   DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
   type HotspotTooltipAppearance,
@@ -77,6 +78,7 @@ export function TooltipFields({
     tooltipAppearance?: HotspotTooltipAppearance;
   }) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const appearance = resolveAppearance(tooltipAppearance);
   const backgroundColor = parseCssColor(appearance.background);
   const backgroundHex = backgroundColor
@@ -98,19 +100,19 @@ export function TooltipFields({
   return (
     <>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Tooltip mode</span>
+        <span className={fieldLabelClassName}>{t("Tooltip mode")}</span>
         <select className={fieldInputClassName} value={tooltipMode} onChange={event => onChange({ tooltipMode: event.currentTarget.value as "billboard" | "surface" })}>
-          <option value="billboard">Float facing viewer</option><option value="surface">Attach to panorama</option>
+          <option value="billboard">{t("Float facing viewer")}</option><option value="surface">{t("Attach to panorama")}</option>
         </select>
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Tooltip size on zoom</span>
+        <span className={fieldLabelClassName}>{t("Tooltip size on zoom")}</span>
         <select className={fieldInputClassName} disabled={tooltipMode === "surface"} value={tooltipMode === "surface" ? "fov" : tooltipScaleMode} onChange={event => onChange({ tooltipScaleMode: event.currentTarget.value as "inherit" | "fov" | "fixed" })}>
-          <option value="inherit">Follow hotspot</option><option value="fov">Follow FOV</option><option value="fixed">Keep screen size</option>
+          <option value="inherit">{t("Follow hotspot")}</option><option value="fov">{t("Follow FOV")}</option><option value="fixed">{t("Keep screen size")}</option>
         </select>
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Tooltip text</span>
+        <span className={fieldLabelClassName}>{t("Tooltip text")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) =>
@@ -123,7 +125,7 @@ export function TooltipFields({
       </label>
       <div className={fieldGridClassName}>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Tooltip trigger</span>
+          <span className={fieldLabelClassName}>{t("Tooltip trigger")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -135,13 +137,13 @@ export function TooltipFields({
           >
             {(Object.keys(TOOLTIP_TRIGGER_LABELS) as HotspotTooltipTrigger[]).map((trigger) => (
               <option key={trigger} value={trigger}>
-                {TOOLTIP_TRIGGER_LABELS[trigger]}
+                {t(TOOLTIP_TRIGGER_LABELS[trigger])}
               </option>
             ))}
           </select>
         </label>
         <label className={fieldClassName}>
-          <span className={fieldLabelClassName}>Tooltip placement</span>
+          <span className={fieldLabelClassName}>{t("Tooltip placement")}</span>
           <select
             className={fieldInputClassName}
             onChange={(event) =>
@@ -154,7 +156,7 @@ export function TooltipFields({
             {(Object.keys(TOOLTIP_PLACEMENT_LABELS) as HotspotTooltipPlacement[]).map(
               (placement) => (
                 <option key={placement} value={placement}>
-                  {TOOLTIP_PLACEMENT_LABELS[placement]}
+                  {t(TOOLTIP_PLACEMENT_LABELS[placement])}
                 </option>
               ),
             )}
@@ -162,7 +164,7 @@ export function TooltipFields({
         </label>
       </div>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Tooltip gap (px)</span>
+        <span className={fieldLabelClassName}>{t("Tooltip gap (px)")}</span>
         <input
           className={fieldInputClassName}
           min="0"
@@ -178,12 +180,10 @@ export function TooltipFields({
       </label>
 
       <div className="col-span-full grid gap-2.5 border-t border-[#27454d] pt-[11px]">
-        <p className="text-[0.67rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-          Tooltip appearance
-        </p>
+        <p className="text-[0.67rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Tooltip appearance")}</p>
         <div className={fieldGridClassName}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Background</span>
+            <span className={fieldLabelClassName}>{t("Background")}</span>
             <input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
               onChange={(event) => {
@@ -202,9 +202,7 @@ export function TooltipFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={`${fieldLabelClassName} flex justify-between`}>
-              Background opacity
-              <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+            <span className={`${fieldLabelClassName} flex justify-between`}>{t("Background opacity")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
                 {Math.round(backgroundOpacity * 100)}%
               </b>
             </span>
@@ -233,7 +231,7 @@ export function TooltipFields({
           </label>
         </div>
         <label className={fieldWideClassName}>
-          <span className={fieldLabelClassName}>Text color</span>
+          <span className={fieldLabelClassName}>{t("Text color")}</span>
           <input
             className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
             onChange={(event) =>
@@ -249,7 +247,7 @@ export function TooltipFields({
         </label>
         <div className={fieldGridClassName}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Border color</span>
+            <span className={fieldLabelClassName}>{t("Border color")}</span>
             <input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
               onChange={(event) => {
@@ -270,7 +268,7 @@ export function TooltipFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Border width (px)</span>
+            <span className={fieldLabelClassName}>{t("Border width (px)")}</span>
             <input
               className={fieldInputClassName}
               min="0"
@@ -292,7 +290,7 @@ export function TooltipFields({
         </div>
         <div className={fieldGridClassName}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Radius (px)</span>
+            <span className={fieldLabelClassName}>{t("Radius (px)")}</span>
             <input
               className={fieldInputClassName}
               min="0"
@@ -309,7 +307,7 @@ export function TooltipFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Padding (px)</span>
+            <span className={fieldLabelClassName}>{t("Padding (px)")}</span>
             <input
               className={fieldInputClassName}
               min="0"
@@ -328,7 +326,7 @@ export function TooltipFields({
         </div>
         <div className={fieldGridClassName}>
           <label className={fieldClassName}>
-            <span className={fieldLabelClassName}>Shadow color</span>
+            <span className={fieldLabelClassName}>{t("Shadow color")}</span>
             <input
               className="h-[34px] border border-[#38545b] bg-[#08191d] p-[3px]"
               onChange={(event) =>
@@ -343,9 +341,7 @@ export function TooltipFields({
             />
           </label>
           <label className={fieldClassName}>
-            <span className={`${fieldLabelClassName} flex justify-between`}>
-              Shadow blur (px)
-              <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+            <span className={`${fieldLabelClassName} flex justify-between`}>{t("Shadow blur (px)")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
                 {Math.round(shadow.blur)}
               </b>
             </span>

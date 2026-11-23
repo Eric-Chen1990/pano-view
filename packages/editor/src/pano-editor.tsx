@@ -1,4 +1,5 @@
-import { GeoMapInspector } from "./geo-map-panels";
+import { GeoMapInspector, GeoMapLibrary } from "./geo-map-panels";
+import { basemapBlockReason, basemapSessionFromSources, editorBasemapSource } from "./editor-basemap";
 import { resolveEditorHotspotAsset } from "./hotspot-asset-url";
 import { hotspotAction, setHotspotAction, projectHotspotTriggers, type ProjectHotspotTrigger } from "@ericchen1990/pano-view/data";
 import { customActionIssue, validateCustomActions } from "./custom-actions";
@@ -13,6 +14,22 @@ import {
   type EditorDialogState as Dialog,
 } from "./editor-dialog";
 import {
+  IconBack,
+  IconDownload,
+  IconDuplicate,
+  IconEye,
+  IconFullscreen,
+  IconMap,
+  IconMore,
+  IconPlay,
+  IconPopups,
+  IconRedo,
+  IconScenes,
+  IconTrash,
+  IconUndo,
+} from "./icons";
+import { PanelSplitter } from "./panel-splitter";
+import {
   useEffect,
   useId,
   useMemo,
@@ -24,9 +41,11 @@ import {
 } from "react";
 import {
   parsePanoProject,
+  toSourcePanoPosition,
   type PanoProjectDefinition,
   type PanoGeoMapDefinition,
   type PanoGeoMapEdit,
+  type PanoGeoMapSource,
   type PanoProjectSceneDefinition,
   type ProjectHotspotDefinition,
   type HotspotPosition,
@@ -102,6 +121,7 @@ export function PanoEditor(props: PanoEditorProps) {
   const localSession = Boolean(local || directories.length);
   const localMediaEnabled = localSession || !hostManaged;
   const [preview, setPreview] = useState(false);
+  const [horizonSceneId, setHorizonSceneId] = useState<string>();
   const [sidebarMode, setSidebarMode] = useState<"scenes" | "popups" | "map">("scenes");
   const [selectedPopupId, setSelectedPopupId] = useState<string>();
   const selectedPopup = project.popups?.find((popup) => popup.id === selectedPopupId);
@@ -109,6 +129,14 @@ export function PanoEditor(props: PanoEditorProps) {
   const [mapKind, setMapKind] = useState<"image" | "online">("image");
   const [geoSpotId, setGeoSpotId] = useState<string>();
   const [geoPlacement, setGeoPlacement] = useState<{ sceneId: string } | { spotId: string }>();
+  const [geoSource, setGeoSource] = useState<PanoGeoMapSource>();
+  const [basemapSession, setBasemapSession] = useState(() => basemapSessionFromSources(props.geoMapSources));
+  const [appliedBasemap, setAppliedBasemap] = useState(basemapSession);
+  const editorBasemap = editorBasemapSource(appliedBasemap);
+  const changeBasemap = (next: typeof basemapSession, apply?: boolean) => {
+    setBasemapSession(next);
+    if (apply) setAppliedBasemap(next);
+  };
   const geoSpot = project.geoMap?.spots.find((spot) => spot.id === geoSpotId);
   const geoIconInput = useRef<HTMLInputElement>(null);
   const geoIconTarget = useRef<string | undefined>(undefined);
@@ -139,6 +167,10 @@ export function PanoEditor(props: PanoEditorProps) {
   const importRef = useRef<HTMLInputElement>(null);
   const viewerRef = useRef<PanoViewerHandle>(null);
   const inspectorRef = useRef<HTMLElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const [libraryWidth, setLibraryWidth] = useState(252);
+  const [inspectorWidth, setInspectorWidth] = useState(286);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [task] = useState(() => new ImportTask());
   const alive = useRef(true);
   const generation = useRef(0);
@@ -202,6 +234,14 @@ export function PanoEditor(props: PanoEditorProps) {
       ?.focus();
     return () => focusBeforeDialog.current?.focus();
   }, [dialog?.kind]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [moreOpen]);
 
   function publish(next: PanoProjectDefinition) {
     const checked = readDocument(next);
@@ -610,19 +650,30 @@ export function PanoEditor(props: PanoEditorProps) {
           publish(next);
           if (active?.id === dialog.id)
             navigate(next.initialSceneId ?? next.scenes[0]?.id ?? "");
-        } else {
+        } else if (dialog.target === "hotspot") {
           updateScene(dialog.sceneId, (scene) => ({
             ...scene,
             hotspots: scene.hotspots?.filter((hotspot) => hotspot.id !== dialog.id),
           }));
           if (active?.id === dialog.sceneId && selectedId === dialog.id)
             setSelectedId(undefined);
+        } else if (dialog.target === "map") {
+          const next = { ...history.current };
+          delete next.map;
+          publish(next);
+          setSelectedMapSpotId(undefined);
+        } else {
+          const next = { ...history.current };
+          delete next.geoMap;
+          publish(next);
+          setGeoSpotId(undefined);
+          setGeoPlacement(undefined);
         }
         requestAnimationFrame(() => {
           const root = rootRef.current;
           const target = root?.querySelector<HTMLElement>(
             dialog.target === "scene" ? ".pne-scene[aria-pressed='true']" : ".pne-add-hotspot",
-          ) ?? root?.querySelector<HTMLElement>(".pne-add-scene button") ?? root;
+          ) ?? root?.querySelector<HTMLElement>(".pne-icon-rail button") ?? root;
           target?.focus();
         });
       }
@@ -764,7 +815,14 @@ export function PanoEditor(props: PanoEditorProps) {
       }] });
       selectGeoSpot(id);
     } else {
-      if (!map.spots.some((spot) => spot.id === edit.spotId)) return;
+      const target = map.spots.find((spot) => spot.id === edit.spotId);
+      if (!target) return;
+      if (edit.type === "heading" && history.current.scenes.some((scene) => scene.id === target.sceneId && scene.northYaw !== undefined)) {
+        end();
+        updateScene(target.sceneId, (scene) => ({ ...scene, northYaw: -edit.heading }));
+        setGeoPlacement(undefined);
+        return;
+      }
       changeGeoMap({ ...map, spots: map.spots.map((spot) => spot.id !== edit.spotId ? spot
         : edit.type === "heading" ? { ...spot, heading: edit.heading }
         : { ...spot, positions: { ...spot.positions, [edit.coordinateSystem]: edit.position } }) });
@@ -1041,6 +1099,12 @@ export function PanoEditor(props: PanoEditorProps) {
   }
   function keyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.defaultPrevented || (event.target as HTMLElement).closest("[data-pano-dialog]")) return;
+    if (moreOpen && event.key === "Escape") {
+      setMoreOpen(false);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (dialog) {
       if (event.key === "Escape" && !busy) {
         setDialog(undefined);
@@ -1256,72 +1320,117 @@ export function PanoEditor(props: PanoEditorProps) {
           <small>{local?.name ?? "PANO / VIEW"}</small>
         </div>
         <div className="pne-toolbar">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => directoryRef.current?.click()}
-          >
-            {t("Open directory")}
-          </button>
-          {props.onImportPanorama && !localSession ? (
+          <div className="pne-toolbar-group" role="group" aria-label={t("File")}>
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                importTarget.current = undefined;
-                importRef.current?.click();
-              }}
+              onClick={() => directoryRef.current?.click()}
             >
-              {t("Import image")}
+              {t("Open directory")}
             </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={!history.past.length || preview}
-            onClick={() => undo()}
-          >
-            {t("Undo")}
-          </button>
-          <button
-            type="button"
-            disabled={!history.future.length || preview}
-            onClick={() => undo(true)}
-          >
-            {t("Redo")}
-          </button>
-          <button
-            type="button"
-            disabled={!project.scenes.length}
-            aria-pressed={preview}
-            onClick={() => {
-              if (preview) leavePreview(); else enterPreview();
-            }}
-          >
-            {t(preview ? "Edit" : "Preview")}
-          </button>
-          <button type="button" onClick={() => void toggleFullscreen()}>
-            {t(fullscreen ? "Exit fullscreen" : "Fullscreen")}
-          </button>
-          {props.onSave && !localSession ? (
+            {props.onImportPanorama && !localSession ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  importTarget.current = undefined;
+                  importRef.current?.click();
+                }}
+              >
+                {t("Import image")}
+              </button>
+            ) : null}
+          </div>
+          <div className="pne-toolbar-group" role="group" aria-label={t("History")}>
             <button
               type="button"
-              disabled={!project.scenes.length || saving}
-              onClick={() => void save(false)}
+              className="pne-icon-button"
+              disabled={!history.past.length || preview}
+              title={`${t("Undo")} (Ctrl/⌘Z)`}
+              aria-label={t("Undo")}
+              onClick={() => undo()}
             >
-              {t("Save")}
+              <IconUndo />
             </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={!project.scenes.length || saving || Boolean(exportProgress)}
-            title={t("Export configuration only; assets are not included.")}
-            onClick={() => void save(true)}
-          >
-            {t("Export JSON")}
-          </button>
-          <button type="button" className="pne-primary" disabled={!project.scenes.length || saving || Boolean(exportProgress)} onClick={() => void exportPackage()}>
-            {t("Export project package")}
-          </button>
+            <button
+              type="button"
+              className="pne-icon-button"
+              disabled={!history.future.length || preview}
+              title={`${t("Redo")} (Ctrl/⌘⇧Z)`}
+              aria-label={t("Redo")}
+              onClick={() => undo(true)}
+            >
+              <IconRedo />
+            </button>
+          </div>
+          <div className="pne-toolbar-group" role="group" aria-label={t("View")}>
+            <button
+              type="button"
+              className="pne-icon-button"
+              disabled={!project.scenes.length}
+              aria-pressed={preview}
+              title={t(preview ? "Edit" : "Preview")}
+              aria-label={t(preview ? "Edit" : "Preview")}
+              onClick={() => {
+                if (preview) leavePreview(); else enterPreview();
+              }}
+            >
+              <IconEye />
+            </button>
+            <button
+              type="button"
+              className="pne-icon-button"
+              title={t(fullscreen ? "Exit fullscreen" : "Fullscreen")}
+              aria-label={t(fullscreen ? "Exit fullscreen" : "Fullscreen")}
+              onClick={() => void toggleFullscreen()}
+            >
+              <IconFullscreen />
+            </button>
+          </div>
+          <div className="pne-toolbar-group" role="group" aria-label={t("Export")}>
+            {props.onSave && !localSession ? (
+              <button
+                type="button"
+                disabled={!project.scenes.length || saving}
+                onClick={() => void save(false)}
+              >
+                {t("Save")}
+              </button>
+            ) : null}
+            <button type="button" className="pne-primary" disabled={!project.scenes.length || saving || Boolean(exportProgress)} onClick={() => void exportPackage()}>
+              <IconDownload />
+              {t("Export project package")}
+            </button>
+            <div className="pne-more" ref={moreRef}>
+              <button
+                type="button"
+                className="pne-icon-button"
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                title={t("More export options")}
+                aria-label={t("More export options")}
+                onClick={() => setMoreOpen((open) => !open)}
+              >
+                <IconMore />
+              </button>
+              {moreOpen ? (
+                <div className="pne-more-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={!project.scenes.length || saving || Boolean(exportProgress)}
+                    title={t("Export configuration only; assets are not included.")}
+                    onClick={() => {
+                      setMoreOpen(false);
+                      void save(true);
+                    }}
+                  >
+                    {t("Export JSON")}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
       <input
@@ -1406,88 +1515,185 @@ export function PanoEditor(props: PanoEditorProps) {
           </button>
         </div>
       ) : null}
-      <div className={`pne-workspace ${preview ? "pne-preview" : ""}`}>
-        <div className="pne-library-sidebar">
-          {!preview ? <div className="pne-sidebar-tabs" role="group" aria-label={t("Project library")}>
-            <button type="button" aria-pressed={sidebarMode === "scenes"} onClick={() => { end(); setSidebarMode("scenes"); }}>{t("Scenes")}</button>
-            <button type="button" aria-pressed={sidebarMode === "popups"} onClick={() => { end(); setSidebarMode("popups"); }}>{t("Popup content")}</button>
-            <button type="button" aria-pressed={sidebarMode === "map"} onClick={() => { end(); setSidebarMode("map"); setSelectedId(undefined); }}>{t("Map")}</button>
-          </div> : null}
-          {sidebarMode === "map" && !preview ? <div className="pne-sidebar-tabs" role="group" aria-label={t("Map type")}>
-            <button type="button" aria-pressed={mapKind === "image"} onClick={() => { setGeoPlacement(undefined); setMapKind("image"); }}>{t("Floor plan")}</button>
-            <button type="button" aria-pressed={mapKind === "online"} onClick={() => setMapKind("online")}>{t("Online map")}</button>
-          </div> : null}
-          {sidebarMode === "popups" && !preview ? <PopupLibrary project={project} selectedId={selectedPopupId} onSelect={(id) => { end(); setSelectedPopupId(id); }} onAdd={() => createPopup()} onDelete={deletePopup} t={t} /> : sidebarMode === "map" && !preview ? mapKind === "online" ? <div className="pne-fields">
-            {project.geoMap ? <>
-              <strong>{t("Online map")}</strong>
-              <div className="pne-button-grid">
-                <button type="button" onClick={() => { setGeoSpotId(undefined); setGeoPlacement(undefined); }}>{t("New point")}</button>
-                <button type="button" onClick={() => {
-                  begin();
-                  const next = { ...history.current };
-                  delete next.geoMap;
-                  publish(next);
+      <div
+        className={`pne-workspace ${preview ? "pne-preview" : ""}`}
+        style={{
+          ["--pne-library-width" as string]: `${libraryWidth}px`,
+          ["--pne-inspector-width" as string]: `${inspectorWidth}px`,
+        }}
+      >
+        {!preview ? (
+          <nav className="pne-icon-rail" aria-label={t("Project library")}>
+            {([
+              { id: "scenes" as const, label: t("Scenes"), icon: <IconScenes /> },
+              { id: "popups" as const, label: t("Popup content"), icon: <IconPopups /> },
+              { id: "map" as const, label: t("Map"), icon: <IconMap /> },
+            ]).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="pne-icon-button"
+                title={item.label}
+                aria-label={item.label}
+                aria-pressed={sidebarMode === item.id}
+                onClick={() => {
                   end();
+                  setSidebarMode(item.id);
+                  if (item.id === "map") setSelectedId(undefined);
+                }}
+              >
+                {item.icon}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+        <div className="pne-library-sidebar">
+          {sidebarMode === "map" && !preview ? (
+            <div className="pne-segmented" role="group" aria-label={t("Map type")}>
+              <button type="button" aria-pressed={mapKind === "image"} onClick={() => { setGeoPlacement(undefined); setMapKind("image"); }}>{t("Floor plan")}</button>
+              <button type="button" aria-pressed={mapKind === "online"} onClick={() => setMapKind("online")}>{t("Online map")}</button>
+            </div>
+          ) : null}
+          {sidebarMode === "popups" && !preview ? (
+            <PopupLibrary
+              project={project}
+              selectedId={selectedPopupId}
+              onSelect={(id) => { end(); setSelectedPopupId(id); }}
+              onEdit={(id) => {
+                end();
+                setSelectedPopupId(id);
+                requestAnimationFrame(() => {
+                  inspectorRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+                });
+              }}
+              onAdd={() => createPopup()}
+              onDelete={deletePopup}
+              t={t}
+            />
+          ) : sidebarMode === "map" && !preview ? (
+            mapKind === "online" ? (
+              <GeoMapLibrary
+                map={project.geoMap}
+                scenes={project.scenes}
+                selectedId={geoSpot?.id}
+                onSelect={selectGeoSpot}
+                onEdit={(id) => {
+                  selectGeoSpot(id);
+                  requestAnimationFrame(() => {
+                    inspectorRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+                  });
+                }}
+                onDelete={deleteGeoSpot}
+                onAdd={() => {
+                  if (!project.geoMap) {
+                    changeGeoMap({ spots: [] });
+                    return;
+                  }
                   setGeoSpotId(undefined);
                   setGeoPlacement(undefined);
-                }}>{t("Remove online map")}</button>
-              </div>
-              {project.geoMap.spots.map((spot) => <button key={spot.id} type="button"
-                aria-pressed={geoSpot?.id === spot.id} onClick={() => selectGeoSpot(spot.id)}>
-                {spot.label ?? project.scenes.find((scene) => scene.id === spot.sceneId)?.title ?? spot.sceneId}
-              </button>)}
-            </> : <button type="button" onClick={() => changeGeoMap({ spots: [] })}>{t("Add online map")}</button>}
-          </div> : <MapLibrary
-            map={project.map}
-            selectedSpotId={selectedMapSpotId}
-            onSelectMap={() => setSelectedMapSpotId(undefined)}
-            onSelectSpot={(id) => {
-              setSelectedMapSpotId(id);
-              const spot = project.map?.spots.find((entry) => entry.id === id);
-              if (spot) navigate(spot.sceneId);
-            }}
-            onDeleteSpot={deleteMapSpot}
-            onAdd={() => {
-              end();
-              publish({ ...history.current, map: emptyMap() });
-              setPlacementSceneId(active?.id);
-            }}
-            onClear={() => {
-              end();
-              const next = { ...history.current };
-              delete next.map;
-              publish(next);
-              setSelectedMapSpotId(undefined);
-            }}
-            t={t}
-          /> : <SceneSidebar
-          project={project}
-          activeId={active?.id}
-          selectedId={selectedId}
-          preview={preview}
-          busy={busy}
-          t={t}
-          onBegin={begin}
-          onEnd={end}
-          onTitle={(title) => publish({ ...history.current, title })}
-          onNavigate={navigate}
-          onSelectHotspot={selectHotspot}
-          onEditHotspot={editHotspot}
-          onDeleteHotspot={requestDeleteHotspot}
-          onAdd={() => sourceDialog()}
-          onDelete={(id) => {
-            const scene = history.current.scenes.find((item) => item.id === id);
-            if (!scene) return;
-            end();
-            setError("");
-            setDialog({ kind: "delete", target: "scene", id, title: scene.title ?? id, hotspotCount: scene.hotspots?.length ?? 0 });
-          }}
-          onReorder={(id, beforeId) => {
-            end();
-            publish(moveScene(history.current, id, beforeId));
-          }}
-        />}
+                  const scene = active ?? project.scenes[0];
+                  if (scene) setGeoPlacement({ sceneId: scene.id });
+                }}
+                onClear={() => {
+                  end();
+                  setError("");
+                  setDialog({
+                    kind: "delete",
+                    target: "geoMap",
+                    title: t("Online map"),
+                    spotCount: project.geoMap?.spots.length ?? 0,
+                  });
+                }}
+                t={t}
+              />
+            ) : (
+              <MapLibrary
+                map={project.map}
+                project={project}
+                selectedSpotId={selectedMapSpotId}
+                onSelectMap={() => setSelectedMapSpotId(undefined)}
+                onSelectSpot={(id) => {
+                  setSelectedMapSpotId(id);
+                  const spot = project.map?.spots.find((entry) => entry.id === id);
+                  if (spot) navigate(spot.sceneId);
+                }}
+                onEditSpot={(id) => {
+                  setSelectedMapSpotId(id);
+                  const spot = project.map?.spots.find((entry) => entry.id === id);
+                  if (spot) navigate(spot.sceneId);
+                  requestAnimationFrame(() => {
+                    inspectorRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+                  });
+                }}
+                onDeleteSpot={deleteMapSpot}
+                onAdd={() => {
+                  end();
+                  publish({ ...history.current, map: emptyMap() });
+                  setPlacementSceneId(active?.id);
+                }}
+                onAddSpot={() => setPlacementSceneId(active?.id)}
+                onClear={() => {
+                  end();
+                  setError("");
+                  setDialog({
+                    kind: "delete",
+                    target: "map",
+                    title: t("Floor plan"),
+                    spotCount: project.map?.spots.length ?? 0,
+                  });
+                }}
+                t={t}
+              />
+            )
+          ) : (
+            <SceneSidebar
+              project={project}
+              activeId={active?.id}
+              selectedId={selectedId}
+              preview={preview}
+              busy={busy}
+              t={t}
+              onBegin={begin}
+              onEnd={end}
+              onTitle={(title) => publish({ ...history.current, title })}
+              onNavigate={navigate}
+              onSelectHotspot={selectHotspot}
+              onEditHotspot={editHotspot}
+              onDeleteHotspot={requestDeleteHotspot}
+              onEditScene={(id) => {
+                navigate(id);
+                setSelectedId(undefined);
+                requestAnimationFrame(() => {
+                  inspectorRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+                });
+              }}
+              onAdd={() => sourceDialog()}
+              onDelete={(id) => {
+                const scene = history.current.scenes.find((item) => item.id === id);
+                if (!scene) return;
+                end();
+                setError("");
+                setDialog({ kind: "delete", target: "scene", id, title: scene.title ?? id, hotspotCount: scene.hotspots?.length ?? 0 });
+              }}
+              onReorder={(id, beforeId) => {
+                end();
+                publish(moveScene(history.current, id, beforeId));
+              }}
+            />
+          )}
         </div>
+        {!preview ? (
+          <PanelSplitter
+            side="library"
+            value={libraryWidth}
+            defaultValue={252}
+            min={200}
+            max={420}
+            cssVar="--pne-library-width"
+            label={t("Resize library")}
+            onChange={setLibraryWidth}
+          />
+        ) : null}
         <section className="pne-center" aria-label={t("Tour editor")}>
           {!preview && active ? (
             <div className="pne-tools">
@@ -1525,10 +1731,11 @@ export function PanoEditor(props: PanoEditorProps) {
             local={local}
             directories={directories}
             media={media}
-            options={props}
+            options={{ ...props, geoMapSources: editorBasemap ? [editorBasemap] : [] }}
             activeId={active?.id}
             selectedId={selectedId}
             preview={preview}
+            showHorizon={Boolean(active && horizonSceneId === active.id && !preview)}
             draft={draft}
             draftKind={draftKind}
             placing={Boolean(placement)}
@@ -1554,6 +1761,8 @@ export function PanoEditor(props: PanoEditorProps) {
             geoPlacement={geoPlacement}
             onGeoSelect={selectGeoSpot}
             onGeoEdit={editGeoSpot}
+            onGeoSourceChange={setGeoSource}
+            geoMapEmptyLabel={basemapBlockReason(appliedBasemap)}
             selectedMapSpotId={selectedMapSpotId}
             placementSceneId={placementSceneId}
             onSelectedMapSpotIdChange={(id) => setSelectedMapSpotId(id ?? undefined)}
@@ -1593,17 +1802,124 @@ export function PanoEditor(props: PanoEditorProps) {
           </div>
         </section>
         {!preview ? (
+          <PanelSplitter
+            side="inspector"
+            value={inspectorWidth}
+            defaultValue={286}
+            min={240}
+            max={480}
+            cssVar="--pne-inspector-width"
+            label={t("Resize inspector")}
+            onChange={setInspectorWidth}
+          />
+        ) : null}
+        {!preview ? (
           <aside ref={inspectorRef} className="pne-inspector" aria-label={t("Appearance")}>
             <div className="pne-panel-title">
-              {sidebarMode === "map" ? t(mapKind === "online" ? "Online map" : "Floor plan") : sidebarMode === "popups" ? selectedPopup?.title || t("Popup content") : selected
-                ? selected.label || selected.id
-                : (active?.title ?? t("Scene source"))}
+              <span className="pne-inspector-heading">
+                {sidebarMode === "map"
+                  ? t(mapKind === "online" ? "Online map" : "Floor plan")
+                  : sidebarMode === "popups"
+                    ? selectedPopup?.title || t("Popup content")
+                    : selected
+                      ? selected.label || selected.id
+                      : (active?.title ?? t("Scene source"))}
+                {sidebarMode === "scenes" && selected && active ? (
+                  <small>{active.title ?? active.id}</small>
+                ) : null}
+              </span>
+              <span className="pne-library-section-actions">
+                {sidebarMode === "scenes" && selected ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Back to scene")}
+                      aria-label={t("Back to scene")}
+                      onClick={() => setSelectedId(undefined)}
+                    >
+                      <IconBack />
+                    </button>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Test this hotspot")}
+                      aria-label={t("Test this hotspot")}
+                      onClick={() => enterPreview(selected.id)}
+                    >
+                      <IconPlay />
+                    </button>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Duplicate hotspot")}
+                      aria-label={t("Duplicate hotspot")}
+                      onClick={() =>
+                        appendHotspot({
+                          ...structuredClone(selected),
+                          id: newId(),
+                        })
+                      }
+                    >
+                      <IconDuplicate />
+                    </button>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Delete hotspot")}
+                      aria-label={t("Delete hotspot")}
+                      onClick={() => requestDeleteHotspot()}
+                    >
+                      <IconTrash />
+                    </button>
+                  </>
+                ) : null}
+                {sidebarMode === "popups" && selectedPopup ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Duplicate popup")}
+                      aria-label={t("Duplicate popup")}
+                      onClick={() => {
+                        end();
+                        const popup = {
+                          ...structuredClone(selectedPopup),
+                          id: newId(),
+                          title: `${selectedPopup.title} (${t("Copy")})`,
+                          blocks: selectedPopup.blocks.map((block) => ({
+                            ...block,
+                            id: newId(),
+                          })),
+                        };
+                        publish({
+                          ...history.current,
+                          popups: [...(history.current.popups ?? []), popup],
+                        });
+                        setSelectedPopupId(popup.id);
+                      }}
+                    >
+                      <IconDuplicate />
+                    </button>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      title={t("Delete popup")}
+                      aria-label={t("Delete popup")}
+                      onClick={() => deletePopup(selectedPopup.id)}
+                    >
+                      <IconTrash />
+                    </button>
+                  </>
+                ) : null}
+              </span>
             </div>
             {sidebarMode === "map" ? mapKind === "online" ? project.geoMap ? <GeoMapInspector
-              map={project.geoMap} scenes={project.scenes} sources={props.geoMapSources} spot={geoSpot}
-              placement={geoPlacement} onPlacement={setGeoPlacement} onChange={changeGeoMap} onEdit={editGeoSpot}
-              onIcon={() => void pickGeoIcon()} onDelete={deleteGeoSpot} t={t}
-            /> : null : project.map ? <MapInspector
+              map={project.geoMap} scenes={project.scenes} sources={editorBasemap ? [editorBasemap] : []}
+              activeSource={geoSource} basemapSession={basemapSession} onBasemapSession={changeBasemap}
+              spot={geoSpot} placement={geoPlacement} onPlacement={setGeoPlacement} onChange={changeGeoMap}
+              onEdit={editGeoSpot} onIcon={() => void pickGeoIcon()} t={t}
+            /> : <p className="pne-hint">{t("Add an online map from the Map tab.")}</p> : project.map ? <MapInspector
               map={project.map}
               project={project}
               selectedSpotId={selectedMapSpotId}
@@ -1615,78 +1931,46 @@ export function PanoEditor(props: PanoEditorProps) {
               onPickIcon={() => void pickMapAsset("icon")}
               onSelectedSpotIdChange={setSelectedMapSpotId}
               onPlacementSceneIdChange={setPlacementSceneId}
-              onDeleteSpot={deleteMapSpot}
               t={t}
             /> : <p className="pne-hint">{t("Add a floor plan from the Map tab.")}</p> : sidebarMode === "popups" ? selectedPopup ? <PopupInspector
               key={selectedPopup.id} popup={selectedPopup} project={project} onChange={updatePopup}
               onBegin={begin} onEnd={end} onPick={(blockId, field) => void pickPopupAsset(selectedPopup.id, blockId, field)}
-              onDuplicate={() => {
-                end();
-                const popup = { ...structuredClone(selectedPopup), id: newId(), title: `${selectedPopup.title} (${t("Copy")})`, blocks: selectedPopup.blocks.map((block) => ({ ...block, id: newId() })) };
-                publish({ ...history.current, popups: [...history.current.popups ?? [], popup] }); setSelectedPopupId(popup.id);
-              }}
-              onDelete={() => deletePopup(selectedPopup.id)}
               onReference={(sceneId, hotspotId) => { navigate(sceneId); setSelectedId(hotspotId); setSidebarMode("scenes"); }} t={t}
             /> : <p className="pne-hint">{t("Select or create a shared popup.")}</p> : selected ? (
-              <>
-                <div className="pne-inspector-context">
-                  <span>{active?.title ?? active?.id} / {t("Hotspot properties")}</span>
-                  <button
-                    type="button"
-                    className="pne-subtle"
-                    onClick={() => setSelectedId(undefined)}
-                  >
-                    {t("Back to scene")}
-                  </button>
-                </div>
-                <div className="pne-fields pne-button-grid">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      appendHotspot({
-                        ...structuredClone(selected),
-                        id: newId(),
-                      })
-                    }
-                  >
-                    {t("Duplicate hotspot")}
-                  </button>
-                  <button type="button" onClick={() => requestDeleteHotspot()}>
-                    {t("Delete hotspot")}
-                  </button>
-                </div>
-                <p className="pne-edit-hint">{t("Edit properties below. Drag the hotspot or its vertex handles in the panorama to change its position.")}</p>
-                <p className="pne-edit-hint">{t("Editing keeps hotspots selectable and draggable, and pauses media. Use Preview or Test this hotspot to check visitor behavior.")}</p>
-                <HotspotInspector
-                  customActions={props.customActions}
-                  key={selected.id}
-                  hotspot={selected}
-                  scenes={selected.type === "portal" ? project.scenes.filter((scene) => scene.id !== active?.id) : project.scenes}
-                  popups={project.popups}
-                  getView={() => viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 }}
-                  onCreatePopup={(trigger) => createPopup(true, trigger)}
-                  onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
-                  onTest={(trigger) => enterPreview(selected.id, trigger)}
-                  onChange={updateHotspot}
-                  getRectangleCorners={(id) => viewerRef.current?.getHotspotCorners(id) ?? null}
-                  onBegin={begin}
-                  onEnd={end}
-                  onPick={(field) => void pickAsset(field)}
-                  cursorPreviewUrl={cursorPreviewUrl}
-                  resolveMediaUrl={active ? (path) => {
-                    const files = media.find((entry) => entry.containsPath(path))
-                      ?? directories.find((entry) => entry.containsPath(path)) ?? local;
-                    return resolveEditorHotspotAsset(path, {
-                      kind: "hotspot", sceneId: active.id, hotspotId: selected.id,
-                      defaultUrl: new URL(path, projectRoot(props.baseUrl)).href,
-                    }, files, props.resolveAssetUrl);
-                  } : undefined}
-                  getViewPosition={() =>
-                    viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }
-                  }
-                  t={t}
-                />
-              </>
+              <HotspotInspector
+                customActions={props.customActions}
+                key={selected.id}
+                hotspot={selected}
+                scenes={selected.type === "portal" ? project.scenes.filter((scene) => scene.id !== active?.id) : project.scenes}
+                popups={project.popups}
+                getView={() => viewerRef.current?.getView() ?? { yaw: 0, pitch: 0, fov: 75 }}
+                onCreatePopup={(trigger) => createPopup(true, trigger)}
+                onEditPopup={(id) => { end(); setSelectedPopupId(id); setSidebarMode("popups"); }}
+                onTest={(trigger) => enterPreview(selected.id, trigger)}
+                onChange={updateHotspot}
+                getRectangleCorners={(id) => {
+                  const corners = viewerRef.current?.getHotspotCorners(id);
+                  if (!corners) return null;
+                  const toSource = (point: HotspotPosition) => toSourcePanoPosition(point, active?.levelCorrection);
+                  return [toSource(corners[0]), toSource(corners[1]), toSource(corners[2]), toSource(corners[3])];
+                }}
+                onBegin={begin}
+                onEnd={end}
+                onPick={(field) => void pickAsset(field)}
+                cursorPreviewUrl={cursorPreviewUrl}
+                resolveMediaUrl={active ? (path) => {
+                  const files = media.find((entry) => entry.containsPath(path))
+                    ?? directories.find((entry) => entry.containsPath(path)) ?? local;
+                  return resolveEditorHotspotAsset(path, {
+                    kind: "hotspot", sceneId: active.id, hotspotId: selected.id,
+                    defaultUrl: new URL(path, projectRoot(props.baseUrl)).href,
+                  }, files, props.resolveAssetUrl);
+                } : undefined}
+                getViewPosition={() => toSourcePanoPosition(
+                  viewerRef.current?.getView() ?? { yaw: 0, pitch: 0 }, active?.levelCorrection,
+                )}
+                t={t}
+              />
             ) : active ? (
               <SceneSettings
                 key={active.id}
@@ -1697,6 +1981,8 @@ export function PanoEditor(props: PanoEditorProps) {
                 onBegin={begin}
                 onEnd={end}
                 onChange={(scene) => updateScene(active.id, () => scene)}
+                showHorizon={horizonSceneId === active.id}
+                onShowHorizonChange={(show) => setHorizonSceneId(show ? active.id : undefined)}
                 onSetInitial={() =>
                   publish({ ...project, initialSceneId: active.id })
                 }

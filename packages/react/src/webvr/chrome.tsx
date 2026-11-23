@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import {
   useEffect,
   useRef,
@@ -55,11 +56,12 @@ function ChromeButton({
 function formatScreensizeLabel(
   settings: WebVRSettings,
   detectedScreensize: number | null,
+  autoLabel: string,
 ): string {
   if (settings.screensize === "auto") {
     return detectedScreensize === null
-      ? "Auto"
-      : `Auto · ${detectedScreensize.toFixed(1)}`;
+      ? autoLabel
+      : `${autoLabel} · ${detectedScreensize.toFixed(1)}`;
   }
   return settings.screensize.toFixed(1);
 }
@@ -75,6 +77,7 @@ function SetupPanel({
   host: WebVRHost;
   settings: WebVRSettings;
 }) {
+  const t = usePanoUiTranslation();
   const controller = host.controller;
   const { screensizeManaged, profileManaged, profileLabel, screensizeStatus, mode } = host.snapshot;
   const setScreensize = (value: number | "auto") => {
@@ -94,20 +97,20 @@ function SetupPanel({
   };
   return (
     <div
-      aria-label="VR setup"
+      aria-label={t("VR setup")}
       className="pano-webvr-setup"
       role="dialog"
       style={panelStyle}
     >
       <h2 className="pano-webvr-setup-title">
-        {appearance.setupTitle ?? "VR Setup"}
+        {appearance.setupTitle ?? t("VR Setup")}
       </h2>
       <label className="pano-webvr-setup-field">
-        Screen size (inch)
+        {t("Screen size (inch)")}
         <div className="pano-webvr-setup-row">
           <button
             disabled={screensizeManaged}
-            aria-label="Decrease screen size"
+            aria-label={t("Decrease screen size")}
             className="pano-webvr-setup-stepper"
             onClick={() =>
               setScreensize(
@@ -121,11 +124,11 @@ function SetupPanel({
             ‹
           </button>
           <strong className="pano-webvr-setup-value">
-            {formatScreensizeLabel(settings, detectedScreensize)}
+            {formatScreensizeLabel(settings, detectedScreensize, t("Auto"))}
           </strong>
           <button
             disabled={screensizeManaged}
-            aria-label="Increase screen size"
+            aria-label={t("Increase screen size")}
             className="pano-webvr-setup-stepper"
             onClick={() =>
               setScreensize(
@@ -141,21 +144,21 @@ function SetupPanel({
         </div>
       </label>
       <p role="status">
-        {settings.screensize !== "auto" ? "Manual screen size" : mode === "fake"
-          ? "Desktop preview · screen size is not automatically detected"
-          : screensizeStatus === "loading" ? "Detecting screen size…"
-          : screensizeStatus === "detected" ? "Estimated screen size · lens preset is selected separately"
-          : "Screen size unknown · set it manually if using a headset"}
+        {settings.screensize !== "auto" ? t("Manual screen size") : mode === "fake"
+          ? t("Desktop preview · screen size is not automatically detected")
+          : screensizeStatus === "loading" ? t("Detecting screen size…")
+          : screensizeStatus === "detected" ? t("Estimated screen size · lens preset is selected separately")
+          : t("Screen size unknown · set it manually if using a headset")}
       </p>
       <button className="pano-webvr-button" type="button" disabled={screensizeManaged || settings.screensize === "auto"} onClick={() => setScreensize("auto")}>
-        {mode === "fake" ? "Use uncalibrated size" : "Auto screen size"}
+        {mode === "fake" ? t("Use uncalibrated size") : t("Auto screen size")}
       </button>
       <fieldset className="pano-webvr-setup-fieldset">
-        <legend className="pano-webvr-setup-legend">VR headset preset</legend>
+        <legend className="pano-webvr-setup-legend">{t("VR headset preset")}</legend>
         <div className="pano-webvr-setup-row">
           <button
             disabled={profileManaged}
-            aria-label="Previous headset preset"
+            aria-label={t("Previous headset preset")}
             className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(-1)}
             type="button"
@@ -167,7 +170,7 @@ function SetupPanel({
           </strong>
           <button
             disabled={profileManaged}
-            aria-label="Next headset preset"
+            aria-label={t("Next headset preset")}
             className="pano-webvr-setup-stepper"
             onClick={() => cycleProfile(1)}
             type="button"
@@ -181,13 +184,13 @@ function SetupPanel({
           appearance={appearance}
           onClick={() => controller?.resetSettings()}
         >
-          Reset
+          {t("Reset")}
         </ChromeButton>
         <ChromeButton
           appearance={appearance}
           onClick={() => controller?.closeSetup()}
         >
-          Close
+          {t("Close")}
         </ChromeButton>
       </div>
     </div>
@@ -205,6 +208,7 @@ function SessionActions({
   mode: NonNullable<WebVRHost["snapshot"]["mode"]>;
   visible: boolean;
 }) {
+  const t = usePanoUiTranslation();
   return (
     <div
       aria-hidden={!visible}
@@ -220,14 +224,14 @@ function SessionActions({
           appearance={appearance}
           onClick={() => host.controller?.openSetup()}
         >
-          VR Setup
+          {t("VR Setup")}
         </ChromeButton>
       ) : null}
       <ChromeButton
         appearance={appearance}
         onClick={() => void host.controller?.exitVR()}
       >
-        Exit VR
+        {t("Exit VR")}
       </ChromeButton>
     </div>
   );
@@ -257,10 +261,11 @@ function RotatePhoneIcon() {
 }
 
 function PortraitPrompt() {
+  const t = usePanoUiTranslation();
   return (
     <div className="pano-webvr-portrait-prompt" role="status">
       <RotatePhoneIcon />
-      <p className="pano-webvr-portrait-text">Rotate your phone to landscape</p>
+      <p className="pano-webvr-portrait-text">{t("Rotate your phone to landscape")}</p>
     </div>
   );
 }
@@ -280,6 +285,7 @@ function useSessionChromeVisibility(
 }
 
 export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
+  const t = usePanoUiTranslation();
   useSyncExternalStore(
     (listener) => subscribeWebVRHost(host, listener),
     () => host.revision,
@@ -349,8 +355,7 @@ export function WebVRChromeBridge({ host }: { host: WebVRHost }) {
       </div>
       {mode === "fake" && chromeVisible ? (
         <p className="pano-webvr-hint" style={{ color: appearance.color }}>
-          Simulated VR Mode · Move the mouse to look around. Right-click to
-          release the mouse; left-click the view to lock it again.
+          {t("Simulated VR Mode · Move the mouse to look around. Right-click to release the mouse; left-click the view to lock it again.")}
         </p>
       ) : null}
       {setupOpen ? (

@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { IframePointerPolicy } from "@ericchen1990/pano-view";
 import type { EditorHotspot } from "../../../types";
 import {
@@ -15,10 +16,11 @@ export function IframeFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "iframe" }>, "id" | "type">>,
   ) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-1.5">
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Document URL</span>
+        <span className={fieldLabelClassName}>{t("Document URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ src: event.currentTarget.value })}
@@ -26,7 +28,7 @@ export function IframeFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Frame title</span>
+        <span className={fieldLabelClassName}>{t("Frame title")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ title: event.currentTarget.value })}
@@ -34,7 +36,7 @@ export function IframeFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Pointer policy</span>
+        <span className={fieldLabelClassName}>{t("Pointer policy")}</span>
         <select
           className={fieldInputClassName}
           onChange={(event) =>
@@ -44,12 +46,12 @@ export function IframeFields({
           }
           value={hotspot.pointerPolicy}
         >
-          <option value="hotspot">Hotspot (drag / click plane)</option>
-          <option value="content">Content (interact with page)</option>
+          <option value="hotspot">{t("Hotspot (drag / click plane)")}</option>
+          <option value="content">{t("Content (interact with page)")}</option>
         </select>
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Sandbox</span>
+        <span className={fieldLabelClassName}>{t("Sandbox")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ sandbox: event.currentTarget.value })}

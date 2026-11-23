@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../i18n/language";
 import { PAGE_META, type PlaygroundPath } from "../page-meta";
 import { PLAYGROUND_ROUTES } from "../routes";
 
@@ -24,16 +25,15 @@ const related: Partial<Record<PlaygroundPath, readonly PlaygroundPath[]>> = {
 };
 
 export function RelatedExamples() {
+  const { t } = usePlaygroundLanguage();
   const paths = related[window.location.pathname as PlaygroundPath];
   if (!paths) return null;
   return (
     <nav
-      aria-label="Related examples"
+      aria-label={t("Related examples")}
       className="mt-8 border-t border-line py-5"
     >
-      <p className="font-mono text-xs uppercase tracking-wide text-accent">
-        Continue learning
-      </p>
+      <p className="font-mono text-xs uppercase tracking-wide text-accent">{t("Continue learning")}</p>
       <div className="grid gap-4 md:grid-cols-3">
         {paths.map((path) => (
           <a
@@ -42,11 +42,11 @@ export function RelatedExamples() {
             className="border border-line p-4 no-underline transition hover:border-accent focus-visible:outline-2 focus-visible:outline-accent"
           >
             <span className="text-sm font-semibold">
-              {PLAYGROUND_ROUTES.find((route) => route.path === path)?.navLabel}{" "}
+              {t(PLAYGROUND_ROUTES.find((route) => route.path === path)?.navLabel ?? path)}{" "}
               →
             </span>
             <p className="mb-0 text-xs leading-6 text-muted-2">
-              {PAGE_META[path].description}
+              {t(PAGE_META[path].description)}
             </p>
           </a>
         ))}

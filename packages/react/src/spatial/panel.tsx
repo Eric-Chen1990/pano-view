@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { getTextureAnisotropy } from "../renderer-capabilities";
 import { resolveSurfaceModelAdapter } from "./model-controls";
 import {
@@ -92,6 +93,7 @@ function makeCanvas() {
 }
 
 function SurfacePanel({ surface }: { surface: SpatialSurface }) {
+  const t = usePanoUiTranslation();
   const host = useContext(SpatialHostContext)!;
   const { camera, gl, invalidate } = useThree();
   const group = useRef<Group>(null);
@@ -741,7 +743,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       ctx.fillRect(0, 100, WIDTH, 170);
       ctx.fillStyle = "#fff";
       ctx.font = "24px sans-serif";
-      ctx.fillText("Exit VR to view this content", 30, 165);
+      ctx.fillText(t("Exit VR to view this content"), 30, 165);
     }
     const rootRect = surface.element.getBoundingClientRect();
     for (const [node, video] of videos.current) {
@@ -850,7 +852,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           ctx.font = "20px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText(
-            node.error ? "Video unavailable" : "Video · Press play to start",
+            node.error ? t("Video unavailable") : t("Video · Press play to start"),
             x + r.width / 2,
             y + r.height / 2,
             Math.max(1, r.width - 24),
@@ -867,7 +869,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           ctx.font = "18px sans-serif";
           ctx.textAlign = "center";
           ctx.fillText(
-            "Playback blocked · Exit VR to allow playback",
+            t("Playback blocked · Exit VR to allow playback"),
             x + r.width / 2,
             y + 28,
             Math.max(1, r.width - 24),

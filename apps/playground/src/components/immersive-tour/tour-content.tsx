@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { HostModelExample } from "../spatial-controls/host-model-example";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -11,6 +12,7 @@ import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
 
 function Story({ image, text }: { image: number; text: string }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <article style={{ display: "grid", gap: 16 }}>
       <img
@@ -40,10 +42,8 @@ function Story({ image, text }: { image: number; text: string }) {
           </p>
         ))}
       </div>
-      <label style={{ display: "grid", gap: 8 }}>
-        Your notes
-        <input
-          placeholder="Keep a note while switching fullscreen"
+      <label style={{ display: "grid", gap: 8 }}>{t("Your notes")}<input
+          placeholder={t("Keep a note while switching fullscreen")}
           style={{
             padding: 8,
             border: "1px solid currentColor",
@@ -57,6 +57,7 @@ function Story({ image, text }: { image: number; text: string }) {
 }
 
 function Movie({ src }: { src: string }) {
+  const { t } = usePlaygroundLanguage();
   const ref = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -67,9 +68,7 @@ function Movie({ src }: { src: string }) {
   }, []);
   if (failed)
     return (
-      <p role="alert">
-        This video could not be loaded. Close and reopen to try again.
-      </p>
+      <p role="alert">{t("This video could not be loaded. Close and reopen to try again.")}</p>
     );
   return (
     <video
@@ -85,8 +84,9 @@ function Movie({ src }: { src: string }) {
 }
 
 function Gallery({ images }: { images: number[] }) {
+  const { t } = usePlaygroundLanguage();
   const [index, setIndex] = useState(0);
-  if (!images.length) return <p>No images available.</p>;
+  if (!images.length) return <p>{t("No images available.")}</p>;
   return (
     <figure style={{ margin: 0 }}>
       <img
@@ -105,18 +105,14 @@ function Gallery({ images }: { images: number[] }) {
         <button
           type="button"
           onClick={() => setIndex((index + images.length - 1) % images.length)}
-        >
-          Previous image
-        </button>
+        >{t("Previous image")}</button>
         <span aria-live="polite">
           {(index % images.length) + 1} / {images.length}
         </span>
         <button
           type="button"
           onClick={() => setIndex((index + 1) % images.length)}
-        >
-          Next image
-        </button>
+        >{t("Next image")}</button>
       </figcaption>
     </figure>
   );
@@ -241,6 +237,7 @@ export const POPUPS_BY_SCENE: Partial<
 
 // The project must contain these hotspot IDs in entrance / hall.
 export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
+  const { t } = usePlaygroundLanguage();
   const [selected, setSelected] = useState<PopupSelection | null>(null);
   const popup = selected
     ? POPUPS_BY_SCENE[selected.sceneId]?.[selected.hotspotId]
@@ -262,7 +259,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
         onActiveSceneIdChange={() => setSelected(null)}
       />
       <PanoOverlay>
-        <PanoDialog
+        <PanoDialog closeLabel={t("Close")}
           open={popup !== undefined}
           onOpenChange={(open) => {
             if (!open) setSelected(null);

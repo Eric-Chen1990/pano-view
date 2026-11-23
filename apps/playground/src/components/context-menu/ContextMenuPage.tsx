@@ -1,8 +1,11 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   PanoEvents,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoViewer,
   type PanoContextMenuAppearance,
   type PanoContextMenuEntry,
@@ -65,61 +68,59 @@ function buildContextMenuSnippet(
   opacity: number,
   borderRadius: number,
 ): string {
-  const appearance = `{
-      background: "#161616",
-      color: "#f4f4f4",
-      border: "1px solid #2e2e2e",
-      borderRadius: ${borderRadius},
-      opacity: ${opacity.toFixed(2)},
-      itemHoverBackground: "#2a2a2a",
-      separatorColor: "#333",
-      iconSize: 16,
-    }`;
-  const customItems = `{
-        id: "copy",
-        label: "Copy yaw / pitch",
-        onSelect: ({ position }) => {
-          void navigator.clipboard.writeText(
-            \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
-          );
-        },
-      },
-      {
-        id: "look-here",
-        label: "Look here",
-        image: "/fixtures/hotspots/signal.svg",
-        onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
-      }`;
-  const entries = mode === "default" ? "" : mode === "append"
-    ? `append: ["separator", ${customItems}],`
-    : `items: ["resetView", "separator", ${customItems}, "separator", "fullscreen"],`;
+  const entries = mode === "default" ? "" : `        ${mode === "append" ? "append" : "items"}: [
+${mode === "presets" ? '          "resetView",\n' : ""}          "separator",
+          {
+            id: "copy",
+            label: "Copy yaw / pitch",
+            onSelect: ({ position }) => {
+              void navigator.clipboard.writeText(
+                \`\${position.yaw.toFixed(2)}, \${position.pitch.toFixed(2)}\`,
+              );
+            },
+          },
+          {
+            id: "look-here",
+            label: "Look here",
+            image: "/fixtures/hotspots/signal.svg",
+            onSelect: ({ position }) => pano.setView({ yaw: position.yaw, pitch: position.pitch }),
+          },
+${mode === "presets" ? '          "separator",\n          "fullscreen",\n' : ""}        ],\n`;
 
-  return `import { PanoViewer, Sphere${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
+  return `import { PanoViewer, Tile${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaContextMenu() {
 ${mode === "default" ? "" : "  const pano = usePanoViewer();\n"}
   return (
     <PanoViewer
-      ${mode === "default" ? "" : "ref={pano.ref}"}
-      contextMenu={{
-        appearance: ${appearance},
-        ${entries}
-      }}
+${mode === "default" ? "" : "      ref={pano.ref}\n"}      contextMenu={{
+        appearance: {
+          background: "#161616",
+          color: "#f4f4f4",
+          border: "1px solid #2e2e2e",
+          borderRadius: ${borderRadius},
+          opacity: ${opacity.toFixed(2)},
+          itemHoverBackground: "#2a2a2a",
+          separatorColor: "#333",
+          iconSize: 16,
+        },
+${entries}      }}
       style={{ height: 540 }}
     >
-      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      ${cubeTileJsx()}
     </PanoViewer>
   );
 }`;
 }
 
 export function ContextMenuPage() {
+  const { t } = usePlaygroundLanguage();
   const pano = usePanoViewer();
   const [mode, setMode] = useState<MenuMode>("default");
   const [opacity, setOpacity] = useState(0.95);
   const [borderRadius, setBorderRadius] = useState(8);
-  const [lastAction, setLastAction] = useState("Right-click the panorama.");
+  const [lastAction, setLastAction] = useState<LocalizedMessage>("Right-click the panorama.");
 
   const appearance = useMemo<PanoContextMenuAppearance>(
     () => ({
@@ -138,21 +139,21 @@ export function ContextMenuPage() {
   const copyItem = useMemo<PanoContextMenuEntry>(
     () => ({
       id: "copy",
-      label: "Copy yaw / pitch",
+      label: t("Copy yaw / pitch"),
       icon: <CopyIcon />,
       onSelect: ({ position }) => {
         const text = `${position.yaw.toFixed(2)}, ${position.pitch.toFixed(2)}`;
         void navigator.clipboard?.writeText(text);
-        setLastAction(`Copied ${text}`);
+        setLastAction(message("Copied {value}", { value: text }));
       },
     }),
-    [],
+    [t],
   );
 
   const lookHereItem = useMemo<PanoContextMenuEntry>(
     () => ({
       id: "look-here",
-      label: "Look here",
+      label: t("Look here"),
       image: "/fixtures/hotspots/signal.svg",
       onSelect: ({ position }) => {
         pano.setView({
@@ -160,11 +161,11 @@ export function ContextMenuPage() {
           pitch: position.pitch,
         });
         setLastAction(
-          `Look at ${position.yaw.toFixed(1)}°, ${position.pitch.toFixed(1)}°`,
+          message("Look at {yaw}°, {pitch}°", { yaw: position.yaw.toFixed(1), pitch: position.pitch.toFixed(1) }),
         );
       },
     }),
-    [],
+    [t],
   );
 
   const contextMenu = useMemo(() => {
@@ -205,15 +206,13 @@ export function ContextMenuPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Context menu bench</p>
-            <h1 className={pageHeadingTitleClassName} id="context-menu-title">
-              Custom right-click menu
-            </h1>
+            <p className={eyebrowClassName}>{t("Context menu bench")}</p>
+            <h1 className={pageHeadingTitleClassName} id="context-menu-title">{t("Custom right-click menu")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>{lastAction}</p>
+          <p className={pageHeadingStatusClassName}>{t(lastAction)}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Menu mode">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -221,9 +220,7 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("default")}
               type="button"
-            >
-              Default
-            </button>
+            >{t("Default")}</button>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -231,9 +228,7 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("append")}
               type="button"
-            >
-              Append custom
-            </button>
+            >{t("Append custom")}</button>
             <button
               className={cn(
                 segmentedButtonClassName,
@@ -241,13 +236,9 @@ export function ContextMenuPage() {
               )}
               onClick={() => setMode("presets")}
               type="button"
-            >
-              Compose presets
-            </button>
+            >{t("Compose presets")}</button>
           </div>
-          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-            Opacity
-            <input
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Opacity")}<input
               className="accent-[#df6b42]"
               max={1}
               min={MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY}
@@ -258,9 +249,7 @@ export function ContextMenuPage() {
             />
             <span className="font-mono text-[0.62rem] text-[#dcecef]">{opacity.toFixed(2)}</span>
           </label>
-          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">
-            Radius
-            <input
+          <label className="grid gap-1.5 text-[0.7rem] uppercase tracking-[0.08em] text-[#88a6ac]">{t("Radius")}<input
               className="accent-[#df6b42]"
               max={20}
               min={0}
@@ -277,7 +266,7 @@ export function ContextMenuPage() {
         <div className="bg-[#020607]">
           <PanoViewer
             ref={pano.ref}
-            aria-label="Panorama context menu demo"
+            aria-label={t("Panorama context menu demo")}
             contextMenu={contextMenu}
             style={{ height: 540 }}
           >
@@ -285,10 +274,7 @@ export function ContextMenuPage() {
               onEnterFullscreen={() => setLastAction("Entered fullscreen")}
               onExitFullscreen={() => setLastAction("Exited fullscreen")}
             />
-            <Sphere
-              src="/fixtures/panorama/panos/1/sphere.webp"
-              previewUrl="preview.webp"
-            />
+            <Tile {...cubeTileProps()} />
           </PanoViewer>
         </div>
         <ExampleCode

@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "./ui-translation";
 import { useSyncExternalStore } from "react";
 import {
   getIphoneLandscapeFullscreenSnapshot,
@@ -56,6 +57,7 @@ export function IphoneLandscapeFullscreenChrome({
 }: {
   webVRHost: WebVRHost;
 }) {
+  const t = usePanoUiTranslation();
   const snapshot = useSyncExternalStore(
     subscribeIphoneLandscapeFullscreen,
     getIphoneLandscapeFullscreenSnapshot,
@@ -81,7 +83,7 @@ export function IphoneLandscapeFullscreenChrome({
     return (
       <div className="pano-webvr-portrait-prompt" role="status">
         <RotatePhoneIcon />
-        <p className="pano-webvr-portrait-text">Rotate your phone to landscape</p>
+        <p className="pano-webvr-portrait-text">{t("Rotate your phone to landscape")}</p>
       </div>
     );
   }
@@ -96,7 +98,7 @@ export function IphoneLandscapeFullscreenChrome({
       className="pano-iphone-fullscreen-swipe-prompt"
       role="status"
     >
-      <p className="pano-iphone-fullscreen-swipe-text">{message}</p>
+      <p className="pano-iphone-fullscreen-swipe-text">{t(message)}</p>
     </div>
   );
 }

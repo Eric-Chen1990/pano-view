@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { Html } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -99,6 +100,7 @@ function Model({
 
 /** An existing host renderer owns its model and viewing state in both modes. */
 export function HostModelExample() {
+  const { t } = usePlaygroundLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const view = useRef({ yaw: 0, pitch: 0, scale: 1 });
@@ -169,7 +171,7 @@ export function HostModelExample() {
         touchAction: "none",
         cursor: "grab",
       }}
-      aria-label="Host model preview. Drag to rotate, scroll to zoom. Arrow keys rotate, plus and minus zoom, Home resets."
+      aria-label={t("Host model preview. Drag to rotate, scroll to zoom. Arrow keys rotate, plus and minus zoom, Home resets.")}
       role="application"
       tabIndex={0}
       onPointerDown={(event) => {

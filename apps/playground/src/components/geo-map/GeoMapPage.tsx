@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { useEffect, useState } from "react";
 import {
   loadPanoProject, PanoGeoMapOverlay, PanoOverlay, PanoViewer, ProjectScenes,
@@ -16,15 +17,17 @@ function snippet(
   controlsLayout: "horizontal" | "vertical",
   markerLabels: "hover" | "always",
 ) {
+  const geoMap = JSON.stringify({ ...GEO_MAP, presentation: { mode: presentation }, controlsLayout }, null, 2)
+    .replace(/\n/g, "\n  ");
   return `import { useState } from "react";
 import { PanoGeoMapOverlay, PanoOverlay, PanoViewer, ProjectScenes } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const sources = [${JSON.stringify(OPEN_STREET_MAP, null, 2)}];
+const sources = ${JSON.stringify([OPEN_STREET_MAP], null, 2)};
 
 export function OnlineMapTour({ project }) {
   const [sceneId, setSceneId] = useState(project.initialSceneId);
-  const geoMap = project.geoMap ?? ${JSON.stringify({ ...GEO_MAP, presentation: { mode: presentation }, controlsLayout }, null, 2)};
+  const geoMap = project.geoMap ?? ${geoMap};
   const sceneTitles = Object.fromEntries(project.scenes.map(({ scene, title }) => [scene.id, title ?? scene.id]));
 
   return (
@@ -41,6 +44,7 @@ export function OnlineMapTour({ project }) {
 }
 
 export function GeoMapPage() {
+  const { t } = usePlaygroundLanguage();
   const [presentation, setPresentation] = useState<"panel" | "dialog">("panel");
   const [controlsLayout, setControlsLayout] = useState<"horizontal" | "vertical">("horizontal");
   const [markerLabels, setMarkerLabels] = useState<"hover" | "always">("hover");
@@ -61,42 +65,39 @@ export function GeoMapPage() {
   return <main className={shellClassName}>
     <SiteHeader />
     <section className={pageSectionClassName}>
-      <h1 className={pageHeadingTitleClassName}>Online scene map</h1>
-      <p className="my-3 text-sm">Choose a map marker to switch scenes. The example uses points near the Golden Gate Bridge in San Francisco.</p>
-      <label className="my-2 flex items-center gap-2">Map presentation
-        <select className="rounded border border-line bg-surface p-1" value={presentation}
+      <h1 className={pageHeadingTitleClassName}>{t("Online scene map")}</h1>
+      <p className="my-3 text-sm">{t("Choose a map marker to switch scenes. The example uses points near the Golden Gate Bridge in San Francisco.")}</p>
+      <label className="my-2 flex items-center gap-2">{t("Map presentation")}<select className="rounded border border-line bg-surface p-1" value={presentation}
           onChange={(event) => setPresentation(event.target.value === "dialog" ? "dialog" : "panel")}>
-          <option value="panel">Panel</option><option value="dialog">Dialog</option>
+          <option value="panel">{t("Panel")}</option><option value="dialog">{t("Dialog")}</option>
         </select>
       </label>
-      <label className="my-2 flex items-center gap-2">Map control layout
-        <select className="rounded border border-line bg-surface p-1" value={controlsLayout}
+      <label className="my-2 flex items-center gap-2">{t("Map control layout")}<select className="rounded border border-line bg-surface p-1" value={controlsLayout}
           onChange={(event) => setControlsLayout(event.target.value === "vertical" ? "vertical" : "horizontal")}>
-          <option value="horizontal">Horizontal</option><option value="vertical">Vertical</option>
+          <option value="horizontal">{t("Horizontal")}</option><option value="vertical">{t("Vertical")}</option>
         </select>
       </label>
-      <label className="my-2 flex items-center gap-2">Marker labels
-        <select className="rounded border border-line bg-surface p-1" value={markerLabels}
+      <label className="my-2 flex items-center gap-2">{t("Marker labels")}<select className="rounded border border-line bg-surface p-1" value={markerLabels}
           onChange={(event) => setMarkerLabels(event.target.value === "always" ? "always" : "hover")}>
-          <option value="hover">Hover</option><option value="always">Always</option>
+          <option value="hover">{t("Hover")}</option><option value="always">{t("Always")}</option>
         </select>
       </label>
       {project ? <PanoViewer style={{ width: "100%", height: 480 }}>
         <ProjectScenes project={project} activeSceneId={sceneId} onActiveSceneIdChange={setSceneId} />
         <PanoOverlay>
-          <PanoGeoMapOverlay geoMap={geoMap} sources={GEO_MAP_SOURCES} activeSceneId={sceneId}
+          <PanoGeoMapOverlay translate={t} geoMap={geoMap} sources={GEO_MAP_SOURCES} activeSceneId={sceneId}
             sceneTitles={Object.fromEntries(project.scenes.map(({ scene, title }) => [scene.id, title ?? scene.id]))}
             markerLabels={markerLabels} onSelectScene={setSceneId} />
         </PanoOverlay>
-      </PanoViewer> : failed ? <p role="alert">Could not load the tour. <button type="button"
-        onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>Retry</button></p>
-        : <p role="status">Loading tour…</p>}
+      </PanoViewer> : failed ? <p role="alert">{t("Could not load the tour.") + " "}<button type="button"
+        onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>{t("Retry")}</button></p>
+        : <p role="status">{t("Loading tour…")}</p>}
       <ExampleCode react={{
         label: "PanoGeoMapOverlay", code: snippet(presentation, controlsLayout, markerLabels),
-        blurb: "Pass a tour from loadPanoProject. sceneTitles labels markers; markerLabels chooses hover or always-visible names.",
+        blurb: t("Pass a tour from loadPanoProject. sceneTitles labels markers; markerLabels chooses hover or always-visible names."),
       }} json={{ format: "project", files: [{
-        label: "Online map configuration", value: geoMap,
-        blurb: "Set the top-level geoMap field of project.json to this object. The spot scene IDs must exist in the project.",
+        label: t("Online map configuration"), value: geoMap,
+        blurb: t("Set the top-level geoMap field of project.json to this object. The spot scene IDs must exist in the project."),
       }] }} />
     </section>
     <SiteFooter label="@ericchen1990/pano-view · online scene map" />

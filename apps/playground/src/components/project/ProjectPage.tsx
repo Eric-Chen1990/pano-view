@@ -1,3 +1,5 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
 import { ProjectPopupDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import { useEffect, useState } from "react";
@@ -87,11 +89,12 @@ export function Tour() {
 }`;
 
 export function ProjectPage() {
+  const { t } = usePlaygroundLanguage();
   const [popup, setPopup] = useState<ProjectPopupDefinition | null>(null);
   const [project, setProject] = useState<LoadedPanoProject>();
   const [error, setError] = useState<string>();
   const [activeSceneId, setActiveSceneId] = useState<string>();
-  const [status, setStatus] = useState("Loading project.json…");
+  const [status, setStatus] = useState<LocalizedMessage>("Loading project.json…");
   useEffect(() => {
     const controller = new AbortController();
     loadPanoProject(projectUrl, {
@@ -120,25 +123,20 @@ export function ProjectPage() {
         className={cn(pageSectionClassName, "mt-8")}
         aria-labelledby="project-title"
       >
-        <h1 className={pageHeadingTitleClassName} id="project-title">
-          Static JSON tour
-        </h1>
-        <p className="my-4 text-sm text-slate-300">
-          One project.json connects two viewer.json files, scene links, labels
-          spatial audio, view actions and shared popup content. No database. This integration demonstrates data-driven navigation and popup requests; use the related examples below to learn individual components.
-        </p>
+        <h1 className={pageHeadingTitleClassName} id="project-title">{t("Static JSON tour")}</h1>
+        <p className="my-4 text-sm text-slate-300">{t("One project.json connects two viewer.json files, scene links, labels spatial audio, view actions and shared popup content. No database. This integration demonstrates data-driven navigation and popup requests; use the related examples below to learn individual components.")}</p>
         <p
           role={error ? "alert" : "status"}
           className="my-4 text-sm text-slate-300"
         >
-          {error ?? status}
+          {t(error ?? status)}
         </p>
         {project ? (
           <>
             <div
               className="mb-4 flex flex-wrap gap-2"
               role="group"
-              aria-label="Project scenes"
+              aria-label={t("Project scenes")}
             >
               {project.scenes.map((entry) => (
                 <button
@@ -163,21 +161,21 @@ export function ProjectPage() {
                 onActiveSceneIdChange={(id) => { setActiveSceneId(id); setPopup(null); }}
                 onPopupRequest={({ popup }) => setPopup(popup)}
                 transition="dissolve"
-                onSceneReady={(id) => setStatus(`Ready: ${id}`)}
+                onSceneReady={(id) => setStatus(message("Ready: {scene}", { scene: id }))}
                 onTransitionError={({ sceneId }) =>
-                  setStatus(`Could not load ${sceneId}`)
+                  setStatus(message("Could not load {name}", { name: sceneId }))
                 }
                 onHotspotClick={({ hotspot }) =>
-                  setStatus(`Clicked: ${hotspot.label ?? hotspot.id}`)
+                  setStatus(message("Clicked: {label}", { label: hotspot.label ?? hotspot.id }))
                 }
                 onHotspotError={({ hotspot }) =>
                   setStatus(
-                    `Could not play or load ${hotspot.label ?? hotspot.id}`
+                    message("Could not play or load {label}", { label: hotspot.label ?? hotspot.id })
                   )
                 }
               />
               <PanoOverlay>
-                <ProjectPopupDialog popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
+                <ProjectPopupDialog closeLabel={t("Close")} popup={popup} onOpenChange={(open) => { if (!open) setPopup(null); }} />
               </PanoOverlay>
             </PanoViewer>
           </>
@@ -185,11 +183,11 @@ export function ProjectPage() {
         <ExampleCode
           json={{ format: "project", files: [{
             label: "project.json",
-            blurb: "Open the source in its demo directory to preserve its relative viewer and media URLs.",
+            blurb: t("Open the source in its demo directory to preserve its relative viewer and media URLs."),
             url: projectUrl,
           }] }}
           react={{
-            blurb: "loadPanoProject resolves viewer.json and hotspot assets. ProjectScenes drives navigation; onPopupRequest hands shared content to ProjectPopupDialog.",
+            blurb: t("loadPanoProject resolves viewer.json and hotspot assets. ProjectScenes drives navigation; onPopupRequest hands shared content to ProjectPopupDialog."),
             code: PROJECT_SNIPPET,
             label: "loadPanoProject + ProjectScenes",
           }}

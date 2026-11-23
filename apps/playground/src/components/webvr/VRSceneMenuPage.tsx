@@ -1,3 +1,5 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   PanoEvents,
   PanoViewer,
@@ -9,9 +11,9 @@ import {
   type WebVRSceneMenuProps,
   type WebVRSceneMenuAppearance,
   usePanoViewer,
-  type Scene,
 } from "@ericchen1990/pano-view";
 import { useState, useSyncExternalStore } from "react";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import {
   eyebrowClassName,
   pageHeadingStatusClassName,
@@ -24,22 +26,6 @@ import {
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
-
-const TILE_SCENE = {
-  type: "tile" as const,
-  multires: "512,1000,2000",
-  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-  previewUrl: "previews/cube-vertical.webp",
-};
-
-const VR_SCENES = [
-  { id: "tile-1", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/1" },
-  { id: "tile-2", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/2" },
-  { id: "tile-3", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/3" },
-  { id: "tile-4", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/4" },
-] satisfies readonly Scene[];
-
-const INITIAL_SCENE_ID = VR_SCENES[0]!.id;
 
 const MENU_DEFAULTS = {
   layout: "compact" as NonNullable<WebVRSceneMenuProps["layout"]>,
@@ -58,12 +44,13 @@ const MENU_DEFAULTS = {
   showTitles: true,
   showVisited: false,
 };
-const MANY_SCENES: Scene[] = Array.from({ length: 25 }, (_, index) => ({
-  ...VR_SCENES[index % 4]!,
+const MANY_SCENES = Array.from({ length: 25 }, (_, index) => ({
+  ...CUBE_SCENES[index % CUBE_SCENES.length]!,
   id: index < 4 ? `tile-${index + 1}` : `tour-${index + 1}`,
 }));
 
 export function VRSceneMenuPage() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const vr = useSyncExternalStore(
     viewer.subscribeVR,
@@ -74,16 +61,14 @@ export function VRSceneMenuPage() {
   const [appearance, setAppearance] = useState<WebVRSceneMenuAppearance>({});
   const [many, setMany] = useState(false);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const menuScenes = many ? MANY_SCENES : VR_SCENES;
+  const menuScenes = many ? MANY_SCENES : CUBE_SCENES;
   const menuItems = menuScenes.map((scene, index) => ({
     id: scene.id,
     title: titles[scene.id] ?? `Scene ${index + 1}`,
-    thumbnailUrl: `/fixtures/panorama/cube-tiles/${
-      (index % 4) + 1
-    }/previews/200.webp`,
+    thumbnailUrl: `${scene.baseUrl}/previews/200.webp`,
   }));
-  const [status, setStatus] = useState("Detecting VR capabilities…");
-  const [activeSceneId, setActiveSceneId] = useState(INITIAL_SCENE_ID);
+  const [status, setStatus] = useState<LocalizedMessage>("Detecting VR capabilities…");
+  const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const menuProps: WebVRSceneMenuProps = {
     ...settings,
     appearance,
@@ -101,14 +86,10 @@ export function VRSceneMenuPage() {
       <section className={`${pageSectionClassName} mt-6`}>
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Immersive viewer</p>
-            <h1 className={pageHeadingTitleClassName}>VR scene menu</h1>
+            <p className={eyebrowClassName}>{t("Immersive viewer")}</p>
+            <h1 className={pageHeadingTitleClassName}>{t("VR scene menu")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>
-            Configure a spatial scene menu: compare layouts, pagination and
-            appearance. Enter VR, then gaze at the menu button until the reticle
-            fills. Open the advanced settings to customize behavior and titles.
-          </p>
+          <p className={pageHeadingStatusClassName}>{t("Configure a spatial scene menu: compare layouts, pagination and appearance. Enter VR, then gaze at the menu button until the reticle fills. Open the advanced settings to customize behavior and titles.")}</p>
         </div>
         <div className="flex items-center gap-3 border-b border-line px-6 py-4">
           <button
@@ -119,13 +100,12 @@ export function VRSceneMenuPage() {
             }
             type="button"
           >
-            {vr.enabled ? "Exit VR" : "Enter VR"}
+            {vr.enabled ? t("Exit VR") : t("Enter VR")}
           </button>
-          <span className="font-mono text-xs text-muted-2">{status}</span>
-          <span className="font-mono text-xs text-muted-2">
-            Scene: {activeSceneId}
+          <span className="font-mono text-xs text-muted-2">{t(status)}</span>
+          <span className="font-mono text-xs text-muted-2">{t("Scene:") + " "}{activeSceneId}
           </span>
-          <span className="font-mono text-xs text-muted-2">{lastClick}</span>
+          <span className="font-mono text-xs text-muted-2">{t(lastClick)}</span>
         </div>
         <div className="space-y-3 border-b border-line p-6">
           <div className="flex gap-4">
@@ -137,24 +117,19 @@ export function VRSceneMenuPage() {
                 setAppearance({});
                 setTitles({});
               }}
-            >
-              Reset menu settings
-            </button>
+            >{t("Reset menu settings")}</button>
             <label>
               <input
                 type="checkbox"
                 checked={many}
                 onChange={(e) => {
                   setMany(e.target.checked);
-                  setActiveSceneId(INITIAL_SCENE_ID);
+                  setActiveSceneId(INITIAL_CUBE_SCENE_ID);
                 }}
-              />{" "}
-              25 scenes
-            </label>
+              />{" "}{t("25 scenes")}</label>
           </div>
           <div className="flex flex-wrap gap-4">
-            <label>
-              Layout{" "}
+            <label>{t("Layout")}{" "}
               <select
                 value={settings.layout}
                 onChange={(e) =>
@@ -165,13 +140,12 @@ export function VRSceneMenuPage() {
                   }))
                 }
               >
-                <option value="compact">Compact</option>
-                <option value="flat">Flat wall</option>
-                <option value="arc">Arc gallery</option>
+                <option value="compact">{t("Compact")}</option>
+                <option value="flat">{t("Flat wall")}</option>
+                <option value="arc">{t("Arc gallery")}</option>
               </select>
             </label>
-            <label>
-              Display{" "}
+            <label>{t("Display")}{" "}
               <select
                 value={settings.displayMode}
                 onChange={(e) =>
@@ -181,13 +155,13 @@ export function VRSceneMenuPage() {
                   }))
                 }
               >
-                <option value="paged">Paged</option>
-                <option value="all">All scenes</option>
+                <option value="paged">{t("Paged")}</option>
+                <option value="all">{t("All scenes")}</option>
               </select>
             </label>
           </div>
           <details>
-            <summary>Behavior</summary>
+            <summary>{t("Behavior")}</summary>
             <div className="flex flex-wrap gap-4 py-3">
               {(["loop", "closeOnSelect", "follow", "followPitch", "showTitles", "showVisited"] as const).map(
                 (key) => (
@@ -203,12 +177,11 @@ export function VRSceneMenuPage() {
                         }))
                       }
                     />{" "}
-                    {key}
+                    {t(key)}
                   </label>
                 ),
               )}
-              <label>
-                Fade (ms){" "}
+              <label>{t("Fade (ms)")}{" "}
                 <input
                   className="w-20 border p-1"
                   type="number"
@@ -226,10 +199,9 @@ export function VRSceneMenuPage() {
             </div>
           </details>
           <details>
-            <summary>Layout</summary>
+            <summary>{t("Layout")}</summary>
             <div className="flex flex-wrap gap-4 py-3">
-              <label>
-                Arc angle{" "}
+              <label>{t("Arc angle")}{" "}
                 <input
                   type="number"
                   min="60"
@@ -255,7 +227,7 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map(([key, min, max, step]) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-20 border p-1"
                     type="number"
@@ -263,7 +235,7 @@ export function VRSceneMenuPage() {
                     max={max}
                     step={step}
                     value={settings[key] ?? ""}
-                    placeholder="Auto"
+                    placeholder={t("Auto")}
                     disabled={key === "rows" && settings.displayMode === "all"}
                     onChange={(e) =>
                       setSettings((value) => ({
@@ -280,7 +252,7 @@ export function VRSceneMenuPage() {
             </div>
           </details>
           <details>
-            <summary>Appearance and scene titles</summary>
+            <summary>{t("Appearance and scene titles")}</summary>
             <div className="flex flex-wrap gap-4 py-3">
               {(
                 [
@@ -293,11 +265,11 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map((key) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-40 border p-1"
                     value={appearance[key] ?? ""}
-                    placeholder="Default"
+                    placeholder={t("Default")}
                     onChange={(e) =>
                       setAppearance((value) => ({
                         ...value,
@@ -316,7 +288,7 @@ export function VRSceneMenuPage() {
                 ] as const
               ).map(([key, min, max, step]) => (
                 <label key={key}>
-                  {key}{" "}
+                  {t(key)}{" "}
                   <input
                     className="w-20 border p-1"
                     type="number"
@@ -324,7 +296,7 @@ export function VRSceneMenuPage() {
                     max={max}
                     step={step}
                     value={appearance[key] ?? ""}
-                    placeholder="Default"
+                    placeholder={t("Default")}
                     onChange={(e) =>
                       setAppearance((value) => ({
                         ...value,
@@ -337,8 +309,7 @@ export function VRSceneMenuPage() {
                   />
                 </label>
               ))}
-              <label>
-                Title placement{" "}
+              <label>{t("Title placement")}{" "}
                 <select
                   value={appearance.labelPlacement ?? "center"}
                   onChange={(e) =>
@@ -348,12 +319,11 @@ export function VRSceneMenuPage() {
                     }))
                   }
                 >
-                  <option value="center">Center</option>
-                  <option value="bottom">Bottom</option>
+                  <option value="center">{t("Center")}</option>
+                  <option value="bottom">{t("Bottom")}</option>
                 </select>
               </label>
-              <label>
-                Current scene title{" "}
+              <label>{t("Current scene title")}{" "}
                 <input
                   className="border p-1"
                   value={
@@ -388,7 +358,7 @@ export function VRSceneMenuPage() {
                     : "VR permission was denied",
                 )
               }
-              onVREnter={(mode) => setStatus(`Active mode: ${mode}`)}
+              onVREnter={(mode) => setStatus(message("Active mode: {mode}", { mode }))}
               onVRExit={() => setStatus("VR session ended")}
               onVRUnavailable={() => setStatus("VR is unavailable")}
               onVRUnknownDevice={() =>
@@ -435,7 +405,7 @@ export function VRSceneMenuPage() {
         </div>
         <ExampleCode
           react={{
-            blurb: "Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it.",
+            blurb: t("Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it."),
             code: `import { useState } from "react";
 import { PanoViewer, PanoOverlay, PanoSceneMenu, Scenes, WebVR, WebVRSceneMenu, usePanoViewer, type Scene, type WebVRSceneMenuProps } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";

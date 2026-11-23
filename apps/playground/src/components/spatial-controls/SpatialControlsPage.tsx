@@ -1,3 +1,5 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileJsx } from "../../constants";
 import { useState } from "react";
 import { cn } from "../../cn";
 import {
@@ -20,16 +22,16 @@ const examples = [
   { id: "scroll", label: "Scrolling" },
 ] as const;
 
-const sphere = '<Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />';
+const panorama = cubeTileJsx(undefined, "        ");
 const videoUrl = "/fixtures/360video/1/video-1024x512.mp4";
 
 const snippets = {
   "scene-video": {
     hooks: "useState",
-    imports: "Sphere, VideoHotspot, PanoSpatialControls, PanoMediaControls, type PanoMediaController",
+    imports: "Tile, VideoHotspot, PanoSpatialControls, PanoMediaControls, type PanoMediaController",
     state: `  const [controller, setController] = useState<PanoMediaController | null>(null);
   const [playing, setPlaying] = useState(false);`,
-    scene: `${sphere}
+    scene: `${panorama}
         <VideoHotspot ref={setController} id="movie" src="${videoUrl}" position={{ yaw: 0, pitch: 0 }}
           width={28} height={16} playing={playing} onClick={() => setPlaying((value) => !value)}
           onPlaybackStateChange={(state) => setPlaying(state === "playing")} />`,
@@ -46,7 +48,7 @@ const snippets = {
   },
   model: {
     hooks: "useMemo, useState",
-    imports: "Sphere, PanoModelControls",
+    imports: "Tile, PanoModelControls",
     state: `  const [open, setOpen] = useState(false);
   const [angle, setAngle] = useState(0);
   const [scale, setScale] = useState(1);
@@ -55,7 +57,7 @@ const snippets = {
     zoomBy: (factor: number) => setScale((scale) => Math.max(0.5, Math.min(2, scale * factor))),
     resetView: () => { setAngle(0); setScale(1); },
   }), []);`,
-    scene: sphere,
+    scene: panorama,
     controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open model</button>
           <PanoDialog title="Model controls" open={open} onOpenChange={setOpen}>
             <div style={{ width: 100, height: 100, margin: 32, background: "teal",
@@ -65,10 +67,10 @@ const snippets = {
   },
   scroll: {
     hooks: "useRef, useState",
-    imports: "Sphere, PanoScrollControls",
+    imports: "Tile, PanoScrollControls",
     state: `  const [open, setOpen] = useState(false);
   const article = useRef<HTMLDivElement>(null);`,
-    scene: sphere,
+    scene: panorama,
     controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open article</button>
           <PanoDialog title="Scroll controls" open={open} onOpenChange={setOpen}>
             <div ref={article} tabIndex={0} style={{ height: 160, overflow: "auto" }}>
@@ -106,16 +108,17 @@ ${state}
 }
 
 export function SpatialControlsPage() {
+  const { t } = usePlaygroundLanguage();
   const [kind, setKind] = useState<SpatialExampleKind>("scene-video");
   return (
     <ExamplePage
-      title="Spatial controls"
-      description="Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session."
+      title={t("Spatial controls")}
+      description={t("Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session.")}
     >
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Spatial control example"
+        aria-label={t("Spatial control example")}
       >
         {examples.map((example) => (
           <button
@@ -128,40 +131,35 @@ export function SpatialControlsPage() {
             )}
             onClick={() => setKind(example.id)}
           >
-            {example.label}
+            {t(example.label)}
           </button>
         ))}
       </div>
       <SpatialExample key={kind} kind={kind} />
-      <p className="px-6 text-sm text-muted-2">
-        Icon groups appear only in VR. Outside VR, click the scene video or use
-        the 360 player controls; drag the model, scroll to zoom, or focus it and
-        use arrow keys. Open the model/article before entering VR to observe
-        dialog state across entry and exit.
-      </p>
+      <p className="px-6 text-sm text-muted-2">{t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls; drag the model, scroll to zoom, or focus it and use arrow keys. Open the model/article before entering VR to observe dialog state across entry and exit.")}</p>
       <ExampleCode react={{
         label: examples.find(({ id }) => id === kind)!.label,
-        blurb: "Connect the selected target to its controls inside the viewer.",
+        blurb: t("Connect the selected target to its controls inside the viewer."),
         code: spatialSnippet(kind),
       }} />
       <details className="border-t border-line p-5">
-        <summary>Complete spatial controls example</summary>
+        <summary>{t("Complete spatial controls example")}</summary>
         <CodeSnippet
-        label="Spatial controls: complete integration"
-        blurb="The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below."
+        label={t("Spatial controls: complete integration")}
+        blurb={t("The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below.")}
         code={source}
         />
       {kind === "scene-video" || kind === "360-video" ? (
         <CodeSnippet
-          label="Media controllers"
-          blurb="VideoHotspot supplies a controller ref; the 360 player supplies its controller through usePanoViewer. Both feed PanoMediaControls inside PanoSpatialControls."
+          label={t("Media controllers")}
+          blurb={t("VideoHotspot supplies a controller ref; the 360 player supplies its controller through usePanoViewer. Both feed PanoMediaControls inside PanoSpatialControls.")}
           code={mediaSource}
         />
       ) : null}
       {kind === "model" ? (
         <CodeSnippet
-          label="Host model adapter"
-          blurb="The host owns model view state. usePanoSpatialControls connects rotation, zoom and reset to the VR control adapter."
+          label={t("Host model adapter")}
+          blurb={t("The host owns model view state. usePanoSpatialControls connects rotation, zoom and reset to the VR control adapter.")}
           code={modelSource}
         />
       ) : null}

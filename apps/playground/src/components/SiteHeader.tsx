@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../i18n/language";
 import { useEffect, useId, useRef, useState } from "react";
 import { trackCta } from "../analytics";
 import { cn } from "../cn";
@@ -107,10 +108,11 @@ function NpmIcon() {
 }
 
 function ProjectLinks({ className }: { className?: string }) {
+  const { t } = usePlaygroundLanguage();
   return (
-    <nav aria-label="Project links" className={cn("flex shrink-0 gap-1", className)}>
+    <nav aria-label={t("Project links")} className={cn("flex shrink-0 gap-1", className)}>
       <a
-        aria-label="GitHub repository"
+        aria-label={t("GitHub repository")}
         className={externalLinkClassName}
         href={HEADER_LINKS.github}
         onClick={() => trackCta("open_github", HEADER_LINKS.github)}
@@ -123,7 +125,7 @@ function ProjectLinks({ className }: { className?: string }) {
         </span>
       </a>
       <a
-        aria-label="npm package"
+        aria-label={t("npm package")}
         className={externalLinkClassName}
         href={HEADER_LINKS.npm}
         onClick={() => trackCta("open_npm", HEADER_LINKS.npm)}
@@ -140,6 +142,7 @@ function ProjectLinks({ className }: { className?: string }) {
 }
 
 export function SiteHeader() {
+  const { locale, setLocale, t } = usePlaygroundLanguage();
   const activeRoute = matchPlaygroundRoute(window.location.pathname);
   const sections = playgroundNavSections();
   const navId = useId();
@@ -222,9 +225,9 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="relative z-20 flex items-center justify-between gap-3 border-b border-[#244047] pb-[17px]">
+    <header className="relative z-20 flex items-center justify-between gap-2 border-b border-[#244047] pb-[17px]">
       <a
-        aria-label="Pano View home"
+        aria-label={t("Pano View home")}
         className="inline-flex min-h-11 shrink-0 items-center gap-2 text-base font-extrabold tracking-[-0.06em] text-[#f5fbfc] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         href={HOME_ROUTE.path}
       >
@@ -240,7 +243,7 @@ export function SiteHeader() {
         </span>
       </a>
       <nav
-        aria-label="Playground pages"
+        aria-label={t("Playground pages")}
         className="hidden gap-1.5 min-[1280px]:flex"
         ref={desktopNavRef}
       >
@@ -284,14 +287,14 @@ export function SiteHeader() {
               >
                 {isCurrent ? (
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[0.58rem] text-[#769198]">{section.label}</span>
+                    <span className="text-[0.58rem] text-[#769198]">{t(section.label)}</span>
                     <span aria-hidden className="text-[#df6b42]">
                       /
                     </span>
-                    <span>{activeRoute.navLabel}</span>
+                    <span>{t(activeRoute.navLabel)}</span>
                   </span>
                 ) : (
-                  section.label
+                  t(section.label)
                 )}
                 <ChevronIcon open={open} />
               </button>
@@ -336,7 +339,7 @@ export function SiteHeader() {
                       id={`${panelId}-link-${routeIndex}`}
                       key={route.path}
                     >
-                      {route.navLabel}
+                      {t(route.navLabel)}
                     </a>
                   ))}
                 </div>
@@ -345,17 +348,27 @@ export function SiteHeader() {
           );
         })}
       </nav>
-      <ProjectLinks className="ml-auto" />
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <ProjectLinks className="max-[380px]:hidden" />
+        <button
+          type="button"
+          aria-label={locale === "en" ? "Switch to Simplified Chinese" : "切换到英文"}
+          className="h-9 border border-[#3e6c73] bg-canvas-2 px-2 text-xs text-ink transition hover:border-[#75cbd3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          onClick={() => setLocale(locale === "en" ? "zh-CN" : "en")}
+        >
+          {locale === "en" ? <span lang="zh-CN">简体中文</span> : <span lang="en">English</span>}
+        </button>
+      </div>
       <details className="group relative min-[1280px]:hidden" ref={detailsRef}>
         <summary
-          aria-label="Open playground pages"
+          aria-label={t("Open playground pages")}
           className="flex size-9 cursor-pointer list-none items-center justify-center border border-[#3e6c73] text-[#dcecef] transition hover:border-[#75cbd3] marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent group-open:border-[#df6b42] [&::-webkit-details-marker]:hidden"
         >
           <MenuIcon />
           <CloseIcon />
         </summary>
         <nav
-          aria-label="Playground pages"
+          aria-label={t("Playground pages")}
           className={cn(
             menuPanelClassName,
             "absolute right-0 mt-1.5 w-60",
@@ -364,7 +377,7 @@ export function SiteHeader() {
           {sections.map((section, index) => (
             <div className={cn(index > 0 && "mt-1 border-t border-[#244047] pt-1")} key={section.id}>
               <p className="px-3 pt-1.5 pb-1 font-mono text-[0.6rem] tracking-[0.08em] text-[#75cbd3] uppercase">
-                {section.label}
+                {t(section.label)}
               </p>
               {section.routes.map((route) => (
                 <a
@@ -376,11 +389,12 @@ export function SiteHeader() {
                   href={route.path}
                   key={route.path}
                 >
-                  {route.navLabel}
+                  {t(route.navLabel)}
                 </a>
               ))}
             </div>
           ))}
+          <ProjectLinks className="mt-1 border-t border-[#244047] px-2 pt-1 min-[380px]:hidden" />
         </nav>
       </details>
     </header>

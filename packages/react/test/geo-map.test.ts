@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parsePanoProject } from "../src/data/project";
 import { parsePanoGeoMap, resolvePanoGeoMapAssets } from "../src/data/geo-map";
-import { canConvert, coordinateSystem } from "../src/geo-map/engine";
+import { canConvert, coordinateSystem, resolveZoomLimits, sourceZoomLimits } from "../src/geo-map/engine";
 
 const ids = new Set(["entrance"]);
 const spot = { id: "door", sceneId: "entrance", positions: { gcj02: { lat: 39.9, lng: 116.4 } }, icon: "door.svg", heading: -15 };
@@ -34,6 +34,53 @@ test("geo map rejects duplicate IDs, missing scenes and invalid coordinates", ()
   assert.throws(() => parsePanoGeoMap({ spots: [{ ...spot, positions: {} }] }, ids), /at least one position/);
   for (const positions of [{ gcj02: { lat: 92, lng: 1 } }, { gcj02: { lat: 20, lng: Infinity } }, { gps: { lat: 2, lng: 1 } }])
     assert.throws(() => parsePanoGeoMap({ spots: [{ ...spot, positions }] }, ids), /valid latitude\/longitude/);
+});
+
+test("geo map accepts and validates zoom range fields", () => {
+  const parsed = parsePanoGeoMap({
+    spots: [spot],
+    minZoom: 3.5,
+    maxZoom: 18,
+    initialZoom: 14,
+  }, ids);
+  assert.deepEqual(
+    { minZoom: parsed?.minZoom, maxZoom: parsed?.maxZoom, initialZoom: parsed?.initialZoom },
+    { minZoom: 3.5, maxZoom: 18, initialZoom: 14 },
+  );
+  assert.throws(
+    () => parsePanoGeoMap({ spots: [spot], minZoom: 20, maxZoom: 10 }, ids),
+    /minZoom/,
+  );
+  assert.throws(
+    () => parsePanoGeoMap({ spots: [spot], minZoom: 5, initialZoom: 3 }, ids),
+    /initialZoom/,
+  );
+  assert.throws(
+    () => parsePanoGeoMap({ spots: [spot], maxZoom: 12, initialZoom: 16 }, ids),
+    /initialZoom/,
+  );
+  assert.throws(() => parsePanoGeoMap({ spots: [spot], minZoom: -1 }, ids), /minZoom/);
+  assert.throws(() => parsePanoGeoMap({ spots: [spot], maxZoom: 25 }, ids), /maxZoom/);
+  assert.throws(() => parsePanoGeoMap({ spots: [spot], initialZoom: Infinity }, ids), /initialZoom/);
+});
+
+test("effective zoom limits intersect project and XYZ basemap ranges", () => {
+  const xyz = {
+    kind: "xyz" as const,
+    id: "tiles",
+    label: "Tiles",
+    urlTemplate: "https://example.test/{z}/{x}/{y}.png",
+    attribution: "Test",
+    minZoom: 4,
+    maxZoom: 16,
+  };
+  assert.deepEqual(sourceZoomLimits(xyz), { min: 4, max: 16 });
+  assert.deepEqual(resolveZoomLimits({}, xyz), { min: 4, max: 16 });
+  assert.deepEqual(resolveZoomLimits({ minZoom: 6, maxZoom: 20 }, xyz), { min: 6, max: 16 });
+  assert.deepEqual(resolveZoomLimits({ minZoom: 2, maxZoom: 12 }, xyz), { min: 4, max: 12 });
+  const google = { kind: "google" as const, id: "g", label: "Google", apiKey: "test" };
+  assert.deepEqual(resolveZoomLimits({ minZoom: 5, maxZoom: 15 }, google), { min: 5, max: 15 });
+  assert.deepEqual(resolveZoomLimits({}, google), { min: 0, max: 24 });
 });
 
 test("providers only attempt supported conversion directions", () => {

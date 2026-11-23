@@ -7,6 +7,8 @@ import type {
 import { Field, setField } from "./fields";
 import { moveScene } from "./document";
 import type { Translate } from "./i18n";
+import { IconChevron, IconDrag, IconEdit, IconTrash } from "./icons";
+import { LibraryRow, LibrarySection } from "./library-list";
 
 export function SceneSidebar({
   project,
@@ -19,6 +21,7 @@ export function SceneSidebar({
   onSelectHotspot,
   onEditHotspot,
   onDeleteHotspot,
+  onEditScene,
   onAdd,
   onDelete,
   onReorder,
@@ -36,6 +39,7 @@ export function SceneSidebar({
   onSelectHotspot: (id: string) => void;
   onEditHotspot: (id: string) => void;
   onDeleteHotspot: (id: string) => void;
+  onEditScene: (id: string) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
   onReorder: (id: string, beforeId?: string) => void;
@@ -115,10 +119,12 @@ export function SceneSidebar({
   }
   return (
     <aside className="pne-sidebar" aria-label={t("Scenes")}>
-      <div className="pne-panel-title">
-        {t("Scenes")}
-        <span>{project.scenes.length}</span>
-      </div>
+      <LibrarySection
+        title={t("Scenes")}
+        count={project.scenes.length}
+        onAdd={preview ? undefined : onAdd}
+        addLabel={t("Add scene")}
+      />
       <div className="pne-fields">
         <Field
           spec={{ name: "title", label: "Project title" }}
@@ -131,13 +137,6 @@ export function SceneSidebar({
           t={t}
         />
       </div>
-      {!preview ? (
-        <div className="pne-add-scene">
-          <button type="button" onClick={onAdd} disabled={busy}>
-            {t("Add scene")}
-          </button>
-        </div>
-      ) : null}
       {!preview ? <>
         <p className="pne-reorder-hint">{t("Drag the handle to reorder scenes.")}</p>
         <p className="pne-sr-only" id={`${listId}-reorder-help`}>{t("Press Space or Enter to pick up a scene, arrow keys to move, and Space or Enter to drop. Escape cancels.")}</p>
@@ -165,6 +164,7 @@ export function SceneSidebar({
                       if (event.button !== 0) return;
                       event.preventDefault();
                       event.currentTarget.focus({ preventScroll: true });
+                      event.currentTarget.focus();
                       event.currentTarget.setPointerCapture(event.pointerId);
                       dragRef.current = { id: scene.id, pointerId: event.pointerId, startY: event.clientY, started: false };
                     }}
@@ -178,9 +178,7 @@ export function SceneSidebar({
                     onLostPointerCapture={() => finishDrag(false)}
                     onKeyDown={(event) => reorderKey(event, scene.id)}
                   >
-                    <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
-                      {[4, 8, 12].map((y) => <g key={y}><circle cx="4" cy={y} r="1" /><circle cx="10" cy={y} r="1" /></g>)}
-                    </svg>
+                    <IconDrag />
                   </button>
                 ) : null}
               <button
@@ -196,20 +194,35 @@ export function SceneSidebar({
                 }}
               >
                 {!preview ? (
-                  <svg className="pne-scene-chevron" data-expanded={expanded} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <path d="m6 3 5 5-5 5" />
-                  </svg>
+                  <IconChevron className="pne-scene-chevron" data-expanded={expanded} />
                 ) : null}
                 <b>{title}</b>
                 <span className="pne-scene-count" aria-label={`${hotspots.length} ${t("Hotspots")}`}>{hotspots.length}</span>
                 {project.initialSceneId === scene.id ? <small title={t("Initial scene")}>★</small> : null}
               </button>
                 {!preview ? (
-                  <button type="button" className="pne-scene-delete" disabled={busy} title={t("Delete scene")} aria-label={`${t("Delete scene")}: ${title}`} onClick={() => onDelete(scene.id)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
-                    </svg>
-                  </button>
+                  <div className="pne-row-actions">
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      disabled={busy}
+                      title={t("Edit scene")}
+                      aria-label={`${t("Edit scene")}: ${title}`}
+                      onClick={() => onEditScene(scene.id)}
+                    >
+                      <IconEdit />
+                    </button>
+                    <button
+                      type="button"
+                      className="pne-icon-button"
+                      disabled={busy}
+                      title={t("Delete scene")}
+                      aria-label={`${t("Delete scene")}: ${title}`}
+                      onClick={() => onDelete(scene.id)}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
                 ) : null}
               </div>
               {expanded ? (
@@ -218,48 +231,21 @@ export function SceneSidebar({
                     {t("Hotspots")} <span>{hotspots.length}</span>
                   </div>
                   {hotspots.length ? (
-                    <ul className="pne-hotspot-list" aria-label={`${t("Hotspots")} · ${title}`}>
+                    <ul className="pne-row-list" aria-label={`${t("Hotspots")} · ${title}`}>
                       {hotspots.map((hotspot) => {
                         const name = hotspot.label || hotspot.id;
                         return (
-                          <li className="pne-hotspot-item" key={hotspot.id} data-selected={selectedId === hotspot.id}>
-                            <button
-                              type="button"
-                              className="pne-hotspot-row"
-                              title={name}
-                              aria-label={`${t("Select hotspot")}: ${name}`}
-                              aria-pressed={selectedId === hotspot.id}
-                              onClick={() => onSelectHotspot(hotspot.id)}
-                            >
-                              <b>{name}</b>
-                              <small>{t(hotspot.type)}</small>
-                            </button>
-                            <div className="pne-hotspot-actions">
-                              <button
-                                type="button"
-                                disabled={busy}
-                                title={t("Edit hotspot")}
-                                aria-label={`${t("Edit hotspot")}: ${name}`}
-                                onClick={() => onEditHotspot(hotspot.id)}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                  <path d="m16 3 5 5-12 12-6 1 1-6Z" />
-                                  <path d="m13 6 5 5" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                title={t("Delete hotspot")}
-                                aria-label={`${t("Delete hotspot")}: ${name}`}
-                                onClick={() => onDeleteHotspot(hotspot.id)}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                  <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
-                                </svg>
-                              </button>
-                            </div>
-                          </li>
+                          <LibraryRow
+                            key={hotspot.id}
+                            selected={selectedId === hotspot.id}
+                            label={name}
+                            detail={t(hotspot.type)}
+                            onSelect={() => onSelectHotspot(hotspot.id)}
+                            onEdit={() => onEditHotspot(hotspot.id)}
+                            editLabel={`${t("Edit hotspot")}: ${name}`}
+                            onDelete={() => onDeleteHotspot(hotspot.id)}
+                            deleteLabel={`${t("Delete hotspot")}: ${name}`}
+                          />
                         );
                       })}
                     </ul>
@@ -281,6 +267,8 @@ export function SceneSettings({
   initialSceneId,
   onChange,
   onSetInitial,
+  showHorizon,
+  onShowHorizonChange,
   getView,
   onReplace,
   onImport,
@@ -293,6 +281,8 @@ export function SceneSettings({
   initialSceneId?: string;
   onChange: (scene: PanoProjectSceneDefinition) => void;
   onSetInitial: () => void;
+  showHorizon: boolean;
+  onShowHorizonChange: (show: boolean) => void;
   getView: () => PanoViewerState | undefined;
   onReplace: () => void;
   onImport?: () => void;
@@ -301,6 +291,10 @@ export function SceneSettings({
   onEnd: () => void;
   t: Translate;
 }) {
+  const setCorrection = (axis: "pitch" | "roll", value: number | undefined) => {
+    const levelCorrection = { ...scene.levelCorrection, [axis]: value };
+    onChange({ ...scene, levelCorrection: levelCorrection.pitch || levelCorrection.roll ? levelCorrection : undefined });
+  };
   return (
     <div className="pne-fields">
       <Field
@@ -349,6 +343,58 @@ export function SceneSettings({
             t={t}
           />
         ))}
+      </fieldset>
+      <fieldset>
+        <legend>{t("Virtual north")}</legend>
+        <Field
+          spec={{ name: "northYaw", label: "North yaw (°)", type: "number", disabled: busy }}
+          value={scene.northYaw} onBegin={onBegin} onEnd={onEnd} t={t}
+          onChange={(value) => onChange({ ...scene, northYaw: typeof value === "number" ? value : undefined })}
+        />
+        <div className="pne-button-grid">
+          <button type="button" disabled={busy} onClick={() => {
+            const view = getView();
+            if (view) onChange({ ...scene, northYaw: view.yaw });
+          }}>{t("Set current direction as north")}</button>
+          <button type="button" disabled={busy || scene.northYaw === undefined}
+            onClick={() => onChange({ ...scene, northYaw: undefined })}>{t("Clear north calibration")}</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>{t("Horizon correction")}</legend>
+        <label className="pne-check">
+          <input type="checkbox" checked={showHorizon}
+            onChange={(event) => onShowHorizonChange(event.currentTarget.checked)} />
+          {t("Show horizon guide")}
+        </label>
+        {([
+          { axis: "pitch", limit: 90, label: "Pitch correction (°)" },
+          { axis: "roll", limit: 180, label: "Roll correction (°)" },
+        ] as const).map(({ axis, limit, label }) => (
+          <div key={axis} className="pne-fields">
+            <Field
+              spec={{ name: axis, label, type: "number", defaultValue: 0, disabled: busy, number: { min: -limit, max: limit } }}
+              value={scene.levelCorrection?.[axis]} onBegin={onBegin} onEnd={onEnd} t={t}
+              onChange={(value) => setCorrection(axis, typeof value === "number" ? value : undefined)}
+            />
+            <input type="range" aria-label={t(label)} min={-limit} max={limit} step={0.1} disabled={busy}
+              value={scene.levelCorrection?.[axis] ?? 0}
+              onPointerDown={(event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onBegin();
+              }}
+              onPointerUp={onEnd} onPointerCancel={onEnd} onLostPointerCapture={onEnd}
+              onKeyDown={(event) => {
+                if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) onBegin();
+              }}
+              onKeyUp={onEnd} onBlur={onEnd}
+              onChange={(event) => setCorrection(axis, event.currentTarget.valueAsNumber)}
+            />
+          </div>
+        ))}
+        <button type="button" disabled={busy || !scene.levelCorrection}
+          onClick={() => onChange({ ...scene, levelCorrection: undefined })}>{t("Reset horizon correction")}</button>
       </fieldset>
       <fieldset>
         <legend>{t("View limits")}</legend>

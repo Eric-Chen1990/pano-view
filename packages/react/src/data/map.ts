@@ -71,18 +71,25 @@ export type PanoMapControlsDefinition = {
   zoom?: boolean;
 };
 
+/**
+ * CSS length for map overlay presentation.
+ * A number is CSS pixels. A string like `"40%"` is a percentage of the viewer
+ * container size on that axis.
+ */
+export type PanoMapLength = number | `${number}%`;
+
 export type PanoMapPanelPresentation = {
   mode: "panel";
   anchor?: PanoOverlayAnchor;
-  width?: number;
-  height?: number;
+  width?: PanoMapLength;
+  height?: PanoMapLength;
 };
 
 export type PanoMapDialogPresentation = {
   mode: "dialog";
   anchor?: PanoOverlayAnchor;
-  width?: number;
-  height?: number;
+  width?: PanoMapLength;
+  height?: PanoMapLength;
 };
 
 export type PanoMapPresentation =
@@ -133,6 +140,27 @@ function optionalNumber(
   if (options.exclusiveMax !== undefined && value >= options.exclusiveMax)
     throw new Error(`${key}: expected a number < ${options.exclusiveMax}`);
   return value;
+}
+
+function optionalLength(
+  record: Record<string, unknown>,
+  key: string,
+): PanoMapLength | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value <= 0)
+      throw new Error(`${key}: expected a number > 0`);
+    return value;
+  }
+  if (typeof value !== "string")
+    throw new Error(`${key}: expected a number or percentage string`);
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(value.trim());
+  if (!match) throw new Error(`${key}: expected a percentage like "40%"`);
+  const percent = Number(match[1]);
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100)
+    throw new Error(`${key}: expected a percentage in (0, 100]`);
+  return `${percent}%`;
 }
 
 function requiredNumber(
@@ -242,8 +270,8 @@ export function parseMapPresentation(
     value.anchor === undefined
       ? undefined
       : parseOverlayAnchor(value.anchor, `${field}.anchor`);
-  const width = optionalNumber(value, "width", { exclusiveMin: 0 });
-  const height = optionalNumber(value, "height", { exclusiveMin: 0 });
+  const width = optionalLength(value, "width");
+  const height = optionalLength(value, "height");
   return {
     mode,
     ...(anchor === undefined ? {} : { anchor }),

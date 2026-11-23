@@ -1,3 +1,4 @@
+import { defaultPanoUiTranslate, type PanoUiTranslate } from "../ui-translation";
 import type {
   PanoVideoHlsLevel,
   PanoVideoHlsQuality,
@@ -78,17 +79,18 @@ export function hlsLevelLabels(
 export function hlsQualityMenuItems(
   quality: PanoVideoHlsQuality,
   qualitySwitch?: PanoVideoQualitySwitch,
+  t: PanoUiTranslate = defaultPanoUiTranslate,
 ): HlsQualityMenuItem[] {
   const labels = hlsLevelLabels(quality.levels);
   const pending = pendingLevel(qualitySwitch);
   const selected = pending ?? quality.selectedLevel;
-  const status = qualitySwitch ? videoQualitySwitchStatus(qualitySwitch.state) : undefined;
+  const status = qualitySwitch ? t(videoQualitySwitchStatus(qualitySwitch.state)) : undefined;
   return [
-    { id: "auto", level: "auto" as const, label: "Auto" },
+    { id: "auto", level: "auto" as const, label: t("Auto") },
     ...quality.levels.map((level) => ({
       id: String(level.index),
       level: level.index,
-      label: labels.get(level.index) ?? "Quality",
+      label: labels.get(level.index) ?? t("Quality"),
     })),
   ].map((item) => ({
     id: item.id,
@@ -102,37 +104,37 @@ export function videoQualityButtonLabel({
   variants,
   hlsQuality,
   qualitySwitch,
-}: QualityLabelInput): string {
+}: QualityLabelInput, t: PanoUiTranslate = defaultPanoUiTranslate): string {
   const explicitVariants = variants.length > 1;
   if (explicitVariants) {
     const target = qualitySwitch?.target;
     const id = target && "variantId" in target ? target.variantId : variantId;
-    const name = variants.find((variant) => variant.id === id)?.label ?? "Quality";
-    return withStatus(name, qualitySwitch);
+    const name = variants.find((variant) => variant.id === id)?.label ?? t("Quality");
+    return withStatus(name, qualitySwitch, t);
   }
-  if (!hlsQuality) return "Quality";
+  if (!hlsQuality) return t("Quality");
   const pending = pendingLevel(qualitySwitch);
   const selection = pending ?? hlsQuality.selectedLevel;
   // A switch to Auto has not landed on a rendition yet, so the target name
   // stays "Auto" until the status clears and the current frame can be shown.
   const name = selection === "auto"
-    ? pending === "auto" ? "Auto" : autoQualityLabel(hlsQuality)
-    : hlsLevelLabels(hlsQuality.levels).get(selection) ?? "Quality";
-  return withStatus(name, qualitySwitch);
+    ? pending === "auto" ? t("Auto") : autoQualityLabel(hlsQuality, t("Auto"))
+    : hlsLevelLabels(hlsQuality.levels).get(selection) ?? t("Quality");
+  return withStatus(name, qualitySwitch, t);
 }
 
-function autoQualityLabel(quality: PanoVideoHlsQuality): string {
+function autoQualityLabel(quality: PanoVideoHlsQuality, auto: string): string {
   const decoded = sizeOf(quality.resolution?.width, quality.resolution?.height);
   const active = quality.activeLevel == null
     ? undefined
     : quality.levels.find((level) => level.index === quality.activeLevel);
   const size = decoded ?? (active ? sizeOf(active.width, active.height) : undefined);
-  return size ? `Auto · ${formatVideoQualitySize(size.width, size.height)}` : "Auto";
+  return size ? `${auto} · ${formatVideoQualitySize(size.width, size.height)}` : auto;
 }
 
-function withStatus(label: string, qualitySwitch: PanoVideoQualitySwitch | undefined): string {
+function withStatus(label: string, qualitySwitch: PanoVideoQualitySwitch | undefined, t: PanoUiTranslate): string {
   if (!qualitySwitch) return label;
-  return `${label} · ${videoQualitySwitchStatus(qualitySwitch.state)}`;
+  return `${label} · ${t(videoQualitySwitchStatus(qualitySwitch.state))}`;
 }
 
 function pendingLevel(

@@ -1,9 +1,12 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileProps } from "../../constants";
 import { useState, useSyncExternalStore } from "react";
 import {
   GraphicHotspot,
   PanoEvents,
   PanoViewer,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type WebVRInteractionMode,
@@ -11,13 +14,14 @@ import {
 import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
 
 export function VRBasicsExample() {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const vr = useSyncExternalStore(
     viewer.subscribeVR,
     viewer.getVRState,
     viewer.getVRState,
   );
-  const [status, setStatus] = useState("Detecting VR capabilities…");
+  const [status, setStatus] = useState<LocalizedMessage>("Detecting VR capabilities…");
   const [interactionMode, setInteractionMode] = useState<WebVRInteractionMode>("auto");
   const [count, setCount] = useState(0);
   return (
@@ -35,23 +39,22 @@ export function VRBasicsExample() {
             )
           }
         >
-          {vr.enabled ? "Exit VR" : "Enter VR"}
+          {vr.enabled ? t("Exit VR") : t("Enter VR")}
         </button>
         <span role="status" className="text-sm">
-          {status}
+          {t(status)}
         </span>
-        <label className="text-sm">Interaction <select aria-label="VR interaction mode" value={interactionMode}
+        <label className="text-sm">{t("Interaction") + " "}<select aria-label={t("VR interaction mode")} value={interactionMode}
           onChange={e => setInteractionMode(e.target.value as WebVRInteractionMode)}>
-          <option value="auto">Auto</option><option value="gaze">Gaze</option><option value="pointer">Pointer</option>
+          <option value="auto">{t("Auto")}</option><option value="gaze">{t("Gaze")}</option><option value="pointer">{t("Pointer")}</option>
         </select></label>
-        <span role="status" className="text-sm">Input: {vr.input?.mode ?? "inactive"} · {vr.input?.source ?? "waiting"}</span>
-        <span role="status" className="text-sm">
-          Marker activations: {count}
+        <span role="status" className="text-sm">{t("Input:") + " "}{t(vr.input?.mode ?? "inactive")} · {t(vr.input?.source ?? "waiting")}</span>
+        <span role="status" className="text-sm">{t("Marker activations:") + " "}{count}
         </span>
       </div>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="VR basics viewer"
+        aria-label={t("VR basics viewer")}
         style={{ height: 560 }}
       >
         <PanoEvents
@@ -60,25 +63,22 @@ export function VRBasicsExample() {
           onVRDenied={() =>
             setStatus("VR permission denied; check permissions and retry")
           }
-          onVREnter={(mode) => setStatus(`Active mode: ${mode}`)}
+          onVREnter={(mode) => setStatus(message("Active mode: {mode}", { mode }))}
           onVRExit={() => setStatus("VR session ended")}
           onVRUnknownDevice={() =>
             setStatus("Unknown device — open VR Setup to calibrate")
           }
         />
         <WebVR interactionMode={interactionMode} />
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         <GraphicHotspot
           id="gaze-target"
-          ariaLabel="Activate marker"
+          ariaLabel={t("Activate marker")}
           position={{ yaw: 0, pitch: 0 }}
           graphic={{ kind: "circle", fill: "#df6b42" }}
           width={8}
           height={8}
-          tooltip="Point and select, or look here in gaze mode"
+          tooltip={t("Point and select, or look here in gaze mode")}
           onClick={() => setCount((value) => value + 1)}
         />
       </PanoViewer>

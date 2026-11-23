@@ -1,5 +1,8 @@
 import type { PanoGeoPosition } from "../data/geo-map";
-import { position, type Camera, type EngineEvents, type MapEngine, type PanoGeoMapSource, type Pixel } from "./engine";
+import {
+  clampCameraZoom, position, sourceZoomLimits,
+  type Camera, type EngineEvents, type MapEngine, type PanoGeoMapSource, type Pixel, type ZoomLimits,
+} from "./engine";
 
 const TILE_SIZE = 256;
 const MAX_LATITUDE = 85.05112878;
@@ -30,19 +33,21 @@ function arc(xs: number[]): { start: number; span: number } {
 }
 
 export function createXyzEngine(
-  source: Extract<PanoGeoMapSource, { kind: "xyz" }>, host: HTMLDivElement, events: EngineEvents,
+  source: Extract<PanoGeoMapSource, { kind: "xyz" }>,
+  host: HTMLDivElement,
+  events: EngineEvents,
+  limits: ZoomLimits = sourceZoomLimits(source),
 ): MapEngine {
   if (!["{x}", "{y}", "{z}"].every((token) => source.urlTemplate.includes(token)))
     throw new Error("XYZ tile URL requires {x}, {y}, and {z}");
   if (!["https:", "http:"].includes(new URL(source.urlTemplate, host.ownerDocument.baseURI).protocol))
     throw new Error("XYZ tile URL must use HTTP(S)");
-  const maximum = Number.isFinite(source.maxZoom) ? clamp(Math.floor(source.maxZoom!), 0, 24) : 19;
   type Tile = { image: HTMLImageElement; state: "pending" | "ready" | "error" };
   const tiles = new Map<string, Tile>();
   const pointers = new Map<number, Pixel>();
   const controller = new AbortController();
   const { signal } = controller;
-  let zoom = Math.min(2, maximum);
+  let zoom = clampCameraZoom(2, limits);
   let center = { x: 0.5, y: 0.5 };
   let draggable = true;
   let moved = false;
@@ -111,7 +116,7 @@ export function createXyzEngine(
   const panBy = (x: number, y: number) => setCenter({ x: center.x + x / size(), y: center.y + y / size() });
   const zoomAt = (next: number, anchor: Pixel, destination = anchor) => {
     const fixed = fromPixel(anchor);
-    zoom = clamp(next, 0, maximum);
+    zoom = clampCameraZoom(next, limits);
     const after = fromPixel(destination);
     setCenter({ x: center.x + fixed.x - after.x, y: center.y + fixed.y - after.y });
   };
@@ -169,7 +174,10 @@ export function createXyzEngine(
       return position(geo.lat, geo.lng);
     },
     getCamera: () => ({ center: geographic(center), zoom }),
-    setCamera: (camera: Camera) => { zoom = clamp(camera.zoom, 0, maximum); setCenter(world(camera.center)); },
+    setCamera: (camera: Camera) => {
+      zoom = clampCameraZoom(camera.zoom, limits);
+      setCenter(world(camera.center));
+    },
     fit: (points, insets) => {
       const projected = points.map(world);
       const { start, span } = arc(projected.map(({ x }) => x));
@@ -177,7 +185,7 @@ export function createXyzEngine(
       const south = Math.max(...projected.map(({ y }) => y));
       const scaleX = Math.max(1, host.clientWidth - insets.left - insets.right) / Math.max(span, 1e-10);
       const scaleY = Math.max(1, host.clientHeight - insets.top - insets.bottom) / Math.max(south - north, 1e-10);
-      zoom = clamp(Math.log2(Math.min(scaleX, scaleY) / TILE_SIZE), 0, Math.min(maximum, 17));
+      zoom = clampCameraZoom(Math.min(Math.log2(Math.min(scaleX, scaleY) / TILE_SIZE), 17), limits);
       setCenter({
         x: start + span / 2 + (insets.right - insets.left) / (2 * size()),
         y: (north + south) / 2 + (insets.bottom - insets.top) / (2 * size()),

@@ -1,5 +1,25 @@
 # @ericchen1990/pano-view
 
+## 5.16.0
+
+### Minor Changes
+
+- dd8de87: Support map overlay sizes as CSS pixels or viewer percentages (`"40%"`), and redesign the tour editor library, inspector, and toolbar interactions.
+
+  `presentation.width` / `height` now accept `number | \`${number}%\``. Existing numeric JSON remains valid. TypeScript callers that assumed a bare `number` need a narrow or resolve step. The editor lists use row actions, adds a resizable icon-rail layout, and exposes map size controls for both floor plans and online maps.
+
+- dd8de87: Let online maps define inclusive zoom limits and an initial zoom in `project.json` and the tour editor.
+
+  `geoMap` accepts optional `minZoom`, `maxZoom`, and `initialZoom` (Web Mercator 0–24). XYZ basemaps also accept `minZoom` beside the existing `maxZoom`. The player clamps gestures, fit, and locate to the intersection of project and basemap limits; with `initialZoom`, the first open keeps that zoom instead of auto-fitting spots.
+
+- Calibrate a scene's virtual north and horizon, and keep hotspot anchors in the original image coordinates.
+
+  Set optional `northYaw` to the viewer yaw when looking due north. An online map in the same viewer uses it for the radar bearing. Set optional `levelCorrection` with `pitch` and `roll`, in degrees, to level the panorama. `Scenes`, `ProjectScenes`, `Sphere`, `SphereTile`, and `Tile` apply that rotation. Camera views, view limits, and panorama pointer events stay in leveled viewer coordinates. Convert between image and viewer coordinates with `toLeveledPanoPosition` and `toSourcePanoPosition`. The tour editor saves both fields in `project.json` and ZIP exports, with undo support and a horizon guide.
+
+- Translate built-in viewer controls, and switch the tour editor between English and Simplified Chinese.
+
+  Wrap a viewer with `PanoUiTranslationProvider` and pass `translate(message)`. The function receives the default English text and should return it unchanged when there is no translation. Keep placeholders such as `{viewer}`. `PanoEditor` accepts `locale`: `"en"` (default) or `"zh-CN"`.
+
 ## 5.15.0
 
 ### Minor Changes

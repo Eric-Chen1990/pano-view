@@ -300,7 +300,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 `sector` 可选。`angle` 是开口角度，大于 0 且小于 360。`radius` 单位为 CSS 像素，不随图像缩放。`followFov` 用查看器视场角和地图面板宽高比换算水平视场，代替 `angle`。没有 `gradient` 时，填充为纯色 `color`（默认 `#ffffff`），不透明度为 `opacity`（默认 0.55）。`gradient.type` 为 `"radial"` 或 `"linear"`，至少两个色标。每个色标包含 [0, 1] 的 `offset`、`color`，以及可选 `opacity`。色标不透明度只描述渐隐形状。`sector.opacity` 在纯色和渐变两种模式下都缩放整块填充。`strokeColor`、`strokeWidth`、`strokeOpacity` 在宽度大于 0 时绘制描边，描边宽度保持 CSS 像素。
 
-`presentation.mode` 为 `"panel"`（默认）或 `"dialog"`。两者都接受 `anchor`，以及 `width` 和 `height`。`anchor` 是场景菜单与地图共用的锚定：`align` 为 `top`、`bottom`、`left`、`right` 或四个角之一（默认 `bottom-left`）；`axis` 为 `"horizontal"` 或 `"vertical"`，只在四角生效（默认 `"horizontal"`）；`inset` 可以是数字、CSS 长度字符串，或 `{ top, right, bottom, left }`（默认 `16`）。计算时会加上安全区。面板默认 220×160。对话框模式放置一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。四边在给定主轴尺寸时沿该边居中。四角贴住相邻两边。收起时面板保持尺寸，沿外侧滑出：四边朝该边，四角在水平轴向时朝上或下，垂直轴向时朝左或右。拉手留在该边内侧。
+`presentation.mode` 为 `"panel"`（默认）或 `"dialog"`。两者都接受 `anchor`，以及 `width` 和 `height`。`width` / `height` 可以是 CSS 像素数字，或相对查看器容器的百分比字符串（如 `"40%"`），百分比必须落在 `(0, 100]`。`anchor` 是场景菜单与地图共用的锚定：`align` 为 `top`、`bottom`、`left`、`right` 或四个角之一（默认 `bottom-left`）；`axis` 为 `"horizontal"` 或 `"vertical"`，只在四角生效（默认 `"horizontal"`）；`inset` 可以是数字、CSS 长度字符串，或 `{ top, right, bottom, left }`（默认 `16`）。计算时会加上安全区。面板默认 220×160。对话框模式放置一个打开按钮（未写宽高时为 48×48），并在查看器内部打开同一张地图。选中点位后关闭对话框。地图界面锚定在整个查看器 overlay 上，父页面滚动不会移动或改变它的尺寸。四边在给定主轴尺寸时沿该边居中。四角贴住相邻两边。收起时面板保持尺寸，沿外侧滑出：四边朝该边，四角在水平轴向时朝上或下，垂直轴向时朝左或右。拉手留在该边内侧。
 
 文档保存默认值（`image`、`spots`、`sector`、`presentation`、`interaction`、`maxScale`、`dragMotion`、`controls`、`iconSize`）。挂载 `PanoMapOverlay` 时可用组件 props 覆盖本次展示的尺寸、位置和缩放，不必克隆整份 `map`。优先级为：内置默认值 → 地图文档 → `presentationOverride`（形状与 `map.presentation` 相同）→ 单独 props。点位几何与扇形样式仍写在文档里。`selectedSpotId` / `onSelectedSpotIdChange` 会向下传给内部 `PanoMap`。面板的收起状态由 overlay 内部管理；对话框模式与 `editorSurface` 会强制关掉边缘拉手。直接使用 `PanoMap` 时，`collapsed` 仍只是在宿主框内藏起图面。
 
@@ -343,7 +343,7 @@ export function Tour({ project }: { project: LoadedPanoProject }) {
 
 - `presentation` — `"panel"` | `"dialog"`（默认取自文档，否则为 `"panel"`）。
 - `anchor` — 共用的 `PanoOverlayAnchor`。`align` 是八个位置之一（默认 `"bottom-left"`）。`axis` 用于四角。`inset` 默认 `16`。
-- `width` / `height` — 面板尺寸，或对话框打开按钮尺寸，单位为 CSS 像素。面板默认 220×160；打开按钮默认 48×48。
+- `width` / `height` — 面板尺寸，或对话框打开按钮尺寸，可为 CSS 像素或查看器百分比（如 `"40%"`）。面板默认 220×160；打开按钮默认 48×48。
 
 ```tsx
 <PanoMapOverlay
@@ -847,6 +847,11 @@ import "@ericchen1990/pano-view/styles.css";
 自定义标题栏、内容区和底部操作使用[组成组件](./docs/dialogs.zh-CN.md#compose-a-different-layout)；已有 Dialog 使用本地 Portal 容器与 `usePanoModal(open)` [完成接入](./docs/dialogs.zh-CN.md#use-an-existing-dialog)。全屏功能放在 viewer 全局界面，不放入弹窗内容。
 
 ## PanoViewer
+
+### 翻译内置控件
+
+从 `@ericchen1990/pano-view` 导入 `PanoUiTranslationProvider` 并包裹查看器，即可翻译内置控件的标签。传给 `translate` 的函数接收默认英文文案，返回对应译文。没有译文时返回原文，翻译时保留 `{viewer}` 等占位符。支持自定义标签或 `translate` 属性的控件可直接传入对应值。
+
 
 ### 渲染后端
 
@@ -1752,6 +1757,12 @@ const scenes: Scene[] = [
 - `snapshotMaxPixels` — 旧画面 GPU 快照的最大物理像素面积，默认 `3686400`（约 2560×1440）。
 
 场景对象上的 `viewLimits` 见 FAQ；`yawOffset` 语义与对应源组件相同。`TileScene` 上的单场景缓存字段在共享缓存下会被忽略，见 [Tile](#tile)。
+
+### 场景标定
+
+将场景的 `northYaw` 设为查看器面向正北时的 yaw。同一查看器内的在线地图据此计算雷达方向。通过 `levelCorrection: { pitch: 2.5, roll: -4 }` 旋转全景进行调平，单位为度。两个字段都可选，可写入 `project.json` 或 React 场景定义。
+
+`Scenes.renderHotspots` 和 `ProjectScenes` 的热点锚点使用原始素材坐标。相机视角、观看范围和全景指针事件使用调平后的查看器坐标。可从主入口或 `/data` 导入 `toLeveledPanoPosition` 和 `toSourcePanoPosition` 进行换算。独立使用的 `Sphere`、`SphereTile` 和 `Tile` 也接受 `levelCorrection`。
 
 ## PanoSceneMenu
 

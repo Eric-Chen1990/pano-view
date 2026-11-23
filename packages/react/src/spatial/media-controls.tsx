@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "../ui-translation";
 import { useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { AutomaticControlContext, explicitTargets, PanoMediaControls, subscribeExplicitTargets } from "../controls/components";
@@ -16,6 +17,7 @@ type Entry = {
 };
 
 function VideoControls({ video, controller }: { video: HTMLVideoElement; controller: PanoMediaController }) {
+  const t = usePanoUiTranslation();
   const guarded = useMemo<PanoMediaController>(() => ({
     ...controller,
     play: async () => {
@@ -29,7 +31,7 @@ function VideoControls({ video, controller }: { video: HTMLVideoElement; control
     },
   }), [controller, video]);
   useLayoutEffect(() => () => { spatialVideoPlaybackBlocked.delete(video); }, [video]);
-  return <PanoMediaControls controller={guarded} aria-label="Video controls" />;
+  return <PanoMediaControls controller={guarded} aria-label={t("Video controls")} />;
 }
 
 function UnregisteredVideoControls({ video }: { video: HTMLVideoElement }) {

@@ -95,6 +95,8 @@ test("local package contains every sphere tile and media, preserves metadata, an
       {
         id: "a",
         title: "Room",
+        northYaw: -162.5,
+        levelCorrection: { pitch: -2.25, roll: 6 },
         initialView: { yaw: 1, pitch: 2, fov: 60 },
         source: { viewerUrl: "a/viewer.json" },
         viewLimits: { yaw: { min: 170, max: -170 }, fov: { min: 40, max: 80 } },
@@ -190,6 +192,11 @@ test("local package contains every sphere tile and media, preserves metadata, an
   assert.match(saved.geoMap!.spots[0].icon!, /^assets\/\d+\.svg$/);
   assert.ok(archive[saved.geoMap!.spots[0].icon!]);
   assert.deepEqual(saved.scenes[0]!.viewLimits, project.scenes[0]!.viewLimits);
+  assert.deepEqual(saved.scenes[0]!.levelCorrection, project.scenes[0]!.levelCorrection);
+  assert.equal(saved.scenes[0]!.northYaw, project.scenes[0]!.northYaw);
+  const exported = parsePanoProject(JSON.parse(exportDocument(project)));
+  assert.deepEqual(exported.scenes[0]!.levelCorrection, saved.scenes[0]!.levelCorrection);
+  assert.equal(exported.scenes[0]!.northYaw, saved.scenes[0]!.northYaw);
   assert.equal(saved.initialSceneId, "a");
   assert.deepEqual(
     saved.scenes[0]!.initialView,

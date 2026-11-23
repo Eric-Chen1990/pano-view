@@ -1,3 +1,6 @@
+import { message, type LocalizedMessage } from "../../i18n/locale";
+import { usePlaygroundLanguage } from "../../i18n/language";
+import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
 import {
   AutoRotate,
@@ -5,7 +8,7 @@ import {
   Gyro,
   PanoOverlay,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoOverlay,
   usePanoViewer,
   type GyroHandle,
@@ -19,6 +22,7 @@ import {
 } from "../../ui";
 
 function FullscreenButton({ toggle }: { toggle: () => void }) {
+  const { t } = usePlaygroundLanguage();
   const { isFullscreen } = usePanoOverlay();
   return (
     <button
@@ -26,7 +30,7 @@ function FullscreenButton({ toggle }: { toggle: () => void }) {
       className={`${viewerChromeButtonClassName} absolute right-4 bottom-4 pointer-events-auto`}
       onClick={toggle}
     >
-      {isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+      {isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
     </button>
   );
 }
@@ -37,12 +41,13 @@ export function ControlsExample({ example, onExampleChange }: {
   example: ControlExampleKind;
   onExampleChange: (example: ControlExampleKind) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
   const gyro = useRef<GyroHandle>(null);
   const [autoRotate, setAutoRotate] = useState(false);
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [gyroStatus, setGyroStatus] = useState("Detecting sensor support…");
-  const [status, setStatus] = useState(
+  const [status, setStatus] = useState<LocalizedMessage>(
     "Drag to look around. Focus the canvas to use arrow keys; scroll or pinch to zoom.",
   );
   return (
@@ -50,7 +55,7 @@ export function ControlsExample({ example, onExampleChange }: {
       <div
         className={pageControlsClassName}
         role="group"
-        aria-label="Control example"
+        aria-label={t("Control example")}
       >
         {(["navigation", "automatic", "gyro"] as const).map((value) => (
           <button
@@ -69,9 +74,9 @@ export function ControlsExample({ example, onExampleChange }: {
           >
             {
               {
-                navigation: "Navigation",
-                automatic: "Auto rotate",
-                gyro: "Gyro",
+                navigation: t("Navigation"),
+                automatic: t("Auto rotate"),
+                gyro: t("Gyro"),
               }[value]
             }
           </button>
@@ -87,31 +92,25 @@ export function ControlsExample({ example, onExampleChange }: {
                 viewer.reset();
                 setStatus("View reset");
               }}
-            >
-              Reset view
-            </button>
+            >{t("Reset view")}</button>
             <button
               type="button"
               className={segmentedButtonClassName}
               onClick={() =>
                 void viewer
                   .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
-                  .then(({ status }) => setStatus(`Look north: ${status}`))
+                  .then(({ status }) => setStatus(message("Look north: {status}", { status })))
               }
-            >
-              Look north
-            </button>
+            >{t("Look north")}</button>
             <button
               type="button"
               className={segmentedButtonClassName}
               onClick={() =>
                 void viewer
                   .lookToHotspot("target", { fov: 55 })
-                  .then(({ status }) => setStatus(`Look to hotspot: ${status}`))
+                  .then(({ status }) => setStatus(message("Look to hotspot: {status}", { status })))
               }
-            >
-              Look to hotspot
-            </button>
+            >{t("Look to hotspot")}</button>
           </>
         ) : null}
         {example === "automatic" ? (
@@ -121,7 +120,7 @@ export function ControlsExample({ example, onExampleChange }: {
             aria-pressed={autoRotate}
             onClick={() => setAutoRotate((value) => !value)}
           >
-            {autoRotate ? "Stop rotation" : "Start rotation"}
+            {autoRotate ? t("Stop rotation") : t("Start rotation")}
           </button>
         ) : null}
         {example === "gyro" ? (
@@ -149,35 +148,32 @@ export function ControlsExample({ example, onExampleChange }: {
                 });
               }}
             >
-              {gyroEnabled ? "Disable gyro" : "Enable gyro"}
+              {gyroEnabled ? t("Disable gyro") : t("Enable gyro")}
             </button>
             <span role="status" className="text-sm">
-              {gyroStatus}
+              {t(gyroStatus)}
             </span>
           </>
         ) : null}
       </div>
       <p role="status" className="px-6 text-sm">
-        {status}
+        {t(status)}
       </p>
       <PanoViewer
         ref={viewer.ref}
-        aria-label="View controls viewer"
+        aria-label={t("View controls viewer")}
         controls={{ keyboard: true, inertia: true }}
         style={{ height: 540 }}
       >
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         <GraphicHotspot
           id="target"
-          ariaLabel="Navigation target"
+          ariaLabel={t("Navigation target")}
           position={{ yaw: -62, pitch: 4 }}
           width={8}
           height={8}
           graphic={{ kind: "circle", fill: "#df6b42" }}
-          tooltip="Navigation target"
+          tooltip={t("Navigation target")}
         />
         <AutoRotate enabled={autoRotate} speed={18} startDelay={1000} />
         <Gyro

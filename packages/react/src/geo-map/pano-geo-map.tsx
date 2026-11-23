@@ -1,15 +1,34 @@
 import {
-  useContext, useEffect, useId, useRef, useState, useSyncExternalStore,
+  useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore,
   type CSSProperties, type PointerEvent, type ReactNode,
 } from "react";
-import type { PanoGeoCoordinateSystem, PanoGeoMapDefinition, PanoGeoMapSpot, PanoGeoPosition } from "../data/geo-map";
+import {
+  PANO_GEO_COORDINATE_SYSTEMS,
+  type PanoGeoCoordinateSystem,
+  type PanoGeoMapDefinition,
+  type PanoGeoMapSpot,
+  type PanoGeoPosition,
+} from "../data/geo-map";
+import { normalizePanoYaw } from "../hotspot/position-math";
 import { headingFromVector, horizontalFov } from "../map/geometry";
 import { DefaultSpotIcon, SectorShape } from "../map/map-visuals";
+import { ScenesHostContext, subscribeScenesHost } from "../scenes-host";
 import { PanoEventBusContext } from "../pano-event-bus";
 import { IDLE_SCENE_LOAD_PROGRESS, SceneLoadProgressContext } from "../scene-load-progress";
 import type { PanoViewerState } from "../types";
-import { coordinateSystem, createMapEngine, type Camera, type MapEngine, type PanoGeoMapSource } from "./engine";
+import {
+  clampCameraZoom, coordinateSystem, createMapEngine, resolveZoomLimits,
+  type Camera, type MapEngine, type PanoGeoMapSource,
+} from "./engine";
 import { useGeoCoordinates } from "./use-geo-coordinates";
+
+function GeoMapToolIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
 
 export type PanoGeoMapEdit =
   | { type: "place"; sceneId: string; coordinateSystem: PanoGeoCoordinateSystem; position: PanoGeoPosition }
@@ -20,6 +39,8 @@ export type PanoGeoMapProps = {
   geoMap: PanoGeoMapDefinition;
   sources: readonly PanoGeoMapSource[];
   activeSceneId?: string | null;
+  /** Viewer yaw of true north for the active scene. Overrides calibration inherited from Scenes. */
+  northYaw?: number;
   onSelectScene?: (sceneId: string, spot: PanoGeoMapSpot) => void;
   sceneTitles?: Readonly<Record<string, string>>;
   /**
@@ -38,6 +59,10 @@ export type PanoGeoMapProps = {
   onSelectSpot?: (spotId: string) => void;
   placement?: { sceneId: string } | { spotId: string };
   onEdit?: (edit: PanoGeoMapEdit) => void;
+  /** Called when the resolved basemap changes (initial selection or in-map switch). */
+  onSourceChange?: (source: PanoGeoMapSource | undefined) => void;
+  /** Shown instead of "No basemap configured" when no source is available. */
+  emptyLabel?: string;
   translate?: (message: string) => string;
   className?: string;
   style?: CSSProperties;
@@ -52,15 +77,22 @@ const identity = (message: string) => message;
 type Drag = { id: number; spotId: string; x: number; y: number; mode: "marker" | "heading"; moved: boolean };
 
 export function PanoGeoMap({
-  geoMap, sources, activeSceneId, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
-  selectedSpotId, onSelectSpot, placement, onEdit, translate = identity, style, className,
+  geoMap, sources, activeSceneId, northYaw, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
+  selectedSpotId, onSelectSpot, placement, onEdit, onSourceChange, emptyLabel, translate = identity, style, className,
 }: PanoGeoMapProps) {
   const [selectedSourceId, setSelectedSourceId] = useState<string>();
   const source = sources.find(({ id }) => id === (selectedSourceId ?? geoMap.initialSourceId)) ?? sources[0];
   const system = source && coordinateSystem(source);
+  const zoomLimits = resolveZoomLimits(geoMap, source);
   const sourceRef = useRef(source);
   sourceRef.current = source;
+  const onSourceChangeRef = useRef(onSourceChange);
+  onSourceChangeRef.current = onSourceChange;
+  useEffect(() => {
+    onSourceChangeRef.current?.(source);
+  }, [source]);
   const sourceSignature = source && JSON.stringify(source);
+  const zoomLimitsKey = `${zoomLimits.min}:${zoomLimits.max}`;
   const [attempt, setAttempt] = useState(0);
   const [session, setSession] = useState<{ signature: string; attempt: number; engine?: MapEngine; failed?: boolean }>();
   const current = session?.signature === sourceSignature && session?.attempt === attempt ? session : undefined;
@@ -86,12 +118,19 @@ export function PanoGeoMap({
   const loadStore = useContext(SceneLoadProgressContext);
   const progress = useSyncExternalStore(loadStore?.subscribe ?? noopSubscribe, loadStore?.getSnapshot ?? idle, idle);
   const bus = useContext(PanoEventBusContext);
+  const scenesHost = useContext(ScenesHostContext);
+  const subscribeNorth = useCallback((listener: () => void) =>
+    scenesHost ? subscribeScenesHost(scenesHost, listener) : noopSubscribe(), [scenesHost]);
+  const getNorthYaw = () => activeSceneId ? scenesHost?.sceneNorthYaws?.get(activeSceneId) : undefined;
+  const inheritedNorthYaw = useSyncExternalStore(subscribeNorth, getNorthYaw, getNorthYaw);
+  const calibratedNorthYaw = northYaw !== undefined && Number.isFinite(northYaw) ? normalizePanoYaw(northYaw) : inheritedNorthYaw;
   const selected = onEdit ? geoMap.spots.find((spot) => spot.id === selectedSpotId && spot.sceneId === activeSceneId && resolved.has(spot.id)) : undefined;
   const active = selected ?? geoMap.spots.find((spot) => spot.sceneId === activeSceneId && resolved.has(spot.id));
   const radarSpot = progress.sceneId === null || (progress.status === "ready" && progress.sceneId === activeSceneId) ? active : undefined;
   const sector = geoMap.sector !== false ? geoMap.sector ?? DEFAULT_SECTOR : undefined;
-  const heading = headingDraft && headingDraft.spotId === radarSpot?.id ? headingDraft.heading
-    : radarSpot?.heading ?? (radarSpot && selected?.id === radarSpot.id ? 0 : undefined);
+  const heading = radarSpot && (headingDraft?.spotId === radarSpot.id ? headingDraft.heading
+    : calibratedNorthYaw !== undefined ? -calibratedNorthYaw
+    : radarSpot.heading ?? (selected?.id === radarSpot.id ? 0 : undefined));
   const [angle, setAngle] = useState(sector?.angle ?? 70);
   const actionRef = useRef({ placement, onEdit });
   actionRef.current = { placement, onEdit };
@@ -176,7 +215,7 @@ export function PanoGeoMap({
             : { type: "place", ...placement, ...common });
         }
       },
-    }, signal).then((instance) => {
+    }, signal, zoomLimits).then((instance) => {
       if (signal.aborted) { instance.dispose(); return; }
       mounted = instance;
       setSession({ signature: sourceSignature, attempt, engine: instance, failed: hasError });
@@ -194,13 +233,125 @@ export function PanoGeoMap({
       host.remove();
       drag.current = null;
     };
-  }, [sourceSignature, attempt]);
+  }, [sourceSignature, attempt, zoomLimitsKey]);
+
+  const framedSpots = useRef(false);
+  const geolocationToken = useRef(0);
+  const initialZoomApplied = useRef<number | undefined>(undefined);
+
+  function clampZoom(zoom: number) {
+    return clampCameraZoom(zoom, zoomLimits);
+  }
+
+  function overviewZoom() {
+    const width = Math.max(1, canvas.current?.clientWidth ?? 240);
+    const height = Math.max(1, canvas.current?.clientHeight ?? 240);
+    // Zoom 2 matches a ~240px panel; larger authoring surfaces need a higher zoom.
+    return clampZoom(Math.min(5, Math.max(2, 2 + Math.log2(Math.max(width, height) / 240))));
+  }
+
+  function centerFromData(): PanoGeoPosition | undefined {
+    const points: PanoGeoPosition[] = [];
+    for (const spot of geoMap.spots) {
+      const point =
+        (system && spot.positions[system]) ||
+        PANO_GEO_COORDINATE_SYSTEMS.map((key) => spot.positions[key]).find(Boolean);
+      if (point) points.push(point);
+    }
+    if (!points.length) return undefined;
+    if (points.length === 1) return points[0];
+    return {
+      lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length,
+      lng: points.reduce((sum, point) => sum + point.lng, 0) / points.length,
+    };
+  }
+
+  function setOverviewCamera(center: PanoGeoPosition, zoom: number) {
+    if (!engineRef.current) return;
+    engineRef.current.setCamera({ center, zoom: clampZoom(zoom) });
+  }
+
+  function openWithInitialZoom(center: PanoGeoPosition) {
+    if (geoMap.initialZoom === undefined) return false;
+    setOverviewCamera(center, geoMap.initialZoom);
+    return true;
+  }
+
+  function frameEmpty() {
+    if (!engine || !canvas.current) return;
+    const fromData = centerFromData();
+    if (fromData) {
+      if (openWithInitialZoom(fromData)) return;
+      setOverviewCamera(fromData, geoMap.spots.length === 1 ? 14 : 12);
+      return;
+    }
+
+    // Contiguous US geographic center — used when spot data and geolocation are unavailable.
+    const fallback = { lat: 39.8, lng: -98.5 };
+    const applyFallback = () => {
+      if (openWithInitialZoom(fallback)) return;
+      setOverviewCamera(fallback, Math.max(overviewZoom(), 3));
+    };
+    if (!canvas.current.clientWidth || !canvas.current.clientHeight)
+      requestAnimationFrame(applyFallback);
+    else applyFallback();
+
+    if (geoMap.initialZoom !== undefined) return;
+
+    const geo = canvas.current.ownerDocument.defaultView?.navigator?.geolocation;
+    if (!geo) return;
+    const token = ++geolocationToken.current;
+    const instance = engine;
+    geo.getCurrentPosition(
+      (position) => {
+        if (
+          geolocationToken.current !== token ||
+          engineRef.current !== instance ||
+          framedSpots.current ||
+          resolved.size
+        )
+          return;
+        // Skip if the user already panned away from the temporary overview.
+        const camera = instance.getCamera();
+        if (
+          Math.abs(camera.center.lat - fallback.lat) > 0.5 ||
+          Math.abs(camera.center.lng - fallback.lng) > 0.5
+        )
+          return;
+        setOverviewCamera(
+          {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          },
+          13,
+        );
+      },
+      () => {
+        /* Keep the continent overview when permission is denied or timed out. */
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 8_000 },
+    );
+  }
 
   function fit() {
-    if (!engine || !resolved.size || !canvas.current) return;
+    if (!engine || !canvas.current) return;
+    if (!resolved.size) {
+      frameEmpty();
+      return;
+    }
     const points = [...resolved.values()];
+    if (geoMap.initialZoom !== undefined && initialized.current !== engine) {
+      const center = points.length === 1
+        ? points[0]
+        : {
+          lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length,
+          lng: points.reduce((sum, point) => sum + point.lng, 0) / points.length,
+        };
+      openWithInitialZoom(center);
+      return;
+    }
     if (points.every((point) => point.lat === points[0].lat && point.lng === points[0].lng)) {
-      engine.setCamera({ center: points[0], zoom: 16 });
+      engine.setCamera({ center: points[0], zoom: clampZoom(16) });
     } else {
       const { clientWidth: width, clientHeight: height } = canvas.current;
       const vertical = controlsLayout === "vertical";
@@ -216,13 +367,65 @@ export function PanoGeoMap({
   useEffect(() => {
     if (!engine || failed) return;
     if (initialized.current !== engine) {
+      framedSpots.current = false;
+      geolocationToken.current += 1;
       const saved = source && cameras.current.get(source.id);
-      if (saved) engine.setCamera(saved);
-      else if (!pending) fit();
-      if (saved || !pending) initialized.current = engine;
+      if (saved) {
+        engine.setCamera({
+          center: saved.center,
+          zoom: clampZoom(saved.zoom),
+        });
+        initialized.current = engine;
+        framedSpots.current = true;
+        initialZoomApplied.current = geoMap.initialZoom;
+      } else if (resolved.size && !pending) {
+        fit();
+        initialized.current = engine;
+        framedSpots.current = true;
+        initialZoomApplied.current = geoMap.initialZoom;
+      } else if (geoMap.spots.length && !resolved.size) {
+        // Spot data exists but coordinates are still converting — use raw positions first.
+        frameEmpty();
+        initialized.current = engine;
+        initialZoomApplied.current = geoMap.initialZoom;
+      } else if (!pending) {
+        frameEmpty();
+        initialized.current = engine;
+        framedSpots.current = false;
+        initialZoomApplied.current = geoMap.initialZoom;
+      }
+    } else if (!framedSpots.current && resolved.size > 0 && !pending) {
+      // First resolved spot(s): zoom to them instead of staying on the overview.
+      geolocationToken.current += 1;
+      if (geoMap.initialZoom !== undefined) {
+        const points = [...resolved.values()];
+        const center = points.length === 1
+          ? points[0]
+          : {
+            lat: points.reduce((sum, point) => sum + point.lat, 0) / points.length,
+            lng: points.reduce((sum, point) => sum + point.lng, 0) / points.length,
+          };
+        openWithInitialZoom(center);
+      } else {
+        fit();
+      }
+      framedSpots.current = true;
+      initialZoomApplied.current = geoMap.initialZoom;
     }
     drawRef.current();
   });
+
+  useEffect(() => {
+    if (!engine || failed || initialized.current !== engine) return;
+    if (geoMap.initialZoom === undefined) {
+      initialZoomApplied.current = undefined;
+      return;
+    }
+    if (initialZoomApplied.current === geoMap.initialZoom) return;
+    initialZoomApplied.current = geoMap.initialZoom;
+    const camera = engine.getCamera();
+    engine.setCamera({ center: camera.center, zoom: clampZoom(geoMap.initialZoom) });
+  }, [engine, failed, geoMap.initialZoom, zoomLimitsKey]);
 
   useEffect(() => {
     const update = (next: PanoViewerState) => {
@@ -296,7 +499,10 @@ export function PanoGeoMap({
     const point = spot && resolved.get(spot.id);
     if (point && engine && !failed) {
       initialized.current = engine;
-      engine.setCamera({ center: point, zoom: Math.max(engine.getCamera().zoom, 15) });
+      engine.setCamera({
+        center: point,
+        zoom: clampZoom(Math.max(engine.getCamera().zoom, 15)),
+      });
     }
   };
 
@@ -356,14 +562,23 @@ export function PanoGeoMap({
       ) : null}
       <div className="pano-geo-map-tools" data-layout={controlsLayout} role="group" aria-label={translate("Map controls")}>
         {engine && !failed ? <>
-          <button type="button" title={translate("Zoom in")} aria-label={translate("Zoom in")} onClick={() => engine.zoomBy(1)}>+</button>
-          <button type="button" title={translate("Zoom out")} aria-label={translate("Zoom out")} onClick={() => engine.zoomBy(-1)}>−</button>
-          <button type="button" title={translate("Return to current scene")} aria-label={translate("Return to current scene")} disabled={!active} onClick={() => locate(active)}>⌖</button>
+          <button type="button" title={translate("Zoom in")} aria-label={translate("Zoom in")} onClick={() => engine.zoomBy(1)}>
+            <GeoMapToolIcon><path d="M8 3.25v9.5M3.25 8h9.5" /></GeoMapToolIcon>
+          </button>
+          <button type="button" title={translate("Zoom out")} aria-label={translate("Zoom out")} onClick={() => engine.zoomBy(-1)}>
+            <GeoMapToolIcon><path d="M3.25 8h9.5" /></GeoMapToolIcon>
+          </button>
+          <button type="button" title={translate("Return to current scene")} aria-label={translate("Return to current scene")} disabled={!active} onClick={() => locate(active)}>
+            <GeoMapToolIcon>
+              <circle cx="8" cy="8" r="2.25" />
+              <path d="M8 1.75v2.1M8 12.15v2.1M1.75 8h2.1M12.15 8h2.1" />
+            </GeoMapToolIcon>
+          </button>
           <button type="button" title={translate("Show all spots")} aria-label={translate("Show all spots")} disabled={!resolved.size} onClick={() => { initialized.current = engine; fit(); }}>
-            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <GeoMapToolIcon>
               <path d="M2.5 6V2.5H6m4 0h3.5V6m0 4v3.5H10m-4 0H2.5V10" />
               <circle cx="8" cy="8" r="1.7" />
-            </svg>
+            </GeoMapToolIcon>
           </button>
         </> : null}
       </div>
@@ -373,7 +588,7 @@ export function PanoGeoMap({
         </select> : null}
       {!source || failed || !engine ? (
         <div className="pano-geo-map-status" role="status">
-          {translate(!source ? "No basemap configured" : failed ? "Could not load map" : "Loading map…")}
+          {translate(!source ? (emptyLabel ?? "No basemap configured") : failed ? "Could not load map" : "Loading map…")}
           {failed ? <button type="button" onClick={() => setAttempt((value) => value + 1)}>{translate("Retry")}</button> : null}
         </div>
       ) : null}

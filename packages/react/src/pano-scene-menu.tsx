@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "./ui-translation";
 import {
   useCallback,
   useEffect,
@@ -231,7 +232,7 @@ export function PanoSceneMenu({
   activeId = null,
   onSelect,
   showVisited = false,
-  visitedLabel = "Visited",
+  visitedLabel: visitedLabelProp,
   anchor,
   width,
   height,
@@ -245,13 +246,20 @@ export function PanoSceneMenu({
   appearance,
   className,
   style,
-  label = "Scenes",
-  previousLabel = "Previous scene",
-  nextLabel = "Next scene",
-  expandLabel = "Show scenes",
-  collapseLabel = "Hide scenes",
+  label: labelProp,
+  previousLabel: previousLabelProp,
+  nextLabel: nextLabelProp,
+  expandLabel: expandLabelProp,
+  collapseLabel: collapseLabelProp,
   toggle,
 }: PanoSceneMenuProps) {
+  const t = usePanoUiTranslation();
+  const visitedLabel = visitedLabelProp ?? t("Visited");
+  const label = labelProp ?? t("Scenes");
+  const previousLabel = previousLabelProp ?? t("Previous scene");
+  const nextLabel = nextLabelProp ?? t("Next scene");
+  const expandLabel = expandLabelProp ?? t("Show scenes");
+  const collapseLabel = collapseLabelProp ?? t("Hide scenes");
   const visitedSceneIds = useVisitedSceneIds(showVisited);
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);

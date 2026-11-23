@@ -1,11 +1,10 @@
+import { usePlaygroundLanguage } from "../../i18n/language";
 import {
   GraphicHotspot,
   ImageHotspot,
   PanoFilter,
   PanoVideo,
   PanoViewer,
-  Sphere,
-  SphereTile,
   Tile,
   WebVR,
   usePanoViewer,
@@ -14,7 +13,7 @@ import {
   type PanoVideoVariant,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { FILTER_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
+import { cubeTileProps, FILTER_PRESET_GROUPS } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -33,23 +32,17 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const SPHERE_SCENE = TRANSITION_SCENES[0];
-const TILE_SCENE = TRANSITION_SCENES[2];
+const TILE_PROPS = {
+  ...cubeTileProps(3),
+  maxConcurrentLoads: 3,
+  maxTextureMemoryMb: 96,
+};
 
 const SOURCES = [
-  { id: "sphere", component: "Sphere", label: "Single image" },
   { id: "tile", component: "Tile", label: "Cube tiles" },
-  { id: "sphereTile", component: "SphereTile", label: "Sphere tiles" },
   { id: "video", component: "PanoVideo", label: "360° video" },
 ] as const;
 type SourceKind = (typeof SOURCES)[number]["id"];
-
-const SPHERE_TILE_PROPS = {
-  baseUrl: "/fixtures/panorama/sphere-tiles/",
-  multires: "512,512x256,1536x768",
-  previewUrl: "previews/400.webp",
-  urlTemplate: "tiles/%l/%h_%v.webp",
-} as const;
 
 const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
   { width: 1024, height: 512 },
@@ -79,40 +72,32 @@ const ADJUSTMENTS = [
 ] as const;
 
 function FilterSource({ source }: { source: SourceKind }) {
-  switch (source) {
-    case "sphere":
-      return SPHERE_SCENE?.type === "sphere" ? <Sphere {...SPHERE_SCENE} /> : null;
-    case "tile":
-      return TILE_SCENE?.type === "tile" ? (
-        <Tile {...TILE_SCENE} maxConcurrentLoads={3} maxTextureMemoryMb={96} />
-      ) : null;
-    case "sphereTile":
-      return <SphereTile {...SPHERE_TILE_PROPS} />;
-    case "video":
-      return <PanoVideo loop muted variants={VIDEO_VARIANTS} tracks={VIDEO_TRACKS} />;
-  }
+  return source === "tile"
+    ? <Tile {...TILE_PROPS} />
+    : <PanoVideo loop muted variants={VIDEO_VARIANTS} tracks={VIDEO_TRACKS} />;
 }
 
 function FilterHotspots() {
+  const { t } = usePlaygroundLanguage();
   return (
     <>
       <ImageHotspot
-        ariaLabel="Unfiltered image hotspot"
+        ariaLabel={t("Unfiltered image hotspot")}
         height={6}
         id="filter-image-marker"
         position={{ yaw: 18, pitch: 5 }}
         src="/fixtures/hotspots/signal.svg"
-        tooltip="Hotspots stay unfiltered"
+        tooltip={t("Hotspots stay unfiltered")}
         tooltipTrigger="hover"
         width={6}
       />
       <GraphicHotspot
-        ariaLabel="Unfiltered graphic hotspot"
+        ariaLabel={t("Unfiltered graphic hotspot")}
         graphic={{ fill: "#df6b42", kind: "circle" }}
         height={8}
         id="filter-graphic-marker"
         position={{ yaw: -28, pitch: -6 }}
-        tooltip="Original hotspot color"
+        tooltip={t("Original hotspot color")}
         tooltipTrigger="hover"
         width={8}
       />
@@ -128,16 +113,14 @@ function buildFilterSnippet(
   enabled: boolean,
 ): string {
   const component = SOURCES.find((option) => option.id === source)!.component;
-  const sourceProps = source === "sphere" ? SPHERE_SCENE
-    : source === "tile" ? TILE_SCENE
-    : source === "sphereTile" ? SPHERE_TILE_PROPS
+  const sourceProps = source === "tile"
+    ? TILE_PROPS
     : { variants: VIDEO_VARIANTS, tracks: VIDEO_TRACKS, loop: true, muted: true };
-  const sourceAttributes = Object.entries(sourceProps ?? {})
-    .filter(([key]) => key !== "id" && key !== "type")
+  const sourceAttributes = Object.entries(sourceProps)
     .map(([key, value]) => typeof value === "string"
-      ? `${key}=${JSON.stringify(value)}`
-      : `${key}={${JSON.stringify(value)}}`)
-    .join("\n    ");
+      ? `        ${key}=${JSON.stringify(value)}`
+      : `        ${key}={${JSON.stringify(value)}}`)
+    .join("\n");
   const adjustmentLiteral = ADJUSTMENTS.map(({ key }) =>
     `${key}: ${adjustments[key] ?? 0}`,
   ).join(", ");
@@ -161,7 +144,7 @@ export function PanoramaFilter() {
         intensity={${intensity}}
       />
       <${component}
-        ${sourceAttributes}
+${sourceAttributes}
       />
       <ImageHotspot
         id="filter-image-marker"
@@ -187,7 +170,8 @@ export function PanoramaFilter() {
 }
 
 export function FilterPage() {
-  const [source, setSource] = useState<SourceKind>("sphere");
+  const { t } = usePlaygroundLanguage();
+  const [source, setSource] = useState<SourceKind>("tile");
   const [preset, setPreset] = useState<PanoFilterPreset>("none");
   const [intensity, setIntensity] = useState(1);
   const [adjustments, setAdjustments] = useState<PanoColorAdjustments>({});
@@ -208,17 +192,13 @@ export function FilterPage() {
       >
         <div className={pageHeadingWrapClassName}>
           <div>
-            <p className={eyebrowClassName}>Panorama filters</p>
-            <h1 className={pageHeadingTitleClassName} id="filter-bench-title">
-              Real-time color adjustments
-            </h1>
+            <p className={eyebrowClassName}>{t("Panorama filters")}</p>
+            <h1 className={pageHeadingTitleClassName} id="filter-bench-title">{t("Real-time color adjustments")}</h1>
           </div>
-          <p className={pageHeadingStatusClassName}>
-            Adjust exposure, color and local detail on panoramic images and video.
-          </p>
+          <p className={pageHeadingStatusClassName}>{t("Adjust exposure, color and local detail on panoramic images and video.")}</p>
         </div>
         <div className={pageControlsClassName}>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Panorama source">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Panorama source")}>
             {SOURCES.map(({ id, label }) => (
               <button
                 aria-pressed={source === id}
@@ -227,7 +207,7 @@ export function FilterPage() {
                 onClick={() => setSource(id)}
                 type="button"
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -236,9 +216,7 @@ export function FilterPage() {
             className={cn(segmentedButtonClassName, showOriginal && segmentedButtonActiveClassName)}
             onClick={() => setShowOriginal((current) => !current)}
             type="button"
-          >
-            Show original
-          </button>
+          >{t("Show original")}</button>
           <button
             className={segmentedButtonClassName}
             onClick={() => {
@@ -248,25 +226,23 @@ export function FilterPage() {
               setShowOriginal(false);
             }}
             type="button"
-          >
-            Reset filters
-          </button>
+          >{t("Reset filters")}</button>
           {vr.available ? (
             <button
               className={segmentedButtonClassName}
               onClick={() => void (vr.enabled ? viewer.exitVR() : viewer.enterVR())}
               type="button"
             >
-              {vr.enabled ? "Exit VR" : "Enter VR"}
+              {vr.enabled ? t("Exit VR") : t("Enter VR")}
             </button>
           ) : null}
         </div>
-        <div className={pageControlsClassName} role="group" aria-label="Color adjustments">
+        <div className={pageControlsClassName} role="group" aria-label={t("Color adjustments")}>
           {ADJUSTMENTS.map(({ key, label, limit, unit }) => (
             <label key={key} className={controlLabelClassName}>
-              {label} {(adjustments[key] ?? 0).toFixed(2)}{unit}
+              {t(label)} {(adjustments[key] ?? 0).toFixed(2)}{unit}
               <input
-                aria-label={label}
+                aria-label={t(label)}
                 className={cn(controlInputClassName, "w-28")}
                 max={limit}
                 min={-limit}
@@ -284,7 +260,7 @@ export function FilterPage() {
         <div className="bg-[#020607]">
           <PanoViewer
             ref={viewer.ref}
-            aria-label="Panorama filter demo"
+            aria-label={t("Panorama filter demo")}
             style={{ height: "min(540px, 68dvh)" }}
           >
             <WebVR />
@@ -299,10 +275,9 @@ export function FilterPage() {
           </PanoViewer>
         </div>
         <div className={pageControlsClassName}>
-          <label className={controlLabelClassName}>
-            Preset intensity {Math.round(intensity * 100)}%
+          <label className={controlLabelClassName}>{t("Preset intensity") + " "}{Math.round(intensity * 100)}%
             <input
-              aria-label="Filter intensity"
+              aria-label={t("Filter intensity")}
               className={cn(controlInputClassName, "w-40")}
               max={1}
               min={0}
@@ -317,9 +292,9 @@ export function FilterPage() {
           {FILTER_PRESET_GROUPS.map((group) => (
             <div className="grid gap-2" key={group.label}>
               <p className="m-0 font-mono text-[0.68rem] font-semibold tracking-[0.1em] text-[#75cbd3] uppercase">
-                {group.label}
+                {t(group.label)}
               </p>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${group.label} filters`}>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("{category} filters", { category: t(group.label) })}>
                 {group.presets.map((entry) => (
                   <button
                     aria-pressed={preset === entry.value}
@@ -331,7 +306,7 @@ export function FilterPage() {
                     onClick={() => setPreset(entry.value)}
                     type="button"
                   >
-                    {entry.label}
+                    {t(entry.label)}
                   </button>
                 ))}
               </div>
@@ -340,7 +315,7 @@ export function FilterPage() {
         </div>
         <ExampleCode
           react={{
-            blurb: "Pass an adjustments object to PanoFilter. Its values apply to the panorama source.",
+            blurb: t("Pass an adjustments object to PanoFilter. Its values apply to the panorama source."),
             code: snippet,
             label: "PanoFilter",
           }}

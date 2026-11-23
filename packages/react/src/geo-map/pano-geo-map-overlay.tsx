@@ -1,14 +1,20 @@
 import { useId, useState, type ReactNode } from "react";
+import type { PanoMapLength } from "../data/map";
 import { PanoMapDialogShell } from "../map/pano-map-overlay";
-import { overlayBoxStyle, resolveOverlayAnchor, type PanoOverlayAnchor } from "../overlay/align";
+import {
+  overlayBoxStyle,
+  resolveOverlayAnchor,
+  resolveOverlayLength,
+  type PanoOverlayAnchor,
+} from "../overlay/align";
 import { usePanoOverlay } from "../overlay/pano-overlay";
 import { PanoGeoMap, type PanoGeoMapProps } from "./pano-geo-map";
 
 export type PanoGeoMapOverlayProps = PanoGeoMapProps & {
   presentation?: "panel" | "dialog";
   anchor?: PanoOverlayAnchor;
-  width?: number;
-  height?: number;
+  width?: PanoMapLength;
+  height?: PanoMapLength;
   openLabel?: string;
   title?: ReactNode;
   closeLabel?: string;
@@ -33,8 +39,16 @@ export function PanoGeoMapOverlay({
   const align = resolveOverlayAnchor({ ...saved?.anchor, ...anchor }, {
     align: "bottom-left", inset: 16,
   });
-  const panelWidth = width ?? (editorSurface ? Math.max(220, size.width * 0.57) : saved?.width) ?? 320;
-  const panelHeight = height ?? (editorSurface ? Math.max(200, size.height * 0.62) : saved?.height) ?? 230;
+  const rawWidth =
+    width ??
+    (editorSurface ? Math.max(220, size.width * 0.57) : saved?.width) ??
+    320;
+  const rawHeight =
+    height ??
+    (editorSurface ? Math.max(200, size.height * 0.62) : saved?.height) ??
+    230;
+  const panelWidth = resolveOverlayLength(rawWidth, size.width, 320);
+  const panelHeight = resolveOverlayLength(rawHeight, size.height, 230);
   const resolvedOpenLabel = openLabel ?? t("Online map");
   const map = <PanoGeoMap {...props} geoMap={geoMap} viewSize={props.viewSize ?? size}
     onSelectScene={(sceneId, spot) => {
@@ -57,7 +71,12 @@ export function PanoGeoMapOverlay({
     </>;
   }
   return <div className={`pano-geo-map-overlay ${className ?? ""}`}
-    style={{ ...overlayBoxStyle(align.align, align.inset, panelWidth, panelHeight),
+    style={{ ...overlayBoxStyle(
+      align.align,
+      align.inset,
+      typeof rawWidth === "string" ? rawWidth : panelWidth,
+      typeof rawHeight === "string" ? rawHeight : panelHeight,
+    ),
       maxWidth: Math.max(0, size.width - 32), maxHeight: Math.max(0, size.height - 32),
       position: "absolute", pointerEvents: "auto", ...style }}>
     {map}

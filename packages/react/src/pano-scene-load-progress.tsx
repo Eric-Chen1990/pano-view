@@ -1,3 +1,4 @@
+import { usePanoUiTranslation } from "./ui-translation";
 import { useContext, useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { PanoOverlayOutletContext } from "./overlay/pano-overlay";
 import { IDLE_SCENE_LOAD_PROGRESS, SceneLoadProgressContext, type SceneLoadProgress } from "./scene-load-progress";
@@ -130,7 +131,7 @@ function ViewerSceneLoadProgress({
 
 function ProgressPanel({
   progress,
-  label = "Loading...",
+  label: labelProp,
   variant = "bar",
   showPercentage = true,
   appearance,
@@ -138,6 +139,8 @@ function ProgressPanel({
   className,
   style,
 }: PanelProps & { progress: LoadingProgress }) {
+  const t = usePanoUiTranslation();
+  const label = labelProp ?? t("Loading...");
   const { percent } = progress;
   const panelStyle: CSSProperties & Record<`--pano-load-${string}`, string | undefined> = {
     "--pano-load-background": appearance?.background,

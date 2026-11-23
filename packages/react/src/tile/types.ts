@@ -1,3 +1,4 @@
+import type { PanoLevelCorrection } from "../level-correction";
 import type { Texture } from "three";
 
 export type CubeFaceCode = "f" | "r" | "b" | "l" | "u" | "d";
@@ -34,6 +35,7 @@ export type TileLoadError = {
 };
 
 export type TileProps = {
+  levelCorrection?: PanoLevelCorrection;
   baseUrl: string;
   /**
    * Tile size followed by ascending cube-face sizes (`TILESIZE,LEVELSIZE1,...`).

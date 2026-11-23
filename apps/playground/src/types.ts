@@ -14,8 +14,6 @@ import type {
   TextHotspotWhiteSpace,
 } from "@ericchen1990/pano-view";
 
-export type ViewerMode = "sphere" | "tile";
-
 export type EditorTool =
   | "navigate"
   | "select"

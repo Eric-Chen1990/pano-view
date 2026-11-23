@@ -1,3 +1,4 @@
+import { usePlaygroundLanguage } from "../../../i18n/language";
 import type { EditorHotspot } from "../../../types";
 import {
   checkboxLabelClassName,
@@ -17,6 +18,7 @@ export function AudioFields({
     patch: Partial<Omit<Extract<EditorHotspot, { type: "audio" }>, "id" | "type">>,
   ) => void;
 }) {
+  const { t } = usePlaygroundLanguage();
   return (
     <div className="grid gap-1.5">
       <button
@@ -24,10 +26,10 @@ export function AudioFields({
         onClick={() => onChange({ playing: !hotspot.playing })}
         type="button"
       >
-        {hotspot.playing ? "Stop audio" : "Play audio"}
+        {hotspot.playing ? t("Stop audio") : t("Play audio")}
       </button>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Audio URL</span>
+        <span className={fieldLabelClassName}>{t("Audio URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ src: event.currentTarget.value })}
@@ -35,27 +37,25 @@ export function AudioFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Stopped icon URL</span>
+        <span className={fieldLabelClassName}>{t("Stopped icon URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ icon: event.currentTarget.value })}
-          placeholder="Built-in speaker"
+          placeholder={t("Built-in speaker")}
           value={hotspot.icon}
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={fieldLabelClassName}>Playing icon URL</span>
+        <span className={fieldLabelClassName}>{t("Playing icon URL")}</span>
         <input
           className={fieldInputClassName}
           onChange={(event) => onChange({ playingIcon: event.currentTarget.value })}
-          placeholder="Built-in speaker waves"
+          placeholder={t("Built-in speaker waves")}
           value={hotspot.playingIcon}
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Volume
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Volume")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(hotspot.volume * 100)}%
           </b>
         </span>
@@ -72,9 +72,7 @@ export function AudioFields({
         />
       </label>
       <label className={fieldWideClassName}>
-        <span className={`${fieldLabelClassName} flex justify-between`}>
-          Look-away range
-          <b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
+        <span className={`${fieldLabelClassName} flex justify-between`}>{t("Look-away range")}<b className="font-mono text-[0.61rem] font-normal text-[#dcecef]">
             {Math.round(hotspot.range)}°
           </b>
         </span>
@@ -98,7 +96,7 @@ export function AudioFields({
             onChange={(event) => onChange({ loop: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Loop audio</span>
+          <span>{t("Loop audio")}</span>
         </label>
         <label className={checkboxLabelClassName}>
           <input
@@ -107,7 +105,7 @@ export function AudioFields({
             onChange={(event) => onChange({ muted: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Muted</span>
+          <span>{t("Muted")}</span>
         </label>
         <label className={checkboxLabelClassName}>
           <input
@@ -116,7 +114,7 @@ export function AudioFields({
             onChange={(event) => onChange({ pauseWhenHidden: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Pause when tab hidden</span>
+          <span>{t("Pause when tab hidden")}</span>
         </label>
         <label className={checkboxLabelClassName}>
           <input
@@ -125,7 +123,7 @@ export function AudioFields({
             onChange={(event) => onChange({ marker: event.currentTarget.checked })}
             type="checkbox"
           />
-          <span>Show marker</span>
+          <span>{t("Show marker")}</span>
         </label>
       </div>
     </div>

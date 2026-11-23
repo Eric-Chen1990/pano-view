@@ -1,4 +1,6 @@
 import { parsePanoGeoMap, resolvePanoGeoMapAssets, type PanoGeoMapDefinition } from "./geo-map";
+import { normalizePanoYaw } from "../hotspot/position-math";
+import { parseLevelCorrection, type PanoLevelCorrection } from "../level-correction";
 import { parseViewLimits, type PanoViewLimits } from "../view-limits";
 import { parsePopups, resolveProjectPopupAssets, type ProjectPopupDefinition, type PopupAssetUrlResolver } from "./popups";
 import {
@@ -43,6 +45,9 @@ export type PanoProjectSceneDefinition = {
   ) & { baseUrl?: string };
   initialView?: Partial<PanoViewerState>;
   viewLimits?: PanoViewLimits;
+  /** Viewer yaw when facing true north, in degrees. */
+  northYaw?: number;
+  levelCorrection?: PanoLevelCorrection;
   hotspots?: ProjectHotspotDefinition[];
 };
 export type PanoProjectDefinition = {
@@ -127,6 +132,10 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
                 }
               : { viewerConfig: parseConfig(src.viewerConfig), baseUrl };
           const viewLimits = parseViewLimits(entry.viewLimits);
+          const levelCorrection = parseLevelCorrection(entry.levelCorrection);
+          const northYaw = entry.northYaw;
+          if (northYaw !== undefined && (typeof northYaw !== "number" || !Number.isFinite(northYaw)))
+            throw new Error("northYaw: expected a finite number");
           let initialView: Partial<PanoViewerState> | undefined;
           if (entry.initialView !== undefined) {
             if (!isRecord(entry.initialView))
@@ -170,6 +179,8 @@ export function parsePanoProject(value: unknown, options: { draft?: boolean } = 
             source,
             initialView,
             ...(viewLimits === undefined ? {} : { viewLimits }),
+            ...(northYaw === undefined ? {} : { northYaw: normalizePanoYaw(northYaw) }),
+            ...(levelCorrection === undefined ? {} : { levelCorrection }),
             hotspots,
           };
         } catch (cause) {
@@ -311,6 +322,8 @@ export async function loadPanoProject(
               });
         aborted(controller.signal);
         if (item.viewLimits !== undefined) scene.viewLimits = item.viewLimits;
+        if (item.northYaw !== undefined) scene.northYaw = item.northYaw;
+        if (item.levelCorrection !== undefined) scene.levelCorrection = item.levelCorrection;
         scenes[index] = {
           scene,
           title: item.title,

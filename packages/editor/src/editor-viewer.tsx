@@ -18,10 +18,12 @@ import {
   PanoMapOverlay,
   PanoGeoMapOverlay,
   type PanoGeoMapEdit,
+  type PanoGeoMapSource,
   PanoOverlay,
   Scenes,
   ProjectScenes,
   type PanoViewerHandle,
+  type PanoViewerState,
   type HotspotPosition,
   type ProjectHotspotDefinition,
   type ProjectHotspotRenderContext,
@@ -33,6 +35,7 @@ import {
   resolveProjectPopupAssets,
   resolvePanoMapAssets,
   resolvePanoGeoMapAssets,
+  toSourcePanoPosition,
   type PanoProjectDefinition,
   type LoadedPanoProject,
   type LoadedProjectScene,
@@ -89,6 +92,7 @@ export function EditorViewer({
   activeId,
   selectedId,
   preview,
+  showHorizon,
   draft,
   draftKind,
   placing,
@@ -109,6 +113,8 @@ export function EditorViewer({
   geoPlacement,
   onGeoSelect,
   onGeoEdit,
+  onGeoSourceChange,
+  geoMapEmptyLabel,
   selectedMapSpotId,
   placementSceneId,
   onSelectedMapSpotIdChange,
@@ -123,6 +129,7 @@ export function EditorViewer({
   activeId?: string;
   selectedId?: string;
   preview: boolean;
+  showHorizon: boolean;
   draft: HotspotPosition[];
   draftKind?: "polygon" | "polyline";
   placing: boolean;
@@ -146,6 +153,9 @@ export function EditorViewer({
   geoPlacement?: { sceneId: string } | { spotId: string };
   onGeoSelect?: (spotId: string) => void;
   onGeoEdit?: (edit: PanoGeoMapEdit) => void;
+  onGeoSourceChange?: (source: PanoGeoMapSource | undefined) => void;
+  /** Translation key shown on the map when the editing basemap has no credentials yet. */
+  geoMapEmptyLabel?: string;
   selectedMapSpotId?: string;
   placementSceneId?: string;
   onSelectedMapSpotIdChange?: (id: string | null) => void;
@@ -157,6 +167,17 @@ export function EditorViewer({
     setPopupSelection({ sceneId: activeId, preview });
   const [readyId, setReadyId] = useState<string>();
   const [viewportHeight, setViewportHeight] = useState(768);
+  const horizonGuide = useRef<HTMLDivElement | null>(null);
+  function projectHorizon(view: PanoViewerState) {
+    const guide = horizonGuide.current;
+    if (!guide) return;
+    guide.hidden = Math.abs(view.pitch) >= view.fov / 2;
+    if (!guide.hidden) {
+      const pitch = view.pitch * Math.PI / 180;
+      const halfFov = view.fov * Math.PI / 360;
+      guide.style.top = `${50 * (1 + Math.tan(pitch) / Math.tan(halfFov))}%`;
+    }
+  }
   const tested = useRef<number | undefined>(undefined);
   const loader = useMemo(
     () =>
@@ -296,7 +317,12 @@ export function EditorViewer({
         }
       }
       scenes.push({
-        scene: { ...scene, ...(definition.viewLimits === undefined ? {} : { viewLimits: definition.viewLimits }) },
+        scene: {
+          ...scene,
+          ...(definition.viewLimits === undefined ? {} : { viewLimits: definition.viewLimits }),
+          northYaw: definition.northYaw,
+          levelCorrection: definition.levelCorrection,
+        },
         title: definition.title,
         initialView: definition.initialView
           ? { yaw: 0, pitch: 0, fov: 75, ...definition.initialView }
@@ -411,8 +437,9 @@ export function EditorViewer({
                 ? false
                 : { keyboard: { enabled: false } }
             }
+            onViewChange={showHorizon ? projectHorizon : undefined}
             onPanoramaClick={({ position }) => {
-              if (!preview && canEditScene) onPlace(position);
+              if (!preview && canEditScene) onPlace(toSourcePanoPosition(position, active?.scene.levelCorrection));
             }}
           >
             {!preview ? (
@@ -481,6 +508,12 @@ export function EditorViewer({
               />
             )}
             <PanoOverlay>
+              {showHorizon && canEditScene ? <div aria-hidden="true" className="pne-horizon-guide"
+                ref={(node) => {
+                  horizonGuide.current = node;
+                  const view = viewerRef.current?.getView();
+                  if (view) projectHorizon(view);
+                }} /> : null}
               <ProjectPopupDialog
                 popup={preview && popupSelection.sceneId === activeId ? runtime.loaded.popups?.find((popup) => popup.id === popupSelection.id) ?? null : null}
                 onOpenChange={(open) => { if (!open) setPopupSelection({ sceneId: activeId, preview }); }} closeLabel={t("Close")}
@@ -496,8 +529,10 @@ export function EditorViewer({
                   placement={geoEditing ? geoPlacement : undefined}
                   onSelectSpot={geoEditing ? onGeoSelect : undefined}
                   onEdit={geoEditing ? onGeoEdit : undefined}
+                  onSourceChange={onGeoSourceChange}
+                  emptyLabel={geoMapEmptyLabel}
                   onSelectScene={geoEditing ? undefined : onActive}
-                  editorSurface={geoEditing}
+                  editorSurface={!preview}
                   anchor={!geoEditing && runtime.loaded.map && !runtime.loaded.geoMap.presentation?.anchor ? { align: "top-right" } : undefined}
                   translate={t}
                 />
