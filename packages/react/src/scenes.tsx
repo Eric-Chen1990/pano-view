@@ -15,8 +15,12 @@ import {
 } from "react";
 import type { MutableRefObject, ReactNode } from "react";
 import {
+  Camera,
+  Color,
   LinearSRGBColorSpace,
   LinearFilter,
+  PerspectiveCamera,
+  Vector4,
   WebGLRenderTarget,
 } from "three";
 import { useSceneSelection } from "./use-scene-selection";
@@ -247,6 +251,19 @@ export function SceneSource({
   }
 }
 
+function createWebGLSnapshotTarget(width: number, height: number) {
+  const target = new WebGLRenderTarget(width, height, {
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+  // Both renderers write offscreen snapshots in the linear working space.
+  target.texture.colorSpace = LinearSRGBColorSpace;
+  target.texture.generateMipmaps = false;
+  target.texture.minFilter = LinearFilter;
+  target.texture.magFilter = LinearFilter;
+  return target;
+}
+
 function SnapshotCapture({
   requestId,
   maxPixels,
@@ -258,8 +275,14 @@ function SnapshotCapture({
 }) {
   const { camera, gl, scene, size } = useThree();
   const gpu = useContext(WebGPURuntimeContext)?.passes;
+  const vr = useContext(WebVRRuntimeContext);
   const capturedRequestRef = useRef(0);
   const capture = useRef<Snapshot | null>(null);
+  const eyeCamera = useRef(new Camera());
+  eyeCamera.current.matrixWorldAutoUpdate = false;
+  const viewport = useRef(new Vector4());
+  const scissor = useRef(new Vector4());
+  const clearColor = useRef(new Color());
 
   useEffect(
     () => () => {
@@ -309,29 +332,96 @@ function SnapshotCapture({
       });
       return;
     }
-    const nextTarget = new WebGLRenderTarget(width, height, {
-      depthBuffer: false,
-      stencilBuffer: false,
-    });
-    // Both renderers write offscreen snapshots in the linear working space.
-    nextTarget.texture.colorSpace = LinearSRGBColorSpace;
-    nextTarget.texture.generateMipmaps = false;
-    nextTarget.texture.minFilter = LinearFilter;
-    nextTarget.texture.magFilter = LinearFilter;
 
-    const previousTarget = gl.getRenderTarget();
-    try {
-      gl.setRenderTarget(nextTarget);
-      gl.clear();
-      gl.render(scene, camera);
-    } catch (error) {
-      nextTarget.dispose();
-      throw error;
-    } finally {
-      gl.setRenderTarget(previousTarget);
+    const presenting = gl.xr.isPresenting;
+    let eyes: Camera[] | null = null;
+    if (presenting) {
+      if (camera instanceof PerspectiveCamera) gl.xr.updateCamera(camera);
+      eyes = [...gl.xr.getCamera().cameras];
+    } else if (vr?.stereoView.active) {
+      eyes = [vr.stereoView.stereo.cameraL, vr.stereoView.stereo.cameraR];
     }
 
-    publishCapture({ texture: nextTarget.texture, dispose: () => nextTarget.dispose() });
+    if (!eyes) {
+      const nextTarget = createWebGLSnapshotTarget(width, height);
+      const previousTarget = gl.getRenderTarget();
+      try {
+        gl.setRenderTarget(nextTarget);
+        gl.clear();
+        gl.render(scene, camera);
+      } catch (error) {
+        nextTarget.dispose();
+        throw error;
+      } finally {
+        gl.setRenderTarget(previousTarget);
+      }
+      publishCapture({ texture: nextTarget.texture, dispose: () => nextTarget.dispose() });
+      return;
+    }
+
+    const targets = eyes.map(() => createWebGLSnapshotTarget(1, 1));
+    const previousTarget = gl.getRenderTarget();
+    const face = gl.getActiveCubeFace();
+    const level = gl.getActiveMipmapLevel();
+    gl.getViewport(viewport.current);
+    gl.getScissor(scissor.current);
+    const scissorTest = gl.getScissorTest();
+    const autoClear = gl.autoClear;
+    const xr = gl.xr.enabled;
+    gl.getClearColor(clearColor.current);
+    const alpha = gl.getClearAlpha();
+    const copy = eyeCamera.current;
+    try {
+      gl.xr.enabled = false;
+      gl.autoClear = true;
+      gl.setScissorTest(false);
+      eyes.forEach((view, index) => {
+        let eyeWidth = Math.max(1, Math.floor(width / 2));
+        let eyeHeight = height;
+        if (presenting && "viewport" in view) {
+          const rect = view.viewport as Vector4 | undefined;
+          if (rect && rect.z > 0 && rect.w > 0) {
+            const eyeScale = Math.min(1, Math.sqrt(maxPixels / (rect.z * rect.w)));
+            eyeWidth = Math.max(1, Math.floor(rect.z * eyeScale));
+            eyeHeight = Math.max(1, Math.floor(rect.w * eyeScale));
+          }
+        }
+        const target = targets[index]!;
+        target.setSize(eyeWidth, eyeHeight);
+        gl.setRenderTarget(target);
+        const mask = view.layers.mask;
+        view.layers.mask &= ~SPATIAL_UI_MASK;
+        try {
+          copy.layers.mask = view.layers.mask;
+          copy.matrixWorld.copy(view.matrixWorld);
+          copy.matrixWorldInverse.copy(view.matrixWorldInverse);
+          copy.projectionMatrix.copy(view.projectionMatrix);
+          copy.projectionMatrixInverse.copy(view.projectionMatrixInverse);
+          gl.clear();
+          gl.render(scene, copy);
+        } finally {
+          view.layers.mask = mask;
+        }
+      });
+    } catch (error) {
+      targets.forEach((target) => target.dispose());
+      throw error;
+    } finally {
+      gl.setViewport(viewport.current);
+      gl.setScissor(scissor.current);
+      gl.setScissorTest(scissorTest);
+      gl.setRenderTarget(previousTarget, face, level);
+      gl.setClearColor(clearColor.current, alpha);
+      gl.autoClear = autoClear;
+      gl.xr.enabled = xr;
+    }
+
+    const [left, right] = targets;
+    publishCapture({
+      texture: left!.texture,
+      eyeTextures: right ? [left!.texture, right.texture] : undefined,
+      dispose: () => targets.forEach((target) => target.dispose()),
+    });
   });
 
   function publishCapture(snapshot: Snapshot) {

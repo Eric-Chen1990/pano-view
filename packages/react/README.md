@@ -907,9 +907,10 @@ that viewer mount. A switch recreates the canvas and may reload the scene and me
 In an immersive WebGPU session, `Scenes` switches as soon as the destination
 scene can draw and reports `preset: "none"`. Three.js r185 disables XR MSAA and
 multiview and does not apply the XR framebuffer oversampling setting to its
-native WebGPU projection layer. For custom GLSL or integrations that call
-WebGL-specific APIs, set `renderer="webgl"`. The WebGPU path disables
-frame-wide tone mapping to preserve panorama colors.
+native WebGPU projection layer. Immersive WebGL sessions keep the configured
+`Scenes` transition presets and capture per-eye snapshots. For custom GLSL or
+integrations that call WebGL-specific APIs, set `renderer="webgl"`. The WebGPU
+path disables frame-wide tone mapping to preserve panorama colors.
 
 ```tsx
 const viewer = usePanoViewer();
@@ -2587,7 +2588,7 @@ respond to the configured gaze or controller input.
 - `north` — default `0`. Panorama yaw that represents North when `absolute` is enabled.
 - `friction` — default `0` (range `0–0.99`). MobileVR gyro smoothing; keep `0` for normal viewing.
 - `touchSupport` — default `false`. When `true`, allows horizontal touch dragging to correct MobileVR heading (`horizontaloffset`). Disabled by default because headset trays can trigger false touches.
-- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session).
+- `oversampling` — default `1`, clamped to **0.5–2**. Scales the MobileVR distortion render target only (viewports unchanged). For WebGL WebXR, sets the framebuffer scale factor before the session starts (cannot change mid-session). Native WebGPU XR ignores this value because three.js r185 does not pass `scaleFactor` to its projection layer.
 - `foveation` — optional WebXR fixed foveation in **0–1**. Omit to keep the device default; `0` is full resolution, `1` is maximum edge downsampling.
 - `frameRate` — optional WebXR target rate: `"low" | "mid" | "high"` or a numeric Hz (closest supported rate). Omit to keep the store default (`"high"`).
 - `cursor` — default `true`; `false` hides the center reticle.

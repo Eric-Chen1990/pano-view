@@ -1,5 +1,5 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   DoubleSide,
   InstancedBufferAttribute,
@@ -8,14 +8,13 @@ import {
   PlaneGeometry,
   ShaderMaterial,
   Vector2,
-  Vector3,
 } from "three";
+import { WebVRRuntimeContext } from "../webvr/host";
 import { GLSL_COMMON } from "./glsl";
 import {
   OVERLAY_RENDER_ORDER,
-  isPerspectiveCamera,
+  bindSnapshotEyeTexture,
   overlayProgress,
-  placeFullscreenOverlay,
 } from "./overlay-utils";
 import type { OverlayProps } from "./overlay-utils";
 
@@ -26,6 +25,7 @@ const PARTICLE_COUNT = PARTICLE_GRID * PARTICLE_GRID;
 const PARTICLE_VERTEX_SHADER = `
   attribute float instanceIndex;
   uniform float progress;
+  uniform float distance;
   uniform vec2 grid;
   varying vec2 vUv;
   varying float vAlpha;
@@ -54,10 +54,11 @@ const PARTICLE_VERTEX_SHADER = `
     vec2 rotated = vec2(local.x * ca - local.y * sa, local.x * sa + local.y * ca);
     vec2 planeCenter = (cell + 0.5) / grid - 0.5;
     vec2 exploded = planeCenter + dir * explode * 0.9;
-    vec3 pos = vec3(exploded + rotated, -explode * 0.14);
+    float depth = distance / (distance + explode * 0.14);
+    vec2 scaled = (exploded + rotated) * 2.0 * depth;
     vUv = (cell + uv) / grid;
     vAlpha = 1.0 - explode;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = vec4(scaled, 0.0, 1.0);
   }
 `;
 
@@ -99,11 +100,10 @@ export function ParticleOverlay({
   runId,
   onFinish,
 }: OverlayProps) {
-  const { camera } = useThree();
-  const meshRef = useRef<Mesh>(null);
+  const gl = useThree((state) => state.gl);
+  const vr = useContext(WebVRRuntimeContext);
   const startRef = useRef<number | null>(null);
   const finishedRef = useRef(false);
-  const directionRef = useRef(new Vector3());
   const geometry = useMemo(() => createParticleGeometry(), []);
   const material = useMemo(
     () =>
@@ -115,6 +115,7 @@ export function ParticleOverlay({
         uniforms: {
           map: { value: snapshot.texture },
           progress: { value: 0 },
+          distance: { value: 0.11 },
           grid: { value: new Vector2(PARTICLE_GRID, PARTICLE_GRID) },
         },
         vertexShader: PARTICLE_VERTEX_SHADER,
@@ -131,13 +132,23 @@ export function ParticleOverlay({
     material.uniforms.progress.value = 0;
   }, [material, runId]);
 
-  useFrame((state) => {
-    const mesh = meshRef.current;
-    if (!mesh || !isPerspectiveCamera(camera)) {
-      return;
-    }
-    placeFullscreenOverlay(mesh, camera, directionRef.current);
+  const bindView: Mesh["onBeforeRender"] = (_renderer, _scene, camera) => {
+    const rightEye = gl.xr.isPresenting
+      ? gl.xr.getCamera().cameras[1]
+      : vr?.stereoView.active
+        ? vr.stereoView.stereo.cameraR
+        : undefined;
+    bindSnapshotEyeTexture(
+      snapshot,
+      camera,
+      rightEye,
+      material.uniforms.map,
+      undefined,
+      material.uniforms.distance,
+    );
+  };
 
+  useFrame((state) => {
     if (!running || finishedRef.current) {
       return;
     }
@@ -152,11 +163,11 @@ export function ParticleOverlay({
 
   return (
     <mesh
-      ref={meshRef}
       frustumCulled={false}
       geometry={geometry}
       material={material}
       renderOrder={OVERLAY_RENDER_ORDER}
+      onBeforeRender={bindView}
     />
   );
 }

@@ -1,5 +1,5 @@
-import type { Camera, Object3D, Texture } from "three";
-import { PerspectiveCamera, PlaneGeometry, Vector3 } from "three";
+import type { Camera, Texture, Vector2 } from "three";
+import { PerspectiveCamera, PlaneGeometry } from "three";
 import type { TransitionDefinition } from "./presets";
 
 export const OVERLAY_RENDER_ORDER = 10_000;
@@ -24,17 +24,26 @@ export function isPerspectiveCamera(camera: Camera): camera is PerspectiveCamera
   return (camera as PerspectiveCamera).isPerspectiveCamera === true;
 }
 
-export function placeFullscreenOverlay(
-  mesh: Object3D,
-  camera: PerspectiveCamera,
-  direction: Vector3,
+/** Clip-space overlays pick the matching eye texture while WebGL renders each view. */
+export function bindSnapshotEyeTexture(
+  snapshot: Snapshot,
+  camera: Camera,
+  rightEye: Camera | undefined,
+  map: { value: Texture },
+  resolution?: { value: Vector2 },
+  distance?: { value: number },
 ): void {
-  const distance = Math.max(camera.near * 1.1, 0.11);
-  camera.getWorldDirection(direction);
-  mesh.position.copy(camera.position).addScaledVector(direction, distance);
-  mesh.quaternion.copy(camera.quaternion);
-  const height = 2 * distance * Math.tan((camera.fov * Math.PI) / 360);
-  mesh.scale.set(height * camera.aspect, height, 1);
+  const source = snapshot.eyeTextures && rightEye && camera === rightEye
+    ? snapshot.eyeTextures[1]!
+    : snapshot.texture;
+  map.value = source;
+  if (resolution) {
+    const size = source.image as { width: number; height: number };
+    resolution.value.set(size.width, size.height);
+  }
+  if (distance && isPerspectiveCamera(camera)) {
+    distance.value = Math.max(camera.near * 1.1, 0.11);
+  }
 }
 
 export function overlayProgress(

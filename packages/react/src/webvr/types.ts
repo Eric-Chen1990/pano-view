@@ -100,6 +100,8 @@ export type WebVRProps = {
   /**
    * Distortion / WebXR framebuffer scale factor. Defaults to 1. Clamped to
    * 0.5–2. Must be set before entering WebXR (cannot change mid-session).
+   * Native WebGPU XR ignores this value: three.js r185 does not pass
+   * `scaleFactor` to `XRGPUBinding.createProjectionLayer`.
    */
   oversampling?: number;
   /**

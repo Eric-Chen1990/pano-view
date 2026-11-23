@@ -1,11 +1,11 @@
-import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
-import { Mesh, Vector3 } from "three";
+import { useThree } from "@react-three/fiber";
+import { useContext, useEffect, useMemo } from "react";
+import type { Mesh } from "three";
+import { WebVRRuntimeContext } from "../webvr/host";
 import {
   FULLSCREEN_PLANE,
   OVERLAY_RENDER_ORDER,
-  isPerspectiveCamera,
-  placeFullscreenOverlay,
+  bindSnapshotEyeTexture,
 } from "./overlay-utils";
 import type { Snapshot } from "./overlay-utils";
 import { createSnapshotMaterial } from "./snapshot-shaders";
@@ -15,9 +15,8 @@ import { createSnapshotMaterial } from "./snapshot-shaders";
  * unmounted so preset progress does not start until the wait ends.
  */
 export function SnapshotHold({ snapshot }: { snapshot: Snapshot }) {
-  const { camera, gl } = useThree();
-  const meshRef = useRef<Mesh>(null);
-  const directionRef = useRef(new Vector3());
+  const gl = useThree((state) => state.gl);
+  const vr = useContext(WebVRRuntimeContext);
   const material = useMemo(
     () => createSnapshotMaterial("crossfade", snapshot.texture),
     [snapshot.texture],
@@ -25,22 +24,28 @@ export function SnapshotHold({ snapshot }: { snapshot: Snapshot }) {
 
   useEffect(() => () => material.dispose(), [material]);
 
-  useFrame(() => {
-    const mesh = meshRef.current;
-    if (!mesh || !isPerspectiveCamera(camera)) {
-      return;
-    }
-    placeFullscreenOverlay(mesh, camera, directionRef.current);
-    const context = gl.getContext();
-    material.uniforms.resolution.value.set(
-      context.drawingBufferWidth,
-      context.drawingBufferHeight,
+  const bindView: Mesh["onBeforeRender"] = (_renderer, _scene, camera) => {
+    const rightEye = gl.xr.isPresenting
+      ? gl.xr.getCamera().cameras[1]
+      : vr?.stereoView.active
+        ? vr.stereoView.stereo.cameraR
+        : undefined;
+    bindSnapshotEyeTexture(
+      snapshot,
+      camera,
+      rightEye,
+      material.uniforms.map,
+      material.uniforms.resolution,
     );
     material.uniforms.progress.value = 0;
-  });
+  };
 
   return (
-    <mesh frustumCulled={false} ref={meshRef} renderOrder={OVERLAY_RENDER_ORDER}>
+    <mesh
+      frustumCulled={false}
+      renderOrder={OVERLAY_RENDER_ORDER}
+      onBeforeRender={bindView}
+    >
       <primitive attach="geometry" object={FULLSCREEN_PLANE} />
       <primitive attach="material" object={material} />
     </mesh>

@@ -866,7 +866,8 @@ Viewer 会切换到 WebGL，并通过 `onDenied` 提示可以再次点击进入 
 
 原生 WebGPU XR 会话内，`Scenes` 在目标场景可绘制时直接切换，并报告
 `preset: "none"`。Three.js r185 在原生 WebGPU XR 中关闭 MSAA 和 multiview，
-其投影层也不应用 XR 帧缓冲超采样设置。宿主使用自定义 GLSL 或调用 WebGL 专用
+其投影层也不应用 XR 帧缓冲超采样设置。沉浸式 WebGL 会话会保留配置的
+`Scenes` 转场预设，并逐眼捕获快照。宿主使用自定义 GLSL 或调用 WebGL 专用
 API 时，可设置 `renderer="webgl"`。WebGPU 路径关闭全帧色调映射以保留全景原始色彩。
 
 ```tsx
@@ -2304,7 +2305,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 - `north` — 默认 `0`。启用 `absolute` 时，全景中代表北方的 yaw。
 - `friction` — 默认 `0`（范围 `0–0.99`）。MobileVR 陀螺仪平滑；正常观看保持 `0`。
 - `touchSupport` — 默认 `false`。为 `true` 时允许水平拖动修正 MobileVR 朝向（`horizontaloffset`）。默认关闭，因为镜筒托盘可能误触。
-- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebXR 则在会话开始前设置 framebuffer 缩放（会话中途不可改）。
+- `oversampling` — 默认 `1`，夹到 **0.5–2**。仅放大 MobileVR 畸变离屏目标（视口不变）。WebGL WebXR 在会话开始前设置 framebuffer 缩放（会话中途不可改）。原生 WebGPU XR 忽略该值，因为 three.js r185 不会把 `scaleFactor` 传给投影层。
 - `foveation` — 可选 WebXR 固定注视点渲染，范围 **0–1**。省略则用设备默认；`0` 为全分辨率，`1` 为边缘最大降采样。
 - `frameRate` — 可选 WebXR 目标刷新率：`"low" | "mid" | "high"` 或具体 Hz（取最接近的支持值）。省略则保持 store 默认（`"high"`）。
 - `cursor` — 默认 `true`；`false` 关闭中心准星。
