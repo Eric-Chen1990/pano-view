@@ -11,7 +11,7 @@ import {
   type PanoSceneMenuLabelAlign,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState } from "react";
-import { TRANSITION_SCENES } from "../../constants";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlLabelClassName,
@@ -30,14 +30,20 @@ import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
 const SCENE_MENU_TITLES: Record<
-  (typeof TRANSITION_SCENES)[number]["id"],
+  (typeof CUBE_SCENES)[number]["id"],
   string
 > = {
-  "sphere-1": "Sphere 1",
-  "sphere-2": "Sphere 2",
+  "tile-1": "Cube 1",
+  "tile-2": "Cube 2",
   "tile-3": "Cube 3",
   "tile-4": "Cube 4",
 };
+
+const SCENE_MENU_ITEMS: PanoSceneMenuItem[] = CUBE_SCENES.map((scene) => ({
+  id: scene.id,
+  title: SCENE_MENU_TITLES[scene.id],
+  thumbnailUrl: `${scene.baseUrl}/previews/200.webp`,
+}));
 
 const LABEL_ALIGNS: readonly PanoSceneMenuLabelAlign[] = [
   "start",
@@ -117,7 +123,7 @@ import {
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes: Scene[] = ${JSON.stringify(TRANSITION_SCENES, null, 2)};
+const scenes: Scene[] = ${JSON.stringify(CUBE_SCENES, null, 2)};
 const sceneMenuItems: PanoSceneMenuItem[] = ${JSON.stringify(options.items, null, 2)};
 
 export function SceneMenuTour() {
@@ -154,7 +160,7 @@ ${sizeProps}
 }
 
 export function SceneMenuPage() {
-  const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+  const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [align, setAlign] = useState<PanoOverlayAlign>("bottom");
   const [axis, setAxis] = useState<PanoOverlayAxis>("horizontal");
   const [collapsible, setCollapsible] = useState(true);
@@ -172,24 +178,6 @@ export function SceneMenuPage() {
     "Dock the thumbnail strip and tune chrome.",
   );
 
-  const sceneMenuItems = useMemo((): PanoSceneMenuItem[] => {
-    return TRANSITION_SCENES.map((scene) => {
-      if (scene.type === "sphere") {
-        return {
-          id: scene.id,
-          title: SCENE_MENU_TITLES[scene.id],
-          thumbnailUrl: `/fixtures/panorama/panos/${scene.id === "sphere-1" ? "1" : "2"}/preview.webp`,
-        };
-      }
-      const folder = scene.id === "tile-3" ? "3" : "4";
-      return {
-        id: scene.id,
-        title: SCENE_MENU_TITLES[scene.id],
-        thumbnailUrl: `/fixtures/panorama/cube-tiles/${folder}/previews/200.webp`,
-      };
-    });
-  }, []);
-
   const horizontal =
     align === "top" ||
     align === "bottom" ||
@@ -197,7 +185,7 @@ export function SceneMenuPage() {
   const snippet = useMemo(
     () =>
       buildSceneMenuSnippet({
-        items: sceneMenuItems,
+        items: SCENE_MENU_ITEMS,
         initialSceneId: activeSceneId,
         align,
         axis,
@@ -214,7 +202,6 @@ export function SceneMenuPage() {
       }),
     [
       activeSceneId,
-      sceneMenuItems,
       align,
       axis,
       collapsible,
@@ -487,7 +474,7 @@ export function SceneMenuPage() {
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
               onActiveSceneIdChange={setActiveSceneId}
-              scenes={TRANSITION_SCENES}
+              scenes={CUBE_SCENES}
               transition="dissolve"
             />
             <PanoOverlay>
@@ -507,7 +494,7 @@ export function SceneMenuPage() {
                 collapsible={collapsible}
                 dragMotion={dragMotionEnabled ? undefined : false}
                 height={horizontal ? undefined : "70%"}
-                items={sceneMenuItems}
+                items={SCENE_MENU_ITEMS}
                 loop={loop}
                 onSelect={(id) => {
                   setActiveSceneId(id);

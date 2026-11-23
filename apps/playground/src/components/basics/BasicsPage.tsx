@@ -3,11 +3,14 @@ import { useEffect, useState } from "react";
 import {
   PanoViewer,
   Sphere,
+  SphereTile,
   Tile,
   usePanoViewer,
   type PanoLittlePlanetIntroOptions,
   type TileLoadProgress,
+  type SphereTileProps,
 } from "@ericchen1990/pano-view";
+import { cubeTileProps } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -24,12 +27,22 @@ const sphere = {
   src: "/fixtures/panorama/panos/1/sphere.webp",
   previewUrl: "preview.webp",
 };
-const tile = {
-  baseUrl: "/fixtures/panorama/cube-tiles/4",
-  multires: "512,1000,2000",
-  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-  previewUrl: "previews/cube-vertical.webp",
-};
+const tile = cubeTileProps(4);
+const sphereTile = {
+  baseUrl: "/fixtures/panorama/sphere-tiles-v2",
+  multires: "512,512x256,2048x1024,4096x2048,8000x4000",
+  previewUrl: "previews/400.webp",
+  urlTemplate: "tiles/%l/%h_%v.webp",
+  indexBase: 1,
+} satisfies SphereTileProps;
+
+const sources = {
+  tile: { label: "Cube tiles", component: "Tile", props: tile },
+  sphere: { label: "Single image", component: "Sphere", props: sphere },
+  sphereTile: { label: "Sphere tiles", component: "SphereTile", props: sphereTile },
+} as const;
+const sourceOrder = ["tile", "sphere", "sphereTile"] as const;
+type SourceKind = (typeof sourceOrder)[number];
 
 const defaultIntro: Required<PanoLittlePlanetIntroOptions> = {
   holdDuration: 500,
@@ -53,7 +66,7 @@ const introEasings = {
 } as const;
 
 function SourceExample({ source, renderer, intro }: {
-  source: "sphere" | "tile";
+  source: SourceKind;
   renderer: "auto" | "webgl";
   intro: false | PanoLittlePlanetIntroOptions;
 }) {
@@ -63,6 +76,24 @@ function SourceExample({ source, renderer, intro }: {
   const [progress, setProgress] = useState<TileLoadProgress>();
   const [level, setLevel] = useState(1);
   useEffect(() => setError(undefined), [source]);
+
+  function tileLoading(kind: "tile" | "sphereTile") {
+    return {
+      visible: displayed === kind,
+      loadMode: displayed === kind ? "full" as const : "base" as const,
+      onReady: () => {
+        if (source === kind) setDisplayed(kind);
+      },
+      onPreviewError: () => {
+        if (source === kind) setError("Preview could not load. Reload to retry.");
+      },
+      onTileError: () => {
+        if (source === kind) setError("Some tiles could not load; the preview remains available.");
+      },
+      onLoadProgress: setProgress,
+      onLevelChange: setLevel,
+    };
+  }
 
   return (
     <>
@@ -85,27 +116,13 @@ function SourceExample({ source, renderer, intro }: {
           />
         ) : null}
         {source === "tile" || displayed === "tile" ? (
-          <Tile
-            {...tile}
-            visible={displayed === "tile"}
-            loadMode={displayed === "tile" ? "full" : "base"}
-            onReady={() => {
-              if (source === "tile") setDisplayed("tile");
-            }}
-            onPreviewError={() =>
-              source === "tile" && setError("Preview could not load. Reload to retry.")
-            }
-            onTileError={() =>
-              source === "tile" && setError(
-                "Some tiles could not load; the preview remains available.",
-              )
-            }
-            onLoadProgress={setProgress}
-            onLevelChange={setLevel}
-          />
+          <Tile {...tile} {...tileLoading("tile")} />
+        ) : null}
+        {source === "sphereTile" || displayed === "sphereTile" ? (
+          <SphereTile {...sphereTile} {...tileLoading("sphereTile")} />
         ) : null}
       </PanoViewer>
-      {source === "tile" ? (
+      {source !== "sphere" ? (
         <p className="px-6 text-sm" aria-live="polite">
           Level {level} · tiles {progress?.loaded ?? 0}/
           {progress?.requested ?? 0} · failed {progress?.failed ?? 0}. Counts
@@ -117,7 +134,7 @@ function SourceExample({ source, renderer, intro }: {
 }
 
 export function BasicsPage() {
-  const [source, setSource] = useState<"sphere" | "tile">("sphere");
+  const [source, setSource] = useState<SourceKind>("tile");
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [intro, setIntro] = useState(defaultIntro);
   const [playback, setPlayback] = useState<{ key: number; options: false | PanoLittlePlanetIntroOptions }>(
@@ -125,13 +142,15 @@ export function BasicsPage() {
   );
   const introEnabled = playback.options !== false;
   const replayIntro = () => setPlayback((current) => ({ key: current.key + 1, options: intro }));
-  const props = source === "sphere" ? sphere : tile;
-  const component = source === "sphere" ? "Sphere" : "Tile";
+  const { component, props } = sources[source];
+  const viewerUrl = source === "sphere" ? undefined : `${sources[source].props.baseUrl}/viewer.json`;
   const introCode = introEnabled
     ? ` littlePlanetIntro={{\n${Object.entries(intro).map(([key, value]) => `  ${key}: ${JSON.stringify(value)},`).join("\n")}\n}}`
     : "";
   const sourceProps = Object.entries(props)
-    .map(([key, value]) => `        ${key}=${JSON.stringify(value)}`)
+    .map(([key, value]) => typeof value === "string"
+      ? `        ${key}=${JSON.stringify(value)}`
+      : `        ${key}={${JSON.stringify(value)}}`)
     .join("\n");
   const code = `import { PanoViewer, ${component} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
@@ -148,14 +167,14 @@ ${sourceProps}
   return (
     <ExamplePage
       title="Panorama basics"
-      description="Start with one panorama source. Compare a 2:1 image with multiresolution cube tiles, then inspect the required resource paths and loading state."
+      description="Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source."
     >
       <div
         className={pageControlsClassName}
         role="group"
         aria-label="Panorama source"
       >
-        {(["sphere", "tile"] as const).map((value) => (
+        {sourceOrder.map((value) => (
           <button
             key={value}
             type="button"
@@ -166,7 +185,7 @@ ${sourceProps}
             )}
             onClick={() => setSource(value)}
           >
-            {value === "sphere" ? "Sphere" : "Cube tiles"}
+            {sources[value].label}
           </button>
         ))}
       </div>
@@ -237,20 +256,20 @@ ${sourceProps}
       </fieldset>
       <SourceExample key={`${renderer}:${playback.key}`} source={source} renderer={renderer} intro={playback.options} />
       <p className="px-6 text-sm text-muted-2">
-        Sphere previews resolve beside the image. Tile previews and tile
-        templates resolve below baseUrl. Use the template and multires values
-        matching your converted files.
+        Single-image previews resolve beside the image. Cube and spherical
+        tile previews and templates resolve below baseUrl. Use the template
+        and multires values from your converted files.
       </p>
       <ExampleCode
         key={source}
-        json={{ format: "viewer", files: source === "tile" ? [{
+        json={{ format: "viewer", files: viewerUrl ? [{
           label: "viewer.json",
           blurb: "Keep this file beside the tile folders. Pass its URL to loadSceneFromJson and give the returned scene to Scenes.",
-          url: `${tile.baseUrl}/viewer.json`,
+          url: viewerUrl,
         }] : [] }}
         react={{
           label: `${component}: minimal setup`,
-          blurb: "The demo reports load failures and, for cube tiles, the current level and tile counts. These callbacks observe loading without changing the source configuration.",
+          blurb: "The demo reports load failures and, for tiled sources, the current level and tile counts. These callbacks observe loading without changing the source configuration.",
           code: code,
         }}
       />

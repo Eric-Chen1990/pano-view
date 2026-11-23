@@ -9,9 +9,9 @@ import {
   type WebVRSceneMenuProps,
   type WebVRSceneMenuAppearance,
   usePanoViewer,
-  type Scene,
 } from "@ericchen1990/pano-view";
 import { useState, useSyncExternalStore } from "react";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import {
   eyebrowClassName,
   pageHeadingStatusClassName,
@@ -24,22 +24,6 @@ import {
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
-
-const TILE_SCENE = {
-  type: "tile" as const,
-  multires: "512,1000,2000",
-  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-  previewUrl: "previews/cube-vertical.webp",
-};
-
-const VR_SCENES = [
-  { id: "tile-1", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/1" },
-  { id: "tile-2", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/2" },
-  { id: "tile-3", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/3" },
-  { id: "tile-4", ...TILE_SCENE, baseUrl: "/fixtures/panorama/cube-tiles/4" },
-] satisfies readonly Scene[];
-
-const INITIAL_SCENE_ID = VR_SCENES[0]!.id;
 
 const MENU_DEFAULTS = {
   layout: "compact" as NonNullable<WebVRSceneMenuProps["layout"]>,
@@ -58,8 +42,8 @@ const MENU_DEFAULTS = {
   showTitles: true,
   showVisited: false,
 };
-const MANY_SCENES: Scene[] = Array.from({ length: 25 }, (_, index) => ({
-  ...VR_SCENES[index % 4]!,
+const MANY_SCENES = Array.from({ length: 25 }, (_, index) => ({
+  ...CUBE_SCENES[index % CUBE_SCENES.length]!,
   id: index < 4 ? `tile-${index + 1}` : `tour-${index + 1}`,
 }));
 
@@ -74,16 +58,14 @@ export function VRSceneMenuPage() {
   const [appearance, setAppearance] = useState<WebVRSceneMenuAppearance>({});
   const [many, setMany] = useState(false);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const menuScenes = many ? MANY_SCENES : VR_SCENES;
+  const menuScenes = many ? MANY_SCENES : CUBE_SCENES;
   const menuItems = menuScenes.map((scene, index) => ({
     id: scene.id,
     title: titles[scene.id] ?? `Scene ${index + 1}`,
-    thumbnailUrl: `/fixtures/panorama/cube-tiles/${
-      (index % 4) + 1
-    }/previews/200.webp`,
+    thumbnailUrl: `${scene.baseUrl}/previews/200.webp`,
   }));
   const [status, setStatus] = useState("Detecting VR capabilities…");
-  const [activeSceneId, setActiveSceneId] = useState(INITIAL_SCENE_ID);
+  const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const menuProps: WebVRSceneMenuProps = {
     ...settings,
     appearance,
@@ -146,7 +128,7 @@ export function VRSceneMenuPage() {
                 checked={many}
                 onChange={(e) => {
                   setMany(e.target.checked);
-                  setActiveSceneId(INITIAL_SCENE_ID);
+                  setActiveSceneId(INITIAL_CUBE_SCENE_ID);
                 }}
               />{" "}
               25 scenes

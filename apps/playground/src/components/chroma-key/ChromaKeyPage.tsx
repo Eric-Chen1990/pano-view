@@ -1,3 +1,4 @@
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { ImageHotspot, PanoViewer, Scenes, VideoHotspot, type ProjectHotspotDefinition, type PanoViewerHandle } from "@ericchen1990/pano-view";
 import { ChromaKeyColorSampler } from "@ericchen1990/pano-view/ui";
 import { useRef, useState } from "react";
@@ -11,7 +12,8 @@ const media = {
   video: { label: "Blue-screen video", src: "/fixtures/chroma-key-v1/robot-blue.mp4", poster: "/fixtures/chroma-key-v1/robot-blue.png", color: "#1853E6" },
 } as const;
 const position = { yaw: 0, pitch: 0 };
-const scenes = [{ id: "chroma-key", type: "sphere", src: "/fixtures/panorama/panos/1/sphere.webp", previewUrl: "preview.webp" }] as const;
+const panorama = cubeTileProps();
+const scenes = [{ id: "chroma-key", type: "tile", ...panorama }] as const;
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#75cbd3]";
 const button = `${segmentedButtonClassName} ${focus}`;
 
@@ -42,13 +44,13 @@ export function ChromaKeyPage() {
     : { type: "video", ...hotspot, ...video };
   const component = kind === "image" ? "ImageHotspot" : "VideoHotspot";
   const props = kind === "image" ? hotspot : { ...hotspot, ...video };
-  const code = `import { ${component}, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+  const code = `import { ${component}, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function ChromaKeyPanorama() {
   return (
     <PanoViewer renderer="${renderer}" style={{ height: 540 }} initialView={{ yaw: 0, pitch: 0, fov: 62 }}>
-      <Sphere src="${scenes[0].src}" previewUrl="${scenes[0].previewUrl}" />
+      ${cubeTileJsx(panorama)}
       <${component}
 ${Object.entries(props)
   .filter(([, value]) => value !== undefined)

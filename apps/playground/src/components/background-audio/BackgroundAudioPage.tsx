@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BackgroundAudio, PanoViewer, Scenes } from "@ericchen1990/pano-view";
-import { TRANSITION_SCENES } from "../../constants";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
   pageControlsClassName,
@@ -12,14 +12,14 @@ import { ExampleCode } from "../ExampleCode";
 
 const sharedSource = "/fixtures/bgm/ambient-light.mp3";
 const sources = {
-  "sphere-1": sharedSource,
-  "sphere-2": "/fixtures/bgm/death-scene.mp3",
+  "tile-1": sharedSource,
+  "tile-2": "/fixtures/bgm/death-scene.mp3",
   "tile-3": "/fixtures/bgm/building-scene.mp3",
   "tile-4": "/fixtures/bgm/motorcycle-scene.mp3",
-};
+} satisfies Record<(typeof CUBE_SCENES)[number]["id"], string>;
 
 export function BackgroundAudioPage() {
-  const [sceneId, setSceneId] = useState("sphere-1");
+  const [sceneId, setSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [mode, setMode] = useState<"shared" | "per-scene">("shared");
   const [playing, setPlaying] = useState(false);
   const [status, setStatus] = useState(
@@ -34,10 +34,10 @@ export function BackgroundAudioPage() {
 import { BackgroundAudio, PanoViewer, Scenes, type Scene } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes = ${JSON.stringify(TRANSITION_SCENES, null, 2)} satisfies readonly Scene[];
+const scenes = ${JSON.stringify(CUBE_SCENES, null, 2)} satisfies readonly Scene[];
 ${mode === "per-scene" ? `const sources = ${JSON.stringify(sources, null, 2)};\n` : ""}
 export function AudioTour() {
-  const [sceneId, setSceneId] = useState("sphere-1");
+  const [sceneId, setSceneId] = useState(${JSON.stringify(sceneId)});
   const [playing, setPlaying] = useState(false);
   return <>
     <button onClick={() => setPlaying((value) => !value)}>{playing ? "Pause" : "Play"}</button>
@@ -92,7 +92,7 @@ export function AudioTour() {
         role="group"
         aria-label="Audio tour scenes"
       >
-        {TRANSITION_SCENES.map((scene) => (
+        {CUBE_SCENES.map((scene) => (
           <button
             type="button"
             key={scene.id}
@@ -138,7 +138,7 @@ export function AudioTour() {
           }}
         />
         <Scenes
-          scenes={TRANSITION_SCENES}
+          scenes={CUBE_SCENES}
           activeSceneId={sceneId}
           onActiveSceneIdChange={setSceneId}
           transition="dissolve"

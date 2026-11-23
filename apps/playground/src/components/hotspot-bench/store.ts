@@ -11,7 +11,6 @@ import type {
   EditorPolygon,
   EditorPolyline,
   EditorTool,
-  ViewerMode,
 } from "../../types";
 import {
   cloneDemoHotspots,
@@ -45,7 +44,6 @@ export type IframePatch = Partial<
 >;
 
 type HotspotBenchState = {
-  mode: ViewerMode;
   tool: EditorTool;
   hotspots: EditorHotspot[];
   polygons: EditorPolygon[];
@@ -59,7 +57,6 @@ type HotspotBenchState = {
 type HotspotBenchActions = {
   setLastAction: (message: string) => void;
   toggleDraftFill: () => void;
-  selectMode: (mode: ViewerMode) => void;
   selectPreset: (
     type: EditorHotspot["type"] | "polygon" | "polyline",
   ) => string | undefined;
@@ -117,7 +114,6 @@ function isDrawingPath(tool: EditorTool): boolean {
 }
 
 export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
-  mode: "sphere",
   tool: "navigate",
   hotspots: cloneDemoHotspots(),
   polygons: cloneDemoPolygons(),
@@ -167,7 +163,6 @@ export const useHotspotBenchStore = create<HotspotBenchStore>((set, get) => ({
     return id;
   },
 
-  selectMode: (mode) => set({ mode }),
 
   selectTool: (tool, lastAction) => set({ tool, lastAction }),
 

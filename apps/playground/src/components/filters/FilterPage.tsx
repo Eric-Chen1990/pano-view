@@ -4,8 +4,6 @@ import {
   PanoFilter,
   PanoVideo,
   PanoViewer,
-  Sphere,
-  SphereTile,
   Tile,
   WebVR,
   usePanoViewer,
@@ -14,7 +12,7 @@ import {
   type PanoVideoVariant,
 } from "@ericchen1990/pano-view";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { FILTER_PRESET_GROUPS, TRANSITION_SCENES } from "../../constants";
+import { cubeTileProps, FILTER_PRESET_GROUPS } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -33,23 +31,17 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const SPHERE_SCENE = TRANSITION_SCENES[0];
-const TILE_SCENE = TRANSITION_SCENES[2];
+const TILE_PROPS = {
+  ...cubeTileProps(3),
+  maxConcurrentLoads: 3,
+  maxTextureMemoryMb: 96,
+};
 
 const SOURCES = [
-  { id: "sphere", component: "Sphere", label: "Single image" },
   { id: "tile", component: "Tile", label: "Cube tiles" },
-  { id: "sphereTile", component: "SphereTile", label: "Sphere tiles" },
   { id: "video", component: "PanoVideo", label: "360° video" },
 ] as const;
 type SourceKind = (typeof SOURCES)[number]["id"];
-
-const SPHERE_TILE_PROPS = {
-  baseUrl: "/fixtures/panorama/sphere-tiles/",
-  multires: "512,512x256,1536x768",
-  previewUrl: "previews/400.webp",
-  urlTemplate: "tiles/%l/%h_%v.webp",
-} as const;
 
 const VIDEO_VARIANTS: readonly PanoVideoVariant[] = [
   { width: 1024, height: 512 },
@@ -79,18 +71,9 @@ const ADJUSTMENTS = [
 ] as const;
 
 function FilterSource({ source }: { source: SourceKind }) {
-  switch (source) {
-    case "sphere":
-      return SPHERE_SCENE?.type === "sphere" ? <Sphere {...SPHERE_SCENE} /> : null;
-    case "tile":
-      return TILE_SCENE?.type === "tile" ? (
-        <Tile {...TILE_SCENE} maxConcurrentLoads={3} maxTextureMemoryMb={96} />
-      ) : null;
-    case "sphereTile":
-      return <SphereTile {...SPHERE_TILE_PROPS} />;
-    case "video":
-      return <PanoVideo loop muted variants={VIDEO_VARIANTS} tracks={VIDEO_TRACKS} />;
-  }
+  return source === "tile"
+    ? <Tile {...TILE_PROPS} />
+    : <PanoVideo loop muted variants={VIDEO_VARIANTS} tracks={VIDEO_TRACKS} />;
 }
 
 function FilterHotspots() {
@@ -128,12 +111,10 @@ function buildFilterSnippet(
   enabled: boolean,
 ): string {
   const component = SOURCES.find((option) => option.id === source)!.component;
-  const sourceProps = source === "sphere" ? SPHERE_SCENE
-    : source === "tile" ? TILE_SCENE
-    : source === "sphereTile" ? SPHERE_TILE_PROPS
+  const sourceProps = source === "tile"
+    ? TILE_PROPS
     : { variants: VIDEO_VARIANTS, tracks: VIDEO_TRACKS, loop: true, muted: true };
-  const sourceAttributes = Object.entries(sourceProps ?? {})
-    .filter(([key]) => key !== "id" && key !== "type")
+  const sourceAttributes = Object.entries(sourceProps)
     .map(([key, value]) => typeof value === "string"
       ? `${key}=${JSON.stringify(value)}`
       : `${key}={${JSON.stringify(value)}}`)
@@ -187,7 +168,7 @@ export function PanoramaFilter() {
 }
 
 export function FilterPage() {
-  const [source, setSource] = useState<SourceKind>("sphere");
+  const [source, setSource] = useState<SourceKind>("tile");
   const [preset, setPreset] = useState<PanoFilterPreset>("none");
   const [intensity, setIntensity] = useState(1);
   const [adjustments, setAdjustments] = useState<PanoColorAdjustments>({});

@@ -11,7 +11,7 @@ import {
   type SceneTransitionPreset,
 } from "@ericchen1990/pano-view";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TRANSITION_SCENES } from "../../constants";
+import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName,
@@ -60,7 +60,7 @@ import {
 } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
-const scenes: Scene[] = ${JSON.stringify(TRANSITION_SCENES, null, 2)};
+const scenes: Scene[] = ${JSON.stringify(CUBE_SCENES, null, 2)};
 
 export function SceneTransitions() {
   const [activeSceneId, setActiveSceneId] = useState("${sceneId}");
@@ -139,7 +139,7 @@ function LoadingIndicatorPreview({
 }
 
 export function SceneTransitionPage() {
-  const [activeSceneId, setActiveSceneId] = useState("sphere-1");
+  const [activeSceneId, setActiveSceneId] = useState<string>(INITIAL_CUBE_SCENE_ID);
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState("");
   const viewer = useRef<PanoViewerHandle>(null);
@@ -190,7 +190,7 @@ export function SceneTransitionPage() {
             role="group"
             aria-label="Target panorama scene"
           >
-            {TRANSITION_SCENES.map((scene) => (
+            {CUBE_SCENES.map((scene) => (
               <button
                 className={cn(
                   segmentedButtonClassName,
@@ -277,7 +277,7 @@ export function SceneTransitionPage() {
               onActiveSceneIdChange={selectScene}
               maxConcurrentTileLoads={3}
               maxTextureMemoryMb={96}
-              scenes={TRANSITION_SCENES}
+              scenes={CUBE_SCENES}
               transition={preset}
               onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? "")}
               onTransitionEnd={({

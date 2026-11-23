@@ -8,6 +8,7 @@ import {
   type Scene,
 } from "@ericchen1990/pano-view";
 import { useRef, useState } from "react";
+import { CUBE_VIEWER_CONFIG, cubeTileProps } from "../../constants";
 import {
   controlInputClassName,
   controlLabelClassName,
@@ -22,34 +23,25 @@ const PORTAL_SCENES = [
   {
     id: "garden",
     name: "Garden path",
-    type: "sphereTile",
-    baseUrl: "/fixtures/panorama/sphere-tiles-v2/",
-    multires: "512,512x256,2048x1024,4096x2048,8000x4000",
-    previewUrl: "previews/400.webp",
-    urlTemplate: "tiles/%l/%h_%v.webp",
-    yawOffset: 30,
-    initialView: { yaw: 10, pitch: 0, fov: 65 },
+    type: "tile",
+    ...cubeTileProps(1),
+    initialView: { yaw: -20, pitch: 0, fov: 65 },
     viewLimits: { fov: { min: 20, max: 100 } },
   },
   {
     id: "lakeside",
     name: "Lakeside",
     type: "tile",
-    baseUrl: "/fixtures/panorama/cube-tiles/3",
-    multires: "512,1000,2000",
-    previewUrl: "previews/cube-vertical.webp",
-    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+    ...cubeTileProps(3),
     initialView: { yaw: 0, pitch: 0, fov: 75 },
     viewLimits: { fov: { min: 20, max: 100 } },
   },
   {
     id: "courtyard",
     name: "Courtyard",
-    type: "sphere",
-    src: "/fixtures/panorama/panos/2/sphere.webp",
-    previewUrl: "preview.webp",
-    yawOffset: 12,
-    initialView: { yaw: 0, pitch: 0, fov: 75 },
+    type: "tile",
+    ...cubeTileProps(2),
+    initialView: { yaw: 12, pitch: 0, fov: 75 },
     viewLimits: { fov: { min: 20, max: 100 } },
   },
 ] as const satisfies readonly (Scene & { name: string })[];
@@ -60,13 +52,13 @@ type Door = Pick<PortalHotspotProps, "position" | "shape" | "width" | "height" |
 const PORTALS = {
   garden: {
     courtyard: {
-      position: { yaw: 10, pitch: 0 },
+      position: { yaw: -20, pitch: 0 },
       shape: "rectangle",
       width: 22,
       height: 30,
     },
     lakeside: {
-      position: { yaw: 44, pitch: 0 },
+      position: { yaw: 14, pitch: 0 },
       shape: "circle",
       width: 22,
       height: 22,
@@ -88,7 +80,7 @@ const PORTALS = {
   },
   courtyard: {
     lakeside: {
-      position: { yaw: -18, pitch: -7 },
+      position: { yaw: -6, pitch: -7 },
       shape: "ellipse",
       width: 25,
       height: 37,
@@ -96,7 +88,7 @@ const PORTALS = {
       frame: { src: "/fixtures/hotspots/medieval-stone-portal-v2.webp", thickness: 0.14 },
     },
     garden: {
-      position: { yaw: 24, pitch: -4 },
+      position: { yaw: 36, pitch: -4 },
       shape: "rectangle",
       width: 22,
       height: 30,
@@ -106,28 +98,25 @@ const PORTALS = {
   [Source in PortalSceneId]: Partial<Record<Exclude<PortalSceneId, Source>, Door>>;
 };
 
+const INITIAL_SCENE_ID = "courtyard";
+
 const project: PanoProjectDefinition = {
   schemaVersion: 1,
-  initialSceneId: "garden",
-  scenes: PORTAL_SCENES.filter((scene) => scene.type !== "sphere").map((scene) => {
-    const { id } = scene;
-    const target = id === "garden" ? "lakeside" : "garden";
-    const door = id === "garden" ? PORTALS.garden.lakeside : PORTALS.lakeside.garden;
-    return {
-      id,
-      title: scene.name,
-      initialView: scene.initialView,
-      viewLimits: scene.viewLimits,
-      source: { viewerUrl: `${scene.baseUrl.replace(/\/$/, "")}/viewer.json` },
-      hotspots: [{
-        id: `portal-${id}-${target}`,
-        type: "portal",
-        ...door,
-        enterOnZoom: true,
-        events: { click: { type: "scene", sceneId: target } },
-      }],
-    };
-  }),
+  initialSceneId: INITIAL_SCENE_ID,
+  scenes: PORTAL_SCENES.map(({ id, name, initialView, viewLimits, baseUrl }) => ({
+    id,
+    title: name,
+    initialView,
+    viewLimits,
+    source: { baseUrl, viewerConfig: CUBE_VIEWER_CONFIG },
+    hotspots: Object.entries(PORTALS[id]).map(([target, door]) => ({
+      id: `portal-${id}-${target}`,
+      type: "portal",
+      ...door,
+      enterOnZoom: true,
+      events: { click: { type: "scene", sceneId: target } },
+    })),
+  })),
 };
 
 function buildPortalSnippet(sceneId: string, renderer: "auto" | "webgl") {
@@ -170,7 +159,7 @@ function renderDoors(scene: Scene) {
 
 export function PortalPage() {
   const viewer = useRef<PanoViewerHandle>(null);
-  const [sceneId, setSceneId] = useState("courtyard");
+  const [sceneId, setSceneId] = useState(INITIAL_SCENE_ID);
   const [renderer, setRenderer] = useState<"auto" | "webgl">("auto");
   const [backend, setBackend] = useState("");
   const [error, setError] = useState("");
@@ -234,9 +223,9 @@ export function PortalPage() {
       <ExampleCode
         react={{ label: "PortalHotspot", blurb: "Render each doorway with the target scene ID and its position.", code: buildPortalSnippet(sceneId, renderer) }}
         json={{ format: "project", files: [{
-          label: "Two-scene portal project",
+          label: "Three-scene portal project",
           blurb: "Load this project.json with loadPanoProject and pass it to ProjectScenes. Each portal’s click event points to its destination scene.",
-          value: project,
+          value: { ...project, initialSceneId: sceneId },
         }] }}
       />
       <details className="border-t border-line p-5">

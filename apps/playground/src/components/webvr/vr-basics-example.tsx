@@ -1,9 +1,10 @@
+import { cubeTileProps } from "../../constants";
 import { useState, useSyncExternalStore } from "react";
 import {
   GraphicHotspot,
   PanoEvents,
   PanoViewer,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type WebVRInteractionMode,
@@ -67,10 +68,7 @@ export function VRBasicsExample() {
           }
         />
         <WebVR interactionMode={interactionMode} />
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         <GraphicHotspot
           id="gaze-target"
           ariaLabel="Activate marker"

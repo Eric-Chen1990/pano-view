@@ -1,6 +1,7 @@
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import {
-  GraphicHotspot, PanoOverlay, PanoViewer, Sphere, usePanoViewer,
+  GraphicHotspot, PanoOverlay, PanoViewer, Tile, usePanoViewer,
   type PanoScreenshotFocus, type PanoScreenshotFormat, type PanoScreenshotMode, type PanoScreenshotOptions,
 } from "@ericchen1990/pano-view";
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
@@ -9,10 +10,7 @@ import { controlInputClassName, controlLabelClassName, viewerChromeButtonClassNa
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
-const source = {
-  src: "/fixtures/panorama/panos/1/sphere.webp",
-  previewUrl: "preview.webp",
-};
+const source = cubeTileProps();
 const hotspot = {
   id: "hall",
   position: { yaw: 0, pitch: 3 },
@@ -31,7 +29,7 @@ const modes: Record<PanoScreenshotMode, string> = {
 function screenshotExample(options: PanoScreenshotOptions) {
   const settings = JSON.stringify(options, null, 2).replace(/\n/g, "\n      ");
   return `import { useEffect, useState, useSyncExternalStore } from "react";
-import { GraphicHotspot, PanoOverlay, PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
+import { GraphicHotspot, PanoOverlay, PanoViewer, Tile, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaScreenshot() {
@@ -64,7 +62,7 @@ export function PanoramaScreenshot() {
     <button type="button" onClick={capture} disabled={busy || progress.status !== "ready"}>Take screenshot</button>
     {error && <p role="alert">{error}</p>}
     <PanoViewer ref={viewer.ref} style={{ height: 480 }}>
-      <Sphere src=${JSON.stringify(source.src)} previewUrl=${JSON.stringify(source.previewUrl)} />
+      ${cubeTileJsx(source)}
       <GraphicHotspot {...${JSON.stringify(hotspot)}} />
       <PanoOverlay>
         <button type="button" style={{ pointerEvents: "auto" }} onClick={viewer.reset}>Reset view</button>
@@ -117,7 +115,7 @@ export function ScreenshotPage() {
   return (
     <ExamplePage title="Panorama screenshot" description="Drag to frame the view, then choose which layers to capture. Preview the result and download it as a PNG or JPEG.">
       <PanoViewer ref={viewer.ref} aria-label="Screenshot panorama" className="h-[540px] max-[560px]:h-[480px]">
-        <Sphere {...source} />
+        <Tile {...source} />
         <GraphicHotspot {...hotspot} />
         <PanoOverlay>
           <div className="pointer-events-auto absolute top-3 right-3 flex flex-wrap justify-end gap-2">

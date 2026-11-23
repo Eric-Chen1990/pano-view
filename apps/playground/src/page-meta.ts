@@ -9,7 +9,7 @@ export const PAGE_META = {
   "/basics": {
     title: "Panorama Basics Demo | Pano View",
     description:
-      "Start with a single React panorama. Compare Sphere images and Tile cube sources, resource paths, previews and loading diagnostics.",
+      "Start with a single React panorama. Compare cube tiles, single panoramas, and spherical tiles. Inspect resource paths, previews, and loading diagnostics.",
   },
   "/planar-image": {
     title: "Tiled Flat Image Demo | Pano View",
@@ -67,7 +67,7 @@ export const PAGE_META = {
   "/scene-transitions": {
     title: "Panorama Scene Transitions Demo | Pano View",
     description:
-      "Try panorama scene transitions in React. Move between equirectangular images and multiresolution cube tiles with configurable visual effects.",
+      "Try panorama scene transitions in React. Move between multiresolution cube panoramas with configurable visual effects.",
   },
   "/portals": {
     title: "Panorama Portals Demo | Pano View",

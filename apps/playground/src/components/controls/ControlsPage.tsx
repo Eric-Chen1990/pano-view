@@ -1,10 +1,11 @@
+import { cubeTileJsx } from "../../constants";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 import { ControlsExample, type ControlExampleKind } from "./controls-example";
 import source from "./controls-example.tsx?raw";
 
-const minimalCode = `import { PanoViewer, Sphere, GraphicHotspot, usePanoViewer } from "@ericchen1990/pano-view";
+const minimalCode = `import { PanoViewer, Tile, GraphicHotspot, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function ViewNavigation() {
@@ -14,14 +15,14 @@ export function ViewNavigation() {
     <button onClick={() => void viewer.lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })}>Look north</button>
     <button onClick={() => void viewer.lookToHotspot("target", { fov: 55 })}>Look to hotspot</button>
     <PanoViewer ref={viewer.ref} controls={{ keyboard: true, inertia: true }} style={{ height: 540 }}>
-      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      ${cubeTileJsx()}
       <GraphicHotspot id="target" ariaLabel="Navigation target" position={{ yaw: -62, pitch: 4 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} />
     </PanoViewer>
   </>;
 }`;
 
 const automaticCode = `import { useState } from "react";
-import { AutoRotate, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import { AutoRotate, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function AutomaticRotation() {
@@ -32,7 +33,7 @@ export function AutomaticRotation() {
         {enabled ? "Stop rotation" : "Start rotation"}
       </button>
       <PanoViewer style={{ height: 540 }}>
-        <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+        ${cubeTileJsx(undefined, "        ")}
         <AutoRotate enabled={enabled} speed={18} startDelay={1000} />
       </PanoViewer>
     </>
@@ -40,7 +41,7 @@ export function AutomaticRotation() {
 }`;
 
 const gyroCode = `import { useRef, useState } from "react";
-import { Gyro, PanoViewer, Sphere, type GyroHandle } from "@ericchen1990/pano-view";
+import { Gyro, PanoViewer, Tile, type GyroHandle } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function DeviceOrientation() {
@@ -55,7 +56,7 @@ export function DeviceOrientation() {
         {enabled ? "Disable gyro" : "Enable gyro"}
       </button>
       <PanoViewer style={{ height: 540 }}>
-        <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+        ${cubeTileJsx(undefined, "        ")}
         <Gyro ref={gyro} enabled={enabled} onDenied={() => setEnabled(false)} />
       </PanoViewer>
     </>

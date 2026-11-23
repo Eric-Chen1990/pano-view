@@ -1,10 +1,10 @@
 import type {
-  Scene,
   SceneTransitionPreset,
   PanoFilterPreset,
   PanoViewerState,
   TileLoadProgress,
 } from "@ericchen1990/pano-view";
+import type { CubemapViewerConfig } from "@ericchen1990/pano-view/data";
 import type { EditorHotspot, EditorPolygon } from "./types";
 
 export const INITIAL_VIEW: PanoViewerState = { yaw: 0, pitch: 0, fov: 75 };
@@ -19,48 +19,36 @@ export const INITIAL_PROGRESS: TileLoadProgress = {
 
 export const SEQUENCE_SPRITE = "/fixtures/hotspots/sequence-sprite.svg";
 
-export const TRANSITION_SCENES = [
-  {
-    id: "sphere-1",
-    type: "sphere",
-    src: "/fixtures/panorama/panos/1/sphere.webp",
-    previewUrl: "preview.webp",
-  },
-  {
-    id: "sphere-2",
-    type: "sphere",
-    src: "/fixtures/panorama/panos/2/sphere.webp",
-    previewUrl: "preview.webp",
-    yawOffset: 12,
-  },
-  {
-    id: "tile-3",
-    type: "tile",
-    baseUrl: "/fixtures/panorama/cube-tiles/3",
-    multires: "512,1000,2000",
-    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-    previewUrl: "previews/cube-vertical.webp",
-  },
-  {
-    id: "tile-4",
-    type: "tile",
-    baseUrl: "/fixtures/panorama/cube-tiles/4",
-    multires: "512,1000,2000",
-    urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
-    previewUrl: "previews/cube-vertical.webp",
-  },
-  {
-    id: "sphere-tiles",
-    type: "sphereTile",
-    baseUrl: "/fixtures/panorama/sphere-tiles-v2/",
-    multires: "512,512x256,2048x1024,4096x2048,8000x4000",
-    previewUrl: "previews/400.webp",
-    urlTemplate: "tiles/%l/%h_%v.webp",
-    yawOffset: 30,
-    initialView: { yaw: 10, pitch: 0, fov: 62 },
-    viewLimits: { fov: { min: 65, max: 100 } },
-  },
-] satisfies readonly Scene[];
+export const CUBE_VIEWER_CONFIG = {
+  type: "tile",
+  multires: { tileSize: 512, levels: [1000, 2000] },
+  urlTemplate: "tiles/%s/l%l/%v/l%l_%s_%v_%h.webp",
+  previewUrl: "previews/cube-vertical.webp",
+  previewFaceOrder: ["l", "f", "r", "b", "u", "d"],
+} satisfies CubemapViewerConfig;
+
+const { type: cubeProjection, ...cubeProps } = CUBE_VIEWER_CONFIG;
+
+export function cubeTileProps(fixture: 1 | 2 | 3 | 4 = 1) {
+  return { baseUrl: `/fixtures/panorama/cube-tiles/${fixture}`, ...cubeProps };
+}
+
+export function cubeTileJsx(props = cubeTileProps(), indent = "      ") {
+  const attributes = Object.entries(props).map(([name, value]) =>
+    typeof value === "string"
+      ? `${name}=${JSON.stringify(value)}`
+      : `${name}={${JSON.stringify(value)}}`,
+  );
+  return ["<Tile", ...attributes.map((attribute) => `${indent}  ${attribute}`), `${indent}/>`].join("\n");
+}
+
+export const CUBE_SCENES = ([1, 2, 3, 4] as const).map((fixture) => ({
+  id: `tile-${fixture}` as const,
+  type: cubeProjection,
+  ...cubeTileProps(fixture),
+}));
+
+export const INITIAL_CUBE_SCENE_ID = "tile-1";
 
 export const TRANSITION_PRESET_GROUPS: Array<{
   label?: string;

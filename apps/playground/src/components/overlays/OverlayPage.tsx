@@ -1,3 +1,4 @@
+import { cubeTileJsx } from "../../constants";
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -7,7 +8,7 @@ import composedSource from "./composed-dialog-example.tsx?raw";
 import customSource from "./third-party-dialog-example.tsx?raw";
 
 const minimalCode = `import { useState } from "react";
-import { GraphicHotspot, PanoOverlay, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+import { GraphicHotspot, PanoOverlay, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
@@ -21,7 +22,7 @@ export function SharedDialog() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const story = stories.find((entry) => entry.id === selectedId);
   return <PanoViewer style={{ height: 560 }}>
-    <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+    ${cubeTileJsx(undefined, "    ")}
     {stories.map((entry, index) => <GraphicHotspot key={entry.id} id={entry.id} ariaLabel={entry.title} position={{ yaw: index * 40 - 20, pitch: 0 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} onClick={() => setSelectedId(entry.id)} />)}
     <PanoOverlay>
       <PanoDialog open={Boolean(story)} onOpenChange={(open) => { if (!open) setSelectedId(null); }} title={story?.title ?? "Story"}>

@@ -1,10 +1,11 @@
+import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
 import {
   PanoOverlay,
   PanoScrollControls,
   PanoVideo,
   PanoViewer,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type PanoMediaController,
@@ -112,10 +113,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
             loop
           />
         ) : (
-          <Sphere
-            src="/fixtures/panorama/panos/1/sphere.webp"
-            previewUrl="preview.webp"
-          />
+          <Tile {...cubeTileProps()} />
         )}
         {kind === "scene-video" ? (
           <SceneMovie onController={setController} />

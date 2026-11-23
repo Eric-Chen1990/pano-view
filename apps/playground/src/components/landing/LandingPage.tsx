@@ -16,7 +16,7 @@ const featuredDemos = [
     eyebrow: "1 · Load a panorama",
     title: "Start with one panorama source",
     description:
-      "Compare Sphere images and cube tiles, understand resource paths, and observe previews and loading.",
+      "Compare cube tiles, single panoramas, and spherical tiles. Explore resource paths, previews, and loading.",
     href: "/basics",
     demo: "basics",
   },

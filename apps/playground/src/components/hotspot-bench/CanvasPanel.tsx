@@ -1,17 +1,12 @@
 import {
   PanoViewer,
-  Sphere,
   Tile,
   usePanoViewer,
 } from "@ericchen1990/pano-view";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../cn";
-import { INITIAL_VIEW } from "../../constants";
-import {
-  segmentedButtonClassName,
-  segmentedControlClassName,
-  segmentedControlOptionClassName,
-} from "../../ui";
+import { cubeTileProps, INITIAL_VIEW } from "../../constants";
+import { segmentedButtonClassName } from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
   selectDrawingPath,
@@ -31,7 +26,6 @@ export function CanvasPanel() {
   const viewer = usePanoViewer();
   const selectPreset = useHotspotBenchStore((state) => state.selectPreset);
   const {
-    mode,
     placementTool,
     drawingPath,
     drawingPolygon,
@@ -39,14 +33,12 @@ export function CanvasPanel() {
     draftVertices,
     draftPolygonFilled,
     lastAction,
-    selectMode,
     addHotspot,
     finishPolygonDraft,
     cancelPolygonDraft,
     toggleDraftFill,
   } = useHotspotBenchStore(
     useShallow((state) => ({
-      mode: state.mode,
       placementTool: selectPlacementTool(state),
       drawingPath: selectDrawingPath(state),
       drawingPolygon: selectDrawingPolygon(state),
@@ -54,7 +46,6 @@ export function CanvasPanel() {
       draftVertices: state.draftVertices,
       draftPolygonFilled: state.draftPolygonFilled,
       lastAction: state.lastAction,
-      selectMode: state.selectMode,
       addHotspot: state.addHotspot,
       finishPolygonDraft: state.finishPolygonDraft,
       cancelPolygonDraft: state.cancelPolygonDraft,
@@ -103,44 +94,6 @@ export function CanvasPanel() {
         ))}
       </div>
       <div className="flex items-center gap-4 border-b border-[#27454d] px-[17px] py-[15px] max-[760px]:flex-col max-[760px]:items-stretch">
-        <div
-          aria-label="Panorama source"
-          className={segmentedControlClassName}
-          role="radiogroup"
-        >
-          <button
-            aria-checked={mode === "sphere"}
-            className={cn(
-              segmentedControlOptionClassName,
-              mode === "sphere"
-                ? "bg-[#df6b42] text-white"
-                : "text-[#f5fbfc] hover:bg-[#102b31]",
-            )}
-            onClick={() => selectMode("sphere")}
-            role="radio"
-            type="button"
-          >
-            Sphere
-          </button>
-          <button
-            aria-checked={mode === "tile"}
-            className={cn(
-              segmentedControlOptionClassName,
-              mode === "tile"
-                ? "bg-[#df6b42] text-white"
-                : "text-[#f5fbfc] hover:bg-[#102b31]",
-            )}
-            onClick={() => selectMode("tile")}
-            role="radio"
-            type="button"
-          >
-            Cube Tile
-          </button>
-        </div>
-        <div
-          aria-hidden="true"
-          className="h-6 w-px shrink-0 bg-[#3e6c73] max-[760px]:hidden"
-        />
         <div
           aria-label="Viewer controls"
           className="flex items-center gap-2 max-[760px]:grid max-[760px]:grid-cols-2"
@@ -196,9 +149,8 @@ export function CanvasPanel() {
         )}
       >
         <PanoViewer
-          key={mode}
           ref={viewer.ref}
-          aria-label={`${mode} panorama hotspot editor`}
+          aria-label="Panorama hotspot editor"
           className={cn(
             "h-full w-full",
             (placementTool || drawingPath) && "cursor-crosshair",
@@ -211,19 +163,7 @@ export function CanvasPanel() {
             if (drawingPath) finishPolygonDraft();
           }}
         >
-          {mode === "sphere" ? (
-            <Sphere
-              src="/fixtures/panorama/panos/1/sphere.webp"
-              previewUrl="preview.webp"
-            />
-          ) : (
-            <Tile
-              baseUrl="/fixtures/panorama/cube-tiles/4"
-              multires="512,1000,2000"
-              urlTemplate="tiles/%s/l%l/%v/l%l_%s_%v_%h.webp"
-              previewUrl="previews/cube-vertical.webp"
-            />
-          )}
+          <Tile {...cubeTileProps()} />
           <HotspotLayer />
         </PanoViewer>
         <p

@@ -1,8 +1,9 @@
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   MIN_PANO_CONTEXT_MENU_BACKGROUND_OPACITY,
   PanoEvents,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoViewer,
   type PanoContextMenuAppearance,
   type PanoContextMenuEntry,
@@ -94,7 +95,7 @@ function buildContextMenuSnippet(
     ? `append: ["separator", ${customItems}],`
     : `items: ["resetView", "separator", ${customItems}, "separator", "fullscreen"],`;
 
-  return `import { PanoViewer, Sphere${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
+  return `import { PanoViewer, Tile${mode === "default" ? "" : ", usePanoViewer"} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaContextMenu() {
@@ -108,7 +109,7 @@ ${mode === "default" ? "" : "  const pano = usePanoViewer();\n"}
       }}
       style={{ height: 540 }}
     >
-      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      ${cubeTileJsx()}
     </PanoViewer>
   );
 }`;
@@ -285,10 +286,7 @@ export function ContextMenuPage() {
               onEnterFullscreen={() => setLastAction("Entered fullscreen")}
               onExitFullscreen={() => setLastAction("Exited fullscreen")}
             />
-            <Sphere
-              src="/fixtures/panorama/panos/1/sphere.webp"
-              previewUrl="preview.webp"
-            />
+            <Tile {...cubeTileProps()} />
           </PanoViewer>
         </div>
         <ExampleCode

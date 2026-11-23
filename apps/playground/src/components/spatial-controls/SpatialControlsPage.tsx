@@ -1,3 +1,4 @@
+import { cubeTileJsx } from "../../constants";
 import { useState } from "react";
 import { cn } from "../../cn";
 import {
@@ -20,16 +21,16 @@ const examples = [
   { id: "scroll", label: "Scrolling" },
 ] as const;
 
-const sphere = '<Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />';
+const panorama = cubeTileJsx(undefined, "        ");
 const videoUrl = "/fixtures/360video/1/video-1024x512.mp4";
 
 const snippets = {
   "scene-video": {
     hooks: "useState",
-    imports: "Sphere, VideoHotspot, PanoSpatialControls, PanoMediaControls, type PanoMediaController",
+    imports: "Tile, VideoHotspot, PanoSpatialControls, PanoMediaControls, type PanoMediaController",
     state: `  const [controller, setController] = useState<PanoMediaController | null>(null);
   const [playing, setPlaying] = useState(false);`,
-    scene: `${sphere}
+    scene: `${panorama}
         <VideoHotspot ref={setController} id="movie" src="${videoUrl}" position={{ yaw: 0, pitch: 0 }}
           width={28} height={16} playing={playing} onClick={() => setPlaying((value) => !value)}
           onPlaybackStateChange={(state) => setPlaying(state === "playing")} />`,
@@ -46,7 +47,7 @@ const snippets = {
   },
   model: {
     hooks: "useMemo, useState",
-    imports: "Sphere, PanoModelControls",
+    imports: "Tile, PanoModelControls",
     state: `  const [open, setOpen] = useState(false);
   const [angle, setAngle] = useState(0);
   const [scale, setScale] = useState(1);
@@ -55,7 +56,7 @@ const snippets = {
     zoomBy: (factor: number) => setScale((scale) => Math.max(0.5, Math.min(2, scale * factor))),
     resetView: () => { setAngle(0); setScale(1); },
   }), []);`,
-    scene: sphere,
+    scene: panorama,
     controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open model</button>
           <PanoDialog title="Model controls" open={open} onOpenChange={setOpen}>
             <div style={{ width: 100, height: 100, margin: 32, background: "teal",
@@ -65,10 +66,10 @@ const snippets = {
   },
   scroll: {
     hooks: "useRef, useState",
-    imports: "Sphere, PanoScrollControls",
+    imports: "Tile, PanoScrollControls",
     state: `  const [open, setOpen] = useState(false);
   const article = useRef<HTMLDivElement>(null);`,
-    scene: sphere,
+    scene: panorama,
     controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open article</button>
           <PanoDialog title="Scroll controls" open={open} onOpenChange={setOpen}>
             <div ref={article} tabIndex={0} style={{ height: 160, overflow: "auto" }}>

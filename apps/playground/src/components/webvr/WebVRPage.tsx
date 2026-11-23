@@ -1,10 +1,11 @@
+import { cubeTileJsx } from "../../constants";
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
 import { VRBasicsExample } from "./vr-basics-example";
 import source from "./vr-basics-example.tsx?raw";
 
-const minimalCode = `import { PanoViewer, Sphere, GraphicHotspot, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
+const minimalCode = `import { PanoViewer, Tile, GraphicHotspot, WebVR, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function VRPanorama() {
@@ -13,7 +14,7 @@ export function VRPanorama() {
     <button onClick={() => void viewer.enterVR()}>Enter VR</button>
     <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
       <WebVR />
-      <Sphere src="/fixtures/panorama/panos/1/sphere.webp" previewUrl="preview.webp" />
+      ${cubeTileJsx()}
       <GraphicHotspot id="gaze-target" ariaLabel="Activate marker" position={{ yaw: 0, pitch: 0 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} onClick={() => console.log("Marker activated")} />
     </PanoViewer>
   </>;

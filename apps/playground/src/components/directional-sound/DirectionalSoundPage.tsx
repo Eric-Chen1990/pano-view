@@ -1,9 +1,10 @@
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { useRef, useState, useSyncExternalStore } from "react";
 import {
   AudioHotspot,
   Gyro,
   PanoViewer,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type AudioPlaybackState,
@@ -14,7 +15,7 @@ import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { ExampleCode } from "../ExampleCode";
 
-const panorama = "/fixtures/panorama/panos/1/sphere.webp";
+const panorama = cubeTileProps();
 
 const sources = [
   {
@@ -47,7 +48,7 @@ const projectHotspots: ProjectHotspotDefinition[] = sources.map(({ name, ...sour
 }));
 
 const code = `import { useState } from "react";
-import { AudioHotspot, PanoViewer, Sphere, usePanoViewer } from "@ericchen1990/pano-view";
+import { AudioHotspot, PanoViewer, Tile, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 const sources = ${JSON.stringify(sources, null, 2)};
@@ -58,7 +59,7 @@ export function DirectionalSound() {
 
   return (
     <PanoViewer ref={viewer.ref} style={{ height: 540 }}>
-      <Sphere src="${panorama}" previewUrl="preview.webp" />
+      ${cubeTileJsx(panorama)}
       {sources.map(({ name, ...source }) => (
         <AudioHotspot
           key={source.id}
@@ -136,7 +137,7 @@ export function DirectionalSoundPage() {
       </div>
       {error && <p role="alert" className="px-6 text-sm">{error}</p>}
       <PanoViewer ref={viewer.ref} aria-label="Directional 3D Sound viewer" style={{ height: 540 }}>
-        <Sphere src={panorama} previewUrl="preview.webp" />
+        <Tile {...panorama} />
         <Gyro
           ref={gyro}
           enabled={gyroEnabled && !vr.enabled}

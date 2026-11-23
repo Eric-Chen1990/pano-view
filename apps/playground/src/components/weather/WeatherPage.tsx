@@ -1,9 +1,10 @@
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import {
   PANO_RAIN_PRESETS,
   PANO_SNOW_PRESETS,
   PanoViewer,
   PanoWeather,
-  Sphere,
+  Tile,
   WebVR,
   usePanoViewer,
   type PanoRainPreset,
@@ -26,8 +27,6 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
-const src = "/fixtures/panorama/panos/1/sphere.webp";
-const previewUrl = "preview.webp";
 const MODES = [
   { value: "off", label: "Off" },
   { value: "rain", label: "Rain" },
@@ -129,13 +128,13 @@ export function WeatherPage() {
       ? `\n    sizeRange={[${sizeRange[0]}, ${sizeRange[1]}]}`
       : ""}${type === "snow" && groundEnabled ? `\n    groundY={${groundY}}` : ""}
   />`;
-  const code = `import { PanoViewer, PanoWeather, Sphere } from "@ericchen1990/pano-view";
+  const code = `import { PanoViewer, PanoWeather, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaWeather() {
   return (
     <PanoViewer style={{ height: 480 }}>
-      <Sphere src="${src}" previewUrl="${previewUrl}" />
+      ${cubeTileJsx()}
     ${weatherCode}
     </PanoViewer>
   );
@@ -214,7 +213,7 @@ export function PanoramaWeather() {
         )}
         <PanoViewer ref={viewer.ref} aria-label="Weather demo" style={{ height: "min(540px, 68dvh)" }}>
           <WebVR />
-          <Sphere src={src} previewUrl={previewUrl} />
+          <Tile {...cubeTileProps()} />
           <PanoWeather {...weather} enabled={enabled} intensity={intensity} wind={[windX, windZ]} />
         </PanoViewer>
         <ExampleCode

@@ -1,10 +1,11 @@
+import { cubeTileProps } from "../../constants";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
   GraphicHotspot,
   PanoOverlay,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoOverlay,
   usePanoViewer,
 } from "@ericchen1990/pano-view";
@@ -178,10 +179,7 @@ export function DialogsExample() {
         aria-label="Dialogs and overlays viewer"
         style={{ height: 560 }}
       >
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         {stories.map((story, index) => (
           <GraphicHotspot
             key={story.id}

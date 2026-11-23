@@ -1,3 +1,4 @@
+import { cubeTileProps } from "../../constants";
 import { useRef, useState } from "react";
 import {
   AutoRotate,
@@ -5,7 +6,7 @@ import {
   Gyro,
   PanoOverlay,
   PanoViewer,
-  Sphere,
+  Tile,
   usePanoOverlay,
   usePanoViewer,
   type GyroHandle,
@@ -166,10 +167,7 @@ export function ControlsExample({ example, onExampleChange }: {
         controls={{ keyboard: true, inertia: true }}
         style={{ height: 540 }}
       >
-        <Sphere
-          src="/fixtures/panorama/panos/1/sphere.webp"
-          previewUrl="preview.webp"
-        />
+        <Tile {...cubeTileProps()} />
         <GraphicHotspot
           id="target"
           ariaLabel="Navigation target"

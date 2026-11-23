@@ -3,6 +3,7 @@ import {
   type HotspotPosition, type PanoSunProps,
 } from "@ericchen1990/pano-view";
 import { useState, useSyncExternalStore } from "react";
+import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlInputClassName, controlLabelClassName, pageControlsClassName, pageHeadingTitleClassName,
@@ -17,7 +18,7 @@ import { SunGuide } from "./SunGuide";
 const SCENARIOS = {
   add: {
     label: "Add sun",
-    src: "/fixtures/panorama/panos/1/sphere.webp",
+    panorama: cubeTileProps(1),
     initialView: { yaw: 120, pitch: 35, fov: 65 },
     settings: {
       position: { yaw: 140, pitch: 55 },
@@ -27,7 +28,7 @@ const SCENARIOS = {
   },
   enhance: {
     label: "Enhance existing sun",
-    src: "/fixtures/panorama/panos/4/sphere.webp",
+    panorama: cubeTileProps(4),
     initialView: { yaw: -100, pitch: 44, fov: 65 },
     settings: {
       position: { yaw: -81, pitch: 63 },
@@ -37,7 +38,7 @@ const SCENARIOS = {
   },
 } satisfies Record<string, {
   label: string;
-  src: string;
+  panorama: ReturnType<typeof cubeTileProps>;
   initialView: { yaw: number; pitch: number; fov: number };
   settings: PanoSunProps;
 }>;
@@ -46,11 +47,10 @@ type SunSettings = typeof SCENARIOS.add.settings;
 type SunPlacement = Pick<SunSettings, "position" | "angularSize">;
 type SunEdit = SunPlacement & { preview: boolean };
 
-const SUN_SCENES = Object.entries(SCENARIOS).map(([id, { src }]) => ({
+const SUN_SCENES = Object.entries(SCENARIOS).map(([id, { panorama }]) => ({
   id,
-  type: "sphere" as const,
-  src,
-  previewUrl: "preview.webp",
+  type: "tile" as const,
+  ...panorama,
 }));
 
 function SunSlider({ label, value, min, max, step, suffix = "", onChange }: {
@@ -85,7 +85,7 @@ const STRENGTHS = [
 
 function SunExample({ scenario }: { scenario: Scenario }) {
   const [displayedScenario, setDisplayedScenario] = useState(scenario);
-  const { label, src, initialView, settings: defaults } = SCENARIOS[displayedScenario];
+  const { label, panorama, initialView, settings: defaults } = SCENARIOS[displayedScenario];
   const [settings, setSettings] = useState<SunSettings>(defaults);
   const [enabled, setEnabled] = useState(true);
   const [edit, setEdit] = useState<SunEdit | null>(null);
@@ -104,13 +104,13 @@ function SunExample({ scenario }: { scenario: Scenario }) {
     setEdit((current) => current && { ...current, position: next });
   }
 
-  const code = `import { PanoSun, PanoViewer, Sphere } from "@ericchen1990/pano-view";
+  const code = `import { PanoSun, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaSun() {
   return (
     <PanoViewer style={{ height: 480 }} initialView={${JSON.stringify(initialView)}}>
-      <Sphere src="${src}" previewUrl="preview.webp" />
+      ${cubeTileJsx(panorama)}
       <PanoSun
         position={{ yaw: ${Number(position.yaw.toFixed(4))}, pitch: ${Number(position.pitch.toFixed(4))} }}
     ${Object.entries(layers).map(([name, value]) => `    ${name}={${value}}`).join("\n")}${enabled ? "" : "\n    enabled={false}"}
