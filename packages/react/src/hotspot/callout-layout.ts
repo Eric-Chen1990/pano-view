@@ -201,6 +201,28 @@ export function resolveCalloutLayout(
 }
 
 /**
+ * Horizontal card shift, in CSS pixels, that puts the accent bar on the
+ * leader stroke.
+ *
+ * The stroke is centered on the endpoint. The accent is a vertical bar of
+ * the same width whose outer edge sits on that endpoint, so its center is
+ * half a stroke inside the card. When the leader is parallel to the accent
+ * (90° / -90°) that offset reads as two side-by-side lines. The shift is
+ * the full half-stroke at vertical and fades to zero when the leader meets
+ * the accent edge-on.
+ */
+export function calloutAccentShiftX(
+  angleDeg: number,
+  accentWidth: number,
+  horizontal: CalloutCardAlign["horizontal"],
+): number {
+  if (!(accentWidth > 0)) return 0;
+  const parallel = Math.abs(Math.sin((angleDeg * Math.PI) / 180));
+  const towardCenter = horizontal === "right" ? -1 : 1;
+  return towardCenter * (accentWidth / 2) * parallel;
+}
+
+/**
  * Two-phase reveal. `t` is normalized elapsed time in [0, 1] over the total
  * duration (line then content). Opening grows line first; closing shrinks
  * content first.

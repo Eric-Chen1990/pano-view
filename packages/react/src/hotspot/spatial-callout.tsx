@@ -25,6 +25,7 @@ import {
 } from "../renderer-capabilities";
 import { getWebVRHotspotView, WebVRRuntimeContext } from "../webvr/host";
 import {
+  calloutAccentShiftX,
   resolveCalloutAppearance,
   resolveCalloutLayout,
   resolveCalloutLine,
@@ -257,8 +258,12 @@ export function SpatialCallout({
       scratch.mid
         .copy(scratch.origin)
         .addScaledVector(scratch.lineDirection, layout.length * unit);
-      const cardWidth = raster.width * unit;
-      const cardHeight = raster.height * unit;
+      const accentWidth = Math.max(1, resolvedLine.width);
+      const shiftX = calloutAccentShiftX(
+        layout.angle,
+        accentWidth,
+        layout.card.horizontal,
+      );
       const xSign = layout.card.horizontal === "right" ? 1 : -1;
       const ySign =
         layout.card.vertical === "end"
@@ -266,16 +271,25 @@ export function SpatialCallout({
           : layout.card.vertical === "start"
             ? -1
             : 0;
+      // Offset by the painted card. The mesh itself is the texture, whose
+      // gutter is centered around that card, matching spatial tooltips.
       scratch.mid.addScaledVector(
         scratch.cameraRight,
-        xSign * (cardWidth / 2),
+        (xSign * (raster.width / 2) + shiftX) * unit,
       );
-      scratch.mid.addScaledVector(scratch.cameraUp, ySign * (cardHeight / 2));
+      scratch.mid.addScaledVector(
+        scratch.cameraUp,
+        ySign * (raster.height / 2) * unit,
+      );
       const contentScale = Math.max(0.001, reveal.contentProgress);
       scratch.world.compose(
         scratch.mid,
         scratch.cameraRotation,
-        scratch.scale.set(cardWidth * contentScale, cardHeight, 1),
+        scratch.scale.set(
+          raster.textureWidth * unit * contentScale,
+          raster.textureHeight * unit,
+          1,
+        ),
       );
       scratch.local.copy(anchor.matrixWorld).invert().multiply(scratch.world);
       cardMesh.current.matrix.copy(scratch.local);

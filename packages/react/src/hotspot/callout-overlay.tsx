@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import {
+  calloutAccentShiftX,
   resolveCalloutAppearance,
   resolveCalloutLayout,
   resolveCalloutLine,
@@ -78,6 +79,12 @@ export function CalloutOverlay({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const expandFrom = layout.card.horizontal === "right" ? "left" : "right";
+  const accentWidth = Math.max(1, resolvedLine.width);
+  const accentShiftX = calloutAccentShiftX(
+    layout.angle,
+    accentWidth,
+    layout.card.horizontal,
+  );
 
   useLayoutEffect(() => {
     applyRevealStyles(
@@ -117,7 +124,7 @@ export function CalloutOverlay({
   };
 
   const cardPositionStyle: CSSProperties = {
-    left: layout.endX,
+    left: layout.endX + accentShiftX,
     top: -layout.endY,
     transform: [
       layout.card.horizontal === "right" ? "translateX(0)" : "translateX(-100%)",
@@ -184,7 +191,7 @@ export function CalloutOverlay({
             className="pano-callout-accent"
             aria-hidden="true"
             style={{
-              width: Math.max(1, resolvedLine.width),
+              width: accentWidth,
               background: resolvedAppearance.accentColor,
               flex: "0 0 auto",
               alignSelf: "stretch",

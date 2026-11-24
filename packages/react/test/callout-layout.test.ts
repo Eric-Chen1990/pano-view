@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  calloutAccentShiftX,
   calloutRevealProgress,
   directionAngleDegrees,
   resolveCalloutLayout,
@@ -23,6 +24,17 @@ test("callout layout places the card on the line endpoint side", () => {
   const down = resolveCalloutLayout(-90, 50);
   assert.ok(down.endY < 0);
   assert.equal(down.card.vertical, "start");
+});
+
+test("vertical leader centers the accent on the stroke", () => {
+  assert.equal(calloutAccentShiftX(90, 2, "right"), -1);
+  assert.equal(calloutAccentShiftX(-90, 4, "right"), -2);
+  assert.equal(calloutAccentShiftX(90, 4, "left"), 2);
+  assert.equal(calloutAccentShiftX(270, 2, "left"), 1);
+  assert.ok(Math.abs(calloutAccentShiftX(0, 2, "right")) < 1e-12);
+  assert.ok(Math.abs(calloutAccentShiftX(180, 2, "left")) < 1e-12);
+  const diagonal = calloutAccentShiftX(45, 2, "right");
+  assert.ok(diagonal < 0 && diagonal > -1);
 });
 
 test("reveal opens line first then content, and closes in reverse", () => {
