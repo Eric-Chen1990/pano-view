@@ -42,6 +42,11 @@ export type PlanarTileCompareProps = PlanarComparisonViewOptions & CompareDivide
   showZoomControls?: boolean;
   onSceneReady?: (sceneId: string) => void;
   onSceneError?: (event: PlanarTileCompareSceneError) => void;
+  /**
+   * CSS font-family for status and scene-picker text. Unset keeps
+   * `system-ui, sans-serif`. Zoom control chrome stays on the default face.
+   */
+  fontFamily?: string;
   "aria-label"?: string;
   className?: string;
   style?: CSSProperties;
@@ -162,7 +167,7 @@ export function PlanarTileCompare({
   presentation = "wipe", layout = "left-right", split: controlledSplit, defaultSplit = 0.5, onSplitChange,
   dividerColor, dividerWidth,
   initialScale, minScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
-  onSceneReady, onSceneError, "aria-label": labelProp, className, style,
+  onSceneReady, onSceneError, fontFamily, "aria-label": labelProp, className, style,
 }: PlanarTileCompareProps) {
   const t = usePanoUiTranslation();
   const label = labelProp ?? t("Image comparison");
@@ -214,11 +219,18 @@ export function PlanarTileCompare({
     }
   }, [onSceneReady, visible]);
 
+  const rootStyle: CSSProperties & Record<`--pano-planar-${string}`, string> = {
+    ...style,
+  };
+  if (fontFamily) {
+    rootStyle["--pano-planar-font-family"] = fontFamily;
+  }
+
   return (
     <div ref={root} tabIndex={-1}
       className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"}
       data-planar-presentation={presentation} data-planar-layout={layout}
-      style={style}
+      style={rootStyle}
     >
       {[visible?.scene, pending].map((scene) => {
         if (!scene) return null;

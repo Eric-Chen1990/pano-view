@@ -31,7 +31,15 @@ export type CalloutAppearance = {
   titleColor?: string;
   /** Vertical accent bar. Defaults to the line color. */
   accentColor?: string;
+  /** Body text size in CSS pixels. Defaults to 13. */
   fontSize?: number;
+  /** Title text size in CSS pixels. Defaults to 15. */
+  titleFontSize?: number;
+  /**
+   * CSS font-family for title and body. Unset keeps host inheritance on
+   * desktop and `system-ui, sans-serif` for the WebXR raster path.
+   */
+  fontFamily?: string;
   padding?: number;
   borderRadius?: number;
 };
@@ -91,6 +99,7 @@ export const DEFAULT_CALLOUT_APPEARANCE: Required<
     | "titleBackground"
     | "titleColor"
     | "fontSize"
+    | "titleFontSize"
     | "padding"
     | "borderRadius"
   >
@@ -102,9 +111,30 @@ export const DEFAULT_CALLOUT_APPEARANCE: Required<
   titleBackground: "#8b1e1e",
   titleColor: "#ffffff",
   fontSize: 13,
-  padding: 8,
+  titleFontSize: 15,
+  padding: 12,
   borderRadius: 0,
 };
+
+export const DEFAULT_CALLOUT_RASTER_FONT_FAMILY = "system-ui, sans-serif";
+
+/** Title bar vertical padding from card padding. */
+export function calloutTitlePaddingY(padding: number): number {
+  return Math.max(10, padding * 0.75);
+}
+
+/** Gap between the title bar and body / image. */
+export function calloutTitleBodyGap(padding: number): number {
+  return Math.max(12, padding);
+}
+
+/**
+ * Gap between the vertical accent bar and the card content.
+ * Matches the leader-line callout look where the panel sits off the stroke.
+ */
+export function calloutAccentContentGap(padding: number): number {
+  return Math.max(8, Math.round(padding * 0.75));
+}
 
 function finiteOr(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? value! : fallback;
@@ -128,10 +158,17 @@ export function resolveCalloutLine(line: CalloutLine | undefined): {
   };
 }
 
+export type ResolvedCalloutAppearance = Required<
+  Omit<CalloutAppearance, "fontFamily">
+> & {
+  fontFamily: string | undefined;
+};
+
 export function resolveCalloutAppearance(
   appearance: CalloutAppearance | undefined,
   accentFallback: string,
-): Required<CalloutAppearance> {
+): ResolvedCalloutAppearance {
+  const fontFamily = appearance?.fontFamily?.trim() || undefined;
   return {
     ...DEFAULT_CALLOUT_APPEARANCE,
     accentColor: appearance?.accentColor?.trim() || accentFallback,
@@ -140,6 +177,11 @@ export function resolveCalloutAppearance(
     ),
     width: positiveOr(appearance?.width, DEFAULT_CALLOUT_CARD_WIDTH),
     fontSize: positiveOr(appearance?.fontSize, DEFAULT_CALLOUT_APPEARANCE.fontSize),
+    titleFontSize: positiveOr(
+      appearance?.titleFontSize,
+      DEFAULT_CALLOUT_APPEARANCE.titleFontSize,
+    ),
+    fontFamily,
     padding: Math.max(0, finiteOr(appearance?.padding, DEFAULT_CALLOUT_APPEARANCE.padding)),
     borderRadius: Math.max(
       0,
@@ -198,6 +240,28 @@ export function resolveCalloutLayout(
   const vertical: CalloutCardAlign["vertical"] =
     Math.abs(endY) < length * 0.2 ? "center" : endY > 0 ? "end" : "start";
   return { angle, length, endX, endY, card: { horizontal, vertical } };
+}
+
+/**
+ * Horizontal card shift, in CSS pixels, that puts the accent bar on the
+ * leader stroke.
+ *
+ * The stroke is centered on the endpoint. The accent is a vertical bar of
+ * the same width whose outer edge sits on that endpoint, so its center is
+ * half a stroke inside the card. When the leader is parallel to the accent
+ * (90° / -90°) that offset reads as two side-by-side lines. The shift is
+ * the full half-stroke at vertical and fades to zero when the leader meets
+ * the accent edge-on.
+ */
+export function calloutAccentShiftX(
+  angleDeg: number,
+  accentWidth: number,
+  horizontal: CalloutCardAlign["horizontal"],
+): number {
+  if (!(accentWidth > 0)) return 0;
+  const parallel = Math.abs(Math.sin((angleDeg * Math.PI) / 180));
+  const towardCenter = horizontal === "right" ? -1 : 1;
+  return towardCenter * (accentWidth / 2) * parallel;
 }
 
 /**

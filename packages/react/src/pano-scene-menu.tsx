@@ -64,6 +64,7 @@ export type PanoSceneMenuAppearance = {
   /** Scene title alignment on the thumbnail. Defaults to `"start"`. */
   labelAlign?: PanoSceneMenuLabelAlign;
   fontSize?: number | string;
+  fontFamily?: string;
   controlColor?: string;
   controlBackground?: string;
 };
@@ -122,7 +123,13 @@ export type PanoSceneMenuProps = {
 /** Scroll-axis travel that turns a press into a drag. Below this, release selects. */
 const SCENE_MENU_DRAG_THRESHOLD_PX = 10;
 
-export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: Required<PanoSceneMenuAppearance> =
+export type ResolvedPanoSceneMenuAppearance = Required<
+  Omit<PanoSceneMenuAppearance, "fontFamily">
+> & {
+  fontFamily?: string;
+};
+
+export const DEFAULT_PANO_SCENE_MENU_APPEARANCE: ResolvedPanoSceneMenuAppearance =
   {
     background: "rgba(16, 16, 16, 0.72)",
     padding: "8px 10px",
@@ -145,7 +152,7 @@ const DEFAULT_INSET = 12;
 
 function resolveAppearance(
   appearance: PanoSceneMenuAppearance | undefined,
-): Required<PanoSceneMenuAppearance> {
+): ResolvedPanoSceneMenuAppearance {
   return {
     ...DEFAULT_PANO_SCENE_MENU_APPEARANCE,
     ...appearance,
@@ -491,6 +498,9 @@ export function PanoSceneMenu({
       "--pano-scene-menu-control-color": resolved.controlColor,
       "--pano-scene-menu-control-background": resolved.controlBackground,
     };
+    if (resolved.fontFamily) {
+      vars["--pano-scene-menu-font-family"] = resolved.fontFamily;
+    }
     return {
       ...vars,
       ["--pano-overlay-dock-inset" as string]: resolvedAnchor.dockInset,

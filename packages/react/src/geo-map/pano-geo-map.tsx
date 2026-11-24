@@ -64,6 +64,11 @@ export type PanoGeoMapProps = {
   /** Shown instead of "No basemap configured" when no source is available. */
   emptyLabel?: string;
   translate?: (message: string) => string;
+  /**
+   * CSS font-family for labels, status, basemap select, and attribution.
+   * Unset keeps `system-ui, sans-serif`. Map tool buttons stay on the default face.
+   */
+  fontFamily?: string;
   className?: string;
   style?: CSSProperties;
 };
@@ -78,7 +83,7 @@ type Drag = { id: number; spotId: string; x: number; y: number; mode: "marker" |
 
 export function PanoGeoMap({
   geoMap, sources, activeSceneId, northYaw, onSelectScene, sceneTitles, markerLabels = "hover", view, viewSize, renderMarker, controlsLayout = geoMap.controlsLayout ?? "horizontal",
-  selectedSpotId, onSelectSpot, placement, onEdit, onSourceChange, emptyLabel, translate = identity, style, className,
+  selectedSpotId, onSelectSpot, placement, onEdit, onSourceChange, emptyLabel, translate = identity, fontFamily, style, className,
 }: PanoGeoMapProps) {
   const [selectedSourceId, setSelectedSourceId] = useState<string>();
   const source = sources.find(({ id }) => id === (selectedSourceId ?? geoMap.initialSourceId)) ?? sources[0];
@@ -506,8 +511,15 @@ export function PanoGeoMap({
     }
   };
 
+  const rootStyle: CSSProperties & Record<`--pano-geo-map-${string}`, string> = {
+    ...style,
+  };
+  if (fontFamily) {
+    rootStyle["--pano-geo-map-font-family"] = fontFamily;
+  }
+
   return (
-    <div ref={root} className={["pano-geo-map", className].filter(Boolean).join(" ")} style={style}
+    <div ref={root} className={["pano-geo-map", className].filter(Boolean).join(" ")} style={rootStyle}
       data-pano-geo-map="" data-marker-labels={markerLabels}>
       <div ref={canvas} className="pano-geo-map-canvas" tabIndex={0} role="region" aria-label={translate("Map")}
         data-placement={!!placement || undefined}

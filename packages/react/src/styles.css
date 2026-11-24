@@ -91,7 +91,7 @@
 
 .pano-callout-card {
   box-sizing: border-box;
-  line-height: 1.4;
+  line-height: 1.45;
   max-width: 280px;
   pointer-events: none;
   white-space: normal;
@@ -100,7 +100,7 @@
 }
 
 .pano-callout-title {
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .pano-callout-image {
@@ -945,6 +945,7 @@
   background: var(--pano-scene-menu-label-background, rgba(0, 0, 0, 0.55));
   bottom: 0;
   color: var(--pano-scene-menu-label-color, #ffffff);
+  font-family: var(--pano-scene-menu-font-family, inherit);
   font-size: var(--pano-scene-menu-font-size, 12px);
   left: 0;
   line-height: 1.3;
@@ -1085,12 +1086,16 @@
   border-radius: 8px;
   background: #171a20;
   color: #fff;
-  font: 500 14px/1.25 system-ui, sans-serif;
+  font-family: var(--pano-planar-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .pano-planar-controls {
   right: 12px;
   bottom: 12px;
+  font-family: system-ui, sans-serif;
 }
 
 .pano-planar-status {
@@ -1210,7 +1215,10 @@
   padding: 0 8px;
   background: #171a20;
   color: #fff;
-  font: 500 14px/1.25 system-ui, sans-serif;
+  font-family: var(--pano-planar-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .pano-planar-scene-picker select:focus-visible {
@@ -1391,7 +1399,10 @@
   border-radius: 12px;
   background: var(--pano-load-background, rgb(8 19 23 / 24%));
   color: var(--pano-load-color, #f0fffc);
-  font: 600 13px/1.35 system-ui, sans-serif;
+  font-family: var(--pano-load-font-family, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 4px rgb(0 0 0 / 85%);
   animation: pano-load-appear 160ms ease-out both;
@@ -1609,7 +1620,9 @@
   border-radius: 8px;
   background: #e6ebef;
   color: #16202c;
-  font: 14px/1.4 system-ui, sans-serif;
+  font-family: var(--pano-geo-map-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .pano-geo-map-canvas,
@@ -1722,7 +1735,8 @@
   border-radius: 5px;
   background: #fff;
   color: #16202c;
-  font: 16px/1 system-ui, sans-serif;
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
   line-height: 0;
   cursor: pointer;
 }

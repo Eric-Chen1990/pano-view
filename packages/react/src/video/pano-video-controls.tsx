@@ -33,6 +33,9 @@ import type {
   PanoVideoControlsOptions,
 } from "./types";
 
+const DEFAULT_VIDEO_CONTROLS_FONT_FAMILY =
+  "Inter, ui-sans-serif, system-ui, sans-serif";
+
 export const DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE: Required<PanoVideoControlsAppearance> =
   {
     background: "rgba(16, 16, 16, 0.88)",
@@ -40,6 +43,7 @@ export const DEFAULT_PANO_VIDEO_CONTROLS_APPEARANCE: Required<PanoVideoControlsA
     accent: "#75cbd3",
     borderRadius: 8,
     fontSize: 12,
+    fontFamily: DEFAULT_VIDEO_CONTROLS_FONT_FAMILY,
     padding: "8px 10px",
   };
 
@@ -1017,7 +1021,7 @@ export function PanoVideoControlsHud({
     bottom: 10,
     color: resolved.color,
     display: "flex",
-    fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+    fontFamily: resolved.fontFamily,
     fontSize: resolved.fontSize,
     flexWrap: stackSeek ? "wrap" : undefined,
     left: 10,

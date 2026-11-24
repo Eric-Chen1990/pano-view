@@ -44,11 +44,17 @@ type DemoSettings = {
   titleBackground: string;
   title: string;
   text: string;
+  titleFontSize: number;
+  fontSize: number;
+  fontFamily: string;
   withImage: boolean;
 };
 
 const DEFAULT_CARD_BACKGROUND = "rgba(16, 20, 24, 0.86)";
 const DEFAULT_TITLE_BACKGROUND = "#1b3a3f";
+
+const DEFAULT_TITLE_FONT_SIZE = 15;
+const DEFAULT_BODY_FONT_SIZE = 13;
 
 const demos: DemoSettings[] = [
   {
@@ -63,6 +69,9 @@ const demos: DemoSettings[] = [
     titleBackground: "#8b1e1e",
     title: "Default style",
     text: "The default style can be customized in the default settings.",
+    titleFontSize: DEFAULT_TITLE_FONT_SIZE,
+    fontSize: DEFAULT_BODY_FONT_SIZE,
+    fontFamily: "",
     withImage: false,
   },
   {
@@ -77,6 +86,9 @@ const demos: DemoSettings[] = [
     titleBackground: DEFAULT_TITLE_BACKGROUND,
     title: "Click to open",
     text: "Tap the marker to toggle this callout.",
+    titleFontSize: DEFAULT_TITLE_FONT_SIZE,
+    fontSize: DEFAULT_BODY_FONT_SIZE,
+    fontFamily: "",
     withImage: true,
   },
   {
@@ -91,6 +103,9 @@ const demos: DemoSettings[] = [
     titleBackground: DEFAULT_TITLE_BACKGROUND,
     title: "Look at me",
     text: "Center the view on the marker to reveal the card.",
+    titleFontSize: DEFAULT_TITLE_FONT_SIZE,
+    fontSize: DEFAULT_BODY_FONT_SIZE,
+    fontFamily: "",
     withImage: false,
   },
   {
@@ -105,6 +120,9 @@ const demos: DemoSettings[] = [
     titleBackground: DEFAULT_TITLE_BACKGROUND,
     title: "Always on",
     text: "This callout stays open after the entrance animation.",
+    titleFontSize: DEFAULT_TITLE_FONT_SIZE,
+    fontSize: DEFAULT_BODY_FONT_SIZE,
+    fontFamily: "",
     withImage: false,
   },
 ];
@@ -136,6 +154,9 @@ function toHotspot(demo: DemoSettings): Extract<ProjectHotspotDefinition, { type
       titleColor: "#ffffff",
       color: "#ffffff",
       accentColor: demo.color,
+      titleFontSize: demo.titleFontSize,
+      fontSize: demo.fontSize,
+      ...(demo.fontFamily.trim() ? { fontFamily: demo.fontFamily.trim() } : {}),
     },
   };
 }
@@ -148,18 +169,15 @@ function formatProp(value: unknown): string {
 export function CalloutsPage() {
   const { t } = usePlaygroundLanguage();
   const viewer = useRef<PanoViewerHandle>(null);
+  const viewerFrame = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<DemoId>("hover");
   const [items, setItems] = useState(demos);
   const selected = items.find((item) => item.id === selectedId) ?? items[0]!;
 
   function selectDemo(id: DemoId) {
     setSelectedId(id);
-    const target = items.find((item) => item.id === id);
-    if (!target) return;
-    void viewer.current?.lookTo(
-      { yaw: target.yaw, pitch: target.pitch },
-      { duration: 700 },
-    );
+    viewerFrame.current?.scrollIntoView({ block: "center", inline: "nearest" });
+    void viewer.current?.lookToHotspot(id, { duration: 700 });
   }
   const hotspots = useMemo(() => items.map(toHotspot), [items]);
   const project = useMemo(() => {
@@ -218,17 +236,19 @@ export function CalloutExample() {
       )}
     >
       <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <PanoViewer
-          ref={viewer}
-          aria-label={t("Callout panorama")}
-          className="min-h-[clamp(320px,62dvh,600px)] lg:h-full"
-          initialView={{ yaw: 0, pitch: 0, fov: 70 }}
-        >
-          <Scenes scenes={scenes} />
-          {hotspots.map((hotspot) => (
-            <CalloutHotspot key={hotspot.id} {...hotspot} />
-          ))}
-        </PanoViewer>
+        <div ref={viewerFrame} className="lg:sticky lg:top-0 lg:self-start">
+          <PanoViewer
+            ref={viewer}
+            aria-label={t("Callout panorama")}
+            className="min-h-[clamp(320px,62dvh,600px)] lg:h-dvh"
+            initialView={{ yaw: 0, pitch: 0, fov: 70 }}
+          >
+            <Scenes scenes={scenes} />
+            {hotspots.map((hotspot) => (
+              <CalloutHotspot key={hotspot.id} {...hotspot} />
+            ))}
+          </PanoViewer>
+        </div>
         <div className="grid content-start gap-4 border-t border-[#244047] p-5 lg:border-t-0 lg:border-l">
           <div className="flex flex-wrap gap-2" role="group" aria-label={t("Callout examples")}>
             {items.map((item) => (
@@ -436,6 +456,56 @@ export function CalloutExample() {
               value={selected.text}
               onChange={(event) =>
                 updateSelected({ text: event.currentTarget.value })
+              }
+            />
+          </label>
+          <label className={controlLabelClassName}>
+            <span className="flex justify-between">
+              {t("Title font size")}
+              <span aria-hidden="true">{selected.titleFontSize}px</span>
+            </span>
+            <input
+              type="range"
+              className={focus}
+              min={10}
+              max={28}
+              step={1}
+              value={selected.titleFontSize}
+              onChange={(event) =>
+                updateSelected({
+                  titleFontSize: event.currentTarget.valueAsNumber,
+                })
+              }
+            />
+          </label>
+          <label className={controlLabelClassName}>
+            <span className="flex justify-between">
+              {t("Body font size")}
+              <span aria-hidden="true">{selected.fontSize}px</span>
+            </span>
+            <input
+              type="range"
+              className={focus}
+              min={10}
+              max={24}
+              step={1}
+              value={selected.fontSize}
+              onChange={(event) =>
+                updateSelected({
+                  fontSize: event.currentTarget.valueAsNumber,
+                })
+              }
+            />
+          </label>
+          <label className={controlLabelClassName}>
+            {t("Font family")}
+            <input
+              type="text"
+              className={`${controlInputClassName} ${focus}`}
+              placeholder="system-ui, sans-serif"
+              value={selected.fontFamily}
+              onChange={(event) =>
+                updateSelected({ fontFamily: event.currentTarget.value })
               }
             />
           </label>

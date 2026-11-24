@@ -2,6 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import {
+  calloutAccentContentGap,
+  calloutAccentShiftX,
+  calloutTitleBodyGap,
+  calloutTitlePaddingY,
   resolveCalloutAppearance,
   resolveCalloutLayout,
   resolveCalloutLine,
@@ -78,6 +82,12 @@ export function CalloutOverlay({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const expandFrom = layout.card.horizontal === "right" ? "left" : "right";
+  const accentWidth = Math.max(1, resolvedLine.width);
+  const accentShiftX = calloutAccentShiftX(
+    layout.angle,
+    accentWidth,
+    layout.card.horizontal,
+  );
 
   useLayoutEffect(() => {
     applyRevealStyles(
@@ -107,17 +117,23 @@ export function CalloutOverlay({
     return () => cancelAnimationFrame(frame);
   }, [expandFrom, layout.length, progress]);
 
+  const titlePaddingY = calloutTitlePaddingY(resolvedAppearance.padding);
+  const titleBodyGap = calloutTitleBodyGap(resolvedAppearance.padding);
+  const accentContentGap = calloutAccentContentGap(resolvedAppearance.padding);
+  const hasBody = Boolean(content.text) || showImage;
   const cardStyle: CSSProperties = {
     width: resolvedAppearance.width,
     color: resolvedAppearance.color,
     fontSize: resolvedAppearance.fontSize,
+    fontFamily: resolvedAppearance.fontFamily,
+    lineHeight: 1.45,
     padding: resolvedAppearance.padding,
     borderRadius: resolvedAppearance.borderRadius,
     background: resolvedAppearance.background,
   };
 
   const cardPositionStyle: CSSProperties = {
-    left: layout.endX,
+    left: layout.endX + accentShiftX,
     top: -layout.endY,
     transform: [
       layout.card.horizontal === "right" ? "translateX(0)" : "translateX(-100%)",
@@ -176,6 +192,7 @@ export function CalloutOverlay({
             display: "flex",
             flexDirection: accentOnLeft ? "row" : "row-reverse",
             alignItems: "stretch",
+            gap: accentContentGap,
             ...cardPositionStyle,
           }}
         >
@@ -184,7 +201,7 @@ export function CalloutOverlay({
             className="pano-callout-accent"
             aria-hidden="true"
             style={{
-              width: Math.max(1, resolvedLine.width),
+              width: accentWidth,
               background: resolvedAppearance.accentColor,
               flex: "0 0 auto",
               alignSelf: "stretch",
@@ -202,9 +219,11 @@ export function CalloutOverlay({
                 style={{
                   background: resolvedAppearance.titleBackground,
                   color: resolvedAppearance.titleColor,
-                  margin: `-${resolvedAppearance.padding}px -${resolvedAppearance.padding}px ${content.text || showImage ? resolvedAppearance.padding : 0}px`,
-                  padding: `${Math.max(4, resolvedAppearance.padding * 0.75)}px ${resolvedAppearance.padding}px`,
+                  margin: `-${resolvedAppearance.padding}px -${resolvedAppearance.padding}px ${hasBody ? titleBodyGap : 0}px`,
+                  padding: `${titlePaddingY}px ${resolvedAppearance.padding}px`,
+                  fontSize: resolvedAppearance.titleFontSize,
                   fontWeight: 700,
+                  lineHeight: 1.25,
                 }}
               >
                 {content.title}

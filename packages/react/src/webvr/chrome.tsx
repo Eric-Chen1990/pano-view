@@ -19,8 +19,8 @@ import { bindSessionChromeVisibility } from "./session-chrome";
 
 function resolveAppearance(
   value: WebVRHost["snapshot"]["chrome"],
-): Required<Omit<WebVRChromeAppearance, "setupTitle">> &
-  Pick<WebVRChromeAppearance, "setupTitle"> {
+): Required<Omit<WebVRChromeAppearance, "setupTitle" | "fontFamily">> &
+  Pick<WebVRChromeAppearance, "setupTitle" | "fontFamily"> {
   return {
     ...DEFAULT_WEBVR_CHROME_APPEARANCE,
     ...(typeof value === "object" ? value : {}),
@@ -45,6 +45,7 @@ function ChromeButton({
         borderRadius: appearance.borderRadius,
         color: appearance.color,
         fontSize: appearance.fontSize,
+        fontFamily: appearance.fontFamily,
       }}
       type="button"
     >
@@ -94,6 +95,7 @@ function SetupPanel({
     borderRadius: appearance.borderRadius,
     color: appearance.color,
     fontSize: appearance.fontSize,
+    fontFamily: appearance.fontFamily,
   };
   return (
     <div
