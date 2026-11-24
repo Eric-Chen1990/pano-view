@@ -108,6 +108,11 @@ export const PAGE_META = {
     description:
       "Create interactive hotspots in a React panorama: images, text, video, audio, polygons, and polylines. Explore the Pano View hotspot authoring demo.",
   },
+  "/callouts": {
+    title: "Leader-line Callout Hotspots Demo | Pano View",
+    description:
+      "Show animated leader-line callouts on panorama markers. Trigger on hover, click, or look-at, with text, image, or combined cards.",
+  },
   "/overlays": {
     title: "Panorama Dialogs and Overlays Demo | Pano View",
     description:

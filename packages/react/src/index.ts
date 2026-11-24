@@ -283,6 +283,28 @@ export type {
   IframeHotspotProps,
   IframePointerPolicy,
 } from "./hotspot/iframe-hotspot";
+export { CalloutHotspot } from "./hotspot/callout-hotspot";
+export type { CalloutHotspotProps } from "./hotspot/callout-hotspot";
+export type {
+  CalloutAnimation,
+  CalloutAppearance,
+  CalloutContent,
+  CalloutLine,
+  CalloutMarker,
+  CalloutTrigger,
+} from "./hotspot/callout-layout";
+export {
+  DEFAULT_CALLOUT_CARD_WIDTH,
+  DEFAULT_CALLOUT_CONTENT_DURATION,
+  DEFAULT_CALLOUT_LINE_ANGLE,
+  DEFAULT_CALLOUT_LINE_COLOR,
+  DEFAULT_CALLOUT_LINE_DURATION,
+  DEFAULT_CALLOUT_LINE_LENGTH,
+  DEFAULT_CALLOUT_LINE_WIDTH,
+  DEFAULT_CALLOUT_LOOK_ANGLE,
+  DEFAULT_CALLOUT_LOOK_DELAY,
+  DEFAULT_CALLOUT_MARKER_COLOR,
+} from "./hotspot/callout-layout";
 export { Tile } from "./tile/tile";
 export type {
   CubeFaceCode,
@@ -348,6 +370,7 @@ export type {
 } from "./hotspot/types";
 export type {
   AudioHotspotDefinition,
+  CalloutHotspotDefinition,
   GraphicHotspotDefinition,
   HotspotDefinition,
   HotspotDefinitionBase,

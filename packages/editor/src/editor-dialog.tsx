@@ -452,6 +452,7 @@ const hotspotHelp: Record<HotspotKind, string> = {
   video: "A video placed in the scene",
   audio: "An audio marker with playback controls",
   iframe: "An embedded web page",
+  callout: "A marker with an animated leader-line card",
   polygon: "Draw a closed area with three or more vertices",
   polyline: "Draw a line with two or more vertices",
   portal: "Place a doorway to another panorama",

@@ -4,6 +4,7 @@ import { lazy, type ComponentType } from "react";
 import type { PlaygroundPath } from "./page-meta";
 import { ContextMenuPage } from "./components/context-menu/ContextMenuPage";
 import { FilterPage } from "./components/filters/FilterPage";
+import { CalloutsPage } from "./components/callouts/CalloutsPage";
 import { HotspotBenchPage } from "./components/hotspot-bench/HotspotBenchPage";
 import { LandingPage } from "./components/landing/LandingPage";
 import { SceneMenuPage } from "./components/scene-menu/SceneMenuPage";
@@ -192,6 +193,13 @@ export const PLAYGROUND_ROUTES: readonly PlaygroundExampleRoute[] = [
     navLabel: "Hotspot bench",
     group: "interaction",
     Component: HotspotBenchPage,
+  },
+  {
+    path: "/callouts",
+    jsonExample: "project",
+    navLabel: "Leader-line callouts",
+    group: "interaction",
+    Component: CalloutsPage,
   },
   {
     path: "/overlays",

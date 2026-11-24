@@ -43,6 +43,7 @@ export function hotspotAssetPicker(field: string, type?: HotspotKind): AssetPick
   switch (field) {
     case "graphic.src": return { title: "Choose SVG graphic", mediaKind: "svg" };
     case "tooltip.image": return { title: "Choose tooltip image", mediaKind: "image" };
+    case "content.image": return { title: "Choose callout image", mediaKind: "image" };
     case "frame.src": return { title: "Choose portal frame image", mediaKind: "image" };
     case "poster": return { title: "Choose hotspot video poster", mediaKind: "image" };
     case "icon": return { title: "Choose audio icon", mediaKind: "image" };
