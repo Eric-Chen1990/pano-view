@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 3.7.0
+
+### Minor Changes
+
+- 913f098: Add `CalloutHotspot` (`type: "callout"`): an animated leader-line card triggered by hover, click, look-at, or always-on, with configurable line direction, color, and length, and text/image content on desktop DOM and VR mesh paths.
+
 ## 3.6.0
 
 ### Minor Changes
