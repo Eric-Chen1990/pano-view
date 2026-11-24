@@ -113,6 +113,7 @@ export function SpatialControlsPage() {
   const [kind, setKind] = useState<SpatialExampleKind>("scene-video");
   return (
     <ExamplePage
+      eyebrow={t("Immersive")}
       title={t("Spatial controls")}
       description={t("Learn one VR control target at a time: media playback, a host-rendered model, or scrolling content. Gaze until the reticle fills to activate an icon; scrolling continues while you keep looking. Switching examples exits the current session.")}
     >

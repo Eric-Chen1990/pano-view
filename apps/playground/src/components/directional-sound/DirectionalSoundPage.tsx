@@ -100,6 +100,7 @@ export function DirectionalSoundPage() {
 
   return (
     <ExamplePage
+      eyebrow={t("Media")}
       title={t("Directional 3D Sound")}
       description={t("Select a sound marker to play or pause it. Use headphones and turn away from a playing sound to hear it fade. In a headset with positional tracking, step toward a source to hear it get louder.")}
     >

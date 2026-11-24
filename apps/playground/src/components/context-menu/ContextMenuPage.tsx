@@ -14,17 +14,14 @@ import { useMemo, useState } from "react";
 import { cn } from "../../cn";
 import {
   controlLabelClassName,
-  eyebrowClassName,
   pageControlsClassName,
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
@@ -218,13 +215,12 @@ export function ContextMenuPage() {
         aria-labelledby="context-menu-title"
         className={cn(pageSectionClassName, "mt-8")}
       >
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>{t("Context menu bench")}</p>
-            <h1 className={pageHeadingTitleClassName} id="context-menu-title">{t("Custom right-click menu")}</h1>
-          </div>
-          <p className={pageHeadingStatusClassName}>{t(lastAction)}</p>
-        </div>
+        <PageHeading
+          id="context-menu-title"
+          eyebrow={t("Interaction")}
+          title={t("Custom right-click menu")}
+          description={t(lastAction)}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Menu mode")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Menu mode")}>
               <button

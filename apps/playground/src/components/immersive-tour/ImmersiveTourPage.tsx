@@ -26,6 +26,7 @@ import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { ExampleCode } from "../ExampleCode";
 import { CodeSnippet } from "../CodeSnippet";
+import { PageHeading } from "../PageHeading";
 import { ComposedHotspotDialog } from "../overlays/composed-dialog-example";
 import composedDialogCode from "../overlays/composed-dialog-example.tsx?raw";
 import { POPUPS_BY_SCENE, type PopupSelection } from "./tour-content";
@@ -36,9 +37,6 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageSectionClassName,
-  pageHeadingWrapClassName,
-  pageHeadingTitleClassName,
-  pageHeadingStatusClassName,
   pageControlsClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
@@ -348,10 +346,12 @@ export function ImmersiveTourPage() {
         className={cn(pageSectionClassName, "mt-8")}
         aria-labelledby="overlay-title"
       >
-        <div className={pageHeadingWrapClassName}>
-          <h1 className={pageHeadingTitleClassName} id="overlay-title">{t("Immersive tour")}</h1>
-          <p className={pageHeadingStatusClassName}>{t("Combine scene navigation, shared dialogs, media, models and VR. Each marker opens its own content; the arrow navigates to the next scene.")}</p>
-        </div>
+        <PageHeading
+          id="overlay-title"
+          eyebrow={t("Projects & tools")}
+          title={t("Immersive tour")}
+          description={t("Combine scene navigation, shared dialogs, media, models and VR. Each marker opens its own content; the arrow navigates to the next scene.")}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Dialog implementation")}<div
               className="flex flex-wrap gap-1.5"

@@ -170,6 +170,7 @@ export function PortalPage() {
 
   return (
     <ExamplePage
+      eyebrow={t("Scenes")}
       title={t("Panorama portals")}
       description={t("Click a doorway, or look directly at it and zoom in to travel.")}
     >

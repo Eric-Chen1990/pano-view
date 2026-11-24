@@ -10,13 +10,12 @@ import {
   controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -96,16 +95,14 @@ export function PanoramaGrid() {
     <main className={shellClassName}>
       <SiteHeader />
       <section aria-labelledby="grid-title" className={cn(pageSectionClassName, "mt-8")}>
-        <div className={pageHeadingWrapClassName}>
-          <h1 id="grid-title" className={pageHeadingTitleClassName}>
-            {t("Panorama grid")}
-          </h1>
-          <p className="m-0 max-w-3xl text-sm leading-6 text-[#9ab1b7]">
-            {t(
-              "A debug grid that forms panorama space without an image. Switch sphere or cube, then adjust line color and density.",
-            )}
-          </p>
-        </div>
+        <PageHeading
+          id="grid-title"
+          eyebrow={t("Start")}
+          title={t("Panorama grid")}
+          description={t(
+            "A debug grid that forms panorama space without an image. Switch sphere or cube, then adjust line color and density.",
+          )}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>
             {t("Projection")}

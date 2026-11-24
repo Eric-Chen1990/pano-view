@@ -3,9 +3,10 @@ import { PlanarTileViewer } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import {
   checkboxLabelClassName, controlInputClassName, controlLabelClassName,
-  pageControlsClassName, pageHeadingTitleClassName, pageSectionClassName, shellClassName,
+  pageControlsClassName, pageSectionClassName, shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -35,11 +36,15 @@ ${options}      style={{ height: 480 }}
 }`;
 
   return (
-    <div className={shellClassName}>
+    <main className={shellClassName}>
       <SiteHeader />
-      <main className={pageSectionClassName}>
-        <h1 className={pageHeadingTitleClassName}>{t("Tiled flat image")}</h1>
-        <p className="mb-5 text-sm text-slate-400">{t("Drag to pan, scroll or pinch to zoom, and choose Fit to see the full image.")}</p>
+      <section className={`${pageSectionClassName} mt-8`} aria-labelledby="planar-tile-title">
+        <PageHeading
+          id="planar-tile-title"
+          eyebrow={t("Start")}
+          title={t("Tiled flat image")}
+          description={t("Drag to pan, scroll or pinch to zoom, and choose Fit to see the full image.")}
+        />
         <div className={pageControlsClassName}>
           <label className={controlLabelClassName}>{t("Maximum zoom")}<select
               className={controlInputClassName}
@@ -75,8 +80,8 @@ ${options}      style={{ height: 480 }}
             }}
           />
         </div>
-      </main>
+      </section>
       <SiteFooter label={t("Pano View Playground by")} />
-    </div>
+    </main>
   );
 }

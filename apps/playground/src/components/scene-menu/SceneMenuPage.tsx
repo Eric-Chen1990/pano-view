@@ -17,17 +17,14 @@ import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import { cn } from "../../cn";
 import {
   controlLabelClassName,
-  eyebrowClassName,
   pageControlsClassName,
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -227,16 +224,12 @@ export function SceneMenuPage() {
         aria-labelledby="scene-menu-bench-title"
         className={cn(pageSectionClassName, "mt-8")}
       >
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>{t("Scene menu bench")}</p>
-            <h1
-              className={pageHeadingTitleClassName}
-              id="scene-menu-bench-title"
-            >{t("Layout the scene list")}</h1>
-          </div>
-          <p className={pageHeadingStatusClassName}>{t(status)}</p>
-        </div>
+        <PageHeading
+          id="scene-menu-bench-title"
+          eyebrow={t("Scenes")}
+          title={t("Layout the scene list")}
+          description={t(status)}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Align")}<div
               className="flex flex-wrap gap-1.5"

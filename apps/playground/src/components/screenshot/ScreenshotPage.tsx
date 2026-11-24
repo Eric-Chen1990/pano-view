@@ -115,7 +115,11 @@ export function ScreenshotPage() {
   }
 
   return (
-    <ExamplePage title={t("Panorama screenshot")} description={t("Drag to frame the view, then choose which layers to capture. Preview the result and download it as a PNG or JPEG.")}>
+    <ExamplePage
+      eyebrow={t("Interaction")}
+      title={t("Panorama screenshot")}
+      description={t("Drag to frame the view, then choose which layers to capture. Preview the result and download it as a PNG or JPEG.")}
+    >
       <PanoViewer ref={viewer.ref} aria-label={t("Screenshot panorama")} className="h-[540px] max-[560px]:h-[480px]">
         <Tile {...source} />
         <GraphicHotspot {...hotspot} />

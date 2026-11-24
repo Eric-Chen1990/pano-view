@@ -21,13 +21,13 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageControlsClassName,
-  pageHeadingTitleClassName,
   pageSectionClassName,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -181,9 +181,13 @@ export function MapPage() {
     <main className={shellClassName}>
       <SiteHeader />
       <section className={cn(pageSectionClassName, "mt-8")} aria-labelledby="map-title">
-        <h1 className={pageHeadingTitleClassName} id="map-title">{t("Floor plan map")}</h1>
-        <p className="my-4 text-sm text-slate-300">{t("Icons switch scenes. The active sector rotates with panorama yaw. Zoom scales only the floor image; icons and the radar keep their screen size.")}</p>
-        <p role={error ? "alert" : "status"} className="my-4 text-sm text-slate-300">
+        <PageHeading
+          id="map-title"
+          eyebrow={t("Scenes")}
+          title={t("Floor plan map")}
+          description={t("Icons switch scenes. The active sector rotates with panorama yaw. Zoom scales only the floor image; icons and the radar keep their screen size.")}
+        />
+        <p role={error ? "alert" : "status"} className="m-0 border-b border-[#244047] px-6 py-3 text-sm text-[#9ab1b7]">
           {t(error ?? status)}
         </p>
         {project && map ? (

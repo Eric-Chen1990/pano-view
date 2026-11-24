@@ -3,7 +3,13 @@ import { playgroundNavSections } from "../../routes";
 import { PAGE_META } from "../../page-meta";
 import { trackCta, trackDemoOpened, trackInstallCopied } from "../../analytics";
 import { LANDING_LINKS } from "../../links";
-import { cardClassName, monoLabelClassName, shellClassName } from "../../ui";
+import {
+  cardClassName,
+  landingHeroTitleClassName,
+  monoLabelClassName,
+  sectionHeadingTitleClassName,
+  shellClassName,
+} from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
@@ -53,7 +59,7 @@ export function LandingPage() {
       <section className="grid items-center gap-10 py-[clamp(3.5rem,9vw,8rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
         <div>
           <p className={monoLabelClassName}>{t("React panorama viewer")}</p>
-          <h1 className="m-0 mt-4 max-w-[13ch] text-[clamp(3.25rem,8vw,7rem)] leading-[0.88] font-black tracking-[-0.065em] text-[#f5fbfc]">{t("Build the view beyond the viewport.")}</h1>
+          <h1 className={landingHeroTitleClassName}>{t("Build the view beyond the viewport.")}</h1>
           <p className="mt-7 max-w-[41rem] text-[1.05rem] leading-8 text-[#9ab1b7]">{t("Composable React components for equirectangular images, 360 video, and krpano-style multiresolution cube tiles—without giving your interface to a viewer runtime.")}</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a
@@ -87,7 +93,7 @@ export function LandingPage() {
           <div>
             <p className={monoLabelClassName}>{t("Choose a starting point")}</p>
             <h2
-              className="m-0 mt-2 text-[clamp(2rem,4vw,3.75rem)] leading-none font-black tracking-tight text-[#f5fbfc]"
+              className={`${sectionHeadingTitleClassName} mt-2`}
               id="featured-demos"
             >{t("Follow the learning path.")}</h2>
           </div>
@@ -127,7 +133,7 @@ export function LandingPage() {
         className="border-t border-line py-10"
       >
         <p className={monoLabelClassName}>{t("Examples by learning task")}</p>
-        <h2 id="catalog-title" className="text-3xl font-bold">{t("Choose a focused topic or a complete integration.")}</h2>
+        <h2 id="catalog-title" className={`${sectionHeadingTitleClassName} mt-2`}>{t("Choose a focused topic or a complete integration.")}</h2>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {playgroundNavSections().map((section) => (
             <section key={section.id} className={cardClassName + " p-5"}>
@@ -161,7 +167,7 @@ export function LandingPage() {
       >
         <div>
           <p className={monoLabelClassName}>{t("Moving from krpano")}</p>
-          <h2 className="m-0 mt-2 text-[clamp(2rem,4vw,3.75rem)] leading-none font-black tracking-tight text-[#f5fbfc]">{t("Reuse the tile pyramid. Own the experience.")}</h2>
+          <h2 className={`${sectionHeadingTitleClassName} mt-2`}>{t("Reuse the tile pyramid. Own the experience.")}</h2>
         </div>
         <div className={cardClassName + " p-6"}>
           <p className="m-0 text-base leading-7 text-[#c2d7da]">
@@ -199,7 +205,7 @@ export function LandingPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className={monoLabelClassName}>{t("Start in minutes")}</p>
-            <h2 className="m-0 mt-2 text-[clamp(2rem,4vw,3.75rem)] leading-none font-black tracking-tight text-[#f5fbfc]">{t("Install the package. Keep the canvas yours.")}</h2>
+            <h2 className={`${sectionHeadingTitleClassName} mt-2`}>{t("Install the package. Keep the canvas yours.")}</h2>
             <p className="mt-5 max-w-[34rem] text-sm leading-7 text-[#9ab1b7]">{t("Install the package in your React application, then use the compatible peer dependencies already chosen by your app. Read the package README before upgrading peer versions.")}</p>
           </div>
           <div className="grid gap-4">
@@ -227,7 +233,7 @@ export function LandingPage() {
       >
         <p className={monoLabelClassName}>{t("Documentation")}</p>
         <h2
-          className="m-0 mt-2 text-[clamp(2rem,4vw,3.75rem)] leading-none font-black tracking-tight text-[#f5fbfc]"
+          className={`${sectionHeadingTitleClassName} mt-2`}
           id="documentation-links"
         >{t("Keep exploring in the format you need.")}</h2>
         <div className="mt-7 flex flex-wrap gap-x-6 gap-y-4 text-sm">

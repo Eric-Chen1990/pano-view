@@ -16,15 +16,13 @@ import { cn } from "../../cn";
 import {
   controlInputClassName,
   controlLabelClassName,
-  eyebrowClassName,
   pageControlsClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { PlaygroundVRViewer } from "../webvr/PlaygroundVRViewer";
@@ -201,12 +199,11 @@ export function VideoPage() {
         aria-labelledby="video-bench-title"
         className={cn(pageSectionClassName, "mt-8")}
       >
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>{t("360 video bench")}</p>
-            <h1 className={pageHeadingTitleClassName} id="video-bench-title">{t("Play a 360 video")}</h1>
-          </div>
-        </div>
+        <PageHeading
+          id="video-bench-title"
+          eyebrow={t("Media")}
+          title={t("Play a 360 video")}
+        />
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-line px-6 py-4">
           <label className={controlLabelClassName}>{t("Video source")}<select
               aria-describedby="video-source-help"

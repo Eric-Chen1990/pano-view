@@ -54,6 +54,7 @@ export function AudioTour() {
 }`;
   return (
     <ExamplePage
+      eyebrow={t("Media")}
       title={t("Background audio")}
       description={t("Mount BackgroundAudio beside Scenes. A shared track continues across navigation; per-scene sources change the soundtrack as scenes change. Playback starts only after you press Play.")}
     >
