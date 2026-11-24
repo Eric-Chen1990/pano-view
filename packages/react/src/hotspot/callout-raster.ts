@@ -1,6 +1,7 @@
 import { cssFontFamily } from "../css-font-family";
 import {
   DEFAULT_CALLOUT_RASTER_FONT_FAMILY,
+  calloutAccentContentGap,
   calloutTitleBodyGap,
   calloutTitlePaddingY,
   type CalloutContent,
@@ -104,6 +105,7 @@ export function rasterizeCallout(
   const titleLineHeight = titleFontSize * 1.25;
   const titlePadY = calloutTitlePaddingY(padding);
   const titleBodyGap = calloutTitleBodyGap(padding);
+  const accentGap = calloutAccentContentGap(padding);
   const contentWidth = Math.max(40, style.width);
 
   ctx.font = titleFont;
@@ -139,7 +141,7 @@ export function rasterizeCallout(
           ? 0
           : padding * 2),
   );
-  const width = accent + contentWidth;
+  const width = accent + accentGap + contentWidth;
   const gutter = 2;
   const resolution = Math.min(
     rasterScale,
@@ -159,8 +161,8 @@ export function rasterizeCallout(
   ctx.clearRect(0, 0, textureWidth, textureHeight);
   ctx.translate((textureWidth - width) / 2, (textureHeight - height) / 2);
 
-  const cardX = style.accentOnLeft ? accent : 0;
-  const accentX = style.accentOnLeft ? 0 : contentWidth;
+  const cardX = style.accentOnLeft ? accent + accentGap : 0;
+  const accentX = style.accentOnLeft ? 0 : contentWidth + accentGap;
 
   if (style.background && style.background !== "transparent") {
     ctx.fillStyle = style.background;

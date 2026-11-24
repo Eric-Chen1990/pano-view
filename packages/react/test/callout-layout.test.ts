@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEFAULT_CALLOUT_APPEARANCE,
+  calloutAccentContentGap,
   calloutAccentShiftX,
   calloutRevealProgress,
   calloutTitleBodyGap,
@@ -197,4 +198,7 @@ test("callout title spacing grows with padding", () => {
   assert.equal(calloutTitleBodyGap(12), 12);
   assert.equal(calloutTitleBodyGap(8), 12);
   assert.equal(calloutTitleBodyGap(16), 16);
+  assert.equal(calloutAccentContentGap(12), 9);
+  assert.equal(calloutAccentContentGap(8), 8);
+  assert.equal(calloutAccentContentGap(16), 12);
 });

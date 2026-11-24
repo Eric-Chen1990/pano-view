@@ -169,18 +169,15 @@ function formatProp(value: unknown): string {
 export function CalloutsPage() {
   const { t } = usePlaygroundLanguage();
   const viewer = useRef<PanoViewerHandle>(null);
+  const viewerFrame = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<DemoId>("hover");
   const [items, setItems] = useState(demos);
   const selected = items.find((item) => item.id === selectedId) ?? items[0]!;
 
   function selectDemo(id: DemoId) {
     setSelectedId(id);
-    const target = items.find((item) => item.id === id);
-    if (!target) return;
-    void viewer.current?.lookTo(
-      { yaw: target.yaw, pitch: target.pitch },
-      { duration: 700 },
-    );
+    viewerFrame.current?.scrollIntoView({ block: "center", inline: "nearest" });
+    void viewer.current?.lookToHotspot(id, { duration: 700 });
   }
   const hotspots = useMemo(() => items.map(toHotspot), [items]);
   const project = useMemo(() => {
@@ -239,17 +236,19 @@ export function CalloutExample() {
       )}
     >
       <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <PanoViewer
-          ref={viewer}
-          aria-label={t("Callout panorama")}
-          className="min-h-[clamp(320px,62dvh,600px)] lg:h-full"
-          initialView={{ yaw: 0, pitch: 0, fov: 70 }}
-        >
-          <Scenes scenes={scenes} />
-          {hotspots.map((hotspot) => (
-            <CalloutHotspot key={hotspot.id} {...hotspot} />
-          ))}
-        </PanoViewer>
+        <div ref={viewerFrame} className="lg:sticky lg:top-0 lg:self-start">
+          <PanoViewer
+            ref={viewer}
+            aria-label={t("Callout panorama")}
+            className="min-h-[clamp(320px,62dvh,600px)] lg:h-dvh"
+            initialView={{ yaw: 0, pitch: 0, fov: 70 }}
+          >
+            <Scenes scenes={scenes} />
+            {hotspots.map((hotspot) => (
+              <CalloutHotspot key={hotspot.id} {...hotspot} />
+            ))}
+          </PanoViewer>
+        </div>
         <div className="grid content-start gap-4 border-t border-[#244047] p-5 lg:border-t-0 lg:border-l">
           <div className="flex flex-wrap gap-2" role="group" aria-label={t("Callout examples")}>
             {items.map((item) => (

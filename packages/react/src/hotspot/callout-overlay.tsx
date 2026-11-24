@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import {
+  calloutAccentContentGap,
   calloutAccentShiftX,
   calloutTitleBodyGap,
   calloutTitlePaddingY,
@@ -118,6 +119,7 @@ export function CalloutOverlay({
 
   const titlePaddingY = calloutTitlePaddingY(resolvedAppearance.padding);
   const titleBodyGap = calloutTitleBodyGap(resolvedAppearance.padding);
+  const accentContentGap = calloutAccentContentGap(resolvedAppearance.padding);
   const hasBody = Boolean(content.text) || showImage;
   const cardStyle: CSSProperties = {
     width: resolvedAppearance.width,
@@ -190,6 +192,7 @@ export function CalloutOverlay({
             display: "flex",
             flexDirection: accentOnLeft ? "row" : "row-reverse",
             alignItems: "stretch",
+            gap: accentContentGap,
             ...cardPositionStyle,
           }}
         >

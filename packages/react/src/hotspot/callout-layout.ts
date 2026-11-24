@@ -128,6 +128,14 @@ export function calloutTitleBodyGap(padding: number): number {
   return Math.max(12, padding);
 }
 
+/**
+ * Gap between the vertical accent bar and the card content.
+ * Matches the leader-line callout look where the panel sits off the stroke.
+ */
+export function calloutAccentContentGap(padding: number): number {
+  return Math.max(8, Math.round(padding * 0.75));
+}
+
 function finiteOr(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? value! : fallback;
 }
