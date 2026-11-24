@@ -45,6 +45,7 @@ export type PanoVideoControlsAppearance = {
   accent?: string;
   borderRadius?: number | string;
   fontSize?: number | string;
+  fontFamily?: string;
   padding?: string;
 };
 

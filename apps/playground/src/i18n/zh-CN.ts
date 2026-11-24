@@ -51,6 +51,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Title background": "标题背景",
   "Title background opacity": "标题背景不透明度",
   "Body text": "正文",
+  "Title font size": "标题字号",
+  "Body font size": "正文字号",
   "Hide image": "隐藏图片",
   "Show image": "显示图片",
   "Minimal React example for the selected callout.": "当前选中标注的最小 React 示例。",

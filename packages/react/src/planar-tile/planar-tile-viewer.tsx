@@ -14,6 +14,11 @@ export type PlanarTileViewerProps = PlanarViewOptions & {
   showZoomControls?: boolean;
   /** Shows a draggable overview of the image. Defaults to false. */
   showMinimap?: boolean;
+  /**
+   * CSS font-family for status and scene-picker text. Unset keeps
+   * `system-ui, sans-serif`. Zoom control chrome stays on the default face.
+   */
+  fontFamily?: string;
   className?: string;
   style?: CSSProperties;
 };
@@ -21,7 +26,7 @@ export type PlanarTileViewerProps = PlanarViewOptions & {
 /** An independently mounted, zoomable viewer for one tiled flat image. */
 export function PlanarTileViewer({
   manifestUrl, alt, maxScale, initialScale, dragMotion,
-  showZoomControls = true, showMinimap = false, className, style,
+  showZoomControls = true, showMinimap = false, fontFamily, className, style,
 }: PlanarTileViewerProps) {
   const t = usePanoUiTranslation();
   const viewport = useRef<HTMLDivElement>(null);
@@ -57,8 +62,15 @@ export function PlanarTileViewer({
     return () => controller.abort();
   }, [manifestUrl, attempt]);
 
+  const rootStyle: CSSProperties & Record<`--pano-planar-${string}`, string> = {
+    ...style,
+  };
+  if (fontFamily) {
+    rootStyle["--pano-planar-font-family"] = fontFamily;
+  }
+
   return (
-    <div className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"} style={style}>
+    <div className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"} style={rootStyle}>
       <div
         ref={viewport}
         className="pano-planar-viewport"

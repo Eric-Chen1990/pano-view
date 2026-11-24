@@ -43,6 +43,7 @@ export type WebVRChromeAppearance = {
   accent?: CSSProperties["color"];
   borderRadius?: CSSProperties["borderRadius"];
   fontSize?: CSSProperties["fontSize"];
+  fontFamily?: CSSProperties["fontFamily"];
   setupTitle?: ReactNode;
 };
 

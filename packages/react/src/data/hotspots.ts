@@ -439,16 +439,26 @@ function parseCalloutAppearance(
     "titleBackground",
     "titleColor",
     "accentColor",
+    "fontFamily",
   ]) {
     if (value[key] === undefined) continue;
     if (typeof value[key] !== "string")
       throw new Error(`appearance.${key}: expected a string`);
     result[key] = value[key];
   }
-  for (const key of ["width", "fontSize", "padding", "borderRadius"] as const) {
+  for (const key of [
+    "width",
+    "fontSize",
+    "titleFontSize",
+    "padding",
+    "borderRadius",
+  ] as const) {
     if (value[key] === undefined) continue;
     const n = finite(value[key], `appearance.${key}`);
-    if ((key === "width" || key === "fontSize") && n <= 0)
+    if (
+      (key === "width" || key === "fontSize" || key === "titleFontSize") &&
+      n <= 0
+    )
       throw new Error(`appearance.${key}: expected a positive number`);
     if ((key === "padding" || key === "borderRadius") && n < 0)
       throw new Error(`appearance.${key}: expected a nonnegative number`);

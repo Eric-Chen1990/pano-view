@@ -132,6 +132,8 @@ export function SpatialCallout({
           titleColor: resolvedAppearance.titleColor,
           accentColor: resolvedAppearance.accentColor,
           fontSize: resolvedAppearance.fontSize,
+          titleFontSize: resolvedAppearance.titleFontSize,
+          fontFamily: resolvedAppearance.fontFamily,
           padding: resolvedAppearance.padding,
           borderRadius: resolvedAppearance.borderRadius,
           accentWidth: resolvedLine.width,

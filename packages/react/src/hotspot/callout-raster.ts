@@ -1,4 +1,10 @@
-import type { CalloutContent } from "./callout-layout";
+import { cssFontFamily } from "../css-font-family";
+import {
+  DEFAULT_CALLOUT_RASTER_FONT_FAMILY,
+  calloutTitleBodyGap,
+  calloutTitlePaddingY,
+  type CalloutContent,
+} from "./callout-layout";
 
 export type CalloutRasterStyle = {
   width: number;
@@ -8,6 +14,8 @@ export type CalloutRasterStyle = {
   titleColor: string;
   accentColor: string;
   fontSize: number;
+  titleFontSize: number;
+  fontFamily?: string;
   padding: number;
   borderRadius: number;
   accentWidth: number;
@@ -37,24 +45,24 @@ function wrapLine(
     const candidate = current ? `${current} ${word}` : word;
     if (context.measureText(candidate).width <= maxWidth) {
       current = candidate;
-      continue;
-    }
-    if (current) lines.push(current);
-    if (context.measureText(word).width <= maxWidth) {
-      current = word;
-      continue;
-    }
-    let chunk = "";
-    for (const character of word) {
-      const next = chunk + character;
-      if (context.measureText(next).width <= maxWidth || chunk === "") {
-        chunk = next;
-      } else {
-        lines.push(chunk);
-        chunk = character;
+    } else {
+      if (current) lines.push(current);
+      if (context.measureText(word).width <= maxWidth) {
+        current = word;
+        continue;
       }
+      let chunk = "";
+      for (const character of word) {
+        const next = chunk + character;
+        if (context.measureText(next).width <= maxWidth || chunk === "") {
+          chunk = next;
+        } else {
+          lines.push(chunk);
+          chunk = character;
+        }
+      }
+      current = chunk;
     }
-    current = chunk;
   }
   if (current) lines.push(current);
   return lines.length > 0 ? lines : [""];
@@ -85,13 +93,21 @@ export function rasterizeCallout(
 
   const padding = Math.max(0, style.padding);
   const accent = Math.max(1, style.accentWidth);
-  const font = `600 ${style.fontSize}px system-ui, sans-serif`;
-  const titleFont = `700 ${style.fontSize}px system-ui, sans-serif`;
-  const lineHeight = style.fontSize * 1.4;
+  const family = cssFontFamily(
+    style.fontFamily?.trim() || DEFAULT_CALLOUT_RASTER_FONT_FAMILY,
+  );
+  const bodyFontSize = style.fontSize;
+  const titleFontSize = style.titleFontSize;
+  const font = `600 ${bodyFontSize}px ${family}`;
+  const titleFont = `700 ${titleFontSize}px ${family}`;
+  const bodyLineHeight = bodyFontSize * 1.45;
+  const titleLineHeight = titleFontSize * 1.25;
+  const titlePadY = calloutTitlePaddingY(padding);
+  const titleBodyGap = calloutTitleBodyGap(padding);
   const contentWidth = Math.max(40, style.width);
 
   ctx.font = titleFont;
-  const titleHeight = title ? lineHeight + padding : 0;
+  const titleHeight = title ? titleLineHeight + titlePadY * 2 : 0;
   ctx.font = font;
   const imageMaxWidth = contentWidth - padding * 2;
   const imageMaxHeight = 120;
@@ -109,19 +125,16 @@ export function rasterizeCallout(
   const textLines = text
     ? wrapText(ctx, text, Math.max(1, contentWidth - padding * 2))
     : [];
-  const textBlock = textLines.length * lineHeight;
+  const textBlock = textLines.length * bodyLineHeight;
   const bodyHeight =
     (imageHeight > 0 ? imageHeight + (textLines.length ? padding / 2 : 0) : 0) +
     textBlock;
-  const innerHeight =
-    titleHeight +
-    (bodyHeight > 0 ? bodyHeight + padding * (title ? 1 : 2) : title ? 0 : padding * 2) -
-    (title && bodyHeight === 0 ? 0 : 0);
+  const hasBody = bodyHeight > 0;
   const height = Math.max(
-    titleHeight || lineHeight + padding * 2,
+    titleHeight || bodyLineHeight + padding * 2,
     (title ? titleHeight : 0) +
-      (bodyHeight > 0
-        ? padding + bodyHeight + padding
+      (hasBody
+        ? (title ? titleBodyGap : padding) + bodyHeight + padding
         : title
           ? 0
           : padding * 2),
@@ -170,7 +183,7 @@ export function rasterizeCallout(
     y = titleHeight;
   }
 
-  y += padding;
+  y += title ? (hasBody ? titleBodyGap : 0) : padding;
   if (image && imageWidth > 0) {
     ctx.drawImage(image, cardX + padding, y, imageWidth, imageHeight);
     y += imageHeight + (textLines.length ? padding / 2 : 0);
@@ -180,7 +193,7 @@ export function rasterizeCallout(
     ctx.font = font;
     ctx.textBaseline = "top";
     for (const [index, line] of textLines.entries()) {
-      ctx.fillText(line, cardX + padding, y + index * lineHeight);
+      ctx.fillText(line, cardX + padding, y + index * bodyLineHeight);
     }
   }
 

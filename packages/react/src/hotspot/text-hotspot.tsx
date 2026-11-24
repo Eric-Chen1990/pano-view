@@ -10,6 +10,7 @@ import {
   SRGBColorSpace,
   Texture,
 } from "three";
+import { cssFontFamily } from "../css-font-family";
 import { HotspotAnchor } from "./hotspot-anchor";
 import { HotspotPlane } from "./hotspot-plane";
 import type { HotspotCommonProps, HotspotScaleMode } from "./types";
@@ -71,23 +72,6 @@ function clamp01(value: number | undefined, fallback: number): number {
 
 function resolvePositive(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) && value! > 0 ? value! : fallback;
-}
-
-function cssFontFamily(family: string): string {
-  return family
-    .split(",")
-    .map((part) => {
-      const face = part.trim().replace(/^["']|["']$/g, "");
-      if (!face) {
-        return "";
-      }
-      if (/^[a-zA-Z-]+$/.test(face)) {
-        return face;
-      }
-      return `"${face.replace(/"/g, '\\"')}"`;
-    })
-    .filter(Boolean)
-    .join(", ");
 }
 
 function resolveTextFont(style: TextHotspotStyle): {

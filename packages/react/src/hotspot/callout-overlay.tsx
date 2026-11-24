@@ -3,6 +3,8 @@ import type { CSSProperties, RefObject } from "react";
 import { PanoHtml } from "../webvr/stereo-html";
 import {
   calloutAccentShiftX,
+  calloutTitleBodyGap,
+  calloutTitlePaddingY,
   resolveCalloutAppearance,
   resolveCalloutLayout,
   resolveCalloutLine,
@@ -114,10 +116,15 @@ export function CalloutOverlay({
     return () => cancelAnimationFrame(frame);
   }, [expandFrom, layout.length, progress]);
 
+  const titlePaddingY = calloutTitlePaddingY(resolvedAppearance.padding);
+  const titleBodyGap = calloutTitleBodyGap(resolvedAppearance.padding);
+  const hasBody = Boolean(content.text) || showImage;
   const cardStyle: CSSProperties = {
     width: resolvedAppearance.width,
     color: resolvedAppearance.color,
     fontSize: resolvedAppearance.fontSize,
+    fontFamily: resolvedAppearance.fontFamily,
+    lineHeight: 1.45,
     padding: resolvedAppearance.padding,
     borderRadius: resolvedAppearance.borderRadius,
     background: resolvedAppearance.background,
@@ -209,9 +216,11 @@ export function CalloutOverlay({
                 style={{
                   background: resolvedAppearance.titleBackground,
                   color: resolvedAppearance.titleColor,
-                  margin: `-${resolvedAppearance.padding}px -${resolvedAppearance.padding}px ${content.text || showImage ? resolvedAppearance.padding : 0}px`,
-                  padding: `${Math.max(4, resolvedAppearance.padding * 0.75)}px ${resolvedAppearance.padding}px`,
+                  margin: `-${resolvedAppearance.padding}px -${resolvedAppearance.padding}px ${hasBody ? titleBodyGap : 0}px`,
+                  padding: `${titlePaddingY}px ${resolvedAppearance.padding}px`,
+                  fontSize: resolvedAppearance.titleFontSize,
                   fontWeight: 700,
+                  lineHeight: 1.25,
                 }}
               >
                 {content.title}

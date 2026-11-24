@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  DEFAULT_CALLOUT_APPEARANCE,
   calloutAccentShiftX,
   calloutRevealProgress,
+  calloutTitleBodyGap,
+  calloutTitlePaddingY,
   directionAngleDegrees,
+  resolveCalloutAppearance,
   resolveCalloutLayout,
   stepCalloutReveal,
   stepLookGate,
@@ -160,4 +164,37 @@ test("directionAngleDegrees measures the smaller angle between unit vectors", ()
   assert.ok(
     Math.abs(directionAngleDegrees(0, 0, -1, 0, 0, 1) - 180) < 1e-6,
   );
+});
+
+test("resolveCalloutAppearance keeps separate title and body sizes", () => {
+  const defaults = resolveCalloutAppearance(undefined, "#ffffff");
+  assert.equal(defaults.fontSize, DEFAULT_CALLOUT_APPEARANCE.fontSize);
+  assert.equal(defaults.titleFontSize, DEFAULT_CALLOUT_APPEARANCE.titleFontSize);
+  assert.equal(defaults.padding, DEFAULT_CALLOUT_APPEARANCE.padding);
+  assert.equal(defaults.fontFamily, undefined);
+
+  const bodyOnly = resolveCalloutAppearance({ fontSize: 18 }, "#abc");
+  assert.equal(bodyOnly.fontSize, 18);
+  assert.equal(bodyOnly.titleFontSize, DEFAULT_CALLOUT_APPEARANCE.titleFontSize);
+  assert.equal(bodyOnly.accentColor, "#abc");
+
+  const both = resolveCalloutAppearance(
+    {
+      fontSize: 14,
+      titleFontSize: 20,
+      fontFamily: "  Georgia, serif  ",
+    },
+    "#fff",
+  );
+  assert.equal(both.fontSize, 14);
+  assert.equal(both.titleFontSize, 20);
+  assert.equal(both.fontFamily, "Georgia, serif");
+});
+
+test("callout title spacing grows with padding", () => {
+  assert.equal(calloutTitlePaddingY(12), 10);
+  assert.equal(calloutTitlePaddingY(16), 12);
+  assert.equal(calloutTitleBodyGap(12), 12);
+  assert.equal(calloutTitleBodyGap(8), 12);
+  assert.equal(calloutTitleBodyGap(16), 16);
 });

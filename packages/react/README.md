@@ -741,6 +741,7 @@ Scales use the fitted image as `1×`.
 | `dragMotion` | `{ inertia: true, bounce: true }` | Disable either effect independently. `{ bounce: false }` clamps the image at the edges while retaining inertia. Pass `false` to disable both. |
 | `showZoomControls` | `true` | Shows the zoom and Fit buttons. Wheel, touch, and keyboard controls remain available when the buttons are hidden. |
 | `showMinimap` | `false` | Shows a thumbnail of the whole image with a rectangle marking the visible area. Drag the rectangle or focus the minimap and use the arrow keys to pan. The wheel zooms around the point under the cursor in the thumbnail. A point outside the rectangle is brought toward the nearest edge of the main view. Toggling it preserves the current view. |
+| `fontFamily` | Host / `system-ui` | Optional CSS font-family for status and scene-picker text. Zoom control chrome keeps `system-ui`. |
 
 Finite `maxScale` values below `1` are clamped to `1`. A non-finite
 `maxScale` uses the automatic limit. Wheel and button zoom ease toward the
@@ -787,7 +788,8 @@ below `minScale`. With equal limits, the zoom is fixed and panning remains avail
 switches carry the current view forward within the range. The Fit button and
 the `Home` and `0` keys center the images at their minimum scale. The button
 reads Reset view when that scale is greater than `1×`. `dragMotion` and
-`showZoomControls` work as with `PlanarTileViewer`.
+`showZoomControls` work as with `PlanarTileViewer`. Optional `fontFamily` styles
+status and scene-picker text the same way.
 
 Use unique scene IDs. Set `defaultActiveSceneId` to start at a different pair,
 or control selection with `activeSceneId` and `onActiveSceneIdChange`. Set
@@ -1573,7 +1575,7 @@ AAC MP4 fallback, poster, CORS, and Range support.
 - `fallbackVariantId` — optionally try this variant once when the active source fails with a decoding, format support, or texture size error. Restores playback position and state where possible.
 - `tracks` — WebVTT tracks. Each may include `src`, `srcLang`, `label`, `default`, `id` (defaults to `srcLang`), and `kind` (`"subtitles"` or `"captions"`, default `"subtitles"`).
 - `captions` — `true` / omit shows the default overlay; `false` hides the overlay and language menu; an object merges with defaults. Defaults: `color` `#ffffff`, `background` `rgba(0, 0, 0, 0.55)`, `fontSize` `16`, `fontFamily` Inter / system-ui, `fontWeight` `500`, `textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`, `padding` `"6px 10px"`, `borderRadius` `6`, `maxWidth` `"72%"`, `bottom` `72`, `lineHeight` `1.35`.
-- `controls` — `true` or omitted mounts the default bar. `false` hides it. A `PanoVideoControlsOptions` object accepts `buttons` and the appearance keys `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), and `padding` (`"8px 10px"`).
+- `controls` — `true` or omitted mounts the default bar. `false` hides it. A `PanoVideoControlsOptions` object accepts `buttons` and the appearance keys `background` (default `rgba(16, 16, 16, 0.88)`), `color` (`#f4f4f4`), `accent` (`#75cbd3`), `borderRadius` (`8`), `fontSize` (`12`), `fontFamily` (`Inter, ui-sans-serif, system-ui, sans-serif`), and `padding` (`"8px 10px"`).
 - `clickToTogglePlayback` — Defaults to `true`. Click or tap the panorama to play or pause in screen mode, including fullscreen. Set `false` to disable this gesture. Call `nativeEvent.preventDefault()` in a panorama click callback to cancel the toggle for that click.
 - `showCenterPlayButton` — Defaults to `true`. Shows a translucent play button at the center while playback is paused, blocked, or ended in screen mode. Set `false` to hide it. This button and `clickToTogglePlayback` are configured independently of `controls`.
 - `yawOffset` — horizontal offset in degrees, default `0`.
@@ -1787,7 +1789,7 @@ The indicator is centered within the viewer, including in fullscreen. The `varia
 
 The panel waits 300 ms before appearing, so faster loads skip the indicator. Set `showDelayMs` to adjust the delay or pass `0` to show immediately. The delay applies to the panel. The progress methods report each update as it happens. The default background is lightly tinted and translucent. Pass `appearance={{ background: "transparent" }}` for a clear background.
 
-Use `appearance` to set `background`, `color`, `accentColor`, `trackColor`, `width`, `barHeight`, and `indicatorSize`. The three size fields use CSS pixels. Use `className` or `style` for additional panel styling.
+Use `appearance` to set `background`, `color`, `accentColor`, `trackColor`, `width`, `barHeight`, `indicatorSize`, and optional `fontFamily`. The three size fields use CSS pixels. Unset `fontFamily` keeps `system-ui, sans-serif`. Use `className` or `style` for additional panel styling.
 
 ```tsx
 <PanoSceneLoadProgress
@@ -2127,6 +2129,7 @@ not record one.
     labelColor: "#ffffff",
     labelAlign: "center",
     fontSize: 12,
+    fontFamily: "Inter, system-ui, sans-serif",
     controlColor: "#f8fafc",
     controlBackground: "rgba(255, 255, 255, 0.14)",
   }}
@@ -2137,7 +2140,8 @@ not record one.
 ```
 
 `DEFAULT_PANO_SCENE_MENU_APPEARANCE` exports the defaults (including
-`padding: "8px 10px"` and `labelAlign: "start"`). For deeper styling,
+`padding: "8px 10px"` and `labelAlign: "start"`). Optional `fontFamily` styles
+scene titles; unset inherits the host page. For deeper styling,
 use `className` / `style` against these stable classes:
 
 - `pano-scene-menu` — root chrome
@@ -2616,7 +2620,7 @@ respond to the configured gaze or controller input.
 
 ### Props
 
-- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), and optional `setupTitle`. Session buttons fade after ~3s idle while locked. Simulated VR keeps them visible while the mouse is unlocked; hovering, keyboard focus, and an open Setup panel also keep them visible.
+- `chrome` — default `true` mounts session Exit / Setup UI (no Enter VR button). An appearance object may set `background` (default `rgba(16, 24, 32, 0.78)`), `color` (`#ffffff`), `accent` (`#7dd3fc`), `borderRadius` (`6`), `fontSize` (`14`), optional `fontFamily`, and optional `setupTitle`. Session buttons fade after ~3s idle while locked. Simulated VR keeps them visible while the mouse is unlocked; hovering, keyboard focus, and an open Setup panel also keep them visible.
 - `mobileVr` — default `true`.
 - `desktopSupport` — default `false` (independent of the same-named `Gyro` prop).
 - `fakeSupport` — default `true` for mouse-driven desktop simulation.
@@ -2955,7 +2959,8 @@ Appearance fields and defaults: `background` `#161616`, `color` `#f4f4f4`,
 `border` `"1px solid #2e2e2e"`, `borderRadius` `8`,
 `shadow` `"0 8px 24px rgba(0,0,0,0.45)"`, `opacity` `1` (background only,
 clamped to `[0.4, 1]`; labels and icons stay opaque), `fontSize` `13`,
-`minWidth` `180`, `padding` `4`, `iconSize` `16`, `itemPadding` `"6px 10px"`,
+optional `fontFamily` (inherits the host page when unset), `minWidth` `180`,
+`padding` `4`, `iconSize` `16`, `itemPadding` `"6px 10px"`,
 `itemHoverBackground` `#2a2a2a`, `itemDisabledColor` `#777777`,
 `separatorColor` `#333333`, `separatorMargin` `"4px 6px"`. For an explicit
 translucent fill without using `opacity`, you can still pass
@@ -3629,7 +3634,12 @@ and `line.width` are CSS pixels. Marker size uses `width` / `height` (defaults
 `3.2×3.2`); `marker.color` paints the disc and its soft pulsing halo
 (`prefers-reduced-motion` keeps a static halo). `appearance.background` defaults
 to a dark semi-opaque panel so body text stays readable; set `"transparent"` to
-leave the card open. Callouts do not use the shared `tooltip*` fields.
+leave the card open. Title and body use separate sizes (`appearance.titleFontSize`
+defaults to `15`, `appearance.fontSize` to `13`); `appearance.padding` defaults
+to `12`. Optional `appearance.fontFamily` styles both title and body (desktop
+inherits the host page when unset; the WebXR raster path falls back to
+`system-ui, sans-serif`). Fonts must be available on the device or loaded by the
+host page. Callouts do not use the shared `tooltip*` fields.
 
 **Desktop / mobile:** the line and card render as a DOM overlay through
 `PanoHtml` (WebGPU and WebGL backends share this path). **WebVR / WebXR:** the
@@ -3901,7 +3911,7 @@ Items reuse `PanoSceneMenuItem`. Titles default to centered image overlays, wrap
 
 Dwell timing inherits `WebVR.cursorDwellMs`. `activeId` owns selection; `onSelect` requests navigation from the host, which retains scene loading/error handling. Dialogs and VR Setup temporarily hide the menu. Empty lists render nothing; a single scene disables previous/next navigation.
 
-The bounded `appearance` interface includes `controlColor` (white), `controlBackground` (`transparent`), `controlOpacity` (0.75, range 0–1), `selectionColor` (white), `focusColor` (`#7dd3fc`), `selectionWidth` (4, range 0–8), `borderRadius` (8, range 0–48), `labelColor` (white), `labelBackground` (`transparent`), `fontSize` (28, range 16–48), and `labelPlacement` (`"center"` or `"bottom"`). Scene outlines meet the thumbnail edge from the outside. Selected, gaze and keyboard-focus borders share `selectionWidth`; zero hides them while retaining a separate keyboard-focus indicator. The optional visited check icon is independent of selection and remains visible at zero border width. The current scene uses `selectionColor`; gaze and keyboard focus use `focusColor`, taking priority on the current scene. Sizes use reference-canvas pixels and follow the overall scale. Exports include `WebVRSceneMenuProps`, `WebVRSceneMenuAppearance`, and `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`.
+The bounded `appearance` interface includes `controlColor` (white), `controlBackground` (`transparent`), `controlOpacity` (0.75, range 0–1), `selectionColor` (white), `focusColor` (`#7dd3fc`), `selectionWidth` (4, range 0–8), `borderRadius` (8, range 0–48), `labelColor` (white), `labelBackground` (`transparent`), `fontSize` (28, range 16–48), `fontFamily` (`sans-serif`), and `labelPlacement` (`"center"` or `"bottom"`). Scene outlines meet the thumbnail edge from the outside. Selected, gaze and keyboard-focus borders share `selectionWidth`; zero hides them while retaining a separate keyboard-focus indicator. The optional visited check icon is independent of selection and remains visible at zero border width. The current scene uses `selectionColor`; gaze and keyboard focus use `focusColor`, taking priority on the current scene. Sizes use reference-canvas pixels and follow the overall scale. Exports include `WebVRSceneMenuProps`, `WebVRSceneMenuAppearance`, and `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`.
 
 `showVisited` and `visitedLabel` follow the same session and scene-ready rules as `PanoSceneMenu` above. The badge remains visible when `showTitles={false}` or a thumbnail fails to load. Dialogs, VR Setup, pagination and VR re-entry preserve the shared viewer history.
 

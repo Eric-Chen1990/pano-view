@@ -101,6 +101,7 @@ export type PanoContextMenuAppearance = {
    */
   opacity?: number;
   fontSize?: number | string;
+  fontFamily?: string;
   minWidth?: number | string;
   padding?: number | string;
   iconSize?: number;
@@ -358,6 +359,7 @@ function DefaultContextMenuPanel({
     borderRadius: resolved.borderRadius,
     boxShadow: resolved.shadow,
     fontSize: resolved.fontSize,
+    fontFamily: resolved.fontFamily,
     minWidth: resolved.minWidth,
     padding: resolved.padding,
     ...style,

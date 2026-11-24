@@ -6,6 +6,7 @@ import { CanvasTexture, Group, Mesh, Raycaster, Vector3 } from 'three';
 import { SpatialHostContext } from '../spatial/host';
 import { createGazeActionState } from '../spatial/gaze-action';
 import { SPATIAL_UI_LAYER } from '../spatial/render-layer';
+import { cssFontFamily } from '../css-font-family';
 import { WebVRRuntimeContext, updateWebVRHost } from './host';
 import { pointerInput, pointerStick } from './input';
 import type { WebVRChrome, WebVRInteractionMode, WebVRMode } from './types';
@@ -50,6 +51,11 @@ export function WebVRInputBridge({ mode, policy, chrome, gazeEnabled }: {
   const accent = appearance.accent ? String(appearance.accent) : '#7dd3fc';
   const radius = typeof appearance.borderRadius === 'number' ? Math.max(0, Math.min(64, appearance.borderRadius * 2)) : 12;
   const fontSize = typeof appearance.fontSize === 'number' ? Math.max(16, Math.min(48, appearance.fontSize * 2)) : 28;
+  const fontFamily = cssFontFamily(
+    typeof appearance.fontFamily === 'string' && appearance.fontFamily.trim()
+      ? appearance.fontFamily.trim()
+      : 'sans-serif',
+  );
   useFrame((_, dt, frame) => {
     const session = gl.xr.getSession();
     if (session && session.visibilityState !== 'visible') { input.cancel(); gaze.current.stop(); return; }
@@ -77,16 +83,16 @@ export function WebVRInputBridge({ mode, policy, chrome, gazeEnabled }: {
       const hit = ray.intersectObject(mesh.current)[0];
       progress = gaze.current.tick(hit?.uv && hit.uv.x < .72 ? action : null, dt, 1500);
     } else gaze.current.stop();
-    const paintKey = `${state.mode}:${input.canSwitch}:${gazeEnabled}:${Math.round(progress * 100)}:${background}:${color}:${accent}:${radius}:${fontSize}`;
+    const paintKey = `${state.mode}:${input.canSwitch}:${gazeEnabled}:${Math.round(progress * 100)}:${background}:${color}:${accent}:${radius}:${fontSize}:${fontFamily}`;
     if (painted.current === paintKey) return;
     painted.current = paintKey;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, 768, 128);
     ctx.fillStyle = background;
     ctx.beginPath(); ctx.roundRect(0, 0, 768, 128, radius); ctx.fill();
-    ctx.fillStyle = color; ctx.font = `${fontSize}px sans-serif`;
+    ctx.fillStyle = color; ctx.font = `${fontSize}px ${fontFamily}`;
     ctx.fillText(state.mode === 'paused' ? t('Input paused') : state.mode === 'gaze' ? t('Gaze') : t('Pointer'), 18, 38);
-    ctx.font = '24px sans-serif';
+    ctx.font = `24px ${fontFamily}`;
     ctx.fillText(input.canSwitch ? state.mode === 'gaze' ? t('Use pointer') : gazeEnabled ? t('Enable gaze · look here') : t('Gaze disabled') : t('Input set by host'), 18, 88);
     ctx.fillText(t('Exit VR'), 598, 75);
     ctx.fillStyle = accent; ctx.fillRect(0, 120, 552 * progress, 8);

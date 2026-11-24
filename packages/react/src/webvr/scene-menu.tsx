@@ -23,6 +23,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from "three";
+import { cssFontFamily } from "../css-font-family";
 import type { PanoSceneMenuItem } from "../pano-scene-menu";
 import { getMaxTextureSize, getTextureAnisotropy } from "../renderer-capabilities";
 import { useVisitedSceneIds } from "../scenes-host";
@@ -57,9 +58,19 @@ export type WebVRSceneMenuAppearance = {
   labelColor?: string;
   labelBackground?: string;
   fontSize?: number;
+  /**
+   * Canvas font-family for scene titles and page labels. Defaults to
+   * `sans-serif`. Fonts must be available on the device or loaded by the host.
+   */
+  fontFamily?: string;
   labelPlacement?: "center" | "bottom";
 };
-export const DEFAULT_WEBVR_SCENE_MENU_APPEARANCE: Required<WebVRSceneMenuAppearance> =
+export type ResolvedWebVRSceneMenuAppearance = Required<
+  Omit<WebVRSceneMenuAppearance, "fontFamily">
+> & {
+  fontFamily: string;
+};
+export const DEFAULT_WEBVR_SCENE_MENU_APPEARANCE: ResolvedWebVRSceneMenuAppearance =
   {
     controlColor: "#ffffff",
     controlBackground: "transparent",
@@ -71,6 +82,7 @@ export const DEFAULT_WEBVR_SCENE_MENU_APPEARANCE: Required<WebVRSceneMenuAppeara
     labelColor: "#ffffff",
     labelBackground: "transparent",
     fontSize: 28,
+    fontFamily: "sans-serif",
     labelPlacement: "center",
   };
 export type WebVRSceneMenuProps = {
@@ -236,6 +248,9 @@ function MenuSurface({
   a.fontSize = bounded(a.fontSize, 28, 16, 48);
   a.borderRadius = bounded(a.borderRadius, 8, 0, 48);
   a.controlOpacity = bounded(a.controlOpacity, 0.75, 0, 1);
+  a.fontFamily = cssFontFamily(
+    a.fontFamily?.trim() || DEFAULT_WEBVR_SCENE_MENU_APPEARANCE.fontFamily,
+  );
   a.selectionWidth = bounded(a.selectionWidth, 4, 0, 8);
   const rowHeight = ((W / cols - 16) * 9) / 16 + 16;
   const gridHeight = open ? Math.ceil(rowCount * rowHeight) : 0;
@@ -822,7 +837,7 @@ function MenuSurface({
             ctx.fillRect(t.x, t.y, t.w, t.h);
           }
           if (showTitles) {
-            ctx.font = `${a.fontSize}px sans-serif`;
+            ctx.font = `${a.fontSize}px ${a.fontFamily}`;
             const lines = wrapSceneTitle(
               t.label,
               t.w - 24 - (visited ? 40 : 0),
@@ -916,7 +931,7 @@ function MenuSurface({
       }
       if (controls.pageLabel) {
         const label = controls.pageLabel;
-        ctx.font = `${label.height}px sans-serif`;
+        ctx.font = `${label.height}px ${a.fontFamily}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = a.labelColor;

@@ -346,7 +346,13 @@ test("callout hotspots require content and reject empty cards", () => {
       lookAngle: 8,
       lookDelay: 100,
       line: { angle: 30, length: 120, color: "#ff0", width: 3 },
-      appearance: { titleBackground: "#800", width: 200 },
+      appearance: {
+        titleBackground: "#800",
+        width: 200,
+        titleFontSize: 18,
+        fontSize: 14,
+        fontFamily: "Georgia, serif",
+      },
       animation: { lineDuration: 200, contentDuration: 100 },
       marker: { color: "#fff" },
     }),
@@ -356,6 +362,9 @@ test("callout hotspots require content and reject empty cards", () => {
     assert.equal(parsed.content.title, "Hello");
     assert.equal(parsed.trigger, "look");
     assert.equal(parsed.lookAngle, 8);
+    assert.equal(parsed.appearance?.titleFontSize, 18);
+    assert.equal(parsed.appearance?.fontSize, 14);
+    assert.equal(parsed.appearance?.fontFamily, "Georgia, serif");
   }
   assert.throws(
     () =>

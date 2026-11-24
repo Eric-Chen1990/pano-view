@@ -17,6 +17,7 @@ export type PanoSceneLoadProgressAppearance = {
   barHeight?: number;
   /** Width of the circular or animated indicator in CSS pixels. */
   indicatorSize?: number;
+  fontFamily?: string;
 };
 
 const DEFAULT_SHOW_DELAY_MS = 300;
@@ -150,6 +151,7 @@ function ProgressPanel({
     "--pano-load-width": pixels(appearance?.width),
     "--pano-load-bar-height": pixels(appearance?.barHeight),
     "--pano-load-indicator-size": pixels(appearance?.indicatorSize),
+    "--pano-load-font-family": appearance?.fontFamily,
     "--pano-load-angle": percent === null ? undefined : `${percent * 3.6}deg`,
     ...style,
     pointerEvents: "none",

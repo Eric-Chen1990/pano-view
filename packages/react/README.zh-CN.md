@@ -711,6 +711,7 @@ import "@ericchen1990/pano-view/styles.css";
 | `dragMotion` | `{ inertia: true, bounce: true }` | 可分别关闭惯性和回弹。`{ bounce: false }` 让图片在边界处直接停住，同时保留惯性。传 `false` 可关闭两种效果。 |
 | `showZoomControls` | `true` | 显示缩放和恢复全图按钮。隐藏按钮后仍可用滚轮、触控和键盘操作。 |
 | `showMinimap` | `false` | 显示整图缩略图和标出可见区域的矩形框。拖动矩形框，或聚焦小地图后按方向键，即可平移主视图。在小地图上滚动滚轮会以鼠标指向的图像位置为锚点。若鼠标在矩形框外，该位置会移向主视图最近的边缘。切换开关会保留当前视图。 |
+| `fontFamily` | 宿主 / `system-ui` | 可选 CSS 字体族，作用于状态与场景选择文字。缩放控件仍使用 `system-ui`。 |
 
 小于 `1` 的有限 `maxScale` 会按 `1` 处理，非有限值使用自动上限。滚轮
 和按钮缩放使用平滑过渡。开启系统的减少动态效果后，查看器会直接响应。
@@ -750,7 +751,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 `initialScale` 默认是 `1`，首次打开时限制在有效范围内。切换图片组时，在范围内保留当前视图。
 适配按钮和 `Home`、`0` 键会回到最小倍率并居中。最小倍率高于 `1×` 时，按钮显示
-`Reset view`。`dragMotion` 和 `showZoomControls` 的用法与 `PlanarTileViewer` 相同。
+`Reset view`。`dragMotion` 和 `showZoomControls` 的用法与 `PlanarTileViewer` 相同。可选 `fontFamily` 同样作用于状态与场景选择文字。
 
 每组使用唯一的 ID。用 `defaultActiveSceneId` 设置默认组，或用
 `activeSceneId` 和 `onActiveSceneIdChange` 控制选择。设置
@@ -1475,7 +1476,7 @@ export function VideoExample() {
 - `fallbackVariantId` — 可选。在活动源因解码、格式支持或纹理尺寸错误无法继续时，尝试指定变体一次，并恢复可用的播放进度和播放状态。
 - `tracks` — WebVTT 字幕轨。每项可含 `src`、`srcLang`、`label`、`default`、`id`（省略时用 `srcLang`）、`kind`（`"subtitles"` 或 `"captions"`，默认 `"subtitles"`）。
 - `captions` — `true` / 省略显示默认字幕层；`false` 隐藏叠加层与语言菜单；对象与默认外观合并。默认外观：`color` `#ffffff`，`background` `rgba(0, 0, 0, 0.55)`，`fontSize` `16`，`fontFamily` Inter / system-ui，`fontWeight` `500`，`textShadow` `0 1px 2px rgba(0, 0, 0, 0.8)`，`padding` `"6px 10px"`，`borderRadius` `6`，`maxWidth` `"72%"`，`bottom` `72`，`lineHeight` `1.35`。
-- `controls` — `true` 或省略时挂载默认播放栏，`false` 隐藏播放栏。`PanoVideoControlsOptions` 对象支持 `buttons`，以及 `background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）和 `padding`（`"8px 10px"`）外观字段。
+- `controls` — `true` 或省略时挂载默认播放栏，`false` 隐藏播放栏。`PanoVideoControlsOptions` 对象支持 `buttons`，以及 `background`（默认 `rgba(16, 16, 16, 0.88)`）、`color`（`#f4f4f4`）、`accent`（`#75cbd3`）、`borderRadius`（`8`）、`fontSize`（`12`）、`fontFamily`（`Inter, ui-sans-serif, system-ui, sans-serif`）和 `padding`（`"8px 10px"`）外观字段。
 - `clickToTogglePlayback` — 默认 `true`。在普通观看和全屏时，点击或轻触全景画面可切换播放与暂停。传 `false` 关闭此手势，也可在全景点击回调中调用 `nativeEvent.preventDefault()` 取消本次切换。
 - `showCenterPlayButton` — 默认 `true`。在普通观看和全屏时，视频暂停、自动播放受阻或播完时，画面中央显示半透明播放按钮。传 `false` 隐藏。此按钮与 `clickToTogglePlayback` 均独立于 `controls`。
 - `yawOffset` — 水平偏移，单位为度，默认 `0`。
@@ -1671,7 +1672,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 指示器默认等待 300 毫秒才显示，更快完成的加载会直接跳过提示。可以通过 `showDelayMs` 调整延迟，设为 `0` 则立即显示。延迟只作用于显示，进度接口仍实时更新。默认背景为浅淡的半透明底色，可用 `appearance={{ background: "transparent" }}` 设为完全透明。
 
-用 `appearance` 调整 `background`、`color`、`accentColor`、`trackColor`、`width`、`barHeight` 和 `indicatorSize`，三个尺寸字段均以 CSS 像素为单位。也可用 `className` 或 `style` 进一步调整面板。
+用 `appearance` 调整 `background`、`color`、`accentColor`、`trackColor`、`width`、`barHeight`、`indicatorSize` 和可选的 `fontFamily`，三个尺寸字段均以 CSS 像素为单位。未设置 `fontFamily` 时保持 `system-ui, sans-serif`。也可用 `className` 或 `style` 进一步调整面板。
 
 ```tsx
 <PanoSceneLoadProgress
@@ -1932,6 +1933,7 @@ export function Tour() {
     labelColor: "#ffffff",
     labelAlign: "center",
     fontSize: 12,
+    fontFamily: "Inter, system-ui, sans-serif",
     controlColor: "#f8fafc",
     controlBackground: "rgba(255, 255, 255, 0.14)",
   }}
@@ -1941,7 +1943,7 @@ export function Tour() {
 />
 ```
 
-默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`（含 `padding: "8px 10px"`、`labelAlign: "start"`）。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
+默认值见导出的 `DEFAULT_PANO_SCENE_MENU_APPEARANCE`（含 `padding: "8px 10px"`、`labelAlign: "start"`）。可选 `fontFamily` 作用于场景标题；未设置时继承宿主页面。更细的样式可用 `className` / `style` 覆盖这些稳定类名：
 
 - `pano-scene-menu` — 根容器
 - `pano-scene-menu-body` — 箭头与列表所在行/列（承载条背景）
@@ -2331,7 +2333,7 @@ WebXR 需要 HTTPS 与用户手势。移动端传感器访问也需要 HTTPS，i
 
 ### 属性
 
-- `chrome` — 默认 `true` 挂载会话内退出 / 设置界面（不含进入 VR 按钮）。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `setupTitle`。会话按钮约 3 秒无操作后淡出，与查看器的指针 / 滚轮 / 键盘交互后再次显示。
+- `chrome` — 默认 `true` 挂载会话内退出 / 设置界面（不含进入 VR 按钮）。也可传外观对象：`background`（默认 `rgba(16, 24, 32, 0.78)`）、`color`（`#ffffff`）、`accent`（`#7dd3fc`）、`borderRadius`（`6`）、`fontSize`（`14`）、可选 `fontFamily`、可选 `setupTitle`。会话按钮约 3 秒无操作后淡出，与查看器的指针 / 滚轮 / 键盘交互后再次显示。
 - `mobileVr` — 默认 `true`。
 - `desktopSupport` — 默认 `false`（与 `Gyro` 的同名 prop 独立）。
 - `fakeSupport` — 默认 `true`，允许鼠标驱动的桌面模拟 VR。
@@ -2631,7 +2633,7 @@ import {
 
 传入 `items` 时会忽略 `prepend` / `append`。`children` 为完全自定义渲染：`(props: { event, view, close }) => ReactNode`，优先于 `items`；打开、关闭与定位仍由组件处理。也可用 `className`、`style`、`itemClassName`、`separatorClassName`。
 
-外观字段与默认值：`background` `#161616`，`color` `#f4f4f4`，`border` `"1px solid #2e2e2e"`，`borderRadius` `8`，`shadow` `"0 8px 24px rgba(0,0,0,0.45)"`，`opacity` `1`（仅背景，钳制到 `[0.4, 1]`；标签与图标保持不透明），`fontSize` `13`，`minWidth` `180`，`padding` `4`，`iconSize` `16`，`itemPadding` `"6px 10px"`，`itemHoverBackground` `#2a2a2a`，`itemDisabledColor` `#777777`，`separatorColor` `#333333`，`separatorMargin` `"4px 6px"`。若需半透明填充而不使用 `opacity`，仍可传 `background: "rgba(...)"`。
+外观字段与默认值：`background` `#161616`，`color` `#f4f4f4`，`border` `"1px solid #2e2e2e"`，`borderRadius` `8`，`shadow` `"0 8px 24px rgba(0,0,0,0.45)"`，`opacity` `1`（仅背景，钳制到 `[0.4, 1]`；标签与图标保持不透明），`fontSize` `13`，可选 `fontFamily`（未设置时继承宿主页面），`minWidth` `180`，`padding` `4`，`iconSize` `16`，`itemPadding` `"6px 10px"`，`itemHoverBackground` `#2a2a2a`，`itemDisabledColor` `#777777`，`separatorColor` `#333333`，`separatorMargin` `"4px 6px"`。若需半透明填充而不使用 `opacity`，仍可传 `background: "rgba(...)"`。
 
 完全自定义 DOM 菜单时，设 `contextMenu={false}` 并渲染 `PanoContextMenu` 子组件。不要同时挂载默认菜单与子 `PanoContextMenu`。避免与 `controls.mouse.buttons: ["right"]` 同时使用 — 两者都会占用右键。
 
@@ -3090,7 +3092,7 @@ import { CalloutHotspot } from "@ericchen1990/pano-view";
 
 `trigger` 默认为 `"hover"`。`"click"` 切换显示，点击空白全景关闭。`"look"` 在相机朝向与标记夹角持续处于 `lookAngle`（度，默认 `6`）内达 `lookDelay`（毫秒，默认 `250`）后打开，离开阈值为 `1.5 × lookAngle`。`"always"` 挂载后常开。触摸设备上 `"hover"` 回退为点按切换。除 `"always"` 外，键盘 Enter/Space 均可切换。
 
-`line.angle` 为屏幕角度（`0` 向右，`90` 向上）。`line.length` / `line.width` 为 CSS 像素。圆点尺寸沿用 `width` / `height`（默认 `3.2×3.2`），`marker.color` 控制圆点及外围半透明呼吸光晕（`prefers-reduced-motion` 下为静态光晕）。`appearance.background` 默认为深色半透明底板，保证正文可读；设为 `"transparent"` 可保持透空。callout 不使用共享的 `tooltip*` 字段。
+`line.angle` 为屏幕角度（`0` 向右，`90` 向上）。`line.length` / `line.width` 为 CSS 像素。圆点尺寸沿用 `width` / `height`（默认 `3.2×3.2`），`marker.color` 控制圆点及外围半透明呼吸光晕（`prefers-reduced-motion` 下为静态光晕）。`appearance.background` 默认为深色半透明底板，保证正文可读；设为 `"transparent"` 可保持透空。标题与正文使用独立字号（`appearance.titleFontSize` 默认 `15`，`appearance.fontSize` 默认 `13`）；`appearance.padding` 默认 `12`。可选 `appearance.fontFamily` 同时作用于标题与正文（桌面未设置时继承宿主页面；WebXR 栅格回退到 `system-ui, sans-serif`）。字体须在设备上可用，或由宿主页面加载。callout 不使用共享的 `tooltip*` 字段。
 
 **桌面 / 移动：** 引线与卡片经 `PanoHtml` 以 DOM 叠加层绘制（WebGPU 与 WebGL 共用）。**WebVR / WebXR：** 引线为细网格，卡片栅格化为纹理平面，以便立体模式下的凝视停留与看向触发。两者均使用标准 `meshBasicMaterial`，保持 WebGPU 兼容。VR 中栅格化文字不会像 DOM 卡片那样回流。
 
@@ -3331,7 +3333,7 @@ viewLimits: {
 
 凝视时间沿用 `WebVR.cursorDwellMs`。`activeId` 是选中状态来源，`onSelect` 请求宿主切换场景；场景加载和错误处理仍由宿主负责。弹窗或 VR Setup 打开时暂时隐藏此组件。无场景时隐藏，单场景时禁用左右导航。
 
-`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`selectionWidth`（4，范围 0–8）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘。选中、凝视和键盘焦点共用 `selectionWidth`；设为零时隐藏这些边框，但保留独立的键盘焦点提示。可选的已浏览勾选图标与选中状态独立，边框宽度为零时仍显示。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
+`appearance` 是有限的空间样式接口：`controlColor`（白色）、`controlBackground`（`transparent`）、`controlOpacity`（0.75，范围 0–1）、`selectionColor`（白色）、`focusColor`（`#7dd3fc`）、`selectionWidth`（4，范围 0–8）、`borderRadius`（8，范围 0–48）、`labelColor`（白色）、`labelBackground`（`transparent`）、`fontSize`（28，范围 16–48）、`fontFamily`（`sans-serif`）、`labelPlacement`（`"center"` 或 `"bottom"`）。场景边框从外侧紧贴缩略图边缘。选中、凝视和键盘焦点共用 `selectionWidth`；设为零时隐藏这些边框，但保留独立的键盘焦点提示。可选的已浏览勾选图标与选中状态独立，边框宽度为零时仍显示。当前场景使用 `selectionColor`；凝视和键盘焦点使用 `focusColor`，焦点落在当前场景上时优先显示焦点颜色。数值尺寸使用参考画布像素并随整体缩放。导出 `WebVRSceneMenuProps`、`WebVRSceneMenuAppearance` 和 `DEFAULT_WEBVR_SCENE_MENU_APPEARANCE`。
 
 `showVisited` 和 `visitedLabel` 沿用上述 `PanoSceneMenu` 的会话及场景就绪规则。隐藏标题（`showTitles={false}`）或缩略图加载失败时，已浏览图标仍显示；弹窗、VR Setup、翻页和重新进入 VR 均保留查看器共享记录。
 

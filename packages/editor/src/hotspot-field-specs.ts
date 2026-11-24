@@ -326,9 +326,17 @@ const descriptions: Record<string, { label: string; help: string }> = {
     label: "Card width (px)",
     help: "Callout card width in CSS pixels.",
   },
+  "appearance.titleFontSize": {
+    label: "Title font size (px)",
+    help: "Callout title size in CSS pixels. Defaults to 15.",
+  },
   "appearance.fontSize": {
-    label: "Font size (px)",
-    help: "Callout text size in CSS pixels.",
+    label: "Body font size (px)",
+    help: "Callout body text size in CSS pixels. Defaults to 13.",
+  },
+  "appearance.fontFamily": {
+    label: "Font family",
+    help: "CSS font family or fallback list for the title and body. Fonts must be available on the device or loaded by the host page.",
   },
   "appearance.padding": {
     label: "Card padding (px)",
