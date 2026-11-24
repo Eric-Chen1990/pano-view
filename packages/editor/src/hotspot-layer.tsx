@@ -8,6 +8,7 @@ import {
   AudioHotspot,
   TextHotspot,
   IframeHotspot,
+  CalloutHotspot,
   PolygonHotspot,
   PolylineHotspot,
   PortalHotspot,
@@ -210,6 +211,14 @@ export const HotspotLayer = memo(function HotspotLayer({
                 pointerPolicy="hotspot"
                 sandbox=""
                 referrerPolicy={undefined}
+              />
+            );
+          case "callout":
+            return (
+              <CalloutHotspot
+                key={hotspot.id}
+                {...renderProps(hotspot)}
+                {...point}
               />
             );
         }

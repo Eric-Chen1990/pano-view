@@ -29,11 +29,21 @@ test("all creation presets have localized unique names and ready-to-use tooltips
     });
     assert.equal(first.label, `${translator("zh-CN")(kind)} 1`);
     assert.equal(second.label, `${translator("zh-CN")(kind)} 2`);
-    assert.equal(first.tooltip, kind === "text" ? undefined : first.label);
-    assert.equal(first.tooltipTrigger, "always");
-    assert.equal(first.tooltipPlacement, "top");
-    assert.equal(first.tooltipOffset, 12);
-    assert.equal(first.tooltipAppearance, undefined);
+    if (kind === "callout") {
+      assert.equal(first.tooltip, undefined);
+      assert.equal(first.tooltipTrigger, undefined);
+      assert.equal(first.type, "callout");
+      if (first.type === "callout") {
+        assert.equal(first.trigger, "hover");
+        assert.equal(first.content.title, first.label);
+      }
+    } else {
+      assert.equal(first.tooltip, kind === "text" ? undefined : first.label);
+      assert.equal(first.tooltipTrigger, "always");
+      assert.equal(first.tooltipPlacement, "top");
+      assert.equal(first.tooltipOffset, 12);
+      assert.equal(first.tooltipAppearance, undefined);
+    }
     assert.notEqual(first.id, second.id);
     if ("position" in first) assert.deepEqual(first.position, position);
     else assert.deepEqual(first.vertices, []);

@@ -254,45 +254,53 @@ export function HotspotInspector({
           content: (
             <>
               <div className="pne-fields">
-                <p className="pne-field-help">
-                  {t("Text or images shown to visitors beside the hotspot. Clear both to hide the tooltip. The name is copied only when a hotspot is created.")}
-                </p>
-                {fields([
-                  { name: "tooltip.text", label: "Tooltip text", type: "textarea" },
-                  { name: "tooltip.image", label: "Tooltip image", asset: true },
-                  { name: "tooltip.imageAlt", label: "Tooltip image alt" },
-                  {
-                    name: "tooltipTrigger",
-                    options: ["always", "hover", "click"],
-                    optionLabels: {
-                      always: "Always visible",
-                      hover: "On hover or focus",
-                      click: "On click",
-                    },
-                  },
-                  {
-                    name: "tooltipPlacement",
-                    options: ["top", "bottom", "left", "right"],
-                    optionLabels: {
-                      top: "Above", bottom: "Below", left: "Left", right: "Right",
-                    },
-                  },
-                  { name: "tooltipMode", options: ["billboard", "surface"] },
-                  { name: "tooltipScaleMode", options: ["inherit", "fov", "fixed"] },
-                  { name: "tooltipOffset", label: "Tooltip offset (px)", type: "number" },
-                ])}
-                <p className="pne-field-help">
-                  {t(hotspot.tooltipAppearance === undefined ? "Using default style" : "Using custom style")}
-                </p>
-                <details>
-                  <summary>{t("Custom tooltip style (JSON)")}</summary>
-                  {fields([
-                    {
-                      name: "tooltipAppearance", label: "Appearance", type: "json",
-                      defaultValue: DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
-                    },
-                  ])}
-                </details>
+                {hotspot.type === "callout" ? (
+                  <p className="pne-field-help">
+                    {t("Leader-line callout content. Configure the title, body text, image, trigger, and line below.")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="pne-field-help">
+                      {t("Text or images shown to visitors beside the hotspot. Clear both to hide the tooltip. The name is copied only when a hotspot is created.")}
+                    </p>
+                    {fields([
+                      { name: "tooltip.text", label: "Tooltip text", type: "textarea" },
+                      { name: "tooltip.image", label: "Tooltip image", asset: true },
+                      { name: "tooltip.imageAlt", label: "Tooltip image alt" },
+                      {
+                        name: "tooltipTrigger",
+                        options: ["always", "hover", "click"],
+                        optionLabels: {
+                          always: "Always visible",
+                          hover: "On hover or focus",
+                          click: "On click",
+                        },
+                      },
+                      {
+                        name: "tooltipPlacement",
+                        options: ["top", "bottom", "left", "right"],
+                        optionLabels: {
+                          top: "Above", bottom: "Below", left: "Left", right: "Right",
+                        },
+                      },
+                      { name: "tooltipMode", options: ["billboard", "surface"] },
+                      { name: "tooltipScaleMode", options: ["inherit", "fov", "fixed"] },
+                      { name: "tooltipOffset", label: "Tooltip offset (px)", type: "number" },
+                    ])}
+                    <p className="pne-field-help">
+                      {t(hotspot.tooltipAppearance === undefined ? "Using default style" : "Using custom style")}
+                    </p>
+                    <details>
+                      <summary>{t("Custom tooltip style (JSON)")}</summary>
+                      {fields([
+                        {
+                          name: "tooltipAppearance", label: "Appearance", type: "json",
+                          defaultValue: DEFAULT_HOTSPOT_TOOLTIP_APPEARANCE,
+                        },
+                      ])}
+                    </details>
+                  </>
+                )}
               </div>
               <div className="pne-fields">
                 {fields(portal ? [] : contentFields[hotspot.type] ?? [])}

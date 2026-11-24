@@ -256,6 +256,18 @@ const hotspots: ProjectHotspotDefinition[] = [
     pointerPolicy: "content",
   },
   {
+    type: "callout",
+    id: "callout",
+    position,
+    content: {
+      title: "Default style",
+      text: "A callout",
+      image: "callout.webp",
+    },
+    trigger: "hover",
+    line: { angle: 45, length: 96, color: "#ffffff" },
+  },
+  {
     type: "polygon",
     id: "polygon",
     vertices: [position, { yaw: 10, pitch: 0 }, { yaw: 5, pitch: 10 }],
@@ -285,7 +297,7 @@ test("projects validate all hotspot variants and resolve nested resources withou
   });
   assert.deepEqual(definition, before);
   const hs = loaded.scenes[0]!.hotspots;
-  assert.equal(hs.length, 9);
+  assert.equal(hs.length, 10);
   assert.equal(
     (hs[0] as Extract<ProjectHotspotDefinition, { type: "image" }>).src,
     "https://hotspots.test/card.webp"
@@ -311,7 +323,76 @@ test("projects validate all hotspot variants and resolve nested resources withou
     (hs[5] as Extract<ProjectHotspotDefinition, { type: "text" }>).text,
     "card.webp stays text"
   );
+  assert.equal(hs[7]?.type, "callout");
+  if (hs[7]?.type === "callout") {
+    assert.equal(hs[7].content.image, "https://hotspots.test/callout.webp");
+    assert.equal(hs[7].trigger, "hover");
+  }
   assert.equal(loaded.initialSceneId, "a");
+});
+
+test("callout hotspots require content and reject empty cards", () => {
+  const withCallout = (hotspot: unknown) => ({
+    ...project(),
+    scenes: [{ id: "a", source: { viewerConfig: cube }, hotspots: [hotspot] }],
+  });
+  const parsed = parsePanoProject(
+    withCallout({
+      type: "callout",
+      id: "info",
+      position,
+      content: { title: "Hello" },
+      trigger: "look",
+      lookAngle: 8,
+      lookDelay: 100,
+      line: { angle: 30, length: 120, color: "#ff0", width: 3 },
+      appearance: { titleBackground: "#800", width: 200 },
+      animation: { lineDuration: 200, contentDuration: 100 },
+      marker: { color: "#fff" },
+    }),
+  ).scenes[0]?.hotspots?.[0];
+  assert.equal(parsed?.type, "callout");
+  if (parsed?.type === "callout") {
+    assert.equal(parsed.content.title, "Hello");
+    assert.equal(parsed.trigger, "look");
+    assert.equal(parsed.lookAngle, 8);
+  }
+  assert.throws(
+    () =>
+      parsePanoProject(
+        withCallout({
+          type: "callout",
+          id: "empty",
+          position,
+          content: { title: "  ", text: "" },
+        }),
+      ),
+    /content/,
+  );
+  assert.throws(
+    () =>
+      parsePanoProject(
+        withCallout({
+          type: "callout",
+          id: "missing",
+          position,
+        }),
+      ),
+    /content/,
+  );
+  assert.throws(
+    () =>
+      parsePanoProject(
+        withCallout({
+          type: "callout",
+          id: "bad-trigger",
+          position,
+          content: { text: "x" },
+          trigger: "focus",
+        }),
+      ),
+    /trigger/,
+  );
 });
 
 test("older audio definitions omit 3D sound settings and new distances must be positive", () => {

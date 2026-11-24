@@ -30,7 +30,7 @@ export function tooltipReferenceSlope(referenceFov: number) {
   return Math.tan(MathUtils.degToRad(fov) / 2);
 }
 
-function setTooltipWorldFrame(
+export function setTooltipWorldFrame(
   anchor: Object3D,
   camera: Camera,
   height: number,

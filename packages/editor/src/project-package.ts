@@ -232,6 +232,8 @@ export async function buildProjectPackage(
       hotspot.frame.src = await copy(hotspot.frame.src);
     if (typeof hotspot.tooltip === "object" && hotspot.tooltip.image)
       hotspot.tooltip.image = await copy(hotspot.tooltip.image);
+    if (hotspot.type === "callout" && hotspot.content.image)
+      hotspot.content.image = await copy(hotspot.content.image);
     const copyCss = async (css: string) => {
       const images: string[] = [];
       mapCursorAssets(css, (path) => {

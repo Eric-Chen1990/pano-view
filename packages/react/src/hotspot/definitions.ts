@@ -1,6 +1,14 @@
 import type { HotspotChromaKey } from "../../../../shared/chroma-key";
 import type { CSSProperties } from "react";
 import type { PanoViewerState } from "../types";
+import type {
+  CalloutAnimation,
+  CalloutAppearance,
+  CalloutContent,
+  CalloutLine,
+  CalloutMarker,
+  CalloutTrigger,
+} from "./callout-layout";
 import type { GraphicDefinition } from "./graphic-hotspot";
 import type { IframePointerPolicy } from "./iframe-hotspot";
 import type { PortalHotspotFrame, PortalHotspotShape } from "./portal-geometry";
@@ -138,6 +146,24 @@ export type IframeHotspotDefinition = PointHotspotDefinitionBase & {
   background?: string;
 };
 
+/**
+ * A marker with an animated leader-line callout card.
+ * Shared `tooltip*` fields are ignored; use `content`, `trigger`, and `line`.
+ */
+export type CalloutHotspotDefinition = PointHotspotDefinitionBase & {
+  type: "callout";
+  content: CalloutContent;
+  trigger?: CalloutTrigger;
+  line?: CalloutLine;
+  appearance?: CalloutAppearance;
+  animation?: CalloutAnimation;
+  marker?: CalloutMarker;
+  /** Angular radius in degrees for look-at open. Defaults to 6. */
+  lookAngle?: number;
+  /** Hold time in ms before look-at opens. Defaults to 250. */
+  lookDelay?: number;
+};
+
 export type PolygonHotspotDefinition = HotspotDefinitionBase & {
   type: "polygon";
   vertices: HotspotPosition[];
@@ -169,7 +195,8 @@ export type PointHotspotDefinition =
   | VideoHotspotDefinition
   | AudioHotspotDefinition
   | TextHotspotDefinition
-  | IframeHotspotDefinition;
+  | IframeHotspotDefinition
+  | CalloutHotspotDefinition;
 
 /** A serializable, discriminated hotspot collection item. */
 export type HotspotDefinition =

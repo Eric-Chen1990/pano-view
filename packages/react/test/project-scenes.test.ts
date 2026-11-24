@@ -13,6 +13,7 @@ import { VideoHotspot } from "../src/hotspot/video-hotspot";
 import { AudioHotspot } from "../src/hotspot/audio-hotspot";
 import { TextHotspot } from "../src/hotspot/text-hotspot";
 import { IframeHotspot } from "../src/hotspot/iframe-hotspot";
+import { CalloutHotspot } from "../src/hotspot/callout-hotspot";
 import { PolygonHotspot } from "../src/hotspot/polygon-hotspot";
 import { PolylineHotspot } from "../src/hotspot/polyline-hotspot";
 import { PortalHotspot } from "../src/hotspot/portal-hotspot";
@@ -44,6 +45,14 @@ test("default project renderer reuses every hotspot component and strips project
     [media, AudioHotspot],
     [{ ...point, type: "text", text: "Hello" }, TextHotspot],
     [{ ...point, type: "iframe", src: "embed.html" }, IframeHotspot],
+    [
+      {
+        ...point,
+        type: "callout",
+        content: { title: "Info", text: "Details" },
+      },
+      CalloutHotspot,
+    ],
     [
       {
         id: "polygon",

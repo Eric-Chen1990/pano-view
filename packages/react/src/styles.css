@@ -77,6 +77,45 @@
   white-space: nowrap;
 }
 
+.pano-callout {
+  pointer-events: none;
+}
+
+.pano-callout-line {
+  overflow: visible;
+}
+
+.pano-callout-panel {
+  pointer-events: none;
+}
+
+.pano-callout-card {
+  box-sizing: border-box;
+  line-height: 1.4;
+  max-width: 280px;
+  pointer-events: none;
+  white-space: normal;
+  /* Inline appearance.background overrides this when set. */
+  background: rgba(16, 20, 24, 0.86);
+}
+
+.pano-callout-title {
+  line-height: 1.3;
+}
+
+.pano-callout-image {
+  display: block;
+  height: auto;
+  max-height: 120px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.pano-callout-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .pano-iframe-hotspot {
   border: 0;
   display: block;

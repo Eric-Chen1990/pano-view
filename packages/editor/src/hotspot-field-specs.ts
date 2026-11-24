@@ -246,6 +246,94 @@ const descriptions: Record<string, { label: string; help: string }> = {
     label: "Visitor tooltip style (JSON)",
     help: "Advanced tooltip styling as JSON. Unset properties use the default theme; numeric lengths are generally CSS pixels.",
   },
+  "content.title": {
+    label: "Callout title",
+    help: "Optional title shown in the colored header of the leader-line card.",
+  },
+  "content.text": {
+    label: "Callout text",
+    help: "Optional body text under the title on the leader-line card.",
+  },
+  "content.image": {
+    label: "Callout image",
+    help: "Optional image shown on the leader-line card.",
+  },
+  "content.imageAlt": {
+    label: "Callout image description",
+    help: "Text describing the callout image for visitors using screen readers.",
+  },
+  trigger: {
+    label: "Show callout",
+    help: "Open on hover, click, when the view looks at the marker, or keep it always visible.",
+  },
+  "line.angle": {
+    label: "Leader line angle (°)",
+    help: "Screen angle of the leader line. 0 points right, 90 points up.",
+  },
+  "line.length": {
+    label: "Leader line length (px)",
+    help: "Length of the leader line in CSS pixels. Must be greater than zero.",
+  },
+  "line.width": {
+    label: "Leader line width (px)",
+    help: "Stroke width of the leader line in CSS pixels. Must be greater than zero.",
+  },
+  "line.color": {
+    label: "Leader line color",
+    help: "CSS color for the leader line and default accent bar.",
+  },
+  "marker.color": {
+    label: "Marker color",
+    help: "CSS color for the circular callout marker.",
+  },
+  lookAngle: {
+    label: "Look-at angle (°)",
+    help: "Angular radius in degrees for opening a look-triggered callout.",
+  },
+  lookDelay: {
+    label: "Look-at delay (ms)",
+    help: "How long the view must stay on the marker before a look-triggered callout opens.",
+  },
+  "animation.lineDuration": {
+    label: "Line animation (ms)",
+    help: "Duration of the leader-line draw animation in milliseconds.",
+  },
+  "animation.contentDuration": {
+    label: "Content animation (ms)",
+    help: "Duration of the card reveal animation in milliseconds.",
+  },
+  "appearance.background": {
+    label: "Card background",
+    help: "Background behind the callout body. Use a solid or semi-opaque CSS color so text stays readable over the panorama. Set transparent to leave the panel open.",
+  },
+  "appearance.titleBackground": {
+    label: "Title background",
+    help: "Background color for the callout title bar.",
+  },
+  "appearance.titleColor": {
+    label: "Title color",
+    help: "Text color for the callout title.",
+  },
+  "appearance.accentColor": {
+    label: "Accent color",
+    help: "Vertical accent bar color. Defaults to the leader line color.",
+  },
+  "appearance.color": {
+    label: "Body text color",
+    help: "Text color for the callout body.",
+  },
+  "appearance.width": {
+    label: "Card width (px)",
+    help: "Callout card width in CSS pixels.",
+  },
+  "appearance.fontSize": {
+    label: "Font size (px)",
+    help: "Callout text size in CSS pixels.",
+  },
+  "appearance.padding": {
+    label: "Card padding (px)",
+    help: "Inner padding of the callout card in CSS pixels.",
+  },
   "graphic.kind": {
     label: "Shape type",
     help: "Choose a built-in shape, an SVG resource, or a custom SVG path.",

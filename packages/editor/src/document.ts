@@ -183,6 +183,7 @@ export const hotspotKinds: HotspotKind[] = [
   "video",
   "audio",
   "iframe",
+  "callout",
   "polygon",
   "polyline",
   "portal",
@@ -204,10 +205,14 @@ export function createHotspot(
   const metadata = {
     id: newId(),
     label,
-    ...(kind === "text" ? {} : { tooltip: label }),
-    tooltipTrigger: "always" as const,
-    tooltipPlacement: "top" as const,
-    tooltipOffset: DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+    ...(kind === "text" || kind === "callout" ? {} : { tooltip: label }),
+    ...(kind === "callout"
+      ? {}
+      : {
+          tooltipTrigger: "always" as const,
+          tooltipPlacement: "top" as const,
+          tooltipOffset: DEFAULT_HOTSPOT_TOOLTIP_OFFSET,
+        }),
   };
   const common = { ...metadata, position, width: 12, height: 12 };
   switch (kind) {
@@ -250,6 +255,18 @@ export function createHotspot(
         title: "Content",
         sandbox: "",
         pointerPolicy: "hotspot",
+      };
+    case "callout":
+      return {
+        ...common,
+        type: kind,
+        width: 3.2,
+        height: 3.2,
+        content: { title: label, text: t("Callout description") },
+        trigger: "hover" as const,
+        line: { angle: 45, length: 96, color: "#ffffff", width: 2 },
+        marker: { color: "#ffffff" },
+        appearance: { background: "rgba(16, 20, 24, 0.86)" },
       };
     case "polygon":
       return {

@@ -49,6 +49,7 @@
 - [AudioHotspot](#audiohotspot)
 - [TextHotspot](#texthotspot)
 - [IframeHotspot](#iframehotspot)
+- [CalloutHotspot](#callouthotspot)
 - [Next.js 与 SSR](#nextjs-与-ssr)
 - [球面多分辨率瓦片](#球面多分辨率瓦片)
 - [无障碍颜色矩阵与标签排版](#无障碍颜色矩阵与标签排版)
@@ -803,6 +804,7 @@ import "@ericchen1990/pano-view/styles.css";
 - [`AudioHotspot`](#audiohotspot) — 球面位置上的定向声源
 - [`TextHotspot`](#texthotspot) — 球面位置上的栅格化纯文本
 - [`IframeHotspot`](#iframehotspot) — 球面位置上的嵌入文档叠加层
+- [`CalloutHotspot`](#callouthotspot) — 带动画引线卡片的圆点标注
 - [`PolygonHotspot`](#polygonhotspot) — 闭合球面区域
 - [`PolylineHotspot`](#polylinehotspot) — 开放球面路径
 
@@ -3061,6 +3063,38 @@ import { IframeHotspot } from "@ericchen1990/pano-view";
 ```
 
 `pointerPolicy="hotspot"`（默认）将 iframe 设为 `pointer-events: none`，点击与拖拽作用于 WebGL 平面。`"content"` 使页面可交互并阻止穿透拖拽。热点 `pointerEvents="none"` 也会强制 iframe 叠加层不捕获指针。`sandbox` 默认为 `allow-scripts allow-popups allow-forms`，不含 `allow-same-origin`。`referrerPolicy` 默认为 `strict-origin-when-cross-origin`。另可设 `title`（省略时用 `ariaLabel`）、`allow`、`loading`（`"eager"` | `"lazy"`）、`background`，以及 `onLoad` / `onError`。省略尺寸时默认 `18×12`。优先同源文档；许多第三方站点发送 `X-Frame-Options` 无法加载。
+
+## CalloutHotspot
+
+`CalloutHotspot` 放置圆形标记，并以动画引线展开信息卡片：先画出引线，再显示内容。内容可以是标题、正文、图片，或它们的组合。
+
+```tsx
+import { CalloutHotspot } from "@ericchen1990/pano-view";
+
+<CalloutHotspot
+  id="info"
+  ariaLabel="Default style"
+  position={{ yaw: -20, pitch: 6 }}
+  trigger="hover"
+  content={{
+    title: "Default style",
+    text: "The default style can be customized in the default settings.",
+  }}
+  line={{ angle: 45, length: 96, color: "#ffffff", width: 2 }}
+  appearance={{
+    background: "rgba(16, 20, 24, 0.86)",
+    titleBackground: "#8b1e1e",
+  }}
+/>;
+```
+
+`trigger` 默认为 `"hover"`。`"click"` 切换显示，点击空白全景关闭。`"look"` 在相机朝向与标记夹角持续处于 `lookAngle`（度，默认 `6`）内达 `lookDelay`（毫秒，默认 `250`）后打开，离开阈值为 `1.5 × lookAngle`。`"always"` 挂载后常开。触摸设备上 `"hover"` 回退为点按切换。除 `"always"` 外，键盘 Enter/Space 均可切换。
+
+`line.angle` 为屏幕角度（`0` 向右，`90` 向上）。`line.length` / `line.width` 为 CSS 像素。圆点尺寸沿用 `width` / `height`（默认 `3.2×3.2`），`marker.color` 控制圆点及外围半透明呼吸光晕（`prefers-reduced-motion` 下为静态光晕）。`appearance.background` 默认为深色半透明底板，保证正文可读；设为 `"transparent"` 可保持透空。callout 不使用共享的 `tooltip*` 字段。
+
+**桌面 / 移动：** 引线与卡片经 `PanoHtml` 以 DOM 叠加层绘制（WebGPU 与 WebGL 共用）。**WebVR / WebXR：** 引线为细网格，卡片栅格化为纹理平面，以便立体模式下的凝视停留与看向触发。两者均使用标准 `meshBasicMaterial`，保持 WebGPU 兼容。VR 中栅格化文字不会像 DOM 卡片那样回流。
+
+项目 JSON 使用 `type: "callout"` 与上述字段。参见 Playground `/callouts` 示例。
 
 ## Next.js 与 SSR
 

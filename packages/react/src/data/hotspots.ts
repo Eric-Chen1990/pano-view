@@ -64,13 +64,7 @@ export type ProjectHotspotDefinition = HotspotDefinition & {
   events?: Partial<Record<ProjectHotspotTrigger, ProjectHotspotAction>>;
 };
 
-const common = [
-  "label",
-  "visible",
-  "interactive",
-  "pointerEvents",
-  "cursor",
-  "renderOrder",
+const tooltipCommon = [
   "tooltip",
   "tooltipTrigger",
   "tooltipPlacement",
@@ -78,7 +72,17 @@ const common = [
   "tooltipScaleMode",
   "tooltipOffset",
   "tooltipAppearance",
-];
+] as const;
+const commonBase = [
+  "label",
+  "visible",
+  "interactive",
+  "pointerEvents",
+  "cursor",
+  "renderOrder",
+] as const;
+const common = [...commonBase, ...tooltipCommon];
+const calloutCommon = [...commonBase];
 const point = [
   "position",
   "width",
@@ -153,6 +157,16 @@ const fields = {
     "pointerPolicy",
     "background",
   ],
+  callout: [
+    "content",
+    "trigger",
+    "line",
+    "appearance",
+    "animation",
+    "marker",
+    "lookAngle",
+    "lookDelay",
+  ],
   polygon: [
     "vertices",
     "fill",
@@ -209,6 +223,8 @@ const numberFields = new Set([
   "strokeOpacity",
   "strokeDashSize",
   "strokeGapSize",
+  "lookAngle",
+  "lookDelay",
 ]);
 const positiveFields = new Set([
   "width",
@@ -240,6 +256,7 @@ const enums: Record<string, readonly string[]> = {
   whiteSpace: ["normal", "nowrap"],
   loading: ["eager", "lazy"],
   pointerPolicy: ["hotspot", "content"],
+  trigger: ["click", "hover", "look", "always"],
   referrerPolicy: [
     "",
     "no-referrer",
@@ -378,6 +395,93 @@ function parseAppearance(value: unknown): Record<string, string | number> {
   return result;
 }
 
+function parseCalloutContent(value: unknown): Record<string, string> {
+  if (!isRecord(value)) throw new Error("content: expected an object");
+  const result: Record<string, string> = {};
+  for (const key of ["title", "text", "image", "imageAlt"]) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== "string")
+      throw new Error(`content.${key}: expected a string`);
+    result[key] = value[key];
+  }
+  if (!result.title?.trim() && !result.text?.trim() && !result.image?.trim()) {
+    throw new Error("content: expected title, text, or image");
+  }
+  return result;
+}
+
+function parseCalloutLine(value: unknown): Record<string, string | number> {
+  if (!isRecord(value)) throw new Error("line: expected an object");
+  const result: Record<string, string | number> = {};
+  if (value.color !== undefined) {
+    if (typeof value.color !== "string")
+      throw new Error("line.color: expected a string");
+    result.color = value.color;
+  }
+  for (const key of ["angle", "length", "width"] as const) {
+    if (value[key] === undefined) continue;
+    const n = finite(value[key], `line.${key}`);
+    if ((key === "length" || key === "width") && n <= 0)
+      throw new Error(`line.${key}: expected a positive number`);
+    result[key] = n;
+  }
+  return result;
+}
+
+function parseCalloutAppearance(
+  value: unknown,
+): Record<string, string | number> {
+  if (!isRecord(value)) throw new Error("appearance: expected an object");
+  const result: Record<string, string | number> = {};
+  for (const key of [
+    "background",
+    "color",
+    "titleBackground",
+    "titleColor",
+    "accentColor",
+  ]) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== "string")
+      throw new Error(`appearance.${key}: expected a string`);
+    result[key] = value[key];
+  }
+  for (const key of ["width", "fontSize", "padding", "borderRadius"] as const) {
+    if (value[key] === undefined) continue;
+    const n = finite(value[key], `appearance.${key}`);
+    if ((key === "width" || key === "fontSize") && n <= 0)
+      throw new Error(`appearance.${key}: expected a positive number`);
+    if ((key === "padding" || key === "borderRadius") && n < 0)
+      throw new Error(`appearance.${key}: expected a nonnegative number`);
+    result[key] = n;
+  }
+  return result;
+}
+
+function parseCalloutAnimation(
+  value: unknown,
+): Record<string, number> {
+  if (!isRecord(value)) throw new Error("animation: expected an object");
+  const result: Record<string, number> = {};
+  for (const key of ["lineDuration", "contentDuration"] as const) {
+    if (value[key] === undefined) continue;
+    const n = finite(value[key], `animation.${key}`);
+    if (n < 0) throw new Error(`animation.${key}: expected a nonnegative number`);
+    result[key] = n;
+  }
+  return result;
+}
+
+function parseCalloutMarker(value: unknown): Record<string, string> {
+  if (!isRecord(value)) throw new Error("marker: expected an object");
+  const result: Record<string, string> = {};
+  if (value.color !== undefined) {
+    if (typeof value.color !== "string")
+      throw new Error("marker.color: expected a string");
+    result.color = value.color;
+  }
+  return result;
+}
+
 export function parseHotspot(
   value: unknown,
   sceneId: string,
@@ -395,7 +499,8 @@ export function parseHotspot(
     };
     const isPath = kind === "polygon" || kind === "polyline";
     const placement = kind === "portal" ? ["position", "width", "height", "scale", "rotation"] : point;
-    const allowed = [...common, ...(isPath ? [] : placement), ...fields[kind]];
+    const shared = kind === "callout" ? calloutCommon : common;
+    const allowed = [...shared, ...(isPath ? [] : placement), ...fields[kind]];
     for (const key of allowed) {
       const item = value[key];
       if (item === undefined) continue;
@@ -422,6 +527,16 @@ export function parseHotspot(
       else if (key === "arrivalView") result[key] = parseView(item, key);
       else if (key === "tooltip") result[key] = parseTooltip(item);
       else if (key === "tooltipAppearance") result[key] = parseAppearance(item);
+      else if (key === "content" && kind === "callout")
+        result[key] = parseCalloutContent(item);
+      else if (key === "line" && kind === "callout")
+        result[key] = parseCalloutLine(item);
+      else if (key === "appearance" && kind === "callout")
+        result[key] = parseCalloutAppearance(item);
+      else if (key === "animation" && kind === "callout")
+        result[key] = parseCalloutAnimation(item);
+      else if (key === "marker" && kind === "callout")
+        result[key] = parseCalloutMarker(item);
       else if (booleanFields.has(key)) {
         if (typeof item !== "boolean")
           throw new Error(`${key}: expected a boolean`);
@@ -475,6 +590,8 @@ export function parseHotspot(
       throw new Error("graphic: required");
     if (kind === "text" && typeof result.text !== "string")
       throw new Error("text: required");
+    if (kind === "callout" && !result.content)
+      throw new Error("content: required");
     if (kind === "sequence" && !result.frameCount)
       throw new Error("frameCount: required");
     if (value.action !== undefined) result.action = parseAction(value.action);
@@ -520,10 +637,15 @@ export function resolveHotspotAssets(
       : path;
   const result = { ...hotspot };
   if (result.cursor) result.cursor = mapCursorAssets(result.cursor, resolve);
-  if (result.tooltipAppearance?.background) result.tooltipAppearance = {
-    ...result.tooltipAppearance,
-    background: mapCursorAssets(result.tooltipAppearance.background, resolve),
-  };
+  if (
+    result.type !== "callout" &&
+    result.tooltipAppearance?.background
+  ) {
+    result.tooltipAppearance = {
+      ...result.tooltipAppearance,
+      background: mapCursorAssets(result.tooltipAppearance.background, resolve),
+    };
+  }
   if ("src" in result)
     result.src = Array.isArray(result.src)
       ? result.src.map(resolve)
@@ -538,10 +660,17 @@ export function resolveHotspotAssets(
     result.graphic = { ...result.graphic, src: resolve(result.graphic.src) };
   if (result.type === "portal" && result.frame?.src)
     result.frame = { ...result.frame, src: resolve(result.frame.src) };
-  if (typeof result.tooltip === "object")
+  if (result.type !== "callout" && typeof result.tooltip === "object") {
     result.tooltip = {
       ...result.tooltip,
       ...(result.tooltip.image ? { image: resolve(result.tooltip.image) } : {}),
     };
+  }
+  if (result.type === "callout" && result.content.image) {
+    result.content = {
+      ...result.content,
+      image: resolve(result.content.image),
+    };
+  }
   return result;
 }

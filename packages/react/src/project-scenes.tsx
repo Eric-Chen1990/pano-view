@@ -20,6 +20,7 @@ import { VideoHotspot } from "./hotspot/video-hotspot";
 import { AudioHotspot } from "./hotspot/audio-hotspot";
 import { TextHotspot } from "./hotspot/text-hotspot";
 import { IframeHotspot } from "./hotspot/iframe-hotspot";
+import { CalloutHotspot } from "./hotspot/callout-hotspot";
 import { PolygonHotspot } from "./hotspot/polygon-hotspot";
 import { PolylineHotspot } from "./hotspot/polyline-hotspot";
 import { PortalHotspot } from "./hotspot/portal-hotspot";
@@ -187,6 +188,8 @@ export function ProjectHotspotSource({
           onError={onError}
         />
       );
+    case "callout":
+      return <CalloutHotspot {...hotspotProps(hotspot)} {...common} />;
     case "polygon":
       return <PolygonHotspot {...hotspotProps(hotspot)} {...common} />;
     case "polyline":

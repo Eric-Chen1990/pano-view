@@ -49,6 +49,7 @@ Try the components in the [live playground](https://pano-view-playground.vercel.
 - [AudioHotspot](#audiohotspot)
 - [TextHotspot](#texthotspot)
 - [IframeHotspot](#iframehotspot)
+- [CalloutHotspot](#callouthotspot)
 - [Next.js and SSR](#nextjs-and-ssr)
 - [Spherical multiresolution tiles](#spherical-multiresolution-tiles)
 - [Accessibility matrices and tooltip typography](#accessibility-matrices-and-tooltip-typography)
@@ -841,6 +842,7 @@ failure. The viewer offers a retry for the requested pair.
 - [`AudioHotspot`](#audiohotspot) — directional sound at a spherical position
 - [`TextHotspot`](#texthotspot) — rasterized plain text at a position
 - [`IframeHotspot`](#iframehotspot) — embedded document overlay at a position
+- [`CalloutHotspot`](#callouthotspot) — marker with an animated leader-line card
 - [`PolygonHotspot`](#polygonhotspot) — closed spherical area
 - [`PolylineHotspot`](#polylinehotspot) — open spherical path
 
@@ -3588,6 +3590,56 @@ events. `sandbox` defaults to
 `background`, and `onLoad` / `onError`. Omitted size defaults to `18×12`. Prefer
 a same-origin document; many third-party sites send `X-Frame-Options` and will
 not load.
+
+## CalloutHotspot
+
+`CalloutHotspot` places a circular marker with an animated leader-line card.
+The line draws out from the marker first, then the card reveals. Content can
+be a title, body text, an image, or any combination.
+
+```tsx
+import { CalloutHotspot } from "@ericchen1990/pano-view";
+
+<CalloutHotspot
+  id="info"
+  ariaLabel="Default style"
+  position={{ yaw: -20, pitch: 6 }}
+  trigger="hover"
+  content={{
+    title: "Default style",
+    text: "The default style can be customized in the default settings.",
+  }}
+  line={{ angle: 45, length: 96, color: "#ffffff", width: 2 }}
+  appearance={{
+    background: "rgba(16, 20, 24, 0.86)",
+    titleBackground: "#8b1e1e",
+  }}
+/>;
+```
+
+`trigger` defaults to `"hover"`. `"click"` toggles the card; clicking empty
+panorama closes it. `"look"` opens when the camera forward direction stays
+within `lookAngle` (degrees, default `6`) for `lookDelay` (ms, default `250`),
+with exit hysteresis at `1.5 × lookAngle`. `"always"` opens on mount. On touch
+devices, `"hover"` falls back to tap-to-toggle. Keyboard Enter/Space toggles
+for every trigger except `"always"`.
+
+`line.angle` is a screen angle in degrees (`0` right, `90` up). `line.length`
+and `line.width` are CSS pixels. Marker size uses `width` / `height` (defaults
+`3.2×3.2`); `marker.color` paints the disc and its soft pulsing halo
+(`prefers-reduced-motion` keeps a static halo). `appearance.background` defaults
+to a dark semi-opaque panel so body text stays readable; set `"transparent"` to
+leave the card open. Callouts do not use the shared `tooltip*` fields.
+
+**Desktop / mobile:** the line and card render as a DOM overlay through
+`PanoHtml` (WebGPU and WebGL backends share this path). **WebVR / WebXR:** the
+line is a thin mesh and the card is a rasterized texture on a plane, so gaze
+dwell and look-at work in stereo. Prefer `meshBasicMaterial` for both so the
+feature stays WebGPU-compatible. Rasterized VR text will not reflow like the
+DOM card.
+
+Project JSON uses `type: "callout"` with the same fields. See the Playground
+`/callouts` example.
 
 ## Next.js and SSR
 
