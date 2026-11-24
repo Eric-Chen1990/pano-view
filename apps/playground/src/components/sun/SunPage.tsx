@@ -8,11 +8,12 @@ import { useState, useSyncExternalStore } from "react";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { cn } from "../../cn";
 import {
-  controlInputClassName, controlLabelClassName, pageControlsClassName, pageHeadingTitleClassName,
-  pageHeadingWrapClassName, pageSectionClassName, segmentedButtonActiveClassName, segmentedButtonClassName,
+  controlInputClassName, controlLabelClassName, pageControlsClassName,
+  pageSectionClassName, segmentedButtonActiveClassName, segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 import { SunGuide } from "./SunGuide";
@@ -231,9 +232,12 @@ export function SunPage() {
     <main className={shellClassName}>
       <SiteHeader />
       <section aria-labelledby="sun-heading" className={cn(pageSectionClassName, "mt-8")}>
-        <div className={pageHeadingWrapClassName}>
-          <h1 id="sun-heading" className={pageHeadingTitleClassName}>{t("Panorama sunlight")}</h1>
-        </div>
+        <PageHeading
+          id="sun-heading"
+          eyebrow={t("Scenes")}
+          title={t("Panorama sunlight")}
+          description={t("Add sunlight to a 360° panorama or enhance an existing sun with adjustable glow, rays, and lens flare.")}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Sun examples")}<div
               className="flex flex-wrap gap-1.5"

@@ -68,7 +68,11 @@ ${Object.entries(props)
   }
 
   return (
-    <ExamplePage title={t("Chroma key")} description={t("Remove a solid color from an image or video hotspot and blend the subject into a panorama.")}>
+    <ExamplePage
+      eyebrow={t("Media")}
+      title={t("Chroma key")}
+      description={t("Remove a solid color from an image or video hotspot and blend the subject into a panorama.")}
+    >
       <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
         <PanoViewer
           key={renderer} ref={viewer} renderer={renderer} aria-label={t("Chroma key panorama")}

@@ -12,7 +12,8 @@ import "@ericchen1990/pano-view/ui/styles.css";
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
-import { shellClassName } from "../../ui";
+import { pageSectionClassName, shellClassName } from "../../ui";
+import { PageHeading } from "../PageHeading";
 
 const sampleProjectUrl = "/fixtures/projects/editor/v4/project.json";
 
@@ -97,59 +98,65 @@ export function EditorPage() {
   return (
     <main className={shellClassName}>
       <SiteHeader />
-      <h1 className="mb-0 mt-8 text-3xl font-bold">{t("Tour editor")}</h1>
-      <div className="flex flex-wrap items-center justify-between gap-4 py-5">
-        <p className="m-0 text-sm text-muted-2">
+      <section className={`${pageSectionClassName} mt-8`} aria-labelledby="editor-title">
+        <PageHeading
+          id="editor-title"
+          eyebrow={t("Projects & tools")}
+          title={t("Tour editor")}
+          description={
+            locale === "en"
+              ? "Select the image or video hotspot in Entrance to drag its corners or rotate it. Click the video in Preview to play it."
+              : "在入口场景选中图片或视频热点，即可拖动四角或旋转。在预览中点击视频即可播放。"
+          }
+        />
+      </section>
+      <div className="mt-4">
+        {error ? (
+          <p role="alert" className="m-0 text-sm text-muted-2">
+            {t("Could not load the sample project.")} {t(error)}
+          </p>
+        ) : project ? (
+          <PanoEditor
+            defaultValue={project}
+            onChange={setEditedProject}
+            geoMapSources={GEO_MAP_SOURCES}
+            baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
+            locale={locale}
+            style={{ height: "min(860px, 85vh)", minHeight: 660 }}
+          />
+        ) : (
+          <p role="status" className="m-0 text-sm text-muted-2">
+            {locale === "en" ? "Loading sample…" : "正在加载示例…"}
+          </p>
+        )}
+        <p className="mt-4 text-xs leading-6 text-muted-2">
           {locale === "en"
-            ? "Select the image or video hotspot in Entrance to drag its corners or rotate it. Click the video in Preview to play it."
-            : "在入口场景选中图片或视频热点，即可拖动四角或旋转。在预览中点击视频即可播放。"}
+            ? "The sample is ready to edit. To add your own converted panorama, choose Add scene and drop its folder, including viewer.json, previews and tiles. Files are read locally; nothing is uploaded. Export a project package before leaving to include all resources, or export JSON for configuration only. Unzip a package before reopening its directory. Refreshing restores the sample."
+            : "示例已准备好，可直接编辑。添加自己的切片场景时，点击“添加场景”并拖入包含 viewer.json、预览图和瓦片的文件夹。文件仅在本机读取，不会上传。离开前请导出项目包以包含全部资源，或仅导出配置 JSON。重新打开项目包前请先解压，再选择其目录；刷新会恢复示例。"}
         </p>
-      </div>
-      {error ? (
-        <p role="alert" className="m-0 text-sm text-muted-2">
-          {t("Could not load the sample project.")} {t(error)}
-        </p>
-      ) : project ? (
-        <PanoEditor
-          defaultValue={project}
-          onChange={setEditedProject}
-          geoMapSources={GEO_MAP_SOURCES}
-          baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
-          locale={locale}
-          style={{ height: "min(860px, 85vh)", minHeight: 660 }}
-        />
-      ) : (
-        <p role="status" className="m-0 text-sm text-muted-2">
-          {locale === "en" ? "Loading sample…" : "正在加载示例…"}
-        </p>
-      )}
-      <p className="mt-4 text-xs leading-6 text-muted-2">
-        {locale === "en"
-          ? "The sample is ready to edit. To add your own converted panorama, choose Add scene and drop its folder, including viewer.json, previews and tiles. Files are read locally; nothing is uploaded. Export a project package before leaving to include all resources, or export JSON for configuration only. Unzip a package before reopening its directory. Refreshing restores the sample."
-          : "示例已准备好，可直接编辑。添加自己的切片场景时，点击“添加场景”并拖入包含 viewer.json、预览图和瓦片的文件夹。文件仅在本机读取，不会上传。离开前请导出项目包以包含全部资源，或仅导出配置 JSON。重新打开项目包前请先解压，再选择其目录；刷新会恢复示例。"}
-      </p>
-      <a
-        className="mt-2 inline-block text-xs text-accent underline"
-        href="/fixtures/editor-demo-v4.zip"
-        download
-      >
-        {locale === "en"
-          ? "Download sample files (.zip) · unzip, then open the folder or drag it into Add scene"
-          : "下载示例文件（.zip）· 解压后打开目录，或拖入“添加场景”"}
-      </a>
-      <div className="mt-6">
-        <ExampleCode
-          json={{ format: "project", files: [{
-            label: "project.json",
-            blurb: t("This is the current editor document. Parse it with parsePanoProject and use the sample project directory as the base URL for relative assets."),
-            ...(exampleProject ? { value: exampleProject } : { url: sampleProjectUrl }),
-          }] }}
-          react={{
-            blurb: t("Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings."),
-            code: snippet,
-            label: "PanoEditor",
-          }}
-        />
+        <a
+          className="mt-2 inline-block text-xs text-accent underline"
+          href="/fixtures/editor-demo-v4.zip"
+          download
+        >
+          {locale === "en"
+            ? "Download sample files (.zip) · unzip, then open the folder or drag it into Add scene"
+            : "下载示例文件（.zip）· 解压后打开目录，或拖入“添加场景”"}
+        </a>
+        <div className="mt-6">
+          <ExampleCode
+            json={{ format: "project", files: [{
+              label: "project.json",
+              blurb: t("This is the current editor document. Parse it with parsePanoProject and use the sample project directory as the base URL for relative assets."),
+              ...(exampleProject ? { value: exampleProject } : { url: sampleProjectUrl }),
+            }] }}
+            react={{
+              blurb: t("Embed PanoEditor with a parsed project document and a base URL for panorama and hotspot assets. locale switches the built-in UI strings."),
+              code: snippet,
+              label: "PanoEditor",
+            }}
+          />
+        </div>
       </div>
       <SiteFooter label={`@ericchen1990/pano-view · ${t("Tour editor")}`} />
     </main>

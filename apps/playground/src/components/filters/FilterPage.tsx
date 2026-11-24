@@ -18,17 +18,14 @@ import { cn } from "../../cn";
 import {
   controlInputClassName,
   controlLabelClassName,
-  eyebrowClassName,
   pageControlsClassName,
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -190,13 +187,12 @@ export function FilterPage() {
         aria-labelledby="filter-bench-title"
         className={cn(pageSectionClassName, "mt-8")}
       >
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>{t("Panorama filters")}</p>
-            <h1 className={pageHeadingTitleClassName} id="filter-bench-title">{t("Real-time color adjustments")}</h1>
-          </div>
-          <p className={pageHeadingStatusClassName}>{t("Adjust exposure, color and local detail on panoramic images and video.")}</p>
-        </div>
+        <PageHeading
+          id="filter-bench-title"
+          eyebrow={t("Media")}
+          title={t("Real-time color adjustments")}
+          description={t("Adjust exposure, color and local detail on panoramic images and video.")}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Panorama source")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Panorama source")}>
               {SOURCES.map(({ id, label }) => (

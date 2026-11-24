@@ -25,6 +25,7 @@ export function WebVRPage() {
   const { t } = usePlaygroundLanguage();
   return (
     <ExamplePage
+      eyebrow={t("Immersive")}
       title={t("VR basics")}
       description={t("Enter VR, then look at the orange marker until the reticle fills. Supported headsets use WebXR; phones use stereoscopic gyro viewing; desktop browsers provide a simulated preview. Exit and Setup controls appear within the session.")}
     >

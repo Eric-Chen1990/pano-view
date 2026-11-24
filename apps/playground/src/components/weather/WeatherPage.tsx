@@ -18,13 +18,12 @@ import {
   controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -149,9 +148,12 @@ ${optionalWeatherProps}      />
     <main className={shellClassName}>
       <SiteHeader />
       <section aria-labelledby="weather-title" className={cn(pageSectionClassName, "mt-8")}>
-        <div className={pageHeadingWrapClassName}>
-          <h1 id="weather-title" className={pageHeadingTitleClassName}>{t("360° weather")}</h1>
-        </div>
+        <PageHeading
+          id="weather-title"
+          eyebrow={t("Scenes")}
+          title={t("360° weather")}
+          description={t("Try nine spatial rain and snow effects in a panoramic viewer with adjustable intensity and wind.")}
+        />
         <div className={pageControlsClassName}>
           <div className={controlLabelClassName}>{t("Weather")}<div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Weather")}>
               {MODES.map(({ label, value }) => (

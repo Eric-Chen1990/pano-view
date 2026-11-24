@@ -79,7 +79,11 @@ export function PanoramaComparison() {
 }`;
 
   return (
-    <ExamplePage title={t("Panorama comparison")} description={t("Drag either image to look around. Choose how the two panoramas share the viewer.")}>
+    <ExamplePage
+      eyebrow={t("Scenes")}
+      title={t("Panorama comparison")}
+      description={t("Drag either image to look around. Choose how the two panoramas share the viewer.")}
+    >
       <div className={pageControlsClassName}>
         <label className={controlLabelClassName}>{t("Display")}<select className={controlInputClassName} value={presentation}
             onChange={(event) => setPresentation(event.target.value as PanoComparePresentation)}>

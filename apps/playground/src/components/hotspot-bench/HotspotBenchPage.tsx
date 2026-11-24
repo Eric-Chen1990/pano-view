@@ -1,7 +1,7 @@
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { shellClassName } from "../../ui";
+import { eyebrowClassName, sectionHeadingTitleClassName, shellClassName } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
@@ -40,12 +40,12 @@ export function HotspotBenchPage() {
 
       <section
         aria-labelledby="page-title"
-        className="grid items-end gap-[clamp(32px,8vw,128px)] py-[clamp(42px,7vw,86px)] pr-0 pb-[31px] grid-cols-[minmax(0,1.2fr)_minmax(300px,0.64fr)] max-[760px]:grid-cols-1 max-[760px]:gap-[22px] max-[760px]:py-[42px] max-[760px]:pb-[27px]"
+        className="grid items-end gap-[clamp(24px,5vw,64px)] py-[clamp(28px,4vw,48px)] pr-0 pb-[31px] grid-cols-[minmax(0,1.2fr)_minmax(300px,0.64fr)] max-[760px]:grid-cols-1 max-[760px]:gap-[22px] max-[760px]:py-7 max-[760px]:pb-[27px]"
       >
         <div>
-          <p className="font-mono text-[0.67rem] tracking-[0.08em] text-[#df6b42] uppercase">{t("Panorama hotspot bench")}</p>
+          <p className={eyebrowClassName}>{t("Interaction")}</p>
           <h1
-            className="m-0 text-[clamp(3rem,7vw,6rem)] leading-[0.92] font-black tracking-tight text-[#f5fbfc]"
+            className={`${sectionHeadingTitleClassName} mt-2`}
             id="page-title"
           >{t("Place hotspots")}<br />{t("on the panorama")}</h1>
         </div>

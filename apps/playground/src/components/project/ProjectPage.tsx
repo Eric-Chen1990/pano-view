@@ -18,12 +18,12 @@ import { SiteFooter } from "../SiteFooter";
 import {
   controlLabelClassName,
   pageSectionClassName,
-  pageHeadingTitleClassName,
   shellClassName,
   segmentedButtonClassName,
   segmentedButtonActiveClassName,
 } from "../../ui";
 import { cn } from "../../cn";
+import { PageHeading } from "../PageHeading";
 
 const projectUrl = "/fixtures/projects/tour/project-v2.json";
 
@@ -124,11 +124,15 @@ export function ProjectPage() {
         className={cn(pageSectionClassName, "mt-8")}
         aria-labelledby="project-title"
       >
-        <h1 className={pageHeadingTitleClassName} id="project-title">{t("Static JSON tour")}</h1>
-        <p className="my-4 text-sm text-slate-300">{t("One project.json connects two viewer.json files, scene links, labels spatial audio, view actions and shared popup content. No database. This integration demonstrates data-driven navigation and popup requests; use the related examples below to learn individual components.")}</p>
+        <PageHeading
+          id="project-title"
+          eyebrow={t("Projects & tools")}
+          title={t("Static JSON tour")}
+          description={t("One project.json connects two viewer.json files, scene links, labels spatial audio, view actions and shared popup content. No database. This integration demonstrates data-driven navigation and popup requests; use the related examples below to learn individual components.")}
+        />
         <p
           role={error ? "alert" : "status"}
-          className="my-4 text-sm text-slate-300"
+          className="m-0 border-b border-[#244047] px-6 py-3 text-sm text-[#9ab1b7]"
         >
           {t(error ?? status)}
         </p>

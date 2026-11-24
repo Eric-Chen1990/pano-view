@@ -75,6 +75,7 @@ export function ControlsPage() {
   const [example, setExample] = useState<ControlExampleKind>("navigation");
   return (
     <ExamplePage
+      eyebrow={t("Start")}
       title={t("View controls")}
       description={t("Learn direct input and imperative view navigation, then try automatic rotation or device orientation independently. The fullscreen button stays inside the viewer.")}
     >

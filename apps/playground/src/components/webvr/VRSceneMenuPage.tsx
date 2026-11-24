@@ -15,15 +15,12 @@ import {
 import { useState, useSyncExternalStore } from "react";
 import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import {
-  eyebrowClassName,
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
   pageSectionClassName,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
+import { PageHeading } from "../PageHeading";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
 
@@ -84,14 +81,13 @@ export function VRSceneMenuPage() {
   return (
     <main className={shellClassName}>
       <SiteHeader />
-      <section className={`${pageSectionClassName} mt-6`}>
-        <div className={pageHeadingWrapClassName}>
-          <div>
-            <p className={eyebrowClassName}>{t("Immersive viewer")}</p>
-            <h1 className={pageHeadingTitleClassName}>{t("VR scene menu")}</h1>
-          </div>
-          <p className={pageHeadingStatusClassName}>{t("Configure a spatial scene menu: compare layouts, pagination and appearance. Enter VR, then gaze at the menu button until the reticle fills. Open the advanced settings to customize behavior and titles.")}</p>
-        </div>
+      <section className={`${pageSectionClassName} mt-8`} aria-labelledby="vr-scene-menu-title">
+        <PageHeading
+          id="vr-scene-menu-title"
+          eyebrow={t("Immersive")}
+          title={t("VR scene menu")}
+          description={t("Configure a spatial scene menu: compare layouts, pagination and appearance. Enter VR, then gaze at the menu button until the reticle fills. Open the advanced settings to customize behavior and titles.")}
+        />
         <div className="flex items-center gap-3 border-b border-line px-6 py-4">
           <button
             className={segmentedButtonClassName}

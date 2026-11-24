@@ -211,6 +211,7 @@ export function CalloutExample() {
 
   return (
     <ExamplePage
+      eyebrow={t("Interaction")}
       title={t("Leader-line callouts")}
       description={t(
         "Reveal text or image cards with an animated leader line from a panorama marker. Trigger on hover, click, look-at, or keep them always open.",

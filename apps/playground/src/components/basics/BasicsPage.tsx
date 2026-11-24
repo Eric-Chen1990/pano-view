@@ -174,6 +174,7 @@ ${sourceProps}
 }`;
   return (
     <ExamplePage
+      eyebrow={t("Start")}
       title={t("Panorama basics")}
       description={t("Start with one panorama source. Try multiresolution cube tiles, a single 2:1 image, and multiresolution spherical tiles. Inspect the resource paths and loading state for each source.")}
     >

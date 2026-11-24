@@ -8,7 +8,8 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { GEO_MAP, GEO_MAP_SOURCES, OPEN_STREET_MAP } from "./geo-map-example";
-import { pageHeadingTitleClassName, pageSectionClassName, shellClassName } from "../../ui";
+import { pageSectionClassName, shellClassName } from "../../ui";
+import { PageHeading } from "../PageHeading";
 
 const TOUR = "/fixtures/projects/tour/project.json";
 
@@ -64,9 +65,13 @@ export function GeoMapPage() {
   const geoMap = { ...GEO_MAP, presentation: { mode: presentation }, controlsLayout };
   return <main className={shellClassName}>
     <SiteHeader />
-    <section className={pageSectionClassName}>
-      <h1 className={pageHeadingTitleClassName}>{t("Online scene map")}</h1>
-      <p className="my-3 text-sm">{t("Choose a map marker to switch scenes. The example uses points near the Golden Gate Bridge in San Francisco.")}</p>
+    <section className={`${pageSectionClassName} mt-8`} aria-labelledby="geo-map-title">
+      <PageHeading
+        id="geo-map-title"
+        eyebrow={t("Scenes")}
+        title={t("Online scene map")}
+        description={t("Choose a map marker to switch scenes. The example uses points near the Golden Gate Bridge in San Francisco.")}
+      />
       <label className="my-2 flex items-center gap-2">{t("Map presentation")}<select className="rounded border border-line bg-surface p-1" value={presentation}
           onChange={(event) => setPresentation(event.target.value === "dialog" ? "dialog" : "panel")}>
           <option value="panel">{t("Panel")}</option><option value="dialog">{t("Dialog")}</option>

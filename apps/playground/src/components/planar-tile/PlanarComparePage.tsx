@@ -46,7 +46,9 @@ export function FlatImageComparison() {
 }`;
 
   return (
-    <ExamplePage title={t("Flat image comparison")}
+    <ExamplePage
+      eyebrow={t("Scenes")}
+      title={t("Flat image comparison")}
       description={t("Drag either image to pan both. Use the scroll wheel or pinch to zoom.")}
     >
       <div className={pageControlsClassName}>

@@ -37,6 +37,7 @@ export function OverlayPage() {
   const { t } = usePlaygroundLanguage();
   return (
     <ExamplePage
+      eyebrow={t("Interaction")}
       title={t("Dialogs & overlays")}
       description={t("Several markers select content for one shared dialog. Compare the default dialog, composed parts and an existing third-party Dialog with the same stories. Enter fullscreen, then open a story to check the nested tooltip.")}
     >

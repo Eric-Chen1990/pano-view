@@ -1,19 +1,16 @@
 import type { ReactNode } from "react";
-import {
-  pageHeadingStatusClassName,
-  pageHeadingTitleClassName,
-  pageHeadingWrapClassName,
-  pageSectionClassName,
-  shellClassName,
-} from "../ui";
+import { pageSectionClassName, shellClassName } from "../ui";
+import { PageHeading } from "./PageHeading";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 
 export function ExamplePage({
+  eyebrow,
   title,
   description,
   children,
 }: {
+  eyebrow: string;
   title: string;
   description: string;
   children: ReactNode;
@@ -25,12 +22,12 @@ export function ExamplePage({
         className={`${pageSectionClassName} mt-8`}
         aria-labelledby="example-title"
       >
-        <div className={pageHeadingWrapClassName}>
-          <h1 className={pageHeadingTitleClassName} id="example-title">
-            {title}
-          </h1>
-          <p className={pageHeadingStatusClassName}>{description}</p>
-        </div>
+        <PageHeading
+          id="example-title"
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+        />
         {children}
       </section>
       <SiteFooter label={`@ericchen1990/pano-view · ${title}`} />
