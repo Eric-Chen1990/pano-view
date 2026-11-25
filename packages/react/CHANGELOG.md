@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.21.0
+
+### Minor Changes
+
+- aebf005: Add `PanoPerformanceMonitor` for FPS, frame time, and renderer stats inside `PanoOverlay`.
+
 ## 5.20.0
 
 ### Minor Changes
