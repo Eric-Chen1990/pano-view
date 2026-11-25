@@ -7,7 +7,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
-import { controlInputClassName, controlLabelClassName, viewerChromeButtonClassName } from "../../ui";
+import { controlInputClassName, controlLabelClassName, playgroundViewerHeight, playgroundViewerHeightClassName, viewerChromeButtonClassName } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
@@ -62,7 +62,7 @@ export function PanoramaScreenshot() {
   return <>
     <button type="button" onClick={capture} disabled={busy || progress.status !== "ready"}>Take screenshot</button>
     {error && <p role="alert">{error}</p>}
-    <PanoViewer ref={viewer.ref} style={{ height: 480 }}>
+    <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       ${cubeTileJsx(source)}
       <GraphicHotspot {...${JSON.stringify(hotspot)}} />
       <PanoOverlay>
@@ -120,7 +120,7 @@ export function ScreenshotPage() {
       title={t("Panorama screenshot")}
       description={t("Drag to frame the view, then choose which layers to capture. Preview the result and download it as a PNG or JPEG.")}
     >
-      <PanoViewer ref={viewer.ref} aria-label={t("Screenshot panorama")} className="h-[540px] max-[560px]:h-[480px]">
+      <PanoViewer ref={viewer.ref} aria-label={t("Screenshot panorama")} className={playgroundViewerHeightClassName}>
         <Tile {...source} />
         <GraphicHotspot {...hotspot} />
         <PanoOverlay>

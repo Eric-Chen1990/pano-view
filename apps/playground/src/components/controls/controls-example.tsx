@@ -17,8 +17,9 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
 
@@ -167,7 +168,7 @@ export function ControlsExample({ example, onExampleChange }: {
         ref={viewer.ref}
         aria-label={t("View controls viewer")}
         controls={{ keyboard: true, inertia: true }}
-        style={{ height: 540 }}
+        style={{ height: playgroundViewerHeight }}
       >
         <Tile {...cubeTileProps()} />
         <GraphicHotspot

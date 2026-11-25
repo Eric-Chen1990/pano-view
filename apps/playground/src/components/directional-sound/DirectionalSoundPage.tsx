@@ -13,7 +13,7 @@ import {
   type GyroHandle,
   type ProjectHotspotDefinition,
 } from "@ericchen1990/pano-view";
-import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
+import { pageControlsClassName, playgroundViewerHeight, segmentedButtonClassName } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { ExampleCode } from "../ExampleCode";
 
@@ -60,7 +60,7 @@ export function DirectionalSound() {
   const [playing, setPlaying] = useState<Record<string, boolean>>({});
 
   return (
-    <PanoViewer ref={viewer.ref} style={{ height: 540 }}>
+    <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       ${cubeTileJsx(panorama)}
       {sources.map(({ name, ...source }) => (
         <AudioHotspot
@@ -138,7 +138,7 @@ export function DirectionalSoundPage() {
         </span>
       </div>
       {error && <p role="alert" className="px-6 text-sm">{t(error)}</p>}
-      <PlaygroundVRViewer viewer={viewer} aria-label={t("Directional 3D Sound viewer")} style={{ height: 540 }}>
+      <PlaygroundVRViewer viewer={viewer} aria-label={t("Directional 3D Sound viewer")} style={{ height: playgroundViewerHeight }}>
         <Tile {...panorama} />
         <Gyro
           ref={gyro}

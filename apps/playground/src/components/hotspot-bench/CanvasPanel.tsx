@@ -7,7 +7,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "../../cn";
 import { cubeTileProps, INITIAL_VIEW } from "../../constants";
-import { segmentedButtonClassName } from "../../ui";
+import { playgroundWorkspaceHeightClassName, segmentedButtonClassName } from "../../ui";
 import { HotspotLayer } from "./HotspotLayer";
 import {
   selectDrawingPath,
@@ -139,8 +139,8 @@ export function CanvasPanel() {
 
       <div
         className={cn(
-          "relative min-h-[500px] overflow-hidden bg-[#020607] max-[760px]:min-h-[440px]",
-          "h-[min(60vw,720px)] max-[760px]:h-[62vh]",
+          "relative overflow-hidden bg-[#020607]",
+          playgroundWorkspaceHeightClassName,
           (placementTool || drawingPath) && "cursor-crosshair",
         )}
       >

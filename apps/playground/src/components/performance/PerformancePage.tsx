@@ -14,6 +14,7 @@ import {
   controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
+  playgroundViewerHeight,
   segmentedButtonClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
@@ -82,7 +83,7 @@ export function PerformanceOverlay() {
     <PanoViewer
       renderer="${renderer}"
       frameloop="${frameloop}"${introProp}
-      style={{ height: 480 }}
+      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
 ${scene}
       <PanoOverlay>
@@ -203,7 +204,7 @@ export function PerformancePage() {
         renderer={renderer}
         frameloop={frameloop}
         littlePlanetIntro={littlePlanet || undefined}
-        style={{ height: 480 }}
+        style={{ height: playgroundViewerHeight }}
         className="mt-4 overflow-hidden rounded-lg border border-line"
       >
         {compare ? (

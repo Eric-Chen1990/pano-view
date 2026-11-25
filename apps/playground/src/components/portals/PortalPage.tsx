@@ -15,6 +15,7 @@ import {
   controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
+  playgroundViewerHeight,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -131,7 +132,7 @@ const doors: Record<string, Record<string, Door>> = ${JSON.stringify(PORTALS, nu
 
 export function PortalTour() {
   return (
-    <PanoViewer renderer="${renderer}" style={{ height: 540 }}>
+    <PanoViewer renderer="${renderer}" style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <Scenes
         scenes={scenes}
         defaultActiveSceneId="${sceneId}"
@@ -203,7 +204,7 @@ export function PortalPage() {
         ref={viewer}
         renderer={renderer}
         aria-label={t("Panorama portal demo")}
-        style={{ height: "min(540px, 58dvh)" }}
+        style={{ height: playgroundViewerHeight }}
       >
         <Scenes
           defaultActiveSceneId={sceneId}

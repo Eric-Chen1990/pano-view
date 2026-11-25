@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { playgroundViewerHeight } from "../../ui";
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
 import { CodeSnippet } from "../CodeSnippet";
@@ -15,7 +17,7 @@ export function ViewNavigation() {
     <button onClick={() => viewer.reset()}>Reset view</button>
     <button onClick={() => void viewer.lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })}>Look north</button>
     <button onClick={() => void viewer.lookToHotspot("target", { fov: 55 })}>Look to hotspot</button>
-    <PanoViewer ref={viewer.ref} controls={{ keyboard: true, inertia: true }} style={{ height: 540 }}>
+    <PanoViewer ref={viewer.ref} controls={{ keyboard: true, inertia: true }} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       ${cubeTileJsx()}
       <GraphicHotspot id="target" ariaLabel="Navigation target" position={{ yaw: -62, pitch: 4 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} />
     </PanoViewer>
@@ -33,7 +35,7 @@ export function AutomaticRotation() {
       <button type="button" onClick={() => setEnabled((value) => !value)}>
         {enabled ? "Stop rotation" : "Start rotation"}
       </button>
-      <PanoViewer style={{ height: 540 }}>
+      <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         ${cubeTileJsx(undefined, "        ")}
         <AutoRotate enabled={enabled} speed={18} startDelay={1000} />
       </PanoViewer>
@@ -56,7 +58,7 @@ export function DeviceOrientation() {
       }}>
         {enabled ? "Disable gyro" : "Enable gyro"}
       </button>
-      <PanoViewer style={{ height: 540 }}>
+      <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         ${cubeTileJsx(undefined, "        ")}
         <Gyro ref={gyro} enabled={enabled} onDenied={() => setEnabled(false)} />
       </PanoViewer>
@@ -92,4 +94,3 @@ export function ControlsPage() {
     </ExamplePage>
   );
 }
-import { useState } from "react";

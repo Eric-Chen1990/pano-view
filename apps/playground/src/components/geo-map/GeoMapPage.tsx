@@ -8,7 +8,7 @@ import { ExampleCode } from "../ExampleCode";
 import { SiteHeader } from "../SiteHeader";
 import { SiteFooter } from "../SiteFooter";
 import { GEO_MAP, GEO_MAP_SOURCES, OPEN_STREET_MAP } from "./geo-map-example";
-import { pageSectionClassName, shellClassName } from "../../ui";
+import { pageSectionClassName, playgroundViewerHeight, shellClassName } from "../../ui";
 import { PageHeading } from "../PageHeading";
 
 const TOUR = "/fixtures/projects/tour/project.json";
@@ -32,7 +32,7 @@ export function OnlineMapTour({ project }) {
   const sceneTitles = Object.fromEntries(project.scenes.map(({ scene, title }) => [scene.id, title ?? scene.id]));
 
   return (
-    <PanoViewer style={{ width: "100%", height: 480 }}>
+    <PanoViewer style={{ width: "100%", height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <ProjectScenes project={project} activeSceneId={sceneId} onActiveSceneIdChange={setSceneId} />
       <PanoOverlay>
         <PanoGeoMapOverlay geoMap={geoMap} sources={sources} activeSceneId={sceneId}
@@ -87,7 +87,7 @@ export function GeoMapPage() {
           <option value="hover">{t("Hover")}</option><option value="always">{t("Always")}</option>
         </select>
       </label>
-      {project ? <PanoViewer style={{ width: "100%", height: 480 }}>
+      {project ? <PanoViewer style={{ width: "100%", height: playgroundViewerHeight }}>
         <ProjectScenes project={project} activeSceneId={sceneId} onActiveSceneIdChange={setSceneId} />
         <PanoOverlay>
           <PanoGeoMapOverlay translate={t} geoMap={geoMap} sources={GEO_MAP_SOURCES} activeSceneId={sceneId}

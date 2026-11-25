@@ -15,6 +15,7 @@ import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/ui/styles.css";
 import {
   pageControlsClassName,
+  playgroundViewerHeight,
   segmentedButtonClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
@@ -104,7 +105,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
           pitch: 0,
           fov: 75,
         }}
-        style={{ height: 560 }}
+        style={{ height: playgroundViewerHeight }}
       >
         <WebVR />
         {kind === "360-video" ? (

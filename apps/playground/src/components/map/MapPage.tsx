@@ -22,6 +22,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
@@ -105,7 +106,7 @@ export function FloorPlanTour() {
   if (!project) return <p role="status">Loading tour…</p>;
 
   return (
-    <PanoViewer style={{ height: 560 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <ProjectScenes
         project={project}
         activeSceneId={activeSceneId}
@@ -283,7 +284,7 @@ export function MapPage() {
               </div>
               </div>
             </details>
-            <PanoViewer style={{ height: 560 }}>
+            <PanoViewer style={{ height: playgroundViewerHeight }}>
               <ProjectScenes
                 project={project}
                 activeSceneId={activeSceneId}

@@ -1,5 +1,6 @@
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
+import { playgroundViewerHeight } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -13,7 +14,7 @@ export function VRPanorama() {
   const viewer = usePanoViewer();
   return <>
     <button onClick={() => void viewer.enterVR()}>Enter VR</button>
-    <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+    <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <WebVR />
       ${cubeTileJsx()}
       <GraphicHotspot id="gaze-target" ariaLabel="Activate marker" position={{ yaw: 0, pitch: 0 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} onClick={() => console.log("Marker activated")} />

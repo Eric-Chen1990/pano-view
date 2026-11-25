@@ -18,9 +18,10 @@ import { SiteFooter } from "../SiteFooter";
 import {
   controlLabelClassName,
   pageSectionClassName,
-  shellClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
+  shellClassName,
 } from "../../ui";
 import { cn } from "../../cn";
 import { PageHeading } from "../PageHeading";
@@ -66,7 +67,7 @@ export function Tour() {
   if (!project) return <p role="status">Loading tour…</p>;
 
   return (
-    <PanoViewer style={{ height: 560 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <ProjectScenes
         project={project}
         activeSceneId={activeSceneId}
@@ -160,7 +161,7 @@ export function ProjectPage() {
                 ))}
               </div>
             </div>
-            <PanoViewer style={{ height: 560 }}>
+            <PanoViewer style={{ height: playgroundViewerHeight }}>
               <ProjectScenes
                 project={project}
                 activeSceneId={activeSceneId}

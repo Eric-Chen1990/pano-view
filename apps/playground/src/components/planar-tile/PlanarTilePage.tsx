@@ -2,8 +2,13 @@ import { usePlaygroundLanguage } from "../../i18n/language";
 import { PlanarTileViewer } from "@ericchen1990/pano-view";
 import { useState } from "react";
 import {
-  checkboxLabelClassName, controlInputClassName, controlLabelClassName,
-  pageControlsClassName, pageSectionClassName, shellClassName,
+  checkboxLabelClassName,
+  controlInputClassName,
+  controlLabelClassName,
+  pageControlsClassName,
+  pageSectionClassName,
+  playgroundViewerHeight,
+  shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { PageHeading } from "../PageHeading";
@@ -30,7 +35,7 @@ export function FlatImage() {
     <PlanarTileViewer
       manifestUrl="${manifestUrl}"
       alt="${alt}"
-${options}      style={{ height: 480 }}
+${options}      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     />
   );
 }`;
@@ -68,7 +73,7 @@ ${options}      style={{ height: 480 }}
           dragMotion={{ bounce }}
           showMinimap={showMinimap}
           className="rounded-xl"
-          style={{ height: "clamp(320px, 65vh, 600px)" }}
+          style={{ height: playgroundViewerHeight }}
         />
         <div className="mt-6">
           <ExampleCode

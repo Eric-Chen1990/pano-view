@@ -17,8 +17,9 @@ import {
   controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -105,7 +106,7 @@ function SourceExample({ source, renderer, frameloop, intro }: {
           {t(error)}
         </p>
       ) : null}
-      <PanoViewer ref={viewer.ref} renderer={renderer} frameloop={frameloop} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} renderer={renderer} frameloop={frameloop} littlePlanetIntro={intro} aria-label={t("Panorama basics viewer")} style={{ height: playgroundViewerHeight }}>
         {source === "sphere" || displayed === "sphere" ? (
           <Sphere
             {...sphere}
@@ -164,7 +165,7 @@ export function Panorama() {
     <PanoViewer
       renderer="${renderer}"
       frameloop="${frameloop}"
-${introCode}      style={{ height: 540 }}
+${introCode}      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
       <${component}
 ${sourceProps}

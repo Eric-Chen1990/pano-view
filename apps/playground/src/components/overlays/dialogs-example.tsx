@@ -16,8 +16,9 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
 import { ComposedHotspotDialog } from "./composed-dialog-example";
@@ -179,7 +180,7 @@ export function DialogsExample() {
       <PanoViewer
         ref={viewer.ref}
         aria-label={t("Dialogs and overlays viewer")}
-        style={{ height: 560 }}
+        style={{ height: playgroundViewerHeight }}
       >
         <Tile {...cubeTileProps()} />
         {stories.map((story, index) => (

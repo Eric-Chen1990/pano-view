@@ -4,6 +4,7 @@ import type {
   EditorPolygon,
   EditorPolyline,
 } from "../../types";
+import { playgroundViewerHeight } from "../../ui";
 
 function wrapSnippet(
   component: string,
@@ -26,7 +27,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaHotspot() {
   return (
-    <PanoViewer style={{ height: 560 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       ${cubeTileJsx()}
       <${component}
 ${propLines}

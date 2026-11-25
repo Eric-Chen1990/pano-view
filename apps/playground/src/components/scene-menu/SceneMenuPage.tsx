@@ -19,6 +19,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
@@ -129,7 +130,7 @@ export function SceneMenuTour() {
   const [activeSceneId, setActiveSceneId] = useState(${JSON.stringify(options.initialSceneId)});
 
   return (
-    <PanoViewer style={{ height: "min(640px, 72dvh)" }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <Scenes
         activeSceneId={activeSceneId}
         onActiveSceneIdChange={setActiveSceneId}
@@ -435,7 +436,7 @@ export function SceneMenuPage() {
         <div className="bg-[#020607] p-0">
           <PanoViewer
             aria-label={t("Panorama scene menu demo")}
-            style={{ height: "min(640px, 72dvh)" }}
+            style={{ height: playgroundViewerHeight }}
           >
             <Scenes
               activeSceneId={activeSceneId}

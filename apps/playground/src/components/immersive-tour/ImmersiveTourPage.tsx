@@ -36,10 +36,11 @@ import thirdPartyDialogCode from "../overlays/third-party-dialog-example.tsx?raw
 import { cn } from "../../cn";
 import {
   controlLabelClassName,
-  pageSectionClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
   shellClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
@@ -78,7 +79,7 @@ export function ImmersiveTour() {
   return (
     <>
       <button type="button" onClick={() => void viewer.toggleVR().catch(console.error)}>Toggle VR</button>
-      <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         <WebVR />
         <ProjectScenes project={project} onPopupRequest={({ popup }) => setPopup(popup)} />
         <PanoOverlay>
@@ -395,7 +396,7 @@ export function ImmersiveTourPage() {
         <PlaygroundVRViewer
           viewer={viewer}
           aria-label={t("Immersive tour viewer")}
-          style={{ height: 560 }}
+          style={{ height: playgroundViewerHeight }}
         >
           <WebVR />
           <SceneMovie mode="surface" onController={setMovieController} />

@@ -12,7 +12,7 @@ import "@ericchen1990/pano-view/ui/styles.css";
 import { ExampleCode } from "../ExampleCode";
 import { SiteFooter } from "../SiteFooter";
 import { SiteHeader } from "../SiteHeader";
-import { pageSectionClassName, shellClassName } from "../../ui";
+import { pageSectionClassName, playgroundWorkspaceHeight, shellClassName } from "../../ui";
 import { PageHeading } from "../PageHeading";
 
 const sampleProjectUrl = "/fixtures/projects/editor/v4/project.json";
@@ -58,7 +58,7 @@ export function TourEditor() {
       geoMapSources={[${JSON.stringify(OPEN_STREET_MAP)}]}
       baseUrl={new URL(".", new URL(projectUrl, window.location.href)).href}
       locale="${locale}"
-      style={{ height: "min(860px, 85vh)", minHeight: 660 }}
+      style={{ height: playgroundWorkspaceHeight }}
     />
   );
 }`;
@@ -122,7 +122,7 @@ export function EditorPage() {
             geoMapSources={GEO_MAP_SOURCES}
             baseUrl={new URL(".", new URL(sampleProjectUrl, window.location.href)).href}
             locale={locale}
-            style={{ height: "min(860px, 85vh)", minHeight: 660 }}
+            style={{ height: playgroundWorkspaceHeight }}
           />
         ) : (
           <p role="status" className="m-0 text-sm text-muted-2">

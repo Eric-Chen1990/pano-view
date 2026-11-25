@@ -10,6 +10,7 @@ import {
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import "@ericchen1990/pano-view/styles.css";
 import "@ericchen1990/pano-view/ui/styles.css";
+import { playgroundViewerHeight } from "../../ui";
 
 function Story({ image, text }: { image: number; text: string }) {
   const { t } = usePlaygroundLanguage();
@@ -247,7 +248,7 @@ export function MultiHotspotTour({ project }: { project: LoadedPanoProject }) {
     : "closed";
 
   return (
-    <PanoViewer style={{ height: 560 }}>
+    <PanoViewer style={{ height: playgroundViewerHeight }}>
       <ProjectScenes
         project={project}
         onHotspotClick={(event) => {

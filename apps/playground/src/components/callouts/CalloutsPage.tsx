@@ -13,6 +13,10 @@ import { CUBE_VIEWER_CONFIG, cubeTileJsx, cubeTileProps } from "../../constants"
 import {
   controlInputClassName,
   controlLabelClassName,
+  playgroundSplitDemoClassName,
+  playgroundSplitSidebarClassName,
+  playgroundViewerHeight,
+  playgroundViewerHeightClassName,
   segmentedButtonClassName,
 } from "../../ui";
 import {
@@ -202,7 +206,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function CalloutExample() {
   return (
-    <PanoViewer style={{ height: 540 }} initialView={{ yaw: ${selected.yaw}, pitch: ${selected.pitch}, fov: 70 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }} initialView={{ yaw: ${selected.yaw}, pitch: ${selected.pitch}, fov: 70 }}>
       ${cubeTileJsx(panorama)}
       <CalloutHotspot
         id=${formatProp(selectedHotspot.id)}
@@ -235,12 +239,12 @@ export function CalloutExample() {
         "Reveal text or image cards with an animated leader line from a panorama marker. Trigger on hover, click, look-at, or keep them always open.",
       )}
     >
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div ref={viewerFrame} className="lg:sticky lg:top-0 lg:self-start">
+      <div className={playgroundSplitDemoClassName}>
+        <div ref={viewerFrame}>
           <PanoViewer
             ref={viewer}
             aria-label={t("Callout panorama")}
-            className="min-h-[clamp(320px,62dvh,600px)] lg:h-dvh"
+            className={playgroundViewerHeightClassName}
             initialView={{ yaw: 0, pitch: 0, fov: 70 }}
           >
             <Scenes scenes={scenes} />
@@ -249,7 +253,7 @@ export function CalloutExample() {
             ))}
           </PanoViewer>
         </div>
-        <div className="grid content-start gap-4 border-t border-[#244047] p-5 lg:border-t-0 lg:border-l">
+        <div className={playgroundSplitSidebarClassName}>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t("Callout examples")}>
             {items.map((item) => (
               <button

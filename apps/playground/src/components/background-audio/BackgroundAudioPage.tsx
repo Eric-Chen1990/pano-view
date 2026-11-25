@@ -7,8 +7,9 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
 } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { ExampleCode } from "../ExampleCode";
@@ -46,7 +47,7 @@ export function AudioTour() {
   return <>
     <button onClick={() => setPlaying((value) => !value)}>{playing ? "Pause" : "Play"}</button>
     {scenes.map((scene) => <button key={scene.id} onClick={() => setSceneId(scene.id)}>{scene.id}</button>)}
-    <PanoViewer style={{ height: 540 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <BackgroundAudio ${audioProps} playing={playing} onPlaybackStateChange={console.log} onPlaybackError={console.error} />
       <Scenes scenes={scenes} activeSceneId={sceneId} onActiveSceneIdChange={setSceneId} transition="dissolve" />
     </PanoViewer>
@@ -121,7 +122,7 @@ export function AudioTour() {
       <p role={error ? "alert" : "status"} className="px-6 text-sm">
         {t(error ?? status)}
       </p>
-      <PanoViewer aria-label={t("Background audio viewer")} style={{ height: 540 }}>
+      <PanoViewer aria-label={t("Background audio viewer")} style={{ height: playgroundViewerHeight }}>
         <BackgroundAudio
           src={mode === "shared" ? sharedSource : undefined}
           sources={mode === "per-scene" ? sources : undefined}
