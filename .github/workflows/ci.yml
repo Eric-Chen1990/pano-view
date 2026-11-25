@@ -23,6 +23,7 @@ on:
       - ".github/workflows/release.yml"
       - "scripts/release-check*.mjs"
       - "!**/*.md"
+      - "skills/pano-view-*/references/quickstart.md"
 
 permissions:
   contents: read
@@ -74,6 +75,7 @@ jobs:
               ".github/workflows/release.yml",
               "scripts/release-check*.mjs",
               "!**/*.md",
+              "skills/pano-view-*/references/quickstart.md",
           ]
 
           def glob_to_regex(pattern):

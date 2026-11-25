@@ -1,6 +1,16 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/:file(llms\\.txt|llms\\.zh-CN\\.txt|llms-full\\.txt)",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    },
+    {
+      "source": "/ai-docs/:topic(react|project|editor|converter).md",
+      "headers": [{ "key": "Content-Type", "value": "text/markdown; charset=utf-8" }]
+    }
+  ],
   "rewrites": [
     {
       "source": "/:asset(fixtures/(?!hotspots/embed(?:\\.html)?(?:/|$)).+|apple-touch-icon\\.png|favicon\\.ico|logo\\.png|og-image\\.jpg)",

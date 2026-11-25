@@ -37,6 +37,12 @@ export const FOOTER_LINKS = {
   author: withUtm(AUTHOR_PROFILE, { campaign: "site-footer", content: "author" }),
 } as const;
 
+export const AI_DOC_PATHS = {
+  en: "/llms.txt",
+  "zh-CN": "/llms.zh-CN.txt",
+  full: "/llms-full.txt",
+} as const;
+
 export const LANDING_LINKS = {
   github: withUtm(GITHUB_REPO, { campaign: "landing-page", content: "github" }),
   npm: withUtm(NPM_PACKAGE, { campaign: "landing-page", content: "npm" }),
