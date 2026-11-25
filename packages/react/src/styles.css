@@ -1331,14 +1331,48 @@
   cursor: ew-resize;
 }
 
+.pano-compare-divider-with-handle {
+  --pano-compare-divider-hit-size: 32px;
+  overflow: visible;
+}
+
 @media (pointer: coarse) {
   .pano-compare-divider-draggable {
+    --pano-compare-divider-hit-size: 44px;
+  }
+
+  .pano-compare-divider-with-handle {
     --pano-compare-divider-hit-size: 44px;
   }
 }
 
 .pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-draggable {
   cursor: ns-resize;
+}
+
+.pano-compare-divider-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  pointer-events: none;
+}
+
+.pano-compare-divider-handle svg {
+  display: block;
+}
+
+.pano-compare-chrome[data-layout="top-bottom"] .pano-compare-divider-handle {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .pano-compare-divider-draggable:has(input:focus-visible)::before {

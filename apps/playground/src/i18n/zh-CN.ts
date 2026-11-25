@@ -924,6 +924,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Image controls": "图像控件",
   "Fit": "适应窗口",
   "Comparison divider": "对比分隔线",
+  "Show divider handle": "显示分隔线手柄",
   "Video controls": "视频控件",
   "Exit VR to view this content": "退出 VR 后可查看此内容",
   "Video unavailable": "视频不可用",

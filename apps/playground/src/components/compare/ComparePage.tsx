@@ -20,8 +20,6 @@ import { ExamplePage } from "../ExamplePage";
 
 const assets = "/fixtures/compare/v1";
 const viewLimits = { fov: { min: 35, max: 90 } };
-const dividerColor = "#38bdf8";
-const dividerWidth = 4;
 
 function panorama(name: string): PanoCompareSource {
   return {
@@ -50,6 +48,7 @@ export function ComparePage() {
   const viewer = usePanoViewer();
   const [layout, setLayout] = useState<PanoCompareLayout>("left-right");
   const [presentation, setPresentation] = useState<PanoComparePresentation>("wipe");
+  const [showDividerHandle, setShowDividerHandle] = useState(false);
   const [activeId, setActiveId] = useState(scenes[0]!.id);
   const [error, setError] = useState<LocalizedMessage>("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,9 +69,8 @@ export function PanoramaComparison() {
         scenes={scenes}
         activeSceneId="${activeId}"
         presentation="${presentation}"
-        layout="${layout}"
-        dividerColor="${dividerColor}"
-        dividerWidth={${dividerWidth}}
+        layout="${layout}"${showDividerHandle ? `
+        showDividerHandle` : ""}
       />
     </PanoViewer>
   );
@@ -97,6 +95,14 @@ export function PanoramaComparison() {
             <option value="top-bottom">{t("Top and bottom")}</option>
           </select>
         </label>
+        <label className={`${controlLabelClassName} flex-row items-center gap-2`}>
+          <input
+            type="checkbox"
+            checked={showDividerHandle}
+            onChange={(event) => setShowDividerHandle(event.currentTarget.checked)}
+          />
+          {t("Show divider handle")}
+        </label>
         <button className={segmentedButtonClassName} type="button" onClick={() => viewer.reset()}>{t("Reset view")}</button>
         <button className={segmentedButtonClassName} type="button" onClick={() => void viewer.toggleFullscreen()}>{t("Fullscreen")}</button>
       </div>
@@ -110,8 +116,7 @@ export function PanoramaComparison() {
           onActiveSceneIdChange={selectScene}
           presentation={presentation}
           layout={layout}
-          dividerColor={dividerColor}
-          dividerWidth={dividerWidth}
+          showDividerHandle={showDividerHandle}
           onSceneError={({ side }) => setError(message("Unable to load the {side} image.", { side }))}
           renderHotspots={() => (
             <GraphicHotspot id="comparison-info" ariaLabel={t("About this comparison")}

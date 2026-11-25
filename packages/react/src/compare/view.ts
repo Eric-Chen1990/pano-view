@@ -29,6 +29,11 @@ export type CompareDividerAppearance = {
   dividerColor?: string;
   /** Thickness of the dividing line in CSS pixels. Defaults to 2. */
   dividerWidth?: number;
+  /**
+   * Shows a centered drag hint on the wipe divider. Defaults to false.
+   * The handle is decorative; the whole divider remains the drag target.
+   */
+  showDividerHandle?: boolean;
 };
 
 export type CompareConfig = CompareDividerAppearance & {

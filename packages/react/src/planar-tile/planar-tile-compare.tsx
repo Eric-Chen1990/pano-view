@@ -165,7 +165,7 @@ function PlanarPair({
 export function PlanarTileCompare({
   scenes, activeSceneId, defaultActiveSceneId, onActiveSceneIdChange,
   presentation = "wipe", layout = "left-right", split: controlledSplit, defaultSplit = 0.5, onSplitChange,
-  dividerColor, dividerWidth,
+  dividerColor, dividerWidth, showDividerHandle,
   initialScale, minScale, maxScale, dragMotion, showScenePicker = true, showZoomControls = true,
   onSceneReady, onSceneError, fontFamily, "aria-label": labelProp, className, style,
 }: PlanarTileCompareProps) {
@@ -255,7 +255,8 @@ export function PlanarTileCompare({
       })}
       {visible && (
         <div className="pano-compare-chrome" data-layout={layout}>
-          <CompareDivider {...comparison} dividerColor={dividerColor} dividerWidth={dividerWidth} />
+          <CompareDivider {...comparison} dividerColor={dividerColor} dividerWidth={dividerWidth}
+            showDividerHandle={showDividerHandle} />
         </div>
       )}
       {showScenePicker && scenes.length > 1 && (

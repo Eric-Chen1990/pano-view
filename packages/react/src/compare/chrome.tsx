@@ -49,13 +49,28 @@ function stopDrag(drag: DividerDrag) {
   if (drag.element.hasPointerCapture(drag.pointerId)) drag.element.releasePointerCapture(drag.pointerId);
 }
 
-export function CompareDivider({ layout, presentation, split, dividerColor, dividerWidth }: CompareConfig) {
+function DividerHandle() {
+  return (
+    <span className="pano-compare-divider-handle" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+        stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 7L3 12l5 5" />
+        <path d="M16 7l5 5-5 5" />
+      </svg>
+    </span>
+  );
+}
+
+export function CompareDivider({
+  layout, presentation, split, dividerColor, dividerWidth, showDividerHandle,
+}: CompareConfig) {
   const t = usePanoUiTranslation();
   const slider = useRef<HTMLInputElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef<DividerDrag | null>(null);
   const horizontal = layout === "left-right";
   const wipe = presentation === "wipe";
+  const handle = wipe && showDividerHandle;
   const style = {
     "--pano-compare-divider-color": dividerColor,
     "--pano-compare-divider-width": dividerWidth !== undefined && Number.isFinite(dividerWidth) && dividerWidth > 0
@@ -102,7 +117,10 @@ export function CompareDivider({ layout, presentation, split, dividerColor, divi
   return (
     <div ref={track} className="pano-compare-divider-track" data-presentation={presentation} style={style}>
       {wipe ? (
-        <div className="pano-compare-divider pano-compare-divider-draggable"
+        <div
+          className={handle
+            ? "pano-compare-divider pano-compare-divider-draggable pano-compare-divider-with-handle"
+            : "pano-compare-divider pano-compare-divider-draggable"}
           onPointerDown={(event) => {
             const container = track.current?.parentElement;
             if (event.button !== 0 || drag.current || !container) return;
@@ -129,6 +147,7 @@ export function CompareDivider({ layout, presentation, split, dividerColor, divi
           }}
           onPointerUp={finishDrag} onPointerCancel={finishDrag} onLostPointerCapture={finishDrag}
         >
+          {handle ? <DividerHandle /> : null}
           <input type="range" min={0} max={100} step={1}
             ref={slider} defaultValue={Math.round(split.get() * 100)}
             aria-label={t("Comparison divider")} aria-orientation={horizontal ? "horizontal" : "vertical"}
