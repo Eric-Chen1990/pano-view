@@ -33,6 +33,25 @@ export const pageHeadingStatusClassName =
 export const pageControlsClassName =
   "flex flex-wrap items-end gap-4 border-b border-[#244047] px-6 py-4";
 
+/** Shared height for ordinary Playground panorama demos. */
+export const playgroundViewerHeight = "clamp(420px, 68dvh, 640px)";
+
+/** Shared height for editor-style Playground workspaces. */
+export const playgroundWorkspaceHeight = "clamp(660px, 85dvh, 900px)";
+
+export const playgroundViewerHeightClassName =
+  "h-[clamp(420px,68dvh,640px)]";
+
+export const playgroundWorkspaceHeightClassName =
+  "h-[clamp(660px,85dvh,900px)]";
+
+/** Viewer + controls split: keep both columns at the shared viewer height. */
+export const playgroundSplitDemoClassName =
+  "grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start";
+
+export const playgroundSplitSidebarClassName =
+  "grid content-start gap-4 border-t border-[#244047] p-5 lg:h-[clamp(420px,68dvh,640px)] lg:overflow-y-auto lg:border-t-0 lg:border-l";
+
 const segmentedButtonLayoutClassName =
   "inline-flex min-h-9 items-center justify-center border border-[#3e6c73] px-3 py-2 text-[0.72rem] font-medium text-[#f5fbfc] transition hover:border-[#75cbd3]";
 

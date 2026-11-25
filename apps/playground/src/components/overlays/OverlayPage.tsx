@@ -1,5 +1,6 @@
 import { usePlaygroundLanguage } from "../../i18n/language";
 import { cubeTileJsx } from "../../constants";
+import { playgroundViewerHeight } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { CodeSnippet } from "../CodeSnippet";
 import { ExampleCode } from "../ExampleCode";
@@ -22,7 +23,7 @@ const stories = [
 export function SharedDialog() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const story = stories.find((entry) => entry.id === selectedId);
-  return <PanoViewer style={{ height: 560 }}>
+  return <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
     ${cubeTileJsx(undefined, "    ")}
     {stories.map((entry, index) => <GraphicHotspot key={entry.id} id={entry.id} ariaLabel={entry.title} position={{ yaw: index * 40 - 20, pitch: 0 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} onClick={() => setSelectedId(entry.id)} />)}
     <PanoOverlay>

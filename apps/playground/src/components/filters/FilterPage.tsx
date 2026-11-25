@@ -20,6 +20,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
@@ -133,7 +134,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaFilter() {
   return (
-    <PanoViewer style={{ height: 540 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <PanoFilter
         adjustments={{ ${adjustmentLiteral} }}
         enabled={${enabled}}
@@ -258,7 +259,7 @@ export function FilterPage() {
           <PlaygroundVRViewer
             viewer={viewer}
             aria-label={t("Panorama filter demo")}
-            style={{ height: "min(540px, 68dvh)" }}
+            style={{ height: playgroundViewerHeight }}
           >
             <WebVR />
             <PanoFilter

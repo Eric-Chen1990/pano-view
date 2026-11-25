@@ -11,7 +11,7 @@ import {
   usePanoViewer,
   type WebVRInteractionMode,
 } from "@ericchen1990/pano-view";
-import { pageControlsClassName, segmentedButtonClassName } from "../../ui";
+import { pageControlsClassName, playgroundViewerHeight, segmentedButtonClassName } from "../../ui";
 
 export function VRBasicsExample() {
   const { t } = usePlaygroundLanguage();
@@ -55,7 +55,7 @@ export function VRBasicsExample() {
       <PlaygroundVRViewer
         viewer={viewer}
         aria-label={t("VR basics viewer")}
-        style={{ height: 560 }}
+        style={{ height: playgroundViewerHeight }}
       >
         <PanoEvents
           onVRAvailable={() => setStatus("VR available")}

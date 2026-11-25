@@ -3,7 +3,7 @@ import {
   PlanarTileCompare, type PlanarTileCompareScene, type PanoCompareLayout, type PanoComparePresentation,
 } from "@ericchen1990/pano-view";
 import { useState } from "react";
-import { controlInputClassName, controlLabelClassName, pageControlsClassName } from "../../ui";
+import { controlInputClassName, controlLabelClassName, pageControlsClassName, playgroundViewerHeight } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
@@ -40,7 +40,7 @@ export function FlatImageComparison() {
       maxScale={${maxScale}}
       dividerColor="${dividerColor}"
       dividerWidth={${dividerWidth}}
-      style={{ height: 480 }}
+      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     />
   );
 }`;
@@ -69,7 +69,7 @@ export function FlatImageComparison() {
       </div>
       <PlanarTileCompare scenes={scenes} presentation={presentation} layout={layout}
         minScale={minScale} maxScale={maxScale} dividerColor={dividerColor} dividerWidth={dividerWidth}
-        className="rounded-xl" style={{ height: "clamp(340px, 65dvh, 620px)" }}
+        className="rounded-xl" style={{ height: playgroundViewerHeight }}
       />
       <div className="mt-6">
         <ExampleCode

@@ -16,6 +16,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
@@ -116,7 +117,7 @@ export function PanoramaContextMenu() {
           iconSize: 16,
         },
 ${entries}      }}
-      style={{ height: 540 }}
+      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
       <WebVR />
       ${cubeTileJsx()}
@@ -279,7 +280,7 @@ export function ContextMenuPage() {
             viewer={pano}
             aria-label={t("Panorama context menu demo")}
             contextMenu={contextMenu}
-            style={{ height: 540 }}
+            style={{ height: playgroundViewerHeight }}
           >
             <PanoEvents
               onEnterFullscreen={() => setLastAction("Entered fullscreen")}

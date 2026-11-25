@@ -20,6 +20,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
   segmentedButtonClassName,
   shellClassName,
@@ -71,7 +72,7 @@ export function SceneTransitions() {
       ))}
       <PanoViewer
         renderer="${renderer}"
-        style={{ height: "min(540px, 68dvh)" }}
+        style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
       >
         <Scenes
           activeSceneId={activeSceneId}
@@ -252,7 +253,7 @@ export function SceneTransitionPage() {
             ref={viewer}
             renderer={renderer}
             aria-label={t("Panorama scene transition demo")}
-            style={{ height: "min(540px, 68dvh)" }}
+            style={{ height: playgroundViewerHeight }}
           >
             <Scenes
               activeSceneId={activeSceneId}

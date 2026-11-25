@@ -11,6 +11,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
@@ -80,7 +81,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaGrid() {
   return (
-    <PanoViewer style={{ height: 480 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <PanoGrid
         projection="${projection}"
         divisions={${resolvedDivisions}}
@@ -153,7 +154,7 @@ export function PanoramaGrid() {
         </div>
         <PanoViewer
           aria-label={t("Panorama grid demo")}
-          style={{ height: "min(540px, 68dvh)", background: "#0b1214" }}
+          style={{ height: playgroundViewerHeight, background: "#0b1214" }}
         >
           <PanoGrid
             projection={projection}

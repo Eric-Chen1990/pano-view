@@ -19,6 +19,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
@@ -132,7 +133,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaWeather() {
   return (
-    <PanoViewer style={{ height: 480 }}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       ${cubeTileJsx()}
       <PanoWeather
         type="${weather.type}"
@@ -213,7 +214,7 @@ ${optionalWeatherProps}      />
             )}
           </div>
         )}
-        <PlaygroundVRViewer viewer={viewer} aria-label={t("Weather demo")} style={{ height: "min(540px, 68dvh)" }}>
+        <PlaygroundVRViewer viewer={viewer} aria-label={t("Weather demo")} style={{ height: playgroundViewerHeight }}>
           <WebVR />
           <Tile {...cubeTileProps()} />
           <PanoWeather {...weather} enabled={enabled} intensity={intensity} wind={[windX, windZ]} />

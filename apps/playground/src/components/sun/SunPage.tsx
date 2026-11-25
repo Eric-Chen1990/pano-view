@@ -8,8 +8,13 @@ import { useState, useSyncExternalStore } from "react";
 import { cubeTileJsx, cubeTileProps } from "../../constants";
 import { cn } from "../../cn";
 import {
-  controlInputClassName, controlLabelClassName, pageControlsClassName,
-  pageSectionClassName, segmentedButtonActiveClassName, segmentedButtonClassName,
+  controlInputClassName,
+  controlLabelClassName,
+  pageControlsClassName,
+  pageSectionClassName,
+  playgroundViewerHeight,
+  segmentedButtonActiveClassName,
+  segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
@@ -116,7 +121,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function PanoramaSun() {
   return (
-    <PanoViewer style={{ height: 480 }} initialView={${JSON.stringify(initialView)}}>
+    <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }} initialView={${JSON.stringify(initialView)}}>
       ${cubeTileJsx(panorama)}
       <PanoSun
         position={{ yaw: ${Number(position.yaw.toFixed(4))}, pitch: ${Number(position.pitch.toFixed(4))} }}
@@ -170,7 +175,7 @@ ${layerProps}${enabled ? "" : "\n        enabled={false}"}
             </div>
           </div>
         )}
-        style={{ height: "min(550px, 65dvh)" }}
+        style={{ height: playgroundViewerHeight }}
       >
         <WebVR />
         <Scenes

@@ -16,6 +16,7 @@ import { useState, useSyncExternalStore } from "react";
 import { CUBE_SCENES, INITIAL_CUBE_SCENE_ID } from "../../constants";
 import {
   pageSectionClassName,
+  playgroundViewerHeight,
   segmentedButtonClassName,
   shellClassName,
 } from "../../ui";
@@ -345,12 +346,11 @@ export function VRSceneMenuPage() {
             </div>
           </details>
         </div>
-        <div className="h-[min(68vh,680px)] min-h-105">
-          <PlaygroundVRViewer
-            viewer={viewer}
-            contextMenu={{ items: [] }}
-            style={{ height: "100%" }}
-          >
+        <PlaygroundVRViewer
+          viewer={viewer}
+          contextMenu={{ items: [] }}
+          style={{ height: playgroundViewerHeight }}
+        >
             <PanoEvents
               onVRAvailable={() => setStatus("VR is available")}
               onVRDenied={(error) =>
@@ -404,7 +404,6 @@ export function VRSceneMenuPage() {
               />
             </PanoOverlay>
           </PlaygroundVRViewer>
-        </div>
         <ExampleCode
           react={{
             blurb: t("Configure compact, flat wall, or arc gallery layouts with paged or all-scene display. Look at a control until the reticle fills to activate it."),
@@ -421,7 +420,7 @@ export function Tour() {
   const [activeId, setActiveId] = useState(scenes[0].id);
   return <>
     <button onClick={() => void viewer.enterVR()}>Enter VR</button>
-    <PanoViewer ref={viewer.ref} style={{ height: 560 }}>
+    <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <WebVR />
       <Scenes scenes={scenes} activeSceneId={activeId} onActiveSceneIdChange={setActiveId} transition="crossfade" />
       <WebVRSceneMenu {...menuSettings} items={items} activeId={activeId} onSelect={setActiveId} />

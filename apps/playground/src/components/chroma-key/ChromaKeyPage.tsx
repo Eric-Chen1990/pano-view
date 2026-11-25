@@ -4,7 +4,14 @@ import { ImageHotspot, PanoViewer, Scenes, VideoHotspot, type ProjectHotspotDefi
 import { ChromaKeyColorSampler } from "@ericchen1990/pano-view/ui";
 import { useRef, useState } from "react";
 import { DEFAULT_CHROMA_KEY, isChromaKeyColor } from "../../../../../shared/chroma-key";
-import { controlInputClassName, controlLabelClassName, segmentedButtonClassName } from "../../ui";
+import {
+  controlInputClassName,
+  controlLabelClassName,
+  playgroundSplitDemoClassName,
+  playgroundSplitSidebarClassName,
+  playgroundViewerHeight,
+  segmentedButtonClassName,
+} from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
@@ -51,7 +58,7 @@ import "@ericchen1990/pano-view/styles.css";
 
 export function ChromaKeyPanorama() {
   return (
-    <PanoViewer renderer="${renderer}" style={{ height: 540 }} initialView={{ yaw: 0, pitch: 0, fov: 62 }}>
+    <PanoViewer renderer="${renderer}" style={{ height: ${JSON.stringify(playgroundViewerHeight)} }} initialView={{ yaw: 0, pitch: 0, fov: 62 }}>
       ${cubeTileJsx(panorama)}
       <${component}
 ${Object.entries(props)
@@ -73,10 +80,10 @@ ${Object.entries(props)
       title={t("Chroma key")}
       description={t("Remove a solid color from an image or video hotspot and blend the subject into a panorama.")}
     >
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className={playgroundSplitDemoClassName}>
         <PanoViewer
           key={renderer} ref={viewer} renderer={renderer} aria-label={t("Chroma key panorama")}
-          style={{ height: "clamp(320px, 62dvh, 600px)" }} initialView={{ ...position, fov: 62 }}
+          style={{ height: playgroundViewerHeight }} initialView={{ ...position, fov: 62 }}
         >
           <Scenes scenes={scenes} onSceneReady={() => setBackend(viewer.current?.getRendererBackend() ?? undefined)} />
           {kind === "image" ? (
@@ -87,7 +94,7 @@ ${Object.entries(props)
               onPlaybackError={() => { setPlaying(false); setError("Press Play video to start playback."); }} />
           )}
         </PanoViewer>
-        <div className="grid content-start gap-4 border-t border-[#244047] p-5 lg:border-t-0 lg:border-l">
+        <div className={playgroundSplitSidebarClassName}>
           <label className={controlLabelClassName}>{t("Source")}<select value={kind} className={`${controlInputClassName} ${focus}`}
               onChange={event => {
                 const next = event.currentTarget.value as keyof typeof media;

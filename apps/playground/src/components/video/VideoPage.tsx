@@ -18,6 +18,7 @@ import {
   controlLabelClassName,
   pageControlsClassName,
   pageSectionClassName,
+  playgroundViewerHeight,
   shellClassName,
 } from "../../ui";
 import { CodeSnippet } from "../CodeSnippet";
@@ -130,7 +131,7 @@ export function PanoramaVideo() {
           void media.playVideo({ unmute: true });
         },
       }}
-      style={{ height: "min(540px, 68dvh)" }}
+      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
       <WebVR />
       <PanoVideo
@@ -323,7 +324,7 @@ export function VideoPage() {
                 void media.playVideo({ unmute: true });
               },
             }}
-            style={{ height: "min(540px, 68dvh)" }}
+            style={{ height: playgroundViewerHeight }}
           >
             <WebVR />
             <VideoMotionSampler stats={motion} />

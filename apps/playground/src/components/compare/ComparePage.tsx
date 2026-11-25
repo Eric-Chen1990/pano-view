@@ -14,7 +14,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { PanoDialog } from "@ericchen1990/pano-view/ui";
 import { useState } from "react";
-import { controlInputClassName, controlLabelClassName, pageControlsClassName, segmentedButtonClassName } from "../../ui";
+import { controlInputClassName, controlLabelClassName, pageControlsClassName, playgroundViewerHeight, segmentedButtonClassName } from "../../ui";
 import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 
@@ -64,7 +64,7 @@ const scenes: PanoCompareScene[] = ${JSON.stringify(scenes, null, 2)};
 
 export function PanoramaComparison() {
   return (
-    <PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: 480 }}>
+    <PanoViewer viewLimits={{ fov: { min: 35, max: 90 } }} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
       <PanoCompare
         scenes={scenes}
         activeSceneId="${activeId}"
@@ -109,7 +109,7 @@ export function PanoramaComparison() {
       {error && <p role="alert" className="mb-3 text-sm text-red-300">{t(error)}</p>}
       <PanoViewer ref={viewer.ref} aria-label={t("Panorama comparison")} className="rounded-xl bg-slate-900"
         viewLimits={viewLimits}
-        style={{ height: "clamp(340px, 65dvh, 620px)" }}>
+        style={{ height: playgroundViewerHeight }}>
         <PanoCompare
           scenes={scenes}
           activeSceneId={activeId}

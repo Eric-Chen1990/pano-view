@@ -5,8 +5,9 @@ import { cn } from "../../cn";
 import {
   controlLabelClassName,
   pageControlsClassName,
-  segmentedButtonClassName,
+  playgroundViewerHeight,
   segmentedButtonActiveClassName,
+  segmentedButtonClassName,
 } from "../../ui";
 import { ExamplePage } from "../ExamplePage";
 import { ExampleCode } from "../ExampleCode";
@@ -96,7 +97,7 @@ ${state}
   return (
     <>
       <button type="button" onClick={() => void viewer.toggleVR().catch(console.error)}>Toggle VR</button>
-      <PanoViewer ref={viewer.ref} style={{ height: 540 }}>
+      <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         <WebVR />
         ${scene}
         <PanoOverlay>
