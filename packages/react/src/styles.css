@@ -1610,6 +1610,196 @@
   }
 }
 
+.pano-performance-monitor {
+  --pano-perf-muted: rgb(231 242 245 / 62%);
+  --pano-perf-good: var(--pano-perf-accent, #5ee0a0);
+  --pano-perf-warn: #f0c14d;
+  --pano-perf-bad: #ff7b7b;
+  --pano-perf-tone: var(--pano-perf-muted);
+  position: absolute;
+  z-index: 40;
+  box-sizing: border-box;
+  display: grid;
+  gap: 6px;
+  width: 196px;
+  max-width: min(196px, 100%);
+  padding: 8px 9px 7px;
+  border: 1px solid var(--pano-perf-border, rgb(255 255 255 / 16%));
+  border-radius: 8px;
+  background: var(--pano-perf-background, rgb(7 16 19 / 92%));
+  color: var(--pano-perf-color, #e7f2f5);
+  font-family: var(--pano-perf-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 11px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 32%);
+  pointer-events: none;
+}
+
+.pano-performance-monitor[data-health="good"] { --pano-perf-tone: var(--pano-perf-good); }
+.pano-performance-monitor[data-health="warn"] { --pano-perf-tone: var(--pano-perf-warn); }
+.pano-performance-monitor[data-health="bad"] { --pano-perf-tone: var(--pano-perf-bad); }
+
+.pano-performance-monitor__fps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pano-performance-monitor__fps-label {
+  color: var(--pano-perf-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.pano-performance-monitor__fps-value {
+  margin-left: auto;
+  color: var(--pano-perf-tone);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.pano-performance-monitor__compact-ms {
+  color: var(--pano-perf-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.pano-performance-monitor__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pano-perf-muted);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.pano-performance-monitor__toggle:hover {
+  background: rgb(255 255 255 / 8%);
+  color: var(--pano-perf-color, #e7f2f5);
+}
+
+.pano-performance-monitor__toggle:focus-visible {
+  outline: 2px solid var(--pano-perf-tone);
+  outline-offset: 1px;
+}
+
+.pano-performance-monitor__timing {
+  display: grid;
+  gap: 3px;
+}
+
+.pano-performance-monitor__graph {
+  display: block;
+  width: 100%;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pano-performance-monitor__graph--compact {
+  height: 16px;
+}
+
+.pano-performance-monitor[data-collapsed="true"] {
+  gap: 4px;
+  padding: 6px 6px 6px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pano-performance-monitor[data-collapsed="true"] .pano-performance-monitor__fps-value {
+  font-size: 16px;
+}
+
+.pano-performance-monitor__graph-well {
+  fill: rgb(0 0 0 / 48%);
+}
+
+.pano-performance-monitor__graph rect {
+  shape-rendering: crispEdges;
+}
+
+.pano-performance-monitor__budget {
+  stroke: rgb(255 255 255 / 70%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.pano-performance-monitor__graph rect[data-band="good"] { fill: var(--pano-perf-good); }
+.pano-performance-monitor__graph rect[data-band="warn"] { fill: var(--pano-perf-warn); }
+.pano-performance-monitor__graph rect[data-band="bad"] { fill: var(--pano-perf-bad); }
+.pano-performance-monitor__graph rect[data-band="idle"] { fill: var(--pano-perf-muted); }
+
+.pano-performance-monitor__frame {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  color: var(--pano-perf-color, #e7f2f5);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.pano-performance-monitor__unit {
+  color: var(--pano-perf-muted);
+}
+
+.pano-performance-monitor__metrics {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+}
+
+.pano-performance-monitor__metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pano-performance-monitor__metric dt {
+  margin: 0;
+  color: var(--pano-perf-muted);
+}
+
+.pano-performance-monitor__metric dd {
+  margin: 0;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.pano-performance-monitor__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 0;
+  padding-top: 5px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  color: var(--pano-perf-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.pano-performance-monitor__meta span + span::before {
+  content: "·";
+  margin-inline: 0.4em;
+  color: rgb(231 242 245 / 34%);
+}
+
 .pano-geo-map {
   position: relative;
   width: 100%;

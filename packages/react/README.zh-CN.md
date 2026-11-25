@@ -789,6 +789,8 @@ import "@ericchen1990/pano-view/styles.css";
 - [`PanoOverlay`](#dom-overlay-与弹窗) — 查看器平面上的 DOM 包裹，全屏时仍可见
 - [`PanoContextMenu`](#panocontextmenu) — 右键重置 / 全屏菜单
 - [`PanoSceneMenu`](#panoscenemenu) — 供 `PanoOverlay` 使用的可滚动缩略图场景菜单
+- [`PanoSceneLoadProgress`](#场景加载进度) — 供 `PanoOverlay` 使用的加载指示器
+- [`PanoPerformanceMonitor`](#性能监视器) — 供 `PanoOverlay` 使用的 FPS 与渲染统计
 - [`PanoVideoControls`](#panovideo) — `PanoVideo` 的播放界面（默认挂载）
 
 ### 平面图
@@ -1706,6 +1708,40 @@ useEffect(() => {
 ```
 
 这两个方法也可与 `useSyncExternalStore` 或 `PanoViewerHandle` ref 一起使用。单独挂载全景时，`sceneId` 为 `null`。`percent: null` 表示当前没有可用的百分比。`status === "error"` 时可从 `progress.error` 读取错误原因。沉浸式 VR 中查看器会隐藏 DOM 叠加层，进度仍可读取和订阅。
+
+## 性能监视器
+
+将 `PanoPerformanceMonitor` 放在 `PanoOverlay` 中，并导入包的样式。展开后的读数不接收指针事件，因此不会挡住全景。收起按钮和精简块本身可以点击。沉浸式 VR 期间面板会随 DOM 叠加层一并隐藏。
+
+```tsx
+import {
+  PanoOverlay,
+  PanoPerformanceMonitor,
+  PanoViewer,
+  Tile,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...tile} />
+  <PanoOverlay>
+    <PanoPerformanceMonitor anchor={{ align: "top-left" }} />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+监视器显示 FPS、平均/最大帧时间、近期帧时间图、Fiber 帧的近似 CPU 耗时、绘制调用、三角面、几何体、纹理、当前后端（`webgpu` 或 `webgl`）、帧循环模式、设备像素比，以及绘制缓冲区尺寸。图中每根柱对应最近一帧：越高表示该帧越快，横线是 16.7ms / 60fps 预算。纵轴范围是 8ms 到 34ms，因此 60fps 附近的抖动仍然看得见。20ms 以内为绿色，34ms 以内为琥珀色，更慢为红色。
+
+仅在至少挂载一个监视器时才会采样，因此其他页面没有每帧开销。快照默认每 `updateIntervalMs` 毫秒发布一次（默认 `500`）。设 `showGraph={false}` 可隐藏图表。收起后保留 FPS、平均帧时间和帧时间图；点击该块或按钮可再展开。`collapsible` 默认为 true，`defaultExpanded` 默认为 true。用 `expanded` 与 `onExpandedChange` 受控，设 `collapsible={false}` 则始终显示完整读数。`anchor` 与 `PanoSceneMenu` 使用同一套八向定位。
+
+说明：
+
+- `cpuTimeMs` 是从 Fiber 帧开始到绘制结束后的 JavaScript 时间，不是 GPU 耗时。
+- 在 `frameloop="demand"` 下，FPS 统计最近一秒内实际渲染的帧数。超过 1 秒的间隔视为空闲，不计入平均/最大帧时间，因此空闲查看器不会被算得很慢。
+- 监视器在 WebGL 激活时会临时将 `renderer.info.autoReset` 设为 `false`，并在每个 Fiber 帧开始时重置一次，使小行星、传送门、对比等多通道绘制累加为整帧总量。WebGPU 本身已按动画帧重置。最后一个监视器卸载后会恢复原来的 `autoReset`。
+- 可用 `viewer.getRendererBackend()` 核对实际后端；面板标签与该值一致。
+
+[打开 Playground 性能监视器示例](https://pano-view-playground.vercel.app/performance)。
 
 ## Scenes
 
