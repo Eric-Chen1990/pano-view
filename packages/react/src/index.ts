@@ -11,6 +11,12 @@ export type {
   PanoSceneLoadProgressVariant,
 } from "./pano-scene-load-progress";
 export type { SceneLoadProgress } from "./scene-load-progress";
+export { PanoPerformanceMonitor } from "./pano-performance-monitor";
+export type {
+  PanoPerformanceMonitorProps,
+  PanoPerformanceSnapshot,
+} from "./pano-performance-monitor";
+export type { PanoPerformanceFrameloop } from "./performance/host";
 export {
   PanoOverlay,
   PanoDialogSurfaceContext,

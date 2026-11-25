@@ -108,6 +108,11 @@ import {
 import { WebGPUFrame } from "./webgpu-frame";
 import { createScreenshotHost, ScreenshotContext, ScreenshotFrame, type PanoScreenshotOptions } from "./screenshot";
 import { usePanoRenderer, WebGPURuntimeContext } from "./pano-renderer";
+import { PanoPerformanceCollector } from "./performance/collector";
+import {
+  createPanoPerformanceHost,
+  PanoPerformanceHostContext,
+} from "./performance/host";
 import { PanoEvents } from "./pano-events";
 import { createPanoModalHost } from "./overlay/modal-host";
 import { partitionPanoOverlay } from "./overlay/partition";
@@ -386,6 +391,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const vrActive = vrMode !== null;
     const scenesHost = useMemo(() => createScenesHost(), []);
     const sceneLoadProgress = useMemo(createSceneLoadProgressStore, []);
+    const performanceHost = useMemo(createPanoPerformanceHost, []);
     const introHost = useMemo(createLittlePlanetIntroHost, []);
     const introEnabled = littlePlanetIntro !== false;
     useLayoutEffect(() => {
@@ -408,6 +414,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       if (sceneId) scenesHost.recovery = { id: sceneId, project: scenesHost.project };
     });
     const getRendererBackend = rendererRuntime.getBackend;
+    useEffect(() => {
+      performanceHost.setBackend(rendererRuntime.backend);
+    }, [performanceHost, rendererRuntime.backend]);
     const compareHost = useMemo(createCompareHost, []);
     const compareActive = useSyncExternalStore(
       compareHost.subscribe,
@@ -1087,6 +1096,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     {introEnabled && <LittlePlanetIntro options={littlePlanetIntro} blocked={vrActive || modalOpen} />}
                   </ControlClaimsContext.Provider>
                   <ScreenshotFrame host={screenshot} gpuDraw={rendererRuntime.runtime?.passes.render} isComparing={isComparing} />
+                  <PanoPerformanceCollector host={performanceHost} />
                   </ScreenshotContext.Provider>
                   </CompareHostContext.Provider>
                   </PanoMediaActivationHostContext.Provider>
@@ -1134,6 +1144,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         <SpatialHostContext.Provider value={spatialHost}>
         <ScenesHostContext.Provider value={scenesHost}>
         <SceneLoadProgressContext.Provider value={sceneLoadProgress}>
+        <PanoPerformanceHostContext.Provider value={performanceHost}>
         <PanoEventBusContext.Provider value={eventBus}>
           <PanoModalHostContext.Provider value={modalHost}>
             <PanoOverlayContext.Provider value={overlayContext}>
@@ -1154,6 +1165,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoOverlayContext.Provider>
           </PanoModalHostContext.Provider>
         </PanoEventBusContext.Provider>
+        </PanoPerformanceHostContext.Provider>
         </SceneLoadProgressContext.Provider>
         </ScenesHostContext.Provider>
         </SpatialHostContext.Provider>

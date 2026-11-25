@@ -89,6 +89,11 @@ export const PAGE_META = {
     description:
       "Preview a debug sphere or cube grid in an empty React panorama viewer. Adjust line color and density without loading an image.",
   },
+  "/performance": {
+    title: "Panorama Performance Monitor Demo | Pano View",
+    description:
+      "Inspect FPS, frame time, draw calls, and the active WebGPU or WebGL backend while exploring a React panorama.",
+  },
   "/scene-menu": {
     title: "Panorama Scene Menu Demo | Pano View",
     description:

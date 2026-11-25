@@ -828,6 +828,8 @@ failure. The viewer offers a retry for the requested pair.
 - [`PanoOverlay`](#dom-overlays-and-dialogs) — screen-plane DOM wrapper for fullscreen-safe UI
 - [`PanoContextMenu`](#panocontextmenu) — right-click reset / fullscreen menu
 - [`PanoSceneMenu`](#panoscenemenu) — scrollable thumbnail scene picker for `PanoOverlay`
+- [`PanoSceneLoadProgress`](#scene-loading-progress) — loading indicator for `PanoOverlay`
+- [`PanoPerformanceMonitor`](#performance-monitor) — FPS and renderer stats for `PanoOverlay`
 - [`PanoVideoControls`](#panovideo) — playback chrome for `PanoVideo` (mounted by default)
 
 ### Floor plan
@@ -1823,6 +1825,40 @@ useEffect(() => {
 ```
 
 The two methods also work with `useSyncExternalStore` or a `PanoViewerHandle` ref. A standalone source has `sceneId: null`. `percent: null` indicates an unavailable percentage. Inspect `progress.error` when `status === "error"`. During immersive VR the viewer hides the DOM overlay and continues publishing progress.
+
+## Performance monitor
+
+Place `PanoPerformanceMonitor` inside `PanoOverlay` and import the package styles. The expanded readout ignores pointer events, so it does not block the panorama. The collapse control, and the compact block itself, accept clicks. The panel stays hidden during immersive VR with the rest of the DOM overlay.
+
+```tsx
+import {
+  PanoOverlay,
+  PanoPerformanceMonitor,
+  PanoViewer,
+  Tile,
+} from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<PanoViewer style={{ height: 480 }}>
+  <Tile {...tile} />
+  <PanoOverlay>
+    <PanoPerformanceMonitor anchor={{ align: "top-left" }} />
+  </PanoOverlay>
+</PanoViewer>;
+```
+
+The monitor shows FPS, average and max frame time, a recent frame-time graph, approximate CPU time for the Fiber frame, draw calls, triangles, geometries, textures, the active backend (`webgpu` or `webgl`), frameloop mode, device pixel ratio, and the drawing-buffer size. The graph draws one bar per recent frame: taller means a faster frame, and the hairline is a 16.7ms / 60fps budget. The scale runs from 8ms to 34ms so jitter around 60fps stays visible. Green, amber, and red mark frames within 20ms, 34ms, and slower.
+
+Sampling starts only while at least one monitor is mounted, so other pages pay no per-frame cost. Snapshots publish every `updateIntervalMs` milliseconds (default `500`). Set `showGraph={false}` to hide the graph. Collapse keeps a compact block with FPS, average frame time, and the graph; click that block or its toggle to expand again. `collapsible` defaults to true and `defaultExpanded` defaults to true. Pass `expanded` and `onExpandedChange` to control it. Set `collapsible={false}` for a static readout. Use the same eight-way `anchor` as `PanoSceneMenu`.
+
+Notes:
+
+- `cpuTimeMs` is JavaScript time from the start of the Fiber frame to after the draw. It is not GPU time.
+- In `frameloop="demand"`, FPS counts frames that actually rendered in the last second. Gaps longer than 1 second are treated as idle and excluded from average or max frame time, so an idle viewer does not look artificially slow.
+- While a monitor is active on WebGL, the viewer temporarily sets `renderer.info.autoReset = false` and resets once per Fiber frame so multi-pass draws (Little Planet, portals, compare) accumulate into one frame total. WebGPU already resets once per animation frame. The previous `autoReset` value is restored when the last monitor unmounts.
+- Confirm the live backend with `viewer.getRendererBackend()`; the panel label follows the same value.
+
+[Open the Playground performance example](https://pano-view-playground.vercel.app/performance).
 
 ## Scenes
 
