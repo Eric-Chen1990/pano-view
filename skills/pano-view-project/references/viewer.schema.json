@@ -1,0 +1,172 @@
+{
+  "$comment": "Generated from packages/react/schemas. Run the viewer package's schemas:sync script to update the Skill copies.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pano View viewer.json",
+  "description": "A versioned panorama tile descriptor from the converter. Use the SDK to check level ordering and sphere proportions.",
+  "$ref": "#/$defs/ViewerDocument",
+  "$defs": {
+    "ViewerDocument": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "previewUrl": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Path to the converter's preview image."
+            },
+            "type": {
+              "const": "tile"
+            },
+            "urlTemplate": {
+              "type": "string",
+              "pattern": "\\S",
+              "allOf": [
+                {
+                  "pattern": "^(?:[^%]|%s|%l|%0*[hxucvywr])*$"
+                }
+              ],
+              "description": "Preserve the template and placeholders from the converter output."
+            },
+            "multires": {
+              "type": "object",
+              "properties": {
+                "tileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8192
+                },
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                }
+              },
+              "required": [
+                "tileSize",
+                "levels"
+              ],
+              "additionalProperties": false
+            },
+            "previewFaceOrder": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "f",
+                  "r",
+                  "b",
+                  "l",
+                  "u",
+                  "d"
+                ]
+              },
+              "minItems": 6,
+              "maxItems": 6,
+              "uniqueItems": true,
+              "description": "Actual face order in the preview strip."
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "type",
+            "previewUrl",
+            "urlTemplate",
+            "multires",
+            "previewFaceOrder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "const": 1
+            },
+            "previewUrl": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Path to the converter's preview image."
+            },
+            "type": {
+              "const": "sphereTile"
+            },
+            "urlTemplate": {
+              "type": "string",
+              "pattern": "\\S",
+              "allOf": [
+                {
+                  "pattern": "^(?:[^%]|%l|%0*[hxucvywr])*$"
+                }
+              ],
+              "description": "Preserve the template and placeholders from the converter output."
+            },
+            "multires": {
+              "type": "object",
+              "properties": {
+                "tileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8192
+                },
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "width": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "height": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                }
+              },
+              "required": [
+                "tileSize",
+                "levels"
+              ],
+              "additionalProperties": false
+            },
+            "indexBase": {
+              "enum": [
+                0,
+                1
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "type",
+            "previewUrl",
+            "urlTemplate",
+            "multires",
+            "indexBase"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

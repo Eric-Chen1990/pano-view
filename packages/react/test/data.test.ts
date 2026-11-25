@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
+import Ajv2020 from "ajv/dist/2020.js";
 import {
   sceneFromViewerConfig,
   loadSceneFromJson,
@@ -50,6 +53,11 @@ const project = () => ({
     { id: "b", source: { viewerConfig: sphere } },
   ],
 });
+
+const skillReferences = join(__dirname, "../../../skills/pano-view-project/references");
+const ajv = new Ajv2020({ strict: true, allErrors: true });
+const validateProjectSchema = ajv.compile(JSON.parse(readFileSync(join(skillReferences, "project.schema.json"), "utf8")));
+const validateViewerSchema = ajv.compile(JSON.parse(readFileSync(join(skillReferences, "viewer.schema.json"), "utf8")));
 
 test("portable configs preserve layout, clone inputs and map final cube/sphere URLs", () => {
   const original = structuredClone(cube);
@@ -284,6 +292,7 @@ test("projects validate all hotspot variants and resolve nested resources withou
     ...project(),
     scenes: [{ id: "a", source: { viewerConfig: cube }, hotspots }],
   };
+  assert.ok(validateProjectSchema(definition), ajv.errorsText(validateProjectSchema.errors));
   const before = structuredClone(definition);
   const loaded = await loadPanoProject(definition, {
     baseUrl: "https://cdn.test/tour/",
@@ -329,6 +338,92 @@ test("projects validate all hotspot variants and resolve nested resources withou
     assert.equal(hs[7].trigger, "hover");
   }
   assert.equal(loaded.initialSceneId, "a");
+});
+
+test("authoring schemas accept SDK fixtures and the Skill's two-scene project", () => {
+  const quickstart = readFileSync(join(skillReferences, "quickstart.md"), "utf8");
+  const example = /^```json\n([\s\S]*?)^```/m.exec(quickstart);
+  assert.ok(example);
+  const tour = JSON.parse(example[1]!);
+  assert.ok(validateProjectSchema(tour), ajv.errorsText(validateProjectSchema.errors));
+  assert.equal(parsePanoProject(tour).scenes.length, 2);
+  for (const config of [cube, sphere]) {
+    assert.ok(validateViewerSchema({ schemaVersion: 1, ...config }), ajv.errorsText(validateViewerSchema.errors));
+    assert.equal(sceneFromViewerConfig(config, { id: "room", baseUrl: "https://cdn.test/" }).type, config.type);
+    assert.equal(validateViewerSchema(config), false);
+  }
+
+  const base = project();
+  const definition = {
+    ...base,
+    scenes: [
+      {
+        ...base.scenes[0]!,
+        hotspots: [
+          { type: "portal", id: "portal", position, events: { click: { type: "scene", sceneId: "b" } } },
+          {
+            type: "text", id: "labels", position, text: "Enter",
+            events: {
+              click: { type: "popup", popupId: "details" },
+              pointerenter: { type: "custom", actionId: "show", params: { ui: [null, { size: 3 }] } },
+              pointerleave: { type: "view", view: { ...position, fov: 90 } },
+            },
+          },
+        ],
+      },
+      base.scenes[1]!,
+    ],
+    popups: [{ id: "details", title: "Details", blocks: [{ id: "photo", type: "image", src: "details.webp" }] }],
+    map: {
+      image: "floor.webp",
+      presentation: { mode: "panel", width: "40%", anchor: { inset: { top: 10 } } },
+      spots: [{ id: "point", sceneId: "a", x: 0.1, y: 1, heading: 0 }],
+    },
+    geoMap: {
+      sector: false,
+      spots: [{ id: "geo", sceneId: "a", positions: { wgs84: { lat: 90, lng: 180 } } }],
+    },
+  };
+  assert.ok(validateProjectSchema(definition), ajv.errorsText(validateProjectSchema.errors));
+  assert.equal(parsePanoProject(definition).geoMap?.spots.length, 1);
+});
+
+test("authoring schemas reject structural errors and leave project semantics to the SDK", () => {
+  const scene = project().scenes[0]!;
+  const single = (input: unknown) => ({ schemaVersion: 1, scenes: [input] });
+  const portal = { type: "portal", id: "portal", position };
+  for (const input of [
+    { ...project(), schemaVersion: 2 },
+    { ...project(), scenes: [] },
+    single({ ...scene, source: { viewerUrl: "viewer.json", viewerConfig: cube } }),
+    single({ ...scene, source: { viewerConfig: { schemaVersion: 1, ...cube } } }),
+    single({ ...scene, initialView: { fov: 180 } }),
+    single({ ...scene, hotspots: [{ ...hotspots[0], tooltipAppearance: { fonSize: 12 } }] }),
+    single({ ...scene, hotspots: [portal] }),
+    single({ ...scene, hotspots: [{ ...portal, action: { type: "scene", sceneId: "a" }, events: { click: { type: "popup", popupId: "a" } } }] }),
+  ]) assert.equal(validateProjectSchema(input), false);
+
+  assert.equal(validateViewerSchema({ schemaVersion: 1, ...cube, urlTemplate: "tiles/%q.webp" }), false);
+  assert.equal(validateViewerSchema({ schemaVersion: 1, ...sphere, urlTemplate: "tiles/%s.webp" }), false);
+  assert.equal(validateViewerSchema({ schemaVersion: 1, ...cube, previewFaceOrder: ["f", "f", "b", "l", "u", "d"] }), false);
+
+  for (const [input, error] of [
+    [{ ...project(), scenes: [scene, scene] }, /duplicate scene ID/],
+    [{ ...project(), initialSceneId: "missing" }, /scene does not exist/],
+    [single({ ...scene, hotspots: [{ ...portal, action: { type: "scene", sceneId: "a" } }] }), /must be a different scene/],
+    [single({ ...scene, hotspots: [{ ...hotspots[0], action: { type: "popup", popupId: "missing" } }] }), /target popup does not exist/],
+  ] as const) {
+    assert.ok(validateProjectSchema(input), ajv.errorsText(validateProjectSchema.errors));
+    assert.throws(() => parsePanoProject(input), error);
+  }
+
+  const unordered = { schemaVersion: 1, ...cube, multires: { tileSize: 512, levels: [1024, 512] } };
+  assert.ok(validateViewerSchema(unordered), ajv.errorsText(validateViewerSchema.errors));
+  assert.throws(() => sceneFromViewerConfig(unordered, { id: "room", baseUrl: "https://cdn.test/" }), /face sizes must increase/);
+
+  const legacy = single({ ...scene, ignoredMetadata: true });
+  assert.equal(validateProjectSchema(legacy), false);
+  assert.equal(parsePanoProject(legacy).scenes[0]?.id, scene.id);
 });
 
 test("callout hotspots require content and reject empty cards", () => {
