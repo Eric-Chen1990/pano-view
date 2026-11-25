@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.23.0
+
+### Minor Changes
+
+- 5eb4bb2: Export offline JSON Schemas and the `pano-validate` command for authoring and validating static panorama projects and converter viewer documents.
+
 ## 5.22.0
 
 ### Minor Changes
