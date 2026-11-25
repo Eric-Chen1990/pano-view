@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.24.0
+
+### Minor Changes
+
+- f033f23: Keep wheel gestures over panorama viewers, planar tile viewers, comparisons, and the scene menu from scrolling the page. Nested scrollable controls still move when they have room, including at zoom limits.
+
 ## 5.23.0
 
 ### Minor Changes
