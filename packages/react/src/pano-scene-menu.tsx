@@ -12,7 +12,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
-  type WheelEvent as ReactWheelEvent,
 } from "react";
 import { cn } from "./cn";
 import { useVisitedSceneIds } from "./scenes-host";
@@ -595,50 +594,73 @@ export function PanoSceneMenu({
     }
   };
 
-  const onWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+  const wheelRef = useRef({
+    customDrag,
+    horizontal,
+    maxOffset,
+    cancelScrollAnimation,
+    clampOffset,
+    applyOffset,
+  });
+  wheelRef.current = {
+    customDrag,
+    horizontal,
+    maxOffset,
+    cancelScrollAnimation,
+    clampOffset,
+    applyOffset,
+  };
+
+  // React's onWheel is passive, so preventDefault cannot stop page scroll.
+  useEffect(() => {
     const list = listRef.current;
     if (!list) {
       return;
     }
-    if (!customDrag) {
-      if (horizontal) {
-        const canScroll = list.scrollWidth > list.clientWidth + 1;
-        if (!canScroll || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+    const onWheel = (event: WheelEvent) => {
+      const options = wheelRef.current;
+      if (!options.customDrag) {
+        if (options.horizontal) {
+          const canScroll = list.scrollWidth > list.clientWidth + 1;
+          if (!canScroll || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          list.scrollLeft += event.deltaY;
+          return;
+        }
+        const canScroll = list.scrollHeight > list.clientHeight + 1;
+        if (!canScroll || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
           return;
         }
         event.preventDefault();
         event.stopPropagation();
-        list.scrollLeft += event.deltaY;
+        list.scrollTop += event.deltaX;
         return;
       }
-      const canScroll = list.scrollHeight > list.clientHeight + 1;
-      if (!canScroll || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      list.scrollTop += event.deltaX;
-      return;
-    }
 
-    if (horizontal) {
-      if (maxOffset <= 0 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+      if (options.horizontal) {
+        if (options.maxOffset <= 0 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        options.cancelScrollAnimation();
+        options.applyOffset((previous) => options.clampOffset(previous + event.deltaY));
+        return;
+      }
+      if (options.maxOffset <= 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
         return;
       }
       event.preventDefault();
       event.stopPropagation();
-      cancelScrollAnimation();
-      applyOffset((previous) => clampOffset(previous + event.deltaY));
-      return;
-    }
-    if (maxOffset <= 0 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    cancelScrollAnimation();
-    applyOffset((previous) => clampOffset(previous + event.deltaX));
-  };
+      options.cancelScrollAnimation();
+      options.applyOffset((previous) => options.clampOffset(previous + event.deltaX));
+    };
+    list.addEventListener("wheel", onWheel, { passive: false });
+    return () => list.removeEventListener("wheel", onWheel);
+  }, []);
 
   const axisPoint = (event: { clientX: number; clientY: number }) =>
     horizontal ? event.clientX : event.clientY;
@@ -825,7 +847,6 @@ export function PanoSceneMenu({
           }
           onPointerMove={customDrag ? onListPointerMove : undefined}
           onPointerUp={customDrag ? finishPointerWithClickGuard : undefined}
-          onWheel={onWheel}
           ref={listRef}
           role="radiogroup"
         >
