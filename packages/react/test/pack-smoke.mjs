@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { access, mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import Ajv2020 from "ajv/dist/2020.js";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), "pano-view-data-consumer-"));
@@ -41,11 +43,45 @@ try {
   }
   assert.ok((await readFile(join(destination, "dist/ui/styles.css"), "utf8")).includes(".pano-dialog-content"));
   await Promise.all(["dialogs.md", "dialogs.zh-CN.md", "geo-map.md"].map((name) => access(join(destination, "docs", name))));
+  const resolveFromConsumer = createRequire(join(directory, "consumer.cjs")).resolve;
+  const ajv = new Ajv2020({ strict: true });
+  for (const name of ["project.schema.json", "viewer.schema.json"]) {
+    const packed = await readFile(resolveFromConsumer(`@ericchen1990/pano-view/schemas/${name}`), "utf8");
+    const skill = new URL(`../../../skills/pano-view-project/references/${name}`, import.meta.url);
+    assert.equal(packed, await readFile(skill, "utf8"), `${name} must match the Skill copy`);
+    ajv.compile(JSON.parse(packed));
+  }
+  const config = {
+    type: "tile",
+    multires: { tileSize: 512, levels: [512] },
+    urlTemplate: "tiles/%s/%l/%v_%h.webp",
+    previewUrl: "preview.webp",
+    previewFaceOrder: ["l", "f", "r", "b", "u", "d"],
+  };
+  const packedManifest = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
+  const cli = join(destination, packedManifest.bin["pano-validate"]);
+  const project = { schemaVersion: 1, scenes: [{ id: "room", source: { viewerUrl: "./room/viewer.json" } }] };
+  const viewer = { schemaVersion: 1, ...config };
+  for (const [kind, input] of [["project", project], ["viewer", viewer]]) {
+    const path = `${kind} case.json`;
+    await writeFile(join(directory, path), JSON.stringify(input));
+    assert.match(run(process.execPath, [cli, kind, path]), new RegExp(`valid ${kind} JSON`));
+  }
+  for (const [kind, input, message] of [
+    ["project", { ...project, scenez: [] }, /Schema validation failed[\s\S]*scenez/],
+    ["project", { ...project, initialSceneId: "missing" }, /initialSceneId: scene does not exist/],
+    ["viewer", { ...viewer, multires: { tileSize: 512, levels: [1024, 512] } }, /face sizes must increase/],
+  ]) {
+    await writeFile(join(directory, "invalid.json"), JSON.stringify(input));
+    const result = spawnSync(process.execPath, [cli, kind, "invalid.json"], { cwd: directory, encoding: "utf8" });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, message);
+  }
   const example = `
 const geoMap = api.parsePanoGeoMap({spots:[{id:"deck",sceneId:"room",positions:{wgs84:{lat:37.8,lng:-122.4}}}],controlsLayout:"vertical"},new Set(["room"]));
 assert.equal(geoMap.controlsLayout,"vertical");
 const limits={yaw:{min:170,max:-170},fov:{min:60,max:60}};
-const config = {type:"tile",multires:{tileSize:512,levels:[512]},urlTemplate:"tiles/%s/%l/%v_%h.webp",previewUrl:"preview.webp",previewFaceOrder:["l","f","r","b","u","d"]};
+const config = ${JSON.stringify(config)};
 const scene = api.sceneFromViewerConfig(config,{id:"room",baseUrl:"https://cdn.test/room/"});
 if(scene.previewUrl!=="https://cdn.test/room/preview.webp") throw Error("Incorrect URL");
 const project=await api.loadPanoProject({schemaVersion:1,scenes:[{id:"room",source:{viewerConfig:config},viewLimits:limits}]},{baseUrl:"https://cdn.test/room/"});
@@ -124,9 +160,7 @@ scene.viewLimits=limits;void [viewer,scene,loaded,props,dialog,content,overlay,p
     "consumer.mts",
     "consumer.cts",
   ]);
-  console.log(
-    "Isolated tarball: ESM/CJS data runtime, client-free entry, UI runtime boundary, CSS and NodeNext declarations passed"
-  );
+  console.log("Isolated tarball: ESM/CJS data runtime, client-free entry, UI runtime boundary, CSS, JSON Schemas, validation CLI and NodeNext declarations passed");
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

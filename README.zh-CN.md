@@ -15,6 +15,7 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器�
 ## 目录
 
 - [包](#包)
+- [Agent Skills](#agent-skills)
 - [数据来源与选型](#数据来源与选型)
 - [静态多场景项目](#静态多场景项目)
 - [安装](#安装)
@@ -42,6 +43,26 @@ Pano View 提供用于全景图像与 360 视频的 React 查看器、编辑器�
 | [@ericchen1990/pano-converter](./packages/converter/README.zh-CN.md) | Node.js 库与 `pano-convert` CLI。生成瓦片金字塔、预览图，以及 React 包渲染所用的 `viewerConfig`。不依赖 React、云存储或数据库。 |
 
 下文示例使用查看器。用转换器生成新的瓦片金字塔，再把它的 `viewerConfig` 交给 `Tile`、`SphereTile` 或 `Scenes`。
+
+## Agent Skills
+
+在你的应用项目中运行以下命令，查看技能并按需安装。
+
+```sh
+npx skills add Eric-Chen1990/pano-view --list
+npx skills add Eric-Chen1990/pano-view --skill pano-view-react
+```
+
+| 技能 | 用途 |
+| --- | --- |
+| [`pano-view-react`](./skills/pano-view-react/SKILL.md) | 接入 React 查看器并排查显示问题。 |
+| [`pano-view-project`](./skills/pano-view-project/SKILL.md) | 使用 `project.json` 和 `viewer.json` 创建并校验漫游。 |
+| [`pano-view-editor`](./skills/pano-view-editor/SKILL.md) | 嵌入编辑器并连接宿主回调。 |
+| [`pano-view-converter`](./skills/pano-view-converter/SKILL.md) | 将图像切成瓦片，或从瓦片还原图像。 |
+
+安装时可选择你使用的编程 Agent。每个技能都附带可离线查看的快速入门。以 Codex 为例，可以说「用 `$pano-view-react` 在这个 Next.js 应用里显示我的 2:1 全景图」。
+
+支持直接读取文档的工具可以使用 [中文 AI 文档索引](https://pano-view-playground.vercel.app/llms.zh-CN.txt) 或 [四份快速入门合辑（英文）](https://pano-view-playground.vercel.app/llms-full.txt)。
 
 ## 数据来源与选型
 

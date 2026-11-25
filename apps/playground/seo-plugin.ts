@@ -1,4 +1,5 @@
 import type { Plugin } from "vite";
+import { AI_DOC_PATHS } from "./src/links";
 import { PAGE_META, SITE_URL, type PlaygroundPath } from "./src/page-meta";
 
 const SEO_BLOCK = /<!-- playground:seo:start -->[\s\S]*?<!-- playground:seo:end -->/;
@@ -18,6 +19,7 @@ function renderSeo(path: PlaygroundPath): string {
     `<title>${escapeHtml(title)}</title>`,
     `<meta name="description" content="${escapeHtml(description)}" />`,
     `<link rel="canonical" href="${canonical}" />`,
+    `<link rel="describedby" href="${AI_DOC_PATHS.en}" />`,
     '<meta property="og:type" content="website" />',
     '<meta property="og:site_name" content="Pano View" />',
     `<meta property="og:title" content="${escapeHtml(title)}" />`,

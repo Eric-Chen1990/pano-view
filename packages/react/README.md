@@ -510,6 +510,46 @@ Hotspot mapping covers images, SVG image URLs, audio source arrays, video poster
 
 See the `/project` playground route and its [sample project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json) for a complete static example. `/map` shows the floor-plan overlay on that tour.
 
+### Validate JSON authored by an agent
+
+The installed package exports two self-contained Draft 2020-12 Schemas. `project.schema.json` validates a complete tour, including inline viewer configuration. `viewer.schema.json` validates the standalone converter descriptor. Unknown fields are rejected, and custom action parameters accept any JSON object.
+
+Choose your package manager and run the matching command from the application directory. Each command checks the Schema and the SDK rules offline, including project references or viewer tile-level ordering.
+
+<details open>
+<summary>pnpm</summary>
+
+```sh
+pnpm exec pano-validate project tour/project.json
+pnpm exec pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+<details>
+<summary>npm</summary>
+
+```sh
+npm exec -- pano-validate project tour/project.json
+npm exec -- pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+<details>
+<summary>Yarn</summary>
+
+```sh
+yarn run pano-validate project tour/project.json
+yarn run pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+The command exits with a nonzero status when the file is invalid. For editor integrations, resolve the Schema files at `@ericchen1990/pano-view/schemas/project.schema.json` and `@ericchen1990/pano-view/schemas/viewer.schema.json`.
+
+Ask the agent to reuse existing converter descriptors and asset paths. Use `loadPanoProject` to check served JSON and URL resolution, then verify previews and detail tiles in the browser. [Two-scene example and agent workflow](https://github.com/Eric-Chen1990/pano-view/blob/main/skills/pano-view-project/references/quickstart.md)
+
 ## krpano-compatible tile output
 
 Use this package when you want a React-native viewer around equirectangular

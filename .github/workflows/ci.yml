@@ -14,6 +14,7 @@ on:
       - "packages/editor/**"
       - "shared/**"
       - "apps/playground/**"
+      - "skills/pano-view-project/references/*.schema.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -23,6 +24,7 @@ on:
       - ".github/workflows/release.yml"
       - "scripts/release-check*.mjs"
       - "!**/*.md"
+      - "skills/pano-view-*/references/quickstart.md"
 
 permissions:
   contents: read
@@ -65,6 +67,7 @@ jobs:
               "packages/editor/**",
               "shared/**",
               "apps/playground/**",
+              "skills/pano-view-project/references/*.schema.json",
               "package.json",
               "pnpm-lock.yaml",
               "pnpm-workspace.yaml",
@@ -74,6 +77,7 @@ jobs:
               ".github/workflows/release.yml",
               "scripts/release-check*.mjs",
               "!**/*.md",
+              "skills/pano-view-*/references/quickstart.md",
           ]
 
           def glob_to_regex(pattern):

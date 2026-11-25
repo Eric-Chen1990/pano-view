@@ -1,6 +1,7 @@
 // English UI messages are used as translation keys.
 export const zhCN: Readonly<Record<string, string>> = {
   "Language": "语言",
+  "AI documentation": "AI 文档",
   "Loading…": "加载中…",
   "Home": "首页",
   "Start": "入门",

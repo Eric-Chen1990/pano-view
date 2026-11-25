@@ -1,0 +1,2361 @@
+{
+  "$comment": "Generated from packages/react/schemas. Run the viewer package's schemas:sync script to update the Skill copies.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pano View project.json",
+  "description": "A loadable static panorama tour. Run parsePanoProject after schema validation to check references and semantics.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "initialSceneId": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "ID of an existing scene. Defaults to the first scene."
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Scene"
+      },
+      "minItems": 1
+    },
+    "popups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Popup"
+      }
+    },
+    "map": {
+      "$ref": "#/$defs/Map"
+    },
+    "geoMap": {
+      "$ref": "#/$defs/GeoMap"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "scenes"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Position": {
+      "type": "object",
+      "properties": {
+        "yaw": {
+          "type": "number",
+          "description": "Horizontal angle in degrees. Positive values look right."
+        },
+        "pitch": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Vertical angle in degrees. Positive values look up."
+        }
+      },
+      "required": [
+        "yaw",
+        "pitch"
+      ],
+      "additionalProperties": false
+    },
+    "View": {
+      "type": "object",
+      "properties": {
+        "yaw": {
+          "type": "number",
+          "description": "Horizontal angle in degrees. Positive values look right."
+        },
+        "pitch": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Vertical angle in degrees. Positive values look up."
+        },
+        "fov": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180,
+          "description": "Vertical field of view in degrees."
+        }
+      },
+      "required": [
+        "yaw",
+        "pitch",
+        "fov"
+      ],
+      "additionalProperties": false
+    },
+    "InitialView": {
+      "type": "object",
+      "properties": {
+        "yaw": {
+          "type": "number",
+          "description": "Horizontal angle in degrees. Positive values look right."
+        },
+        "pitch": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Vertical angle in degrees. Positive values look up."
+        },
+        "fov": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 180,
+          "description": "Vertical field of view in degrees."
+        }
+      },
+      "additionalProperties": false
+    },
+    "PointPlacement": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/Position"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "mode": {
+          "enum": [
+            "surface",
+            "billboard"
+          ]
+        },
+        "distance": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "scaleMode": {
+          "enum": [
+            "fov",
+            "fixed"
+          ]
+        },
+        "referenceFov": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "position"
+      ]
+    },
+    "HotspotTooltip": {
+      "type": "object",
+      "properties": {
+        "tooltip": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string"
+                },
+                "imageAlt": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "tooltipTrigger": {
+          "enum": [
+            "always",
+            "hover",
+            "click"
+          ]
+        },
+        "tooltipPlacement": {
+          "enum": [
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ]
+        },
+        "tooltipMode": {
+          "enum": [
+            "surface",
+            "billboard"
+          ]
+        },
+        "tooltipScaleMode": {
+          "enum": [
+            "inherit",
+            "fov",
+            "fixed"
+          ]
+        },
+        "tooltipOffset": {
+          "type": "number"
+        },
+        "tooltipAppearance": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string"
+            },
+            "color": {
+              "type": "string"
+            },
+            "border": {
+              "type": "string"
+            },
+            "borderRadius": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "shadow": {
+              "type": "string"
+            },
+            "padding": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "fontSize": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "fontFamily": {
+              "type": "string"
+            },
+            "lineHeight": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "letterSpacing": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "SceneAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "scene"
+        },
+        "sceneId": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "ID of an existing scene."
+        }
+      },
+      "required": [
+        "type",
+        "sceneId"
+      ],
+      "additionalProperties": false
+    },
+    "Action": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SceneAction"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "popup"
+            },
+            "popupId": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "ID of an existing project popup."
+            }
+          },
+          "required": [
+            "type",
+            "popupId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "view"
+            },
+            "view": {
+              "$ref": "#/$defs/View"
+            },
+            "duration": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "view"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "custom"
+            },
+            "actionId": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "params": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "type",
+            "actionId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Graphic": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "circle",
+                "triangle",
+                "diamond",
+                "star",
+                "arrow"
+              ]
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "strokeWidth": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "rectangle"
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "strokeWidth": {
+              "type": "number"
+            },
+            "cornerRadius": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "ring"
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "strokeWidth": {
+              "type": "number"
+            },
+            "innerRadius": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "svg"
+            },
+            "src": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "kind",
+            "src"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "path"
+            },
+            "fill": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "stroke": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "strokeWidth": {
+              "type": "number"
+            },
+            "path": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "viewBox": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "kind",
+            "path",
+            "viewBox"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CalloutContent": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "imageAlt": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "title": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "title"
+          ]
+        },
+        {
+          "properties": {
+            "text": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "properties": {
+            "image": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "image"
+          ]
+        }
+      ]
+    },
+    "Hotspot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "interactive": {
+          "type": "boolean"
+        },
+        "pointerEvents": {
+          "enum": [
+            "auto",
+            "none"
+          ]
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "renderOrder": {
+          "type": "number"
+        },
+        "action": {
+          "$ref": "#/$defs/Action",
+          "description": "Legacy click fallback. Prefer events.click."
+        },
+        "events": {
+          "type": "object",
+          "properties": {
+            "click": {
+              "$ref": "#/$defs/Action"
+            },
+            "pointerenter": {
+              "$ref": "#/$defs/Action"
+            },
+            "pointerleave": {
+              "$ref": "#/$defs/Action"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "unevaluatedProperties": false,
+      "oneOf": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "image"
+                },
+                "src": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "corners": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Position"
+                  },
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "description": "Four clockwise vertices of a convex quadrilateral, starting at the top left."
+                },
+                "chromaKey": {
+                  "type": "object",
+                  "properties": {
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "threshold": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "smoothing": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "color"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "type",
+                "src"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "if": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "object",
+                    "properties": {
+                      "click": true
+                    },
+                    "required": [
+                      "click"
+                    ]
+                  }
+                },
+                "required": [
+                  "events"
+                ]
+              },
+              "then": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "object",
+                    "properties": {
+                      "click": {
+                        "$ref": "#/$defs/SceneAction"
+                      }
+                    }
+                  }
+                }
+              },
+              "else": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "$ref": "#/$defs/SceneAction"
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "portal"
+                },
+                "position": {
+                  "$ref": "#/$defs/Position"
+                },
+                "width": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "scale": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "rotation": {
+                  "type": "number"
+                },
+                "shape": {
+                  "enum": [
+                    "rectangle",
+                    "circle",
+                    "ellipse"
+                  ]
+                },
+                "frame": {
+                  "type": "object",
+                  "properties": {
+                    "color": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "src": {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    "thickness": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 0.25
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "enterOnZoom": {
+                  "type": "boolean"
+                },
+                "arrivalView": {
+                  "$ref": "#/$defs/View"
+                }
+              },
+              "required": [
+                "type",
+                "position"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "graphic"
+                },
+                "graphic": {
+                  "$ref": "#/$defs/Graphic"
+                }
+              },
+              "required": [
+                "type",
+                "graphic"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "sequence"
+                },
+                "src": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "frameCount": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "frameDirection": {
+                  "enum": [
+                    "horizontal",
+                    "vertical"
+                  ]
+                },
+                "playing": {
+                  "type": "boolean"
+                },
+                "fps": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "loop": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "type",
+                "src",
+                "frameCount"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "video"
+                },
+                "src": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "corners": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Position"
+                  },
+                  "minItems": 4,
+                  "maxItems": 4,
+                  "description": "Four clockwise vertices of a convex quadrilateral, starting at the top left."
+                },
+                "chromaKey": {
+                  "type": "object",
+                  "properties": {
+                    "color": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "threshold": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "smoothing": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "color"
+                  ],
+                  "additionalProperties": false
+                },
+                "poster": {
+                  "type": "string"
+                },
+                "playing": {
+                  "type": "boolean"
+                },
+                "loop": {
+                  "type": "boolean"
+                },
+                "muted": {
+                  "type": "boolean"
+                },
+                "volume": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "crossOrigin": {
+                  "enum": [
+                    "",
+                    "anonymous",
+                    "use-credentials"
+                  ]
+                },
+                "playsInline": {
+                  "type": "boolean"
+                },
+                "preload": {
+                  "enum": [
+                    "none",
+                    "metadata",
+                    "auto"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "src"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "audio"
+                },
+                "src": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "\\S"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "\\S"
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                },
+                "format": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "\\S"
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                },
+                "playing": {
+                  "type": "boolean"
+                },
+                "loop": {
+                  "type": "boolean"
+                },
+                "muted": {
+                  "type": "boolean"
+                },
+                "volume": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "crossOrigin": {
+                  "enum": [
+                    "",
+                    "anonymous",
+                    "use-credentials"
+                  ]
+                },
+                "pauseWhenHidden": {
+                  "type": "boolean"
+                },
+                "range": {
+                  "type": "number"
+                },
+                "spatialAudio": {
+                  "type": "boolean"
+                },
+                "soundDistance": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "playingIcon": {
+                  "type": "string"
+                },
+                "marker": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "type",
+                "src"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "text"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "fontFamily": {
+                  "type": "string"
+                },
+                "fontSize": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "fontWeight": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "fontStyle": {
+                  "enum": [
+                    "normal",
+                    "italic"
+                  ]
+                },
+                "color": {
+                  "type": "string"
+                },
+                "background": {
+                  "type": "string"
+                },
+                "backgroundOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "verticalAlign": {
+                  "enum": [
+                    "top",
+                    "middle",
+                    "bottom"
+                  ]
+                },
+                "whiteSpace": {
+                  "enum": [
+                    "normal",
+                    "nowrap"
+                  ]
+                },
+                "lineHeight": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "borderRadius": {
+                  "type": "number"
+                },
+                "stroke": {
+                  "type": "string"
+                },
+                "strokeWidth": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "text"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "iframe"
+                },
+                "src": {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "sandbox": {
+                  "type": "string"
+                },
+                "allow": {
+                  "type": "string"
+                },
+                "referrerPolicy": {
+                  "enum": [
+                    "",
+                    "no-referrer",
+                    "no-referrer-when-downgrade",
+                    "origin",
+                    "origin-when-cross-origin",
+                    "same-origin",
+                    "strict-origin",
+                    "strict-origin-when-cross-origin",
+                    "unsafe-url"
+                  ]
+                },
+                "loading": {
+                  "enum": [
+                    "eager",
+                    "lazy"
+                  ]
+                },
+                "pointerPolicy": {
+                  "enum": [
+                    "hotspot",
+                    "content"
+                  ]
+                },
+                "background": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "src"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/PointPlacement"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "callout"
+                },
+                "content": {
+                  "$ref": "#/$defs/CalloutContent"
+                },
+                "trigger": {
+                  "enum": [
+                    "click",
+                    "hover",
+                    "look",
+                    "always"
+                  ]
+                },
+                "line": {
+                  "type": "object",
+                  "properties": {
+                    "color": {
+                      "type": "string"
+                    },
+                    "angle": {
+                      "type": "number"
+                    },
+                    "length": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "width": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "appearance": {
+                  "type": "object",
+                  "properties": {
+                    "background": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    },
+                    "titleBackground": {
+                      "type": "string"
+                    },
+                    "titleColor": {
+                      "type": "string"
+                    },
+                    "accentColor": {
+                      "type": "string"
+                    },
+                    "fontFamily": {
+                      "type": "string"
+                    },
+                    "width": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "fontSize": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "titleFontSize": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "padding": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "borderRadius": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "animation": {
+                  "type": "object",
+                  "properties": {
+                    "lineDuration": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "contentDuration": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "marker": {
+                  "type": "object",
+                  "properties": {
+                    "color": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "lookAngle": {
+                  "type": "number"
+                },
+                "lookDelay": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "content"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "polygon"
+                },
+                "vertices": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Position"
+                  },
+                  "minItems": 3
+                },
+                "fill": {
+                  "type": "string"
+                },
+                "fillOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "stroke": {
+                  "type": "string"
+                },
+                "strokeWidth": {
+                  "type": "number"
+                },
+                "strokeOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "strokeDashSize": {
+                  "type": "number"
+                },
+                "strokeGapSize": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "vertices"
+              ]
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HotspotTooltip"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "polyline"
+                },
+                "vertices": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Position"
+                  },
+                  "minItems": 2
+                },
+                "stroke": {
+                  "type": "string"
+                },
+                "strokeWidth": {
+                  "type": "number"
+                },
+                "strokeOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "strokeDashSize": {
+                  "type": "number"
+                },
+                "strokeGapSize": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "vertices"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "ViewerConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "previewUrl": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Path to the converter's preview image."
+            },
+            "type": {
+              "const": "tile"
+            },
+            "urlTemplate": {
+              "type": "string",
+              "pattern": "\\S",
+              "allOf": [
+                {
+                  "pattern": "^(?:[^%]|%s|%l|%0*[hxucvywr])*$"
+                }
+              ],
+              "description": "Preserve the template and placeholders from the converter output."
+            },
+            "multires": {
+              "type": "object",
+              "properties": {
+                "tileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8192
+                },
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                }
+              },
+              "required": [
+                "tileSize",
+                "levels"
+              ],
+              "additionalProperties": false
+            },
+            "previewFaceOrder": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "f",
+                  "r",
+                  "b",
+                  "l",
+                  "u",
+                  "d"
+                ]
+              },
+              "minItems": 6,
+              "maxItems": 6,
+              "uniqueItems": true,
+              "description": "Actual face order in the preview strip."
+            }
+          },
+          "required": [
+            "type",
+            "previewUrl",
+            "urlTemplate",
+            "multires",
+            "previewFaceOrder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "previewUrl": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "Path to the converter's preview image."
+            },
+            "type": {
+              "const": "sphereTile"
+            },
+            "urlTemplate": {
+              "type": "string",
+              "pattern": "\\S",
+              "allOf": [
+                {
+                  "pattern": "^(?:[^%]|%l|%0*[hxucvywr])*$"
+                }
+              ],
+              "description": "Preserve the template and placeholders from the converter output."
+            },
+            "multires": {
+              "type": "object",
+              "properties": {
+                "tileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8192
+                },
+                "levels": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "width": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "height": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 64
+                }
+              },
+              "required": [
+                "tileSize",
+                "levels"
+              ],
+              "additionalProperties": false
+            },
+            "indexBase": {
+              "enum": [
+                0,
+                1
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "previewUrl",
+            "urlTemplate",
+            "multires",
+            "indexBase"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Scene": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "Unique scene ID within the project."
+        },
+        "title": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "viewerUrl": {
+                  "type": "string",
+                  "pattern": "\\S",
+                  "description": "Existing viewer.json URL, relative to the project document or absolute."
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "viewerUrl"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "viewerConfig": {
+                  "$ref": "#/$defs/ViewerConfig"
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "viewerConfig"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "initialView": {
+          "$ref": "#/$defs/InitialView"
+        },
+        "viewLimits": {
+          "type": "object",
+          "properties": {
+            "yaw": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "max": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false,
+              "description": "A min greater than max crosses ±180 degrees."
+            },
+            "pitch": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "max": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            },
+            "fov": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 179
+                },
+                "max": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 179
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "northYaw": {
+          "type": "number",
+          "description": "Viewer yaw when facing true north, in degrees."
+        },
+        "levelCorrection": {
+          "type": "object",
+          "properties": {
+            "pitch": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "roll": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          "additionalProperties": false
+        },
+        "hotspots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Hotspot"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "Popup": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "title": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PopupBlock"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "blocks"
+      ],
+      "additionalProperties": false
+    },
+    "PopupBlock": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "image"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "src": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "An existing asset path or URL. Relative paths use the project directory."
+            },
+            "alt": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "src"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "video"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "src": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "An existing asset path or URL. Relative paths use the project directory."
+            },
+            "poster": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "src"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "audio"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "src": {
+              "type": "string",
+              "pattern": "\\S",
+              "description": "An existing asset path or URL. Relative paths use the project directory."
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "src"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "MapPresentation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "panel",
+            "dialog"
+          ]
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*0*(?:100(?:\\.0+)?|[1-9]\\d?(?:\\.\\d+)?|0\\.\\d*[1-9]\\d*)%\\s*$"
+            }
+          ],
+          "description": "Positive CSS pixels or a percentage in (0, 100], such as 40%."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*0*(?:100(?:\\.0+)?|[1-9]\\d?(?:\\.\\d+)?|0\\.\\d*[1-9]\\d*)%\\s*$"
+            }
+          ],
+          "description": "Positive CSS pixels or a percentage in (0, 100], such as 40%."
+        },
+        "anchor": {
+          "type": "object",
+          "properties": {
+            "align": {
+              "enum": [
+                "top",
+                "bottom",
+                "left",
+                "right",
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ]
+            },
+            "axis": {
+              "enum": [
+                "horizontal",
+                "vertical"
+              ]
+            },
+            "inset": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "\\S"
+                    }
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "top": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "\\S"
+                        }
+                      ]
+                    },
+                    "right": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "\\S"
+                        }
+                      ]
+                    },
+                    "bottom": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "\\S"
+                        }
+                      ]
+                    },
+                    "left": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "\\S"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "MapSector": {
+      "type": "object",
+      "properties": {
+        "angle": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 360
+        },
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "followFov": {
+          "type": "boolean"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "strokeColor": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "strokeWidth": {
+          "type": "number",
+          "minimum": 0
+        },
+        "strokeOpacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "gradient": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "radial",
+                "linear"
+              ]
+            },
+            "stops": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "offset": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "\\S"
+                  },
+                  "opacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "offset",
+                  "color"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "type",
+            "stops"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "angle",
+        "radius"
+      ],
+      "additionalProperties": false
+    },
+    "Map": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "An existing asset path or URL. Relative paths use the project directory."
+        },
+        "interaction": {
+          "enum": [
+            "fixed",
+            "zoom"
+          ]
+        },
+        "presentation": {
+          "$ref": "#/$defs/MapPresentation"
+        },
+        "controls": {
+          "type": "object",
+          "properties": {
+            "collapse": {
+              "type": "boolean"
+            },
+            "zoom": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "iconSize": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maxScale": {
+          "type": "number",
+          "minimum": 1
+        },
+        "dragMotion": {
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "inertia": {
+                  "type": "boolean"
+                },
+                "bounce": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "sector": {
+          "$ref": "#/$defs/MapSector"
+        },
+        "spots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "sceneId": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Normalized horizontal coordinate measured from the left edge."
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Normalized vertical coordinate measured from the top edge."
+              },
+              "heading": {
+                "type": "number",
+                "description": "Clockwise degrees from image up when viewer yaw is zero."
+              },
+              "icon": {
+                "type": "string",
+                "pattern": "\\S",
+                "description": "An existing asset path or URL. Relative paths use the project directory."
+              }
+            },
+            "required": [
+              "id",
+              "sceneId",
+              "x",
+              "y",
+              "heading"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "image",
+        "spots"
+      ],
+      "additionalProperties": false
+    },
+    "GeoMap": {
+      "type": "object",
+      "properties": {
+        "initialSourceId": {
+          "type": "string",
+          "pattern": "\\S",
+          "description": "ID of a basemap source supplied by the host application."
+        },
+        "presentation": {
+          "$ref": "#/$defs/MapPresentation"
+        },
+        "iconSize": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "controlsLayout": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "sector": {
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/$defs/MapSector"
+            }
+          ]
+        },
+        "minZoom": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "maxZoom": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "initialZoom": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "spots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "sceneId": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "positions": {
+                "type": "object",
+                "properties": {
+                  "wgs84": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "gcj02": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "bd09": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false,
+                "minProperties": 1
+              },
+              "label": {
+                "type": "string",
+                "pattern": "\\S"
+              },
+              "icon": {
+                "type": "string",
+                "pattern": "\\S",
+                "description": "An existing asset path or URL. Relative paths use the project directory."
+              },
+              "heading": {
+                "type": "number",
+                "description": "Clockwise degrees from true north when viewer yaw is zero."
+              }
+            },
+            "required": [
+              "id",
+              "sceneId",
+              "positions"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "spots"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -16,6 +16,7 @@ Start with `/basics` for Sphere and Tile loading, then `/controls` for view navi
 ## Contents
 
 - [Packages](#packages)
+- [Agent Skills](#agent-skills)
 - [Data sources and choosing an approach](#data-sources-and-choosing-an-approach)
 - [Static multi-scene projects](#static-multi-scene-projects)
 - [Installation](#installation)
@@ -43,6 +44,26 @@ The [embeddable tour editor](./packages/editor/README.md) provides local-directo
 | [@ericchen1990/pano-converter](./packages/converter/README.md) | Node.js library and `pano-convert` CLI. It builds tile pyramids, previews, and the `viewerConfig` the React package renders. It does not depend on React, cloud storage, or a database. |
 
 The sections below use the viewer. Generate a new tile pyramid with the converter, then pass its `viewerConfig` to `Tile`, `SphereTile`, or `Scenes`.
+
+## Agent Skills
+
+Run the following commands from your application project to list the skills and install the one you need.
+
+```sh
+npx skills add Eric-Chen1990/pano-view --list
+npx skills add Eric-Chen1990/pano-view --skill pano-view-react
+```
+
+| Skill | Use it to |
+| --- | --- |
+| [`pano-view-react`](./skills/pano-view-react/SKILL.md) | Integrate and troubleshoot the React viewer. |
+| [`pano-view-project`](./skills/pano-view-project/SKILL.md) | Build and validate a tour with `project.json` and `viewer.json`. |
+| [`pano-view-editor`](./skills/pano-view-editor/SKILL.md) | Embed the editor and connect host callbacks. |
+| [`pano-view-converter`](./skills/pano-view-converter/SKILL.md) | Convert images to tiles or restore images from tiles. |
+
+The installer lets you select your coding agent. Each skill includes a local quickstart. In Codex, for example, ask “Use `$pano-view-react` to display my 2:1 panorama in this Next.js app.”
+
+For tools that read documentation directly, use the [AI documentation index](https://pano-view-playground.vercel.app/llms.txt) or [all four quickstarts in one file](https://pano-view-playground.vercel.app/llms-full.txt).
 
 ## Data sources and choosing an approach
 

@@ -3,11 +3,12 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import { defineConfig } from "vite";
+import { playgroundAiDocs } from "./ai-docs-plugin";
 import { assetProxy, playgroundAssets } from "./assets-plugin";
 import { playgroundSeo } from "./seo-plugin";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), basicSsl(), playgroundAssets(), playgroundSeo()],
+  plugins: [react(), tailwindcss(), basicSsl(), playgroundAssets(), playgroundSeo(), playgroundAiDocs()],
   publicDir: false,
   server: {
     host: true,

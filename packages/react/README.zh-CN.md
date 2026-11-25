@@ -506,6 +506,46 @@ const project = await loadPanoProject("/tour/project.json", {
 
 完整静态示例见 playground 的 `/project` 页面和[示例 project.json](https://pano-view-playground.vercel.app/fixtures/projects/tour/project.json)。`/map` 在该漫游上展示平面图 overlay。
 
+### 校验 AI 生成的配置
+
+已安装的包导出两份可独立使用的 Draft 2020-12 Schema。`project.schema.json` 校验整个漫游和内联查看器配置，`viewer.schema.json` 校验转换器生成的独立描述文件。Schema 拒绝未知字段，自定义动作的 `params` 支持任意 JSON 对象。
+
+在应用目录按所用的包管理器选择命令。命令会离线检查 Schema 和 SDK 规则，包括项目内引用或查看器瓦片层级顺序。
+
+<details open>
+<summary>pnpm</summary>
+
+```sh
+pnpm exec pano-validate project tour/project.json
+pnpm exec pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+<details>
+<summary>npm</summary>
+
+```sh
+npm exec -- pano-validate project tour/project.json
+npm exec -- pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+<details>
+<summary>Yarn</summary>
+
+```sh
+yarn run pano-validate project tour/project.json
+yarn run pano-validate viewer tour/entrance/viewer.json
+```
+
+</details>
+
+校验失败时，命令返回非零退出码。编辑器可直接关联 `@ericchen1990/pano-view/schemas/project.schema.json` 或 `@ericchen1990/pano-view/schemas/viewer.schema.json`。
+
+让 AI 复用现有转换产物和资源路径。用 `loadPanoProject` 检查已提供的 JSON 和路径解析，再在浏览器中验证预览图和细节瓦片。[两场景示例与 Agent 工作流程](https://github.com/Eric-Chen1990/pano-view/blob/main/skills/pano-view-project/references/quickstart.md)
+
 ## 兼容 krpano 的瓦片输出
 
 当你需要围绕等距圆柱图像或现有 krpano 立方体瓦片金字塔构建 React 原生查看器时，请使用本包。将 krpano `<cube>` 的 `url` 与 `multires` 属性复制到 `Tile` 的 `urlTemplate` 与 `multires`，并将 `<preview url>` 复制到 `previewUrl`；krpano 的磁盘命名与本包默认不同，省略这些值会加载错误的瓦片或预览图。渲染、控件、热点与场景过渡仍由你的 React 应用负责。本包兼容该瓦片输出格式，但与 krpano 无隶属关系。
