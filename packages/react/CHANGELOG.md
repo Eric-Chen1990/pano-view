@@ -1,5 +1,11 @@
 # @ericchen1990/pano-view
 
+## 5.22.0
+
+### Minor Changes
+
+- d160365: Add optional `showDividerHandle` for wipe comparison dividers. The centered handle is decorative; the whole divider remains the drag target. Defaults to hidden.
+
 ## 5.21.0
 
 ### Minor Changes

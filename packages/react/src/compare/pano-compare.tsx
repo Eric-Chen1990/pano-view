@@ -148,7 +148,7 @@ const ComparePair = memo(function ComparePair({
 export function PanoCompare({
   scenes, activeSceneId, defaultActiveSceneId, onActiveSceneIdChange,
   presentation = "wipe", layout = "left-right",
-  dividerColor, dividerWidth,
+  dividerColor, dividerWidth, showDividerHandle,
   split: controlledSplit, defaultSplit = 0.5, onSplitChange,
   onSceneReady, onSceneError, renderHotspots,
 }: PanoCompareProps) {
@@ -201,8 +201,10 @@ export function PanoCompare({
 
   const compareActive = Boolean(visible) && !vrActive;
   useLayoutEffect(() => {
-    if (compareActive && host) host.setConfig({ layout, presentation, split, dividerColor, dividerWidth });
-  }, [compareActive, host, layout, presentation, split, dividerColor, dividerWidth]);
+    if (compareActive && host) {
+      host.setConfig({ layout, presentation, split, dividerColor, dividerWidth, showDividerHandle });
+    }
+  }, [compareActive, host, layout, presentation, split, dividerColor, dividerWidth, showDividerHandle]);
   useLayoutEffect(() => {
     if (compareActive && host) return () => host.setConfig(null);
   }, [compareActive, host]);

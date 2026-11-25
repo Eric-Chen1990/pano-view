@@ -773,7 +773,9 @@ at `1×`. Both presentations support `layout="left-right"` (default) and
 or set its starting position with `defaultSplit` (default `0.5`).
 In either presentation, `dividerColor` accepts a CSS color and `dividerWidth`
 sets the visible thickness in CSS pixels. The defaults are white and `2`;
-non-positive or non-finite widths use the default.
+non-positive or non-finite widths use the default. Set `showDividerHandle` to
+show a centered drag hint on the wipe divider. The handle is decorative; the
+whole divider remains the drag target. Split view never shows the handle.
 
 Each image retains its aspect ratio. For pixel-aligned wipes, prepare images
 with the same aspect ratio and register their contents before generating tiles.
@@ -1763,7 +1765,9 @@ Set the shared zoom range with `viewLimits.fov` on the containing `PanoViewer`.
 It sets the vertical field of view in degrees. Smaller angles zoom in further.
 `dividerColor` and `dividerWidth` customize the line in both presentations.
 They default to white and `2` CSS pixels. Non-positive or non-finite widths
-use the default.
+use the default. Set `showDividerHandle` to show a centered drag hint on the
+wipe divider. The handle is decorative; the whole divider remains the drag
+target. Split view never shows the handle.
 
 `renderHotspots(scene)` mounts one set of hotspots, projected into both panes in split view. Viewer overlays, dialogs, and hotspot actions are shared. An embedded iframe has a separate document in each pane. When the viewer enters WebVR, the active pair's `before` source fills the view. Exiting restores the comparison.
 

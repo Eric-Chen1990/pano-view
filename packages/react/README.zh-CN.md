@@ -742,6 +742,8 @@ import "@ericchen1990/pano-view/styles.css";
 或用 `defaultSplit` 设置起点（默认 `0.5`）。
 两种模式都可通过 `dividerColor` 设置分隔线的 CSS 颜色，通过 `dividerWidth`
 设置以 CSS 像素计的粗度。默认是白色、`2px`。非正数或非有限线宽使用默认值。
+设置 `showDividerHandle` 可在擦拭分隔线中央显示拖动提示。手柄仅作视觉引导，
+整条分隔线仍可拖动。分屏模式不显示手柄。
 
 两张图各自保留宽高比。需要擦拭时逐像素对应，请在生成瓦片前让两张图的宽高比一致，
 并对齐图像内容。`minScale` 设置两侧共用的最小倍率。省略时沿用 `1×` 下限和捏合回弹。
@@ -1646,7 +1648,8 @@ MAKE PANO (MULTIRES) 文件夹布局常为 `tiles/%s/l%l/%v/l%l_%s_%v_%h.jpg`，
 
 在外层 `PanoViewer` 上通过 `viewLimits.fov` 设置两侧共用的垂直视角范围。单位为度，
 角度越小画面越近。两种模式都支持 `dividerColor` 和 `dividerWidth`，默认白色、
-`2px`。非正数或非有限线宽使用默认值。
+`2px`。非正数或非有限线宽使用默认值。设置 `showDividerHandle` 可在擦拭分隔线
+中央显示拖动提示。手柄仅作视觉引导，整条分隔线仍可拖动。分屏模式不显示手柄。
 
 `renderHotspots(scene)` 挂载一套共享热点，在完整双画面的两格各投影一次。操作、浮层和弹窗共用。内嵌 iframe 在两格各有独立文档。进入 WebVR 时整窗显示当前组的 `before` 来源，退出后恢复对比。
 
