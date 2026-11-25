@@ -31,6 +31,7 @@ import {
   subscribeBackgroundAudioStore,
 } from "./background-audio-host";
 import { cn } from "./cn";
+import { preventWheelPageScroll, wheelTargetCanScroll } from "./contain-wheel";
 import { createSceneLoadProgressStore, SceneLoadProgressContext } from "./scene-load-progress";
 import { createXRAudioPose } from "./audio/xr-audio-pose";
 import { isPanoAudioUnlocked, resumePanoAudio } from "./audio/howl";
@@ -810,6 +811,26 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         root.removeEventListener("contextmenu", suppressNativeContextMenu, true);
       };
     }, []);
+
+    const wheelZoomEnabled = Boolean(
+      userControlsEnabled
+        && mouseChannel.mount
+        && mouseChannel.props.enabled !== false
+        && mouseChannel.props.wheel !== false,
+    );
+
+    useEffect(() => {
+      const root = rootRef.current;
+      if (!root || !wheelZoomEnabled) {
+        return;
+      }
+      const onWheel = (event: WheelEvent) => {
+        if (wheelTargetCanScroll(root, event)) return;
+        preventWheelPageScroll(event);
+      };
+      root.addEventListener("wheel", onWheel, { passive: false, capture: true });
+      return () => root.removeEventListener("wheel", onWheel, { capture: true });
+    }, [wheelZoomEnabled]);
 
     const contextMenuActions = useMemo(
       () => ({

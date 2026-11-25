@@ -1,5 +1,6 @@
 import { usePanoUiTranslation } from "../ui-translation";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { preventWheelPageScroll } from "../contain-wheel";
 import { PlanarZoomControls } from "./zoom-controls";
 import { loadPlanarManifest, type Size } from "./manifest";
 import { PlanarMinimap } from "./minimap";
@@ -29,6 +30,7 @@ export function PlanarTileViewer({
   showZoomControls = true, showMinimap = false, fontFamily, className, style,
 }: PlanarTileViewerProps) {
   const t = usePanoUiTranslation();
+  const root = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const options = useRef<PlanarViewOptions>({ maxScale, initialScale, dragMotion });
@@ -38,6 +40,13 @@ export function PlanarTileViewer({
     url: string; attempt: number; source: Size; controls: PlanarControls;
   } | null>(null);
   const current = loaded?.url === manifestUrl && loaded.attempt === attempt ? loaded : null;
+
+  useEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    element.addEventListener("wheel", preventWheelPageScroll, { passive: false, capture: true });
+    return () => element.removeEventListener("wheel", preventWheelPageScroll, { capture: true });
+  }, []);
 
   useEffect(() => {
     options.current = { maxScale, initialScale, dragMotion };
@@ -70,7 +79,7 @@ export function PlanarTileViewer({
   }
 
   return (
-    <div className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"} style={rootStyle}>
+    <div ref={root} className={className ? `pano-planar-viewer ${className}` : "pano-planar-viewer"} style={rootStyle}>
       <div
         ref={viewport}
         className="pano-planar-viewport"

@@ -1,5 +1,6 @@
 import { usePanoUiTranslation } from "../ui-translation";
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { preventWheelPageScroll } from "../contain-wheel";
 import { CompareDivider } from "../compare/chrome";
 import { useCompareSplit } from "../compare/split";
 import type {
@@ -190,6 +191,13 @@ export function PlanarTileCompare({
   const comparison = useMemo(() => ({ layout, presentation, split }), [layout, presentation, split]);
   const options = useMemo(() => ({ initialScale, minScale, maxScale, dragMotion }),
     [initialScale, minScale, maxScale, dragMotion]);
+
+  useEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    element.addEventListener("wheel", preventWheelPageScroll, { passive: false, capture: true });
+    return () => element.removeEventListener("wheel", preventWheelPageScroll, { capture: true });
+  }, []);
 
   useLayoutEffect(() => {
     const element = root.current!;

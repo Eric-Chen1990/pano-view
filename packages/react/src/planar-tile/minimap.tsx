@@ -94,7 +94,11 @@ export function PlanarMinimap({ source, controls }: { source: Size; controls: Pl
     }
 
     element.addEventListener("wheel", (event) => {
-      if (!drag) controls.zoomWithWheel(event, imagePoint(event));
+      if (drag) {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+      controls.zoomWithWheel(event, imagePoint(event));
     }, { passive: false, signal });
 
     element.addEventListener("keydown", (event) => {

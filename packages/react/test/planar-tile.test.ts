@@ -490,6 +490,18 @@ test("planar runtime handles tile failures, gestures, synchronized panes and cle
   pair.setView({ center: { x: 0.6, y: 0.5 }, zoom: 1 });
   assert.equal(pair.getView().zoom, 1.75);
   assert.ok(pair.getView().center.x > 0.5);
+  const compareWheel = (deltaY: number) => Object.assign(new Event("wheel", { cancelable: true }), {
+    deltaMode: 0, deltaY, clientX: 30, clientY: 45,
+  }) as WheelEvent;
+  const atMinOut = compareWheel(40);
+  viewport.dispatchEvent(atMinOut);
+  assert.equal(atMinOut.defaultPrevented, true);
+  assert.equal(pair.getView().zoom, 1.75);
+  pair.setView({ center: FIT_VIEW.center, zoom: 3 });
+  const atMaxIn = compareWheel(-40);
+  viewport.dispatchEvent(atMaxIn);
+  assert.equal(atMaxIn.defaultPrevented, true);
+  assert.equal(pair.getView().zoom, 3);
   viewport.dispatchEvent(Object.assign(new Event("keydown"), { key: "Home" }));
   assert.deepEqual(pair.getView(), { center: FIT_VIEW.center, zoom: 1.75 });
   pair.zoom(0.1);

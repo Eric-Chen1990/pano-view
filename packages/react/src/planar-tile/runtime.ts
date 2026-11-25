@@ -365,14 +365,15 @@ export function mountPlanarSurfaces(
   }
 
   function zoomWithWheel(event: WheelEvent, imagePoint?: Point) {
+    // Keep the page from scrolling under the viewer, including at zoom limits,
+    // during a drag, and for zero-delta trackpad pans.
+    if (event.cancelable) event.preventDefault();
     if (signal.aborted || pointers.size || !viewport.width || !viewport.height) return;
     const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.height : 1;
     const delta = Math.max(-120, Math.min(120, event.deltaY * unit));
     if (!delta) return;
     const target = targetView();
     const atLimit = (delta > 0 && target.zoom <= range.min) || (delta < 0 && target.zoom >= range.max);
-    // Keep a wheel gesture over a single image from scrolling the page at either zoom limit.
-    if (!comparison || !atLimit) event.preventDefault();
     if (atLimit) return;
     const factor = Math.exp(-delta * 0.004);
     if (comparison) {
