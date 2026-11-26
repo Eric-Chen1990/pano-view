@@ -7,6 +7,7 @@ import { ExampleCode } from "../ExampleCode";
 import { ExamplePage } from "../ExamplePage";
 import {
   ControlsExample,
+  autoRotateAccelerationLimits,
   autoRotateSpeedLimits,
   navigationSpeedPresets,
   type ControlExampleKind,
@@ -42,7 +43,8 @@ export function ViewNavigation() {
 }`;
 }
 
-function automaticCode(speed: number) {
+function automaticCode(speed: number, acceleration: number, restoreFov: boolean) {
+  const fovProp = restoreFov ? "" : " fov={false}";
   return `import { useState } from "react";
 import { AutoRotate, PanoViewer, Tile } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
@@ -50,6 +52,7 @@ import "@ericchen1990/pano-view/styles.css";
 export function AutomaticRotation() {
   const [enabled, setEnabled] = useState(false);
   const [speed, setSpeed] = useState(${speed});
+  const [acceleration, setAcceleration] = useState(${acceleration});
   return (
     <>
       <button type="button" onClick={() => setEnabled((value) => !value)}>
@@ -66,9 +69,20 @@ export function AutomaticRotation() {
           onChange={(event) => setSpeed(event.currentTarget.valueAsNumber)}
         />
       </label>
+      <label>
+        Acceleration ({acceleration}°/s²)
+        <input
+          type="range"
+          min={${autoRotateAccelerationLimits.min}}
+          max={${autoRotateAccelerationLimits.max}}
+          step={${autoRotateAccelerationLimits.step}}
+          value={acceleration}
+          onChange={(event) => setAcceleration(event.currentTarget.valueAsNumber)}
+        />
+      </label>
       <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         ${cubeTileJsx(undefined, "        ")}
-        <AutoRotate enabled={enabled} speed={speed} startDelay={1000} />
+        <AutoRotate enabled={enabled} speed={speed} acceleration={acceleration} startDelay={1000}${fovProp} />
       </PanoViewer>
     </>
   );
@@ -108,6 +122,10 @@ export function ControlsPage() {
   const { t } = usePlaygroundLanguage();
   const [example, setExample] = useState<ControlExampleKind>("navigation");
   const [rotateSpeed, setRotateSpeed] = useState<number>(autoRotateSpeedLimits.initial);
+  const [rotateAcceleration, setRotateAcceleration] = useState<number>(
+    autoRotateAccelerationLimits.initial,
+  );
+  const [restoreFov, setRestoreFov] = useState(true);
   const [navigationPreset, setNavigationPreset] = useState<NavigationSpeedPreset>(
     navigationSpeedPresets[1],
   );
@@ -117,8 +135,8 @@ export function ControlsPage() {
       ? {
           label: "AutoRotate",
           blurb:
-            "Turn automatic rotation on or off, and set its speed in degrees per second. Negative values rotate left.",
-          code: automaticCode(rotateSpeed),
+            "Turn automatic rotation on or off, set speed and acceleration, and choose whether starting restores the initial FOV. Speed is degrees per second at the reference FOV; negative values rotate left.",
+          code: automaticCode(rotateSpeed, rotateAcceleration, restoreFov),
         }
       : example === "navigation"
         ? {
@@ -139,6 +157,10 @@ export function ControlsPage() {
         onExampleChange={setExample}
         rotateSpeed={rotateSpeed}
         onRotateSpeedChange={setRotateSpeed}
+        rotateAcceleration={rotateAcceleration}
+        onRotateAccelerationChange={setRotateAcceleration}
+        restoreFov={restoreFov}
+        onRestoreFovChange={setRestoreFov}
         navigationPreset={navigationPreset}
         onNavigationPresetChange={setNavigationPreset}
         flyOut={flyOut}

@@ -131,7 +131,9 @@ export type PanoramaViewRuntimeHandle = {
   setGyroPose: (pose: GyroPose) => void;
   /** Configures how pointer deltas combine with the gyro pose. */
   setGyroTouchMode: (mode: GyroTouchMode) => void;
-  applyAutoRotation: (yawDelta: number) => boolean;
+  applyAutoRotation: (delta: { yaw: number; fov?: number }) => boolean;
+  /** Constrained initial / reset view used by AutoRotate FOV restore. */
+  getInitialView: () => PanoViewerState;
   acquireInteractionLock: () => () => void;
 };
 
@@ -809,7 +811,13 @@ export const PanoramaViewRuntime = forwardRef<
         gyroTouchModeRef.current = mode;
       },
       acquireInteractionLock,
-      applyAutoRotation: (yawDelta: number) => {
+      getInitialView: () => hardConstrainView(initialViewRef.current),
+      applyAutoRotation: (delta) => {
+        const yawDelta = delta.yaw;
+        const fovDelta =
+          delta.fov !== undefined && Number.isFinite(delta.fov)
+            ? delta.fov
+            : undefined;
         const inertiaFinished =
           yawVelocityRef.current === 0 &&
           pitchVelocityRef.current === 0 &&
@@ -828,9 +836,24 @@ export const PanoramaViewRuntime = forwardRef<
           return false;
         }
 
-        const nextYaw = applyLimitedYawDelta(targetViewRef.current.yaw, yawDelta, limitsRef.current.yaw);
-        if (nextYaw === targetViewRef.current.yaw) return false;
-        targetViewRef.current.yaw = nextYaw;
+        const current = targetViewRef.current;
+        const nextYaw = applyLimitedYawDelta(
+          current.yaw,
+          yawDelta,
+          limitsRef.current.yaw,
+        );
+        const nextFov =
+          fovDelta === undefined
+            ? current.fov
+            : hardConstrainView({ fov: fovDelta }, current).fov;
+        if (nextYaw === current.yaw && nextFov === current.fov) {
+          return false;
+        }
+        targetViewRef.current = {
+          ...current,
+          yaw: nextYaw,
+          fov: nextFov,
+        };
         markDirty();
         return true;
       },

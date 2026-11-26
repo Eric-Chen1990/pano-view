@@ -32,6 +32,14 @@ export const autoRotateSpeedLimits = {
   initial: 18,
 } as const;
 
+/** Degrees per second squared. Zero snaps to the target speed. */
+export const autoRotateAccelerationLimits = {
+  min: 0,
+  max: 90,
+  step: 1,
+  initial: 18,
+} as const;
+
 export const navigationSpeedPresets = [
   {
     id: "slow",
@@ -69,6 +77,10 @@ export function ControlsExample({
   onExampleChange,
   rotateSpeed,
   onRotateSpeedChange,
+  rotateAcceleration,
+  onRotateAccelerationChange,
+  restoreFov,
+  onRestoreFovChange,
   navigationPreset,
   onNavigationPresetChange,
   flyOut,
@@ -78,6 +90,10 @@ export function ControlsExample({
   onExampleChange: (example: ControlExampleKind) => void;
   rotateSpeed: number;
   onRotateSpeedChange: (speed: number) => void;
+  rotateAcceleration: number;
+  onRotateAccelerationChange: (acceleration: number) => void;
+  restoreFov: boolean;
+  onRestoreFovChange: (restore: boolean) => void;
   navigationPreset: NavigationSpeedPreset;
   onNavigationPresetChange: (preset: NavigationSpeedPreset) => void;
   flyOut: boolean;
@@ -244,6 +260,40 @@ export function ControlsExample({
                 }}
               />
             </label>
+            <label className={controlLabelClassName}>
+              <span>
+                {t("Acceleration")}{" "}
+                <span aria-hidden="true" className="font-mono tracking-normal normal-case">
+                  {rotateAcceleration}°/s²
+                </span>
+              </span>
+              <input
+                type="range"
+                min={autoRotateAccelerationLimits.min}
+                max={autoRotateAccelerationLimits.max}
+                step={autoRotateAccelerationLimits.step}
+                value={rotateAcceleration}
+                className={cn(
+                  controlInputClassName,
+                  "w-44 p-0 focus-visible:outline-2 focus-visible:outline-[#75cbd3]",
+                )}
+                onChange={(event) => {
+                  const next = event.currentTarget.valueAsNumber;
+                  if (Number.isFinite(next)) onRotateAccelerationChange(next);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className={cn(
+                segmentedButtonClassName,
+                restoreFov && segmentedButtonActiveClassName,
+              )}
+              aria-pressed={restoreFov}
+              onClick={() => onRestoreFovChange(!restoreFov)}
+            >
+              {t("Return to initial FOV")}
+            </button>
           </>
         ) : null}
         {example === "gyro" ? (
@@ -311,7 +361,13 @@ export function ControlsExample({
           graphic={{ kind: "circle", fill: "#df6b42" }}
           tooltip={t("Navigation target")}
         />
-        <AutoRotate enabled={autoRotate} speed={rotateSpeed} startDelay={1000} />
+        <AutoRotate
+          enabled={autoRotate}
+          speed={rotateSpeed}
+          acceleration={rotateAcceleration}
+          startDelay={1000}
+          fov={restoreFov ? undefined : false}
+        />
         <Gyro
           ref={gyro}
           enabled={gyroEnabled}
