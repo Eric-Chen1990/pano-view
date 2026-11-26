@@ -2128,11 +2128,13 @@ export function Tour() {
 
 ## AutoRotate
 
-自动旋转默认关闭。在 `PanoViewer` 内渲染 `AutoRotate` 以启用，并将旋转配置与用户输入控件分离。`speed` 是参考 FOV（回退目标，或关闭回退时 viewer 的初始 FOV）下的度/秒；负值向左旋转。实际偏航速度随当前 FOV 缩放，使不同缩放下屏幕移动速度保持一致。`acceleration` 为度/秒²，按带符号速度逼近目标，同时覆盖加速、减速与反向（默认 `18`，即默认速度约 1 秒达到）。设为 `0` 则立即以固定速度旋转。`startDelay` 为 `enabled` 变为 true 起的毫秒延迟，默认 `2`。旋转启动或交互后恢复时，FOV 会与加速同步缓动回 viewer 的初始 FOV；传 `fov={60}`（或其他数值）可指定回退目标，传 `fov={false}` 则保留当前缩放。回退过程中滚轮或捏合缩放会中断本轮回退。用户拖拽中，或拖拽惯性仍在衰减时，旋转暂停并在恢复时从零速度重新开始。组件挂载且 `enabled` 省略时按 `true` 处理；不渲染组件则不旋转。
+自动旋转默认关闭。在 `PanoViewer` 内渲染 `AutoRotate` 以启用，并将旋转配置与用户输入控件分离。`speed` 是参考 FOV（回退目标，或关闭回退时 viewer 的初始 FOV）下的度/秒；负值向左旋转。实际偏航速度随当前 FOV 缩放，使不同缩放下屏幕移动速度保持一致。`acceleration` 为度/秒²，按带符号速度逼近目标，同时覆盖加速、减速与反向（默认 `18`，即默认速度约 1 秒达到）。设为 `0` 则立即以固定速度旋转。`startDelay` 为 `enabled` 变为 true 起的毫秒延迟，默认 `2`。
+
+`resumeDelay` 是用户交互或 `lookTo` / `moveTo` / `zoomTo` 完成后，到旋转启动或恢复前的空闲毫秒数（默认 `3000`）。传 `0` 可恢复以前的立即恢复行为；传 `false` 表示用户交互后停止旋转，直到再次切换 `enabled`——已完成的导航仍按默认延迟等待后恢复。拖拽、触摸、键盘、滚轮或捏合缩放、关闭陀螺仪、公开 `setView` 与 `reset` 计为用户交互。导航进行中开启旋转不会取消该导航；旋转会等导航完成，再套用 `resumeDelay`。导航结束后恢复时不做 FOV 回退，以保留导航给出的 FOV；用户交互后恢复时，FOV 会与加速同步缓动回回退目标。在 `Scenes` 内，该目标为当前场景的 `initialView.fov`（未设置时回落到 viewer 的初始 FOV）。传 `fov={60}`（或其他数值）可指定回退目标，传 `fov={false}` 则保留当前缩放。回退过程中滚轮或捏合缩放会中断本轮回退。交互锁、小行星开场与 XR 仅暂停旋转，结束后立即恢复。暂停与恢复分别触发 `autorotatestop` / `autorotatestart`。组件挂载且 `enabled` 省略时按 `true` 处理；不渲染组件则不旋转。
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
-  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
+  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} resumeDelay={3_000} />
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```

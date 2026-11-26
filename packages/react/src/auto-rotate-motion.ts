@@ -4,6 +4,48 @@ export const AUTO_ROTATE_MAX_FRAME_DELTA_SECONDS = 1 / 30;
 /** Floor for FOV restore when acceleration is 0 or the ramp is very short. */
 export const AUTO_ROTATE_RESTORE_MIN_DURATION_SECONDS = 2;
 
+/** Default idle wait after user interaction or completed navigation. */
+export const AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS = 3000;
+
+export type AutoRotateHoldInput = {
+  at: number;
+  reason: "user" | "navigation";
+} | null;
+
+/**
+ * How long AutoRotate should wait before starting or resuming.
+ * Returns 0 when rotation may proceed, remaining milliseconds while waiting,
+ * or `"stopped"` when user interaction permanently pauses until re-enable.
+ * `resumeDelay === false` only stops after user holds; navigation uses the
+ * default delay.
+ */
+export function autoRotateResumeWait(
+  hold: AutoRotateHoldInput,
+  enabledAt: number,
+  now: number,
+  resumeDelay: number | false | undefined,
+): number | "stopped" {
+  if (!hold || !(hold.at > enabledAt)) {
+    return 0;
+  }
+
+  if (resumeDelay === false) {
+    if (hold.reason === "user") {
+      return "stopped";
+    }
+    const remaining =
+      AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS - Math.max(0, now - hold.at);
+    return remaining > 0 ? remaining : 0;
+  }
+
+  const delayMs =
+    Number.isFinite(resumeDelay) && resumeDelay! >= 0
+      ? resumeDelay!
+      : AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS;
+  const remaining = delayMs - Math.max(0, now - hold.at);
+  return remaining > 0 ? remaining : 0;
+}
+
 /**
  * Moves a signed speed toward a signed target at a constant acceleration.
  * Acceleration of 0 snaps immediately to the target.

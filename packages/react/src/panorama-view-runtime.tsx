@@ -76,11 +76,24 @@ export type ApplyViewDeltaOptions = {
   source?: "mouse" | "touch" | "keyboard";
 };
 
+/** Why AutoRotate is waiting before it may start or resume. */
+export type AutoRotateHoldReason = "user" | "navigation";
+
+export type AutoRotateHold = {
+  at: number;
+  reason: AutoRotateHoldReason;
+};
+
 export type PanoramaViewRuntimeHandle = {
   getView: () => PanoViewerState;
   getPointerDragState: () => { revision: number; anchored: boolean };
   /** Internal scene override, applied before the incoming initial view. */
   setSceneViewLimits: (limits: PanoViewLimits | undefined) => void;
+  /**
+   * Scene landing view used by AutoRotate FOV restore. Falls back to the
+   * viewer initial view when cleared.
+   */
+  setSceneInitialView: (view: Partial<PanoViewerState> | undefined) => void;
   constrainSceneView: (view: PanoViewerState, sceneLimits?: PanoViewLimits) => PanoViewerState;
   /** Target view used by drag/zoom input before camera smoothing. */
   getTargetView: () => PanoViewerState;
@@ -125,6 +138,10 @@ export type PanoramaViewRuntimeHandle = {
    * lock is active. Used by idle timers and AutoRotate pause logic.
    */
   isUserInteracting: () => boolean;
+  /** Records a user interaction that pauses AutoRotate until resumeDelay. */
+  markUserInteraction: () => void;
+  /** Latest AutoRotate hold caused by user input or a completed navigation. */
+  getRotationHold: () => AutoRotateHold | null;
   /** Enables or disables device-orientation control. */
   setGyroActive: (active: boolean) => void;
   /** Updates the latest device-orientation pose. */
@@ -132,7 +149,10 @@ export type PanoramaViewRuntimeHandle = {
   /** Configures how pointer deltas combine with the gyro pose. */
   setGyroTouchMode: (mode: GyroTouchMode) => void;
   applyAutoRotation: (delta: { yaw: number; fov?: number }) => boolean;
-  /** Constrained initial / reset view used by AutoRotate FOV restore. */
+  /**
+   * Constrained scene or viewer initial view used by AutoRotate FOV restore.
+   * Scene overrides take precedence; reset() still uses the viewer initial view.
+   */
   getInitialView: () => PanoViewerState;
   acquireInteractionLock: () => () => void;
 };
@@ -234,6 +254,10 @@ export const PanoramaViewRuntime = forwardRef<
   const viewRef = useRef<PanoViewerState>({ ...(restoredView.current ?? initialView) });
   const targetViewRef = useRef<PanoViewerState>({ ...viewRef.current });
   const initialViewRef = useRef<PanoViewerState>({ ...initialView });
+  const sceneInitialViewRef = useRef<Partial<PanoViewerState> | undefined>(
+    undefined,
+  );
+  const rotationHoldRef = useRef<AutoRotateHold | null>(null);
   const yawVelocityRef = useRef(0);
   const pitchVelocityRef = useRef(0);
   const zoomVelocityRef = useRef(0);
@@ -295,6 +319,20 @@ export const PanoramaViewRuntime = forwardRef<
     activeNavigationRef.current != null ||
     introRef.current?.isPlaying() === true ||
     hasInertia() || Boolean(spatialHost?.mode && spatialHost.surfaces.size);
+
+  const markUserInteraction = () => {
+    rotationHoldRef.current = {
+      at: performance.now(),
+      reason: "user",
+    };
+  };
+
+  const markNavigationHold = () => {
+    rotationHoldRef.current = {
+      at: performance.now(),
+      reason: "navigation",
+    };
+  };
 
   const syncInteracting = () => {
     interactingRef.current = mouseActiveRef.current || touchActiveRef.current;
@@ -501,6 +539,7 @@ export const PanoramaViewRuntime = forwardRef<
 
     if (plan.duration === 0) {
       viewRef.current = target;
+      markNavigationHold();
       return Promise.resolve({ status: "completed" });
     }
 
@@ -570,6 +609,7 @@ export const PanoramaViewRuntime = forwardRef<
       return false;
     }
 
+    markUserInteraction();
     const current = targetViewRef.current;
     const origin = !gyroActiveRef.current ? applyOptions?.pointerOrigin : undefined;
     const reference = origin ?? current;
@@ -673,6 +713,9 @@ export const PanoramaViewRuntime = forwardRef<
         sceneLimitsRef.current = parseViewLimits(limits);
         refreshLimits();
       },
+      setSceneInitialView: (view) => {
+        sceneInitialViewRef.current = view;
+      },
       constrainSceneView: (view, sceneLimits) => hardConstrainView(
         view, view, resolveViewLimits(baseLimitsRef.current, sceneLimits,
           legacyFovRef.current.minFov, legacyFovRef.current.maxFov),
@@ -685,7 +728,10 @@ export const PanoramaViewRuntime = forwardRef<
         return input.event;
       },
       setView,
-      reset: () => setView(initialViewRef.current),
+      reset: () => {
+        markUserInteraction();
+        setView(initialViewRef.current);
+      },
       lookTo,
       moveTo,
       zoomTo,
@@ -696,6 +742,9 @@ export const PanoramaViewRuntime = forwardRef<
         if (active) {
           introRef.current?.finish();
           cancelNavigation();
+        }
+        if (active !== wasActive) {
+          markUserInteraction();
         }
         if (active && !wasActive) {
           eventBusRef.current.emit("viewinteractionstart", {
@@ -722,6 +771,9 @@ export const PanoramaViewRuntime = forwardRef<
           cancelNavigation();
         }
         syncInteracting();
+        if (active !== wasActive) {
+          markUserInteraction();
+        }
         if (active && !wasActive) {
           if (!gyroActiveRef.current) {
             targetViewRef.current = { ...targetViewRef.current, yaw: viewRef.current.yaw, pitch: viewRef.current.pitch };
@@ -744,6 +796,9 @@ export const PanoramaViewRuntime = forwardRef<
       },
       isInteractionLocked: () => interactionLockCountRef.current > 0,
       isUserInteracting,
+      markUserInteraction,
+      getRotationHold: () =>
+        rotationHoldRef.current ? { ...rotationHoldRef.current } : null,
       setGyroActive: (active: boolean) => {
         if (gyroActiveRef.current !== active) pointerRevisionRef.current += 1;
         if (active) {
@@ -754,6 +809,7 @@ export const PanoramaViewRuntime = forwardRef<
         gyroOffsetRef.current = { yaw: 0, pitch: 0 };
         stopVelocity();
         if (!active) {
+          markUserInteraction();
           gyroPoseDrivingRef.current = false;
           cameraRollRef.current = 0;
           markDirty();
@@ -811,7 +867,11 @@ export const PanoramaViewRuntime = forwardRef<
         gyroTouchModeRef.current = mode;
       },
       acquireInteractionLock,
-      getInitialView: () => hardConstrainView(initialViewRef.current),
+      getInitialView: () =>
+        hardConstrainView(
+          sceneInitialViewRef.current ?? {},
+          initialViewRef.current,
+        ),
       applyAutoRotation: (delta) => {
         const yawDelta = delta.yaw;
         const fovDelta =
@@ -952,6 +1012,7 @@ export const PanoramaViewRuntime = forwardRef<
 
       if (completed) {
         activeNavigationRef.current = null;
+        markNavigationHold();
         settledRef.current = true;
         eventBusRef.current.emit("viewsettled", emittedView);
         navigation.resolve({ status: "completed" });

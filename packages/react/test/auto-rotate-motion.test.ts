@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS,
   AUTO_ROTATE_RESTORE_MIN_DURATION_SECONDS,
   autoRotateRestoreDuration,
+  autoRotateResumeWait,
   fovScaledYawSpeed,
   sampleRestoreFov,
   stepAutoRotateSpeed,
@@ -64,4 +66,68 @@ test("sampleRestoreFov hits the endpoints and eases in between", () => {
   assert.ok(mid > 40 && mid < 75);
   assert.equal(mid, 57.5);
   assert.equal(sampleRestoreFov(40, 75, 2, 0), 75);
+});
+
+test("autoRotateResumeWait allows rotation without a hold", () => {
+  assert.equal(autoRotateResumeWait(null, 100, 200, 3000), 0);
+  assert.equal(
+    autoRotateResumeWait({ at: 50, reason: "user" }, 100, 200, 3000),
+    0,
+  );
+});
+
+test("autoRotateResumeWait waits after user interaction", () => {
+  assert.equal(
+    autoRotateResumeWait({ at: 100, reason: "user" }, 50, 1100, 3000),
+    2000,
+  );
+  assert.equal(
+    autoRotateResumeWait({ at: 100, reason: "user" }, 50, 3100, 3000),
+    0,
+  );
+  assert.equal(
+    autoRotateResumeWait({ at: 100, reason: "user" }, 50, 200, 0),
+    0,
+  );
+});
+
+test("autoRotateResumeWait stops after user interaction when resumeDelay is false", () => {
+  assert.equal(
+    autoRotateResumeWait({ at: 100, reason: "user" }, 50, 5000, false),
+    "stopped",
+  );
+  assert.equal(
+    autoRotateResumeWait(
+      { at: 100, reason: "navigation" },
+      50,
+      1100,
+      false,
+    ),
+    AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS - 1000,
+  );
+  assert.equal(
+    autoRotateResumeWait(
+      { at: 100, reason: "navigation" },
+      50,
+      4100,
+      false,
+    ),
+    0,
+  );
+});
+
+test("autoRotateResumeWait falls back to the default delay for invalid values", () => {
+  assert.equal(
+    autoRotateResumeWait({ at: 100, reason: "user" }, 50, 1100, -1),
+    AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS - 1000,
+  );
+  assert.equal(
+    autoRotateResumeWait(
+      { at: 100, reason: "navigation" },
+      50,
+      1100,
+      Number.NaN,
+    ),
+    AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS - 1000,
+  );
 });

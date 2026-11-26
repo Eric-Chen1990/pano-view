@@ -1,8 +1,10 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useRef } from "react";
 import {
+  AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS,
   AUTO_ROTATE_MAX_FRAME_DELTA_SECONDS,
   autoRotateRestoreDuration,
+  autoRotateResumeWait,
   fovScaledYawSpeed,
   sampleRestoreFov,
   stepAutoRotateSpeed,
@@ -34,9 +36,20 @@ export type AutoRotateProps = {
   /** Milliseconds to wait after enabling before rotation begins. */
   startDelay?: number;
   /**
+   * Idle milliseconds after a user interaction or completed lookTo / moveTo /
+   * zoomTo before rotation starts or resumes. Defaults to 3000. Pass `false`
+   * to stop after user interaction until `enabled` is toggled again;
+   * navigation still waits the default delay, then resumes. Pass `0` for the
+   * previous immediate-resume behaviour. After navigation, FOV restore is
+   * skipped so the navigated FOV is kept; after user interaction, FOV restores
+   * unless `fov={false}`.
+   */
+  resumeDelay?: number | false;
+  /**
    * FOV restored when rotation starts or resumes after interaction. Defaults
-   * to the viewer's initial view FOV. Pass `false` to keep the current zoom
-   * while still using the initial FOV as the speed-scaling reference.
+   * to the current scene's initial view FOV when inside Scenes, otherwise the
+   * viewer's initial view FOV. Pass `false` to keep the current zoom while
+   * still using that initial FOV as the speed-scaling reference.
    */
   fov?: number | false;
 };
@@ -68,6 +81,7 @@ export function AutoRotate({
   speed = DEFAULT_AUTO_ROTATE_SPEED,
   acceleration = DEFAULT_AUTO_ROTATE_ACCELERATION,
   startDelay = DEFAULT_AUTO_ROTATE_START_DELAY,
+  resumeDelay = AUTO_ROTATE_DEFAULT_RESUME_DELAY_MS,
   fov,
 }: AutoRotateProps) {
   const controlsRef = useContext(PanoramaViewContext);
@@ -78,44 +92,71 @@ export function AutoRotate({
   const rotatingRef = useRef(false);
   const yawAccumulatedRef = useRef(0);
   const fovRestoreRef = useRef<FovRestoreState | null>(null);
+  const enabledAtRef = useRef(performance.now());
+  const wakeTimerRef = useRef<number | null>(null);
+  const skipFovRestoreRef = useRef(false);
 
   if (!controlsRef) {
     throw new Error("<AutoRotate> must be rendered inside <PanoViewer>.");
   }
+
+  const clearWakeTimer = () => {
+    if (wakeTimerRef.current !== null) {
+      window.clearTimeout(wakeTimerRef.current);
+      wakeTimerRef.current = null;
+    }
+  };
+
+  const armWakeTimer = (delayMs: number) => {
+    clearWakeTimer();
+    wakeTimerRef.current = window.setTimeout(() => {
+      wakeTimerRef.current = null;
+      invalidate();
+    }, Math.max(0, delayMs));
+  };
+
+  const pause = () => {
+    rotationSpeedRef.current = 0;
+    fovRestoreRef.current = null;
+    if (rotatingRef.current) {
+      rotatingRef.current = false;
+      eventBus?.emit("autorotatestop", undefined);
+    }
+  };
 
   useEffect(() => {
     elapsedRef.current = 0;
     rotationSpeedRef.current = 0;
     yawAccumulatedRef.current = 0;
     fovRestoreRef.current = null;
+    enabledAtRef.current = performance.now();
+    skipFovRestoreRef.current = false;
+    clearWakeTimer();
     if (rotatingRef.current) {
       rotatingRef.current = false;
       eventBus?.emit("autorotatestop", undefined);
     }
-  }, [enabled, eventBus, startDelay]);
+  }, [enabled, eventBus, resumeDelay, startDelay]);
 
-  // Demand mode stops after settle; wake once startDelay elapses or the view settles.
+  // Demand mode stops after settle; wake so resumeDelay / startDelay can arm.
   useEffect(() => {
     if (!enabled || !Number.isFinite(speed) || speed === 0) return;
     const delay = resolveStartDelay(startDelay);
     const timer = window.setTimeout(() => invalidate(), delay);
     const unsubscribe = eventBus?.subscribe("viewsettled", () => {
-      window.setTimeout(() => invalidate(), resolveStartDelay(startDelay));
+      window.setTimeout(() => invalidate(), 0);
     });
     return () => {
       window.clearTimeout(timer);
       unsubscribe?.();
+      clearWakeTimer();
     };
   }, [enabled, eventBus, invalidate, speed, startDelay]);
 
   useFrame((state, deltaSeconds) => {
     if (!enabled || !Number.isFinite(speed) || speed === 0) {
-      rotationSpeedRef.current = 0;
-      fovRestoreRef.current = null;
-      if (rotatingRef.current) {
-        rotatingRef.current = false;
-        eventBus?.emit("autorotatestop", undefined);
-      }
+      clearWakeTimer();
+      pause();
       return;
     }
 
@@ -132,6 +173,25 @@ export function AutoRotate({
       return;
     }
 
+    const hold = runtime.getRotationHold();
+    const wait = autoRotateResumeWait(
+      hold,
+      enabledAtRef.current,
+      performance.now(),
+      resumeDelay,
+    );
+    if (wait === "stopped") {
+      clearWakeTimer();
+      pause();
+      return;
+    }
+    if (wait > 0) {
+      pause();
+      armWakeTimer(wait);
+      return;
+    }
+    clearWakeTimer();
+
     const accelerationPerSecond = resolveAcceleration(acceleration);
     const currentSpeed = rotationSpeedRef.current;
     const nextSpeed = stepAutoRotateSpeed(
@@ -147,8 +207,16 @@ export function AutoRotate({
     const renderedView = runtime.getView();
     const targetView = runtime.getTargetView();
     const starting = !rotatingRef.current;
+    const resumeAfterNavigation =
+      hold !== null &&
+      hold.at > enabledAtRef.current &&
+      hold.reason === "navigation";
 
-    if (starting && fov !== false) {
+    if (starting) {
+      skipFovRestoreRef.current = resumeAfterNavigation;
+    }
+
+    if (starting && fov !== false && !skipFovRestoreRef.current) {
       const toFov =
         fov !== undefined && Number.isFinite(fov) ? fov : initialView.fov;
       const constrainedTo = runtime.constrainSceneView({
@@ -168,6 +236,8 @@ export function AutoRotate({
       } else {
         fovRestoreRef.current = null;
       }
+    } else if (starting) {
+      fovRestoreRef.current = null;
     }
 
     let restoreFov: number | undefined;
@@ -207,12 +277,7 @@ export function AutoRotate({
         ...(restoreFov !== undefined ? { fov: restoreFov } : {}),
       })
     ) {
-      rotationSpeedRef.current = 0;
-      fovRestoreRef.current = null;
-      if (rotatingRef.current) {
-        rotatingRef.current = false;
-        eventBus?.emit("autorotatestop", undefined);
-      }
+      pause();
       return;
     }
 

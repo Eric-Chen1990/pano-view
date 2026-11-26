@@ -10,6 +10,7 @@ import {
   autoRotateAccelerationLimits,
   autoRotateSpeedLimits,
   navigationSpeedPresets,
+  type AutoRotateResumeDelay,
   type ControlExampleKind,
   type NavigationSpeedPreset,
 } from "./controls-example";
@@ -43,13 +44,26 @@ export function ViewNavigation() {
 }`;
 }
 
-function automaticCode(speed: number, acceleration: number, restoreFov: boolean) {
+function resumeDelayProp(resumeDelay: AutoRotateResumeDelay): string {
+  if (resumeDelay === 3000) return "";
+  if (resumeDelay === false) return " resumeDelay={false}";
+  return ` resumeDelay={${resumeDelay}}`;
+}
+
+function automaticCode(
+  speed: number,
+  acceleration: number,
+  restoreFov: boolean,
+  resumeDelay: AutoRotateResumeDelay,
+) {
   const fovProp = restoreFov ? "" : " fov={false}";
+  const delayProp = resumeDelayProp(resumeDelay);
   return `import { useState } from "react";
-import { AutoRotate, PanoViewer, Tile } from "@ericchen1990/pano-view";
+import { AutoRotate, GraphicHotspot, PanoViewer, Tile, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function AutomaticRotation() {
+  const viewer = usePanoViewer();
   const [enabled, setEnabled] = useState(false);
   const [speed, setSpeed] = useState(${speed});
   const [acceleration, setAcceleration] = useState(${acceleration});
@@ -57,6 +71,9 @@ export function AutomaticRotation() {
     <>
       <button type="button" onClick={() => setEnabled((value) => !value)}>
         {enabled ? "Stop rotation" : "Start rotation"}
+      </button>
+      <button type="button" onClick={() => void viewer.lookToHotspot("target", { fov: 55 })}>
+        Run lookTo while rotating
       </button>
       <label>
         Rotation speed ({speed}°/s)
@@ -80,9 +97,10 @@ export function AutomaticRotation() {
           onChange={(event) => setAcceleration(event.currentTarget.valueAsNumber)}
         />
       </label>
-      <PanoViewer style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
+      <PanoViewer ref={viewer.ref} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
         ${cubeTileJsx(undefined, "        ")}
-        <AutoRotate enabled={enabled} speed={speed} acceleration={acceleration} startDelay={1000}${fovProp} />
+        <GraphicHotspot id="target" ariaLabel="Navigation target" position={{ yaw: -62, pitch: 4 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} />
+        <AutoRotate enabled={enabled} speed={speed} acceleration={acceleration} startDelay={1000}${delayProp}${fovProp} />
       </PanoViewer>
     </>
   );
@@ -126,6 +144,7 @@ export function ControlsPage() {
     autoRotateAccelerationLimits.initial,
   );
   const [restoreFov, setRestoreFov] = useState(true);
+  const [resumeDelay, setResumeDelay] = useState<AutoRotateResumeDelay>(3000);
   const [navigationPreset, setNavigationPreset] = useState<NavigationSpeedPreset>(
     navigationSpeedPresets[1],
   );
@@ -135,8 +154,13 @@ export function ControlsPage() {
       ? {
           label: "AutoRotate",
           blurb:
-            "Turn automatic rotation on or off, set speed and acceleration, and choose whether starting restores the initial FOV. Speed is degrees per second at the reference FOV; negative values rotate left.",
-          code: automaticCode(rotateSpeed, rotateAcceleration, restoreFov),
+            "Turn automatic rotation on or off, set speed, acceleration, and resume delay, and choose whether starting restores the initial FOV. Drag pauses rotation; use Run lookTo while rotating to see navigation win, then resume after the delay without restoring FOV. Speed is degrees per second at the reference FOV; negative values rotate left.",
+          code: automaticCode(
+            rotateSpeed,
+            rotateAcceleration,
+            restoreFov,
+            resumeDelay,
+          ),
         }
       : example === "navigation"
         ? {
@@ -161,6 +185,8 @@ export function ControlsPage() {
         onRotateAccelerationChange={setRotateAcceleration}
         restoreFov={restoreFov}
         onRestoreFovChange={setRestoreFov}
+        resumeDelay={resumeDelay}
+        onResumeDelayChange={setResumeDelay}
         navigationPreset={navigationPreset}
         onNavigationPresetChange={setNavigationPreset}
         flyOut={flyOut}

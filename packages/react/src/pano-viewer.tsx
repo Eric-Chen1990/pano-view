@@ -887,6 +887,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         getView: () =>
           controlsRef.current?.getView() ?? { ...fallbackViewRef.current },
         setView: (view, options) => {
+          controlsRef.current?.markUserInteraction();
           controlsRef.current?.setView(view, options);
         },
         reset: () => {
