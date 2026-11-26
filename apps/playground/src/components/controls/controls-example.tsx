@@ -32,6 +32,22 @@ export const autoRotateSpeedLimits = {
   initial: 18,
 } as const;
 
+export const navigationSpeedPresets = [
+  {
+    id: "slow",
+    label: "Slow",
+    speed: 0.4,
+    acceleration: 0.5,
+    deceleration: 0.32,
+    maxDuration: 8000,
+  },
+  { id: "default", label: "Default", speed: 0.8 },
+  { id: "fast", label: "Fast", speed: 3, acceleration: 6, deceleration: 4 },
+] as const;
+
+export type NavigationSpeedPresetId = (typeof navigationSpeedPresets)[number]["id"];
+export type NavigationSpeedPreset = (typeof navigationSpeedPresets)[number];
+
 function FullscreenButton({ toggle }: { toggle: () => void }) {
   const { t } = usePlaygroundLanguage();
   const { isFullscreen } = usePanoOverlay();
@@ -53,11 +69,19 @@ export function ControlsExample({
   onExampleChange,
   rotateSpeed,
   onRotateSpeedChange,
+  navigationPreset,
+  onNavigationPresetChange,
+  flyOut,
+  onFlyOutChange,
 }: {
   example: ControlExampleKind;
   onExampleChange: (example: ControlExampleKind) => void;
   rotateSpeed: number;
   onRotateSpeedChange: (speed: number) => void;
+  navigationPreset: NavigationSpeedPreset;
+  onNavigationPresetChange: (preset: NavigationSpeedPreset) => void;
+  flyOut: boolean;
+  onFlyOutChange: (flyOut: boolean) => void;
 }) {
   const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
@@ -68,6 +92,22 @@ export function ControlsExample({
   const [status, setStatus] = useState<LocalizedMessage>(
     "Drag to look around. Focus the canvas to use arrow keys; scroll or pinch to zoom.",
   );
+
+  const reportNavigation = (
+    label: "Look north" | "Look to hotspot",
+    startedAt: number,
+  ) =>
+    (result: { status: string }) => {
+      const elapsedMs = Math.round(performance.now() - startedAt);
+      setStatus(
+        message("{label}: {status} ({duration} ms)", {
+          label: t(label),
+          status: result.status,
+          duration: elapsedMs,
+        }),
+      );
+    };
+
   return (
     <>
       <div className={pageControlsClassName}>
@@ -117,21 +157,58 @@ export function ControlsExample({
             <button
               type="button"
               className={segmentedButtonClassName}
-              onClick={() =>
+              onClick={() => {
+                const startedAt = performance.now();
                 void viewer
                   .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
-                  .then(({ status }) => setStatus(message("Look north: {status}", { status })))
-              }
+                  .then(reportNavigation("Look north", startedAt));
+              }}
             >{t("Look north")}</button>
             <button
               type="button"
               className={segmentedButtonClassName}
-              onClick={() =>
+              onClick={() => {
+                const startedAt = performance.now();
                 void viewer
                   .lookToHotspot("target", { fov: 55 })
-                  .then(({ status }) => setStatus(message("Look to hotspot: {status}", { status })))
-              }
+                  .then(reportNavigation("Look to hotspot", startedAt));
+              }}
             >{t("Look to hotspot")}</button>
+            <div className={controlLabelClassName}>
+              {t("Navigation speed")}
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={t("Navigation speed")}
+              >
+                {navigationSpeedPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-pressed={navigationPreset.id === preset.id}
+                    className={cn(
+                      segmentedButtonClassName,
+                      navigationPreset.id === preset.id &&
+                        segmentedButtonActiveClassName,
+                    )}
+                    onClick={() => onNavigationPresetChange(preset)}
+                  >
+                    {t(preset.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              className={cn(
+                segmentedButtonClassName,
+                flyOut && segmentedButtonActiveClassName,
+              )}
+              aria-pressed={flyOut}
+              onClick={() => onFlyOutChange(!flyOut)}
+            >
+              {t("Fly out on long turns")}
+            </button>
           </>
         ) : null}
         {example === "automatic" ? (
@@ -209,6 +286,19 @@ export function ControlsExample({
         ref={viewer.ref}
         aria-label={t("View controls viewer")}
         controls={{ keyboard: true, inertia: true }}
+        navigation={{
+          speed: navigationPreset.speed,
+          ...("acceleration" in navigationPreset
+            ? { acceleration: navigationPreset.acceleration }
+            : {}),
+          ...("deceleration" in navigationPreset
+            ? { deceleration: navigationPreset.deceleration }
+            : {}),
+          ...("maxDuration" in navigationPreset
+            ? { maxDuration: navigationPreset.maxDuration }
+            : {}),
+          flyOut,
+        }}
         style={{ height: playgroundViewerHeight }}
       >
         <Tile {...cubeTileProps()} />

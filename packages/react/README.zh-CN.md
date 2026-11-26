@@ -209,7 +209,7 @@ export function Tour() {
 
 ### 热点动作与共享弹窗内容
 
-`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认动画 700 毫秒，0 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
+`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认按时长自动估算（随角距离与 FOV 变化），`0` 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
 
 项目新增可选 `popups: ProjectPopupDefinition[]`。每项包含唯一 `id`、非空 `title` 和有序 `blocks`；内容块 ID 在弹窗内唯一：
 
@@ -982,18 +982,24 @@ export function ControlledExample() {
 **视图** — `getView`、`setView`、`reset`、`lookTo`、`moveTo`、`zoomTo`、`lookToHotspot`。
 
 `setView` 与 `reset` 仍立即生效。导航方法返回
-`Promise<{ status: "completed" | "cancelled" | "not-found" }>`；新的导航或用户操作会取消前一个导航。默认时长为 700ms，缓动为
-`easeInOutCubic`，yaw 默认沿最短路径变化。`lookTo` 与 `lookToHotspot`
-未传 `fov` 时保持当前 FOV。
+`Promise<{ status: "completed" | "cancelled" | "not-found" }>`；新的导航或用户操作会取消前一个导航。未传 `duration` 时，运行时按角距离与 FOV
+估算时长，避免窄 FOV 下转动过快；显式传入 `duration`（含 `0`）可覆盖。默认从静止平滑加速到
+巡航速度，再在停止前平滑减速，yaw 沿最短路径变化。`speed` 默认 `0.8` 视口高度/秒。`acceleration` 默认 `1.2`、`deceleration`
+默认 `0.8`（视口高度/秒²）；`0` 表示跳过对应的加速或减速。传入
+`easing: "linear"` 或 `"easeInOutCubic"` 可改用固定曲线。`lookTo` 与 `lookToHotspot`
+未传 `fov` 时保持当前 FOV。单次调用的 `speed` 表示峰值视口高度/秒；`flyOut`
+会在长距离窄 FOV 转动中途临时拉远，拉远幅度限制在边缘拉伸约 1.3 倍、水平 FOV 不超过
+120°，避免明显畸变。系统开启 `prefers-reduced-motion: reduce`
+且未传 `duration` 时直接跳到目标。
 
 ```tsx
-const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55, speed: 1.2 });
 
 if (result.status === "not-found") {
   // 该热点尚未挂载在这个 PanoViewer 中。
 }
 
-await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false, flyOut: true });
 await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ```
 
@@ -1013,6 +1019,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 - `initialView` — 省略时 yaw `0`、pitch `0`、fov `75`。只填部分字段时其余用上述默认值。
 - `littlePlanetIntro` — 可选的首景镜头开场，默认关闭。详见[小行星开场](#小行星开场)。
+- `navigation` — 命令式 `lookTo` / `moveTo` / `zoomTo` / `lookToHotspot` 在省略 `duration` 时的默认值：`speed`（峰值视口高度/秒，默认 `0.8`）、`acceleration` / `deceleration`（视口高度/秒²，默认 `1.2` / `0.8`）、`minDuration` / `maxDuration`（默认 `300` / `5000` 毫秒）、`easing`、`flyOut`（默认 `false`）。单次调用的同名选项会覆盖这些默认值。
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。

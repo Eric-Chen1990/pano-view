@@ -213,7 +213,7 @@ Beyond project-specific props, `ProjectScenes` accepts the `Scenes` transition a
 
 ### Hotspot actions and shared popup content
 
-`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (700 ms by default, 0 for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
+`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (automatic FOV-aware duration by default, `0` for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
 
 Add an optional project-level `popups: ProjectPopupDefinition[]`. Each entry has a unique `id`, a nonempty `title`, and ordered `blocks` with unique IDs within that popup:
 
@@ -1026,18 +1026,27 @@ The handle exposes view, fullscreen, scene, VR, video, and background-audio cont
 
 `setView` and `reset` remain immediate. The navigation methods return a Promise
 with `{ status: "completed" | "cancelled" | "not-found" }`; each new navigation
-or user interaction cancels the previous one. They default to 700 ms with
-`easeInOutCubic` and take the shortest yaw path. `lookTo` and `lookToHotspot`
-preserve the current FOV unless `fov` is provided.
+or user interaction cancels the previous one. When `duration` is omitted, the
+runtime picks a duration from angular distance and FOV so narrow zooms do not
+rush past; pass an explicit `duration` (including `0`) to override. The default
+profile starts from rest, cruises at `speed`, then decelerates to a stop. The
+ramps themselves ease in and out, and the path takes the shortest yaw. `speed` defaults to `0.8` viewport heights per second. `acceleration` defaults to `1.2` and `deceleration`
+to `0.8` (viewport heights per second squared); `0` skips that ramp. Pass
+`easing: "linear"` or `"easeInOutCubic"` to bypass the profile. `lookTo` and
+`lookToHotspot` preserve the current FOV unless `fov` is provided. Per-call
+`speed` is peak viewport heights per second; `flyOut` temporarily widens FOV
+mid-path on long
+narrow turns, capped at about 1.3x edge stretch over the wider endpoint and a
+120° horizontal FOV so the view does not distort. With `prefers-reduced-motion: reduce`, omitted durations jump.
 
 ```tsx
-const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55, speed: 1.2 });
 
 if (result.status === "not-found") {
   // The hotspot is not mounted in this PanoViewer.
 }
 
-await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false, flyOut: true });
 await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ```
 
@@ -1058,6 +1067,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 - `initialView` — when omitted, yaw `0`, pitch `0`, fov `75`. Partial objects fill the rest from those defaults.
 - `littlePlanetIntro` — optional first-scene camera animation, disabled by default. See [Little Planet Intro](#little-planet-intro).
+- `navigation` — defaults for imperative `lookTo` / `moveTo` / `zoomTo` / `lookToHotspot` when a call omits `duration`: `speed` (peak viewport heights per second, default `0.8`), `acceleration` / `deceleration` (viewport heights per second squared, default `1.2` / `0.8`), `minDuration` / `maxDuration` (default `300` / `5000` ms), `easing`, and `flyOut` (default `false`). Per-call options override these.
 - `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
 - `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
 - `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.

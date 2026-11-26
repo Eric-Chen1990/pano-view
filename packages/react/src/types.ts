@@ -39,12 +39,73 @@ export type PanoViewEasing = "linear" | "easeInOutCubic";
 
 /** Common options for timed imperative panorama navigation. */
 export type PanoViewNavigationOptions = {
-  /** Animation time in milliseconds. Defaults to 700. Pass 0 to apply immediately. */
+  /**
+   * Animation time in milliseconds. When omitted, duration is derived from
+   * angular distance, FOV, and `speed`. Pass 0 to apply immediately.
+   */
   duration?: number;
-  /** Interpolation curve. Defaults to "easeInOutCubic". */
+  /**
+   * Peak screen speed in viewport heights per second. Used only when
+   * `duration` is omitted. Defaults to the viewer `navigation.speed` or 0.8.
+   */
+  speed?: number;
+  /**
+   * Acceleration from rest, in viewport heights per second squared.
+   * Defaults to 1.2. Pass 0 to start at cruise speed.
+   */
+  acceleration?: number;
+  /**
+   * Deceleration before stopping, in viewport heights per second squared.
+   * Defaults to 0.8, gentler than the start. Pass 0 to stop without slowing down.
+   */
+  deceleration?: number;
+  /**
+   * When true, long turns at a narrow FOV temporarily widen mid-path so the
+   * image does not rush past. The widening is capped to limit edge distortion
+   * (about 1.3x edge stretch and 120° horizontal). Defaults to the viewer
+   * `navigation.flyOut`.
+   */
+  flyOut?: boolean;
+  /**
+   * Interpolation curve. Omit to accelerate from rest, cruise, then decelerate
+   * to a stop. `"linear"` and `"easeInOutCubic"` bypass that speed profile.
+   */
   easing?: PanoViewEasing;
   /** Whether yaw crosses the ±180° seam through the shorter path. Defaults to true. */
   shortestPath?: boolean;
+};
+
+/** Viewer-level defaults for imperative panorama navigation. */
+export type PanoViewNavigationDefaults = {
+  /**
+   * Peak screen speed in viewport heights per second when `duration` is
+   * omitted. Defaults to 0.8.
+   */
+  speed?: number;
+  /**
+   * Acceleration from rest, in viewport heights per second squared.
+   * Defaults to 1.2. `0` starts at cruise speed.
+   */
+  acceleration?: number;
+  /**
+   * Deceleration before stopping, in viewport heights per second squared.
+   * Defaults to 0.8. `0` stops without slowing down.
+   */
+  deceleration?: number;
+  /** Lower clamp for automatic durations, in milliseconds. Defaults to 300. */
+  minDuration?: number;
+  /** Upper clamp for automatic durations, in milliseconds. Defaults to 5000. */
+  maxDuration?: number;
+  /**
+   * Default interpolation curve. Omit for the accelerate / cruise / decelerate
+   * profile. `"linear"` and `"easeInOutCubic"` bypass it.
+   */
+  easing?: PanoViewEasing;
+  /**
+   * Default for long narrow-FOV turns: temporarily widen mid-path.
+   * Defaults to false.
+   */
+  flyOut?: boolean;
 };
 
 /** Navigation options that may also change the field of view. */

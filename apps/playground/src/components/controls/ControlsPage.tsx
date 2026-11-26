@@ -8,11 +8,19 @@ import { ExamplePage } from "../ExamplePage";
 import {
   ControlsExample,
   autoRotateSpeedLimits,
+  navigationSpeedPresets,
   type ControlExampleKind,
+  type NavigationSpeedPreset,
 } from "./controls-example";
 import source from "./controls-example.tsx?raw";
 
-const minimalCode = `import { PanoViewer, Tile, GraphicHotspot, usePanoViewer } from "@ericchen1990/pano-view";
+function navigationCode(preset: NavigationSpeedPreset, flyOut: boolean) {
+  const fields = [`speed: ${preset.speed}`];
+  if ("acceleration" in preset) fields.push(`acceleration: ${preset.acceleration}`);
+  if ("deceleration" in preset) fields.push(`deceleration: ${preset.deceleration}`);
+  if ("maxDuration" in preset) fields.push(`maxDuration: ${preset.maxDuration}`);
+  fields.push(`flyOut: ${flyOut}`);
+  return `import { PanoViewer, Tile, GraphicHotspot, usePanoViewer } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
 export function ViewNavigation() {
@@ -21,12 +29,18 @@ export function ViewNavigation() {
     <button onClick={() => viewer.reset()}>Reset view</button>
     <button onClick={() => void viewer.lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })}>Look north</button>
     <button onClick={() => void viewer.lookToHotspot("target", { fov: 55 })}>Look to hotspot</button>
-    <PanoViewer ref={viewer.ref} controls={{ keyboard: true, inertia: true }} style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}>
+    <PanoViewer
+      ref={viewer.ref}
+      controls={{ keyboard: true, inertia: true }}
+      navigation={{ ${fields.join(", ")} }}
+      style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
+    >
       ${cubeTileJsx()}
       <GraphicHotspot id="target" ariaLabel="Navigation target" position={{ yaw: -62, pitch: 4 }} width={8} height={8} graphic={{ kind: "circle", fill: "#df6b42" }} />
     </PanoViewer>
   </>;
 }`;
+}
 
 function automaticCode(speed: number) {
   return `import { useState } from "react";
@@ -84,22 +98,36 @@ export function DeviceOrientation() {
   );
 }`;
 
-const examples = {
-  navigation: { label: "View navigation", blurb: "Pass the viewer handle to navigation buttons.", code: minimalCode },
-  gyro: { label: "Gyro", blurb: "Request device motion permission from a button on an HTTPS page.", code: gyroCode },
-} satisfies Record<Exclude<ControlExampleKind, "automatic">, { label: string; blurb: string; code: string }>;
+const gyroExample = {
+  label: "Gyro",
+  blurb: "Request device motion permission from a button on an HTTPS page.",
+  code: gyroCode,
+};
 
 export function ControlsPage() {
   const { t } = usePlaygroundLanguage();
   const [example, setExample] = useState<ControlExampleKind>("navigation");
   const [rotateSpeed, setRotateSpeed] = useState<number>(autoRotateSpeedLimits.initial);
-  const reactExample = example === "automatic"
-    ? {
-        label: "AutoRotate",
-        blurb: "Turn automatic rotation on or off, and set its speed in degrees per second. Negative values rotate left.",
-        code: automaticCode(rotateSpeed),
-      }
-    : examples[example];
+  const [navigationPreset, setNavigationPreset] = useState<NavigationSpeedPreset>(
+    navigationSpeedPresets[1],
+  );
+  const [flyOut, setFlyOut] = useState(false);
+  const reactExample =
+    example === "automatic"
+      ? {
+          label: "AutoRotate",
+          blurb:
+            "Turn automatic rotation on or off, and set its speed in degrees per second. Negative values rotate left.",
+          code: automaticCode(rotateSpeed),
+        }
+      : example === "navigation"
+        ? {
+            label: "View navigation",
+            blurb:
+              "Pass the viewer handle to navigation buttons. Speed and fly-out use the viewer navigation defaults.",
+            code: navigationCode(navigationPreset, flyOut),
+          }
+        : gyroExample;
   return (
     <ExamplePage
       eyebrow={t("Start")}
@@ -111,6 +139,10 @@ export function ControlsPage() {
         onExampleChange={setExample}
         rotateSpeed={rotateSpeed}
         onRotateSpeedChange={setRotateSpeed}
+        navigationPreset={navigationPreset}
+        onNavigationPresetChange={setNavigationPreset}
+        flyOut={flyOut}
+        onFlyOutChange={setFlyOut}
       />
       <ExampleCode react={reactExample} />
       <details className="border-t border-line p-5">

@@ -31,6 +31,7 @@ import type { PanoEventBus } from "./pano-event-bus";
 import type {
   PanoramaControlsOptions,
   PanoViewLookToOptions,
+  PanoViewNavigationDefaults,
   PanoViewNavigationOptions,
   PanoViewNavigationResult,
   PanoViewerState,
@@ -38,6 +39,13 @@ import type {
 } from "./types";
 import type { HotspotPosition } from "./hotspot/types";
 import { LittlePlanetIntroContext } from "./little-planet/host";
+import {
+  prefersReducedMotion,
+  resolveNavigationPlan,
+  sampleNavigationFov,
+  sampleNavigationProgress,
+  type NavigationProfile,
+} from "./view-navigation";
 
 const MAX_PITCH = 90;
 const BOUNCE_OVERSHOOT_PITCH = 12;
@@ -50,7 +58,6 @@ const DEFAULT_FRICTION_STOP = 0.01;
 const VIEW_SETTLE_EPSILON = 0.001;
 /** Cap demand-mode wake deltas so the first frame after idle does not jump. */
 const MAX_FRAME_DELTA_SECONDS = 1 / 30;
-const DEFAULT_NAVIGATION_DURATION = 700;
 export const POINTER_VELOCITY_MAX_AGE_MS = 100;
 
 export type ApplyViewDeltaOptions = {
@@ -138,7 +145,8 @@ type ActiveNavigation = {
   yawDelta: number;
   startedAt: number;
   duration: number;
-  easing: PanoViewNavigationOptions["easing"];
+  peakFov: number | null;
+  profile: NavigationProfile;
   resolve: (result: PanoViewNavigationResult) => void;
 };
 
@@ -149,6 +157,7 @@ type PanoramaViewRuntimeProps = {
   viewLimits?: PanoViewLimits;
   minFov: number;
   maxFov: number;
+  navigation?: PanoViewNavigationDefaults;
   options: PanoramaControlsOptions;
   eventBus: PanoEventBus;
 };
@@ -187,24 +196,6 @@ export function shouldKeepPointerInertia(
     releasedAt - sampledAt <= POINTER_VELOCITY_MAX_AGE_MS;
 }
 
-function resolveNavigationDuration(value: number | undefined): number {
-  return Number.isFinite(value) && value! >= 0
-    ? value!
-    : DEFAULT_NAVIGATION_DURATION;
-}
-
-function applyNavigationEasing(
-  progress: number,
-  easing: PanoViewNavigationOptions["easing"],
-): number {
-  if (easing === "linear") {
-    return progress;
-  }
-  return progress < 0.5
-    ? 4 * progress * progress * progress
-    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-}
-
 function viewsEqual(a: PanoViewerState, b: PanoViewerState): boolean {
   return a.yaw === b.yaw && a.pitch === b.pitch && a.fov === b.fov;
 }
@@ -217,7 +208,17 @@ export const PanoramaViewRuntime = forwardRef<
   PanoramaViewRuntimeHandle,
   PanoramaViewRuntimeProps
 >(function PanoramaViewRuntime(
-  { initialView, fallbackStereo, resumeView, viewLimits, minFov, maxFov, options, eventBus },
+  {
+    initialView,
+    fallbackStereo,
+    resumeView,
+    viewLimits,
+    minFov,
+    maxFov,
+    navigation,
+    options,
+    eventBus,
+  },
   ref,
 ) {
   const { camera, gl, invalidate } = useThree();
@@ -268,12 +269,14 @@ export const PanoramaViewRuntime = forwardRef<
   const legacyFovRef = useRef({ minFov, maxFov });
   const limitsRef = useRef(resolveViewLimits(viewLimits, undefined, minFov, maxFov));
   const activeNavigationRef = useRef<ActiveNavigation | null>(null);
+  const navigationDefaultsRef = useRef(navigation);
 
   optionsRef.current = options;
   eventBusRef.current = eventBus;
   xrSessionRef.current = xrSession;
   baseLimitsRef.current = viewLimits;
   legacyFovRef.current = { minFov, maxFov };
+  navigationDefaultsRef.current = navigation;
 
   const hasInertia = () =>
     yawVelocityRef.current !== 0 ||
@@ -470,7 +473,6 @@ export const PanoramaViewRuntime = forwardRef<
           : from.fov,
     };
     const target = hardConstrainView(safeTargetInput, from);
-    const duration = resolveNavigationDuration(options?.duration);
     const rawYawDelta =
       targetInput.yaw !== undefined && Number.isFinite(targetInput.yaw)
         ? safeTargetInput.yaw - from.yaw
@@ -481,11 +483,21 @@ export const PanoramaViewRuntime = forwardRef<
       limitsRef.current.yaw,
       options?.shortestPath !== false,
     );
+    const plan = resolveNavigationPlan({
+      from,
+      target,
+      yawDelta,
+      options,
+      defaults: navigationDefaultsRef.current,
+      fovLimits: limitsRef.current.fov,
+      aspect: camera instanceof PerspectiveCamera ? camera.aspect : undefined,
+      reducedMotion: prefersReducedMotion(),
+    });
     stopVelocity();
     targetViewRef.current = target;
     markDirty();
 
-    if (duration === 0) {
+    if (plan.duration === 0) {
       viewRef.current = target;
       return Promise.resolve({ status: "completed" });
     }
@@ -496,8 +508,9 @@ export const PanoramaViewRuntime = forwardRef<
         target,
         yawDelta,
         startedAt: performance.now(),
-        duration,
-        easing: options?.easing,
+        duration: plan.duration,
+        peakFov: plan.peakFov,
+        profile: plan.profile,
         resolve,
       };
     });
@@ -879,15 +892,18 @@ export const PanoramaViewRuntime = forwardRef<
         1,
         Math.max(0, (performance.now() - navigation.startedAt) / navigation.duration),
       );
-      const easedProgress = applyNavigationEasing(progress, navigation.easing);
+      const easedProgress = sampleNavigationProgress(progress, navigation.profile);
       const nextView = {
         yaw: normalizeYaw(navigation.from.yaw + navigation.yawDelta * easedProgress),
         pitch:
           navigation.from.pitch +
           (navigation.target.pitch - navigation.from.pitch) * easedProgress,
-        fov:
-          navigation.from.fov +
-          (navigation.target.fov - navigation.from.fov) * easedProgress,
+        fov: sampleNavigationFov(
+          navigation.from.fov,
+          navigation.target.fov,
+          easedProgress,
+          navigation.peakFov,
+        ),
       };
       const completed = progress === 1;
       viewRef.current = completed ? { ...navigation.target } : nextView;
