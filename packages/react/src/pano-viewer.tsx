@@ -161,6 +161,7 @@ import { createWebXRHeadView, PanoramaXROrigin } from "./webvr/xr-origin";
 import type {
   MouseControlsOptions,
   PanoramaControlsOptions,
+  PanoViewNavigationDefaults,
   PanoViewerHandle,
   PanoViewerState,
   TouchControlsOptions,
@@ -193,6 +194,11 @@ export type PanoViewerProps = Omit<
   initialView?: Partial<PanoViewerState>;
   /** Optional first-scene camera animation. Defaults to false. */
   littlePlanetIntro?: boolean | PanoLittlePlanetIntroOptions;
+  /**
+   * Defaults for imperative `lookTo` / `moveTo` / `zoomTo` / `lookToHotspot`
+   * when a call omits `duration`. See `PanoViewNavigationDefaults`.
+   */
+  navigation?: PanoViewNavigationDefaults;
   /** Camera-center limits; scene limits override individual axes. */
   viewLimits?: PanoViewLimits;
   minFov?: number;
@@ -339,6 +345,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
       renderOverlay,
       initialView,
       littlePlanetIntro = false,
+      navigation,
       viewLimits,
       minFov = 30,
       maxFov = 100,
@@ -880,6 +887,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
         getView: () =>
           controlsRef.current?.getView() ?? { ...fallbackViewRef.current },
         setView: (view, options) => {
+          controlsRef.current?.markUserInteraction();
           controlsRef.current?.setView(view, options);
         },
         reset: () => {
@@ -1083,6 +1091,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                     viewLimits={parsedLimits}
                     maxFov={normalizedMaxFov}
                     minFov={normalizedMinFov}
+                    navigation={navigation}
                     options={controlOptions}
                   />
                   {(onViewChange ||

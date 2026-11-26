@@ -568,10 +568,15 @@ function ScenesController({
   // Read metadata from the latest definitions, without replacing texture-bearing slots.
   useEffect(() => {
     const ready = readySceneRef.current;
-    if (ready) controlsRef?.current?.setSceneViewLimits(sceneMap.get(ready.id)?.viewLimits);
+    if (ready) {
+      const metadata = sceneMap.get(ready.id);
+      controlsRef?.current?.setSceneViewLimits(metadata?.viewLimits);
+      controlsRef?.current?.setSceneInitialView(metadata?.initialView);
+    }
   }, [controlsRef, sceneMap]);
   useEffect(() => () => {
     controlsRef?.current?.setSceneViewLimits(undefined);
+    controlsRef?.current?.setSceneInitialView(undefined);
   }, [controlsRef]);
 
   const releaseInteraction = useCallback(() => {
@@ -767,6 +772,7 @@ function ScenesController({
     const metadata = sceneMap.get(scene.id) ?? scene;
     const controls = controlsRef?.current;
     controls?.setSceneViewLimits(metadata.viewLimits);
+    controls?.setSceneInitialView(metadata.initialView);
     const view = landing ?? (scenesHost?.recovery?.id !== scene.id ? metadata.initialView : undefined);
     if (view) controls?.setView(view, { immediate: true });
     if (scenesHost) {

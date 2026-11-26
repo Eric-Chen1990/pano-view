@@ -213,7 +213,7 @@ Beyond project-specific props, `ProjectScenes` accepts the `Scenes` transition a
 
 ### Hotspot actions and shared popup content
 
-`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (700 ms by default, 0 for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
+`ProjectHotspotAction` is a discriminated union. Keep `{ type: "scene", sceneId }` for navigation. Use `{ type: "view", view: { yaw, pitch, fov }, duration?: number }` to animate the current scene (automatic FOV-aware duration by default, `0` for immediate movement), or `{ type: "popup", popupId }` to request shared content. Narrow `action.type` before reading `sceneId`. Explicit actions take priority over media playback and can all be cancelled with `onHotspotClick(event).preventDefault()`.
 
 Add an optional project-level `popups: ProjectPopupDefinition[]`. Each entry has a unique `id`, a nonempty `title`, and ordered `blocks` with unique IDs within that popup:
 
@@ -1026,18 +1026,27 @@ The handle exposes view, fullscreen, scene, VR, video, and background-audio cont
 
 `setView` and `reset` remain immediate. The navigation methods return a Promise
 with `{ status: "completed" | "cancelled" | "not-found" }`; each new navigation
-or user interaction cancels the previous one. They default to 700 ms with
-`easeInOutCubic` and take the shortest yaw path. `lookTo` and `lookToHotspot`
-preserve the current FOV unless `fov` is provided.
+or user interaction cancels the previous one. When `duration` is omitted, the
+runtime picks a duration from angular distance and FOV so narrow zooms do not
+rush past; pass an explicit `duration` (including `0`) to override. The default
+profile starts from rest, cruises at `speed`, then decelerates to a stop. The
+ramps themselves ease in and out, and the path takes the shortest yaw. `speed` defaults to `0.8` viewport heights per second. `acceleration` defaults to `1.2` and `deceleration`
+to `0.8` (viewport heights per second squared); `0` skips that ramp. Pass
+`easing: "linear"` or `"easeInOutCubic"` to bypass the profile. `lookTo` and
+`lookToHotspot` preserve the current FOV unless `fov` is provided. Per-call
+`speed` is peak viewport heights per second; `flyOut` temporarily widens FOV
+mid-path on long
+narrow turns, capped at about 1.3x edge stretch over the wider endpoint and a
+120° horizontal FOV so the view does not distort. With `prefers-reduced-motion: reduce`, omitted durations jump.
 
 ```tsx
-const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55, speed: 1.2 });
 
 if (result.status === "not-found") {
   // The hotspot is not mounted in this PanoViewer.
 }
 
-await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false, flyOut: true });
 await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ```
 
@@ -1058,6 +1067,7 @@ which use their spherical center. Hotspot ids must be unique within a viewer.
 
 - `initialView` — when omitted, yaw `0`, pitch `0`, fov `75`. Partial objects fill the rest from those defaults.
 - `littlePlanetIntro` — optional first-scene camera animation, disabled by default. See [Little Planet Intro](#little-planet-intro).
+- `navigation` — defaults for imperative `lookTo` / `moveTo` / `zoomTo` / `lookToHotspot` when a call omits `duration`: `speed` (peak viewport heights per second, default `0.8`), `acceleration` / `deceleration` (viewport heights per second squared, default `1.2` / `0.8`), `minDuration` / `maxDuration` (default `300` / `5000` ms), `easing`, and `flyOut` (default `false`). Per-call options override these.
 - `minFov` / `maxFov` — default `30` / `100`. Used as FOV bounds when `viewLimits.fov` is not set.
 - `viewLimits` — camera-center yaw / pitch / fov ranges; scene-level limits override matching axes. See [Camera-center limits](#camera-center-limits).
 - `dpr` — canvas pixel ratio, default `[1, 2]` (clamped device pixel ratio). A single number is also accepted.
@@ -2343,11 +2353,13 @@ panorama when a filter is active.
 
 ## AutoRotate
 
-Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is measured in degrees per second; use a negative value to rotate left. `acceleration` is measured in degrees per second squared and smoothly ramps from zero to `speed` (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is measured in milliseconds from when `enabled` becomes true (default `2`). While the user is dragging, or while drag inertia is still settling, rotation pauses and resumes from zero speed automatically. When the component is mounted and `enabled` is omitted, it is treated as `true`; omitting the component entirely means no auto-rotation.
+Auto-rotation is off by default. Render `AutoRotate` inside `PanoViewer` to enable it and keep rotation configuration separate from user-input controls. `speed` is degrees per second at the reference FOV (the restore target, or the viewer's initial FOV when restore is off); use a negative value to rotate left. Actual yaw speed scales with the current FOV so screen-space motion stays consistent across zoom levels. `acceleration` is degrees per second squared and moves the signed speed toward the target for acceleration, deceleration, and direction changes (default: `18`, so the default speed takes one second to reach). Set it to `0` for an immediate fixed speed. `startDelay` is milliseconds from when `enabled` becomes true (default `2`).
+
+`resumeDelay` is idle milliseconds after a user interaction or a completed `lookTo` / `moveTo` / `zoomTo` before rotation starts or resumes (default `3000`). Pass `0` for the previous immediate-resume behaviour, or `false` to stop after user interaction until `enabled` is toggled again — completed navigations still wait the default delay, then resume. Drag, touch, keyboard, wheel or pinch zoom, gyro disable, public `setView`, and `reset` count as user interactions. Enabling rotation during an in-flight navigation does not cancel that navigation; rotation waits for it to finish, then applies `resumeDelay`. After navigation, rotation resumes without FOV restore so the navigated FOV is kept; after user interaction, FOV eases back to the restore target in parallel with the speed ramp. Inside `Scenes`, that target is the current scene's `initialView.fov` (falling back to the viewer initial FOV). Pass `fov={60}` (or another number) to choose a different restore target, or `fov={false}` to keep the current zoom. Wheel or pinch zoom during that restore aborts it for the current run. Interaction locks, little-planet intro, and XR pause rotation and resume immediately when they end. Pause and resume emit `autorotatestop` / `autorotatestart`. When the component is mounted and `enabled` is omitted, it is treated as `true`; omitting the component entirely means no auto-rotation.
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
-  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
+  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} resumeDelay={3_000} />
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```

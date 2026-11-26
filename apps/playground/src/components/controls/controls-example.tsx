@@ -15,6 +15,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { cn } from "../../cn";
 import {
+  controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
   playgroundViewerHeight,
@@ -22,6 +23,38 @@ import {
   segmentedButtonClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
+
+/** Degrees per second. Negative values rotate left. */
+export const autoRotateSpeedLimits = {
+  min: -90,
+  max: 90,
+  step: 1,
+  initial: 18,
+} as const;
+
+/** Degrees per second squared. Zero snaps to the target speed. */
+export const autoRotateAccelerationLimits = {
+  min: 0,
+  max: 90,
+  step: 1,
+  initial: 18,
+} as const;
+
+export const navigationSpeedPresets = [
+  {
+    id: "slow",
+    label: "Slow",
+    speed: 0.4,
+    acceleration: 0.5,
+    deceleration: 0.32,
+    maxDuration: 8000,
+  },
+  { id: "default", label: "Default", speed: 0.8 },
+  { id: "fast", label: "Fast", speed: 3, acceleration: 6, deceleration: 4 },
+] as const;
+
+export type NavigationSpeedPresetId = (typeof navigationSpeedPresets)[number]["id"];
+export type NavigationSpeedPreset = (typeof navigationSpeedPresets)[number];
 
 function FullscreenButton({ toggle }: { toggle: () => void }) {
   const { t } = usePlaygroundLanguage();
@@ -39,9 +72,45 @@ function FullscreenButton({ toggle }: { toggle: () => void }) {
 
 export type ControlExampleKind = "navigation" | "automatic" | "gyro";
 
-export function ControlsExample({ example, onExampleChange }: {
+/** Idle wait after interaction or navigation before AutoRotate resumes. */
+export type AutoRotateResumeDelay = 0 | 3000 | false;
+
+export const autoRotateResumeDelayOptions = [
+  { id: "immediate", label: "Immediate", value: 0 as const },
+  { id: "default", label: "3 seconds", value: 3000 as const },
+  { id: "stop", label: "Do not resume", value: false as const },
+] as const;
+
+export function ControlsExample({
+  example,
+  onExampleChange,
+  rotateSpeed,
+  onRotateSpeedChange,
+  rotateAcceleration,
+  onRotateAccelerationChange,
+  restoreFov,
+  onRestoreFovChange,
+  resumeDelay,
+  onResumeDelayChange,
+  navigationPreset,
+  onNavigationPresetChange,
+  flyOut,
+  onFlyOutChange,
+}: {
   example: ControlExampleKind;
   onExampleChange: (example: ControlExampleKind) => void;
+  rotateSpeed: number;
+  onRotateSpeedChange: (speed: number) => void;
+  rotateAcceleration: number;
+  onRotateAccelerationChange: (acceleration: number) => void;
+  restoreFov: boolean;
+  onRestoreFovChange: (restore: boolean) => void;
+  resumeDelay: AutoRotateResumeDelay;
+  onResumeDelayChange: (delay: AutoRotateResumeDelay) => void;
+  navigationPreset: NavigationSpeedPreset;
+  onNavigationPresetChange: (preset: NavigationSpeedPreset) => void;
+  flyOut: boolean;
+  onFlyOutChange: (flyOut: boolean) => void;
 }) {
   const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
@@ -52,6 +121,22 @@ export function ControlsExample({ example, onExampleChange }: {
   const [status, setStatus] = useState<LocalizedMessage>(
     "Drag to look around. Focus the canvas to use arrow keys; scroll or pinch to zoom.",
   );
+
+  const reportNavigation = (
+    label: "Look north" | "Look to hotspot",
+    startedAt: number,
+  ) =>
+    (result: { status: string }) => {
+      const elapsedMs = Math.round(performance.now() - startedAt);
+      setStatus(
+        message("{label}: {status} ({duration} ms)", {
+          label: t(label),
+          status: result.status,
+          duration: elapsedMs,
+        }),
+      );
+    };
+
   return (
     <>
       <div className={pageControlsClassName}>
@@ -90,74 +175,242 @@ export function ControlsExample({ example, onExampleChange }: {
       <div className={pageControlsClassName}>
         {example === "navigation" ? (
           <>
-            <button
-              type="button"
-              className={segmentedButtonClassName}
-              onClick={() => {
-                viewer.reset();
-                setStatus("View reset");
-              }}
-            >{t("Reset view")}</button>
-            <button
-              type="button"
-              className={segmentedButtonClassName}
-              onClick={() =>
-                void viewer
-                  .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
-                  .then(({ status }) => setStatus(message("Look north: {status}", { status })))
-              }
-            >{t("Look north")}</button>
-            <button
-              type="button"
-              className={segmentedButtonClassName}
-              onClick={() =>
-                void viewer
-                  .lookToHotspot("target", { fov: 55 })
-                  .then(({ status }) => setStatus(message("Look to hotspot: {status}", { status })))
-              }
-            >{t("Look to hotspot")}</button>
+            <div className={controlLabelClassName}>
+              {t("View")}
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={t("View")}
+              >
+                <button
+                  type="button"
+                  className={segmentedButtonClassName}
+                  onClick={() => {
+                    viewer.reset();
+                    setStatus("View reset");
+                  }}
+                >
+                  {t("Reset view")}
+                </button>
+                <button
+                  type="button"
+                  className={segmentedButtonClassName}
+                  onClick={() => {
+                    const startedAt = performance.now();
+                    void viewer
+                      .lookTo({ yaw: 90, pitch: 8 }, { fov: 60 })
+                      .then(reportNavigation("Look north", startedAt));
+                  }}
+                >
+                  {t("Look north")}
+                </button>
+                <button
+                  type="button"
+                  className={segmentedButtonClassName}
+                  onClick={() => {
+                    const startedAt = performance.now();
+                    void viewer
+                      .lookToHotspot("target", { fov: 55 })
+                      .then(reportNavigation("Look to hotspot", startedAt));
+                  }}
+                >
+                  {t("Look to hotspot")}
+                </button>
+              </div>
+            </div>
+            <div className={controlLabelClassName}>
+              {t("Navigation speed")}
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={t("Navigation speed")}
+              >
+                {navigationSpeedPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-pressed={navigationPreset.id === preset.id}
+                    className={cn(
+                      segmentedButtonClassName,
+                      navigationPreset.id === preset.id &&
+                        segmentedButtonActiveClassName,
+                    )}
+                    onClick={() => onNavigationPresetChange(preset)}
+                  >
+                    {t(preset.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={controlLabelClassName}>
+              {t("Long turns")}
+              <button
+                type="button"
+                className={cn(
+                  segmentedButtonClassName,
+                  flyOut && segmentedButtonActiveClassName,
+                )}
+                aria-pressed={flyOut}
+                onClick={() => onFlyOutChange(!flyOut)}
+              >
+                {t("Fly out on long turns")}
+              </button>
+            </div>
           </>
         ) : null}
         {example === "automatic" ? (
-          <button
-            type="button"
-            className={segmentedButtonClassName}
-            aria-pressed={autoRotate}
-            onClick={() => setAutoRotate((value) => !value)}
-          >
-            {autoRotate ? t("Stop rotation") : t("Start rotation")}
-          </button>
+          <>
+            <div className={controlLabelClassName}>
+              {t("Rotation")}
+              <button
+                type="button"
+                className={segmentedButtonClassName}
+                aria-pressed={autoRotate}
+                onClick={() => setAutoRotate((value) => !value)}
+              >
+                {autoRotate ? t("Stop rotation") : t("Start rotation")}
+              </button>
+            </div>
+            <label className={controlLabelClassName}>
+              <span>
+                {t("Rotation speed")}{" "}
+                <span aria-hidden="true" className="font-mono tracking-normal normal-case">
+                  {rotateSpeed}°/s
+                </span>
+              </span>
+              <input
+                type="range"
+                min={autoRotateSpeedLimits.min}
+                max={autoRotateSpeedLimits.max}
+                step={autoRotateSpeedLimits.step}
+                value={rotateSpeed}
+                className={cn(
+                  controlInputClassName,
+                  "w-44 p-0 focus-visible:outline-2 focus-visible:outline-[#75cbd3]",
+                )}
+                onChange={(event) => {
+                  const speed = event.currentTarget.valueAsNumber;
+                  if (Number.isFinite(speed)) onRotateSpeedChange(speed);
+                }}
+              />
+            </label>
+            <label className={controlLabelClassName}>
+              <span>
+                {t("Acceleration")}{" "}
+                <span aria-hidden="true" className="font-mono tracking-normal normal-case">
+                  {rotateAcceleration}°/s²
+                </span>
+              </span>
+              <input
+                type="range"
+                min={autoRotateAccelerationLimits.min}
+                max={autoRotateAccelerationLimits.max}
+                step={autoRotateAccelerationLimits.step}
+                value={rotateAcceleration}
+                className={cn(
+                  controlInputClassName,
+                  "w-44 p-0 focus-visible:outline-2 focus-visible:outline-[#75cbd3]",
+                )}
+                onChange={(event) => {
+                  const next = event.currentTarget.valueAsNumber;
+                  if (Number.isFinite(next)) onRotateAccelerationChange(next);
+                }}
+              />
+            </label>
+            <div className={controlLabelClassName}>
+              {t("Field of view")}
+              <button
+                type="button"
+                className={cn(
+                  segmentedButtonClassName,
+                  restoreFov && segmentedButtonActiveClassName,
+                )}
+                aria-pressed={restoreFov}
+                onClick={() => onRestoreFovChange(!restoreFov)}
+              >
+                {t("Return to initial FOV")}
+              </button>
+            </div>
+            <div className={controlLabelClassName}>
+              {t("Resume delay")}
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label={t("Resume delay")}
+              >
+                {autoRotateResumeDelayOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={resumeDelay === option.value}
+                    className={cn(
+                      segmentedButtonClassName,
+                      resumeDelay === option.value &&
+                        segmentedButtonActiveClassName,
+                    )}
+                    onClick={() => onResumeDelayChange(option.value)}
+                  >
+                    {t(option.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={controlLabelClassName}>
+              {t("Interrupt while rotating")}
+              <button
+                type="button"
+                className={segmentedButtonClassName}
+                onClick={() => {
+                  const startedAt = performance.now();
+                  void viewer
+                    .lookToHotspot("target", { fov: 55 })
+                    .then(reportNavigation("Look to hotspot", startedAt));
+                }}
+              >
+                {t("Run lookTo")}
+              </button>
+            </div>
+          </>
         ) : null}
         {example === "gyro" ? (
           <>
-            <button
-              type="button"
-              className={segmentedButtonClassName}
-              aria-pressed={gyroEnabled}
-              onClick={() => {
-                if (gyroEnabled) {
-                  setGyroEnabled(false);
-                  return;
-                }
-                if (!window.isSecureContext) {
-                  setGyroStatus("Gyro requires HTTPS");
-                  return;
-                }
-                void gyro.current?.requestPermission().then((granted) => {
-                  setGyroEnabled(granted);
-                  setGyroStatus(
-                    granted
-                      ? "Permission granted; move your device"
-                      : "Sensor unavailable or permission denied",
-                  );
-                });
-              }}
-            >
-              {gyroEnabled ? t("Disable gyro") : t("Enable gyro")}
-            </button>
-            <span role="status" className="text-sm">
-              {t(gyroStatus)}
-            </span>
+            <div className={controlLabelClassName}>
+              {t("Gyro")}
+              <button
+                type="button"
+                className={segmentedButtonClassName}
+                aria-pressed={gyroEnabled}
+                onClick={() => {
+                  if (gyroEnabled) {
+                    setGyroEnabled(false);
+                    return;
+                  }
+                  if (!window.isSecureContext) {
+                    setGyroStatus("Gyro requires HTTPS");
+                    return;
+                  }
+                  void gyro.current?.requestPermission().then((granted) => {
+                    setGyroEnabled(granted);
+                    setGyroStatus(
+                      granted
+                        ? "Permission granted; move your device"
+                        : "Sensor unavailable or permission denied",
+                    );
+                  });
+                }}
+              >
+                {gyroEnabled ? t("Disable gyro") : t("Enable gyro")}
+              </button>
+            </div>
+            <div className={controlLabelClassName}>
+              {t("Status")}
+              <span
+                role="status"
+                className="flex min-h-9 items-center text-sm tracking-normal text-[#e7f2f5] normal-case"
+              >
+                {t(gyroStatus)}
+              </span>
+            </div>
           </>
         ) : null}
       </div>
@@ -168,6 +421,19 @@ export function ControlsExample({ example, onExampleChange }: {
         ref={viewer.ref}
         aria-label={t("View controls viewer")}
         controls={{ keyboard: true, inertia: true }}
+        navigation={{
+          speed: navigationPreset.speed,
+          ...("acceleration" in navigationPreset
+            ? { acceleration: navigationPreset.acceleration }
+            : {}),
+          ...("deceleration" in navigationPreset
+            ? { deceleration: navigationPreset.deceleration }
+            : {}),
+          ...("maxDuration" in navigationPreset
+            ? { maxDuration: navigationPreset.maxDuration }
+            : {}),
+          flyOut,
+        }}
         style={{ height: playgroundViewerHeight }}
       >
         <Tile {...cubeTileProps()} />
@@ -180,7 +446,14 @@ export function ControlsExample({ example, onExampleChange }: {
           graphic={{ kind: "circle", fill: "#df6b42" }}
           tooltip={t("Navigation target")}
         />
-        <AutoRotate enabled={autoRotate} speed={18} startDelay={1000} />
+        <AutoRotate
+          enabled={autoRotate}
+          speed={rotateSpeed}
+          acceleration={rotateAcceleration}
+          startDelay={1000}
+          resumeDelay={resumeDelay}
+          fov={restoreFov ? undefined : false}
+        />
         <Gyro
           ref={gyro}
           enabled={gyroEnabled}

@@ -209,7 +209,7 @@ export function Tour() {
 
 ### 热点动作与共享弹窗内容
 
-`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认动画 700 毫秒，0 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
+`ProjectHotspotAction` 是可辨别联合类型。场景跳转保持 `{ type: "scene", sceneId }`；`{ type: "view", view: { yaw, pitch, fov }, duration?: number }` 调整当前场景视角，默认按时长自动估算（随角距离与 FOV 变化），`0` 表示立即应用；`{ type: "popup", popupId }` 请求共享内容。读取 `sceneId` 前先判断 `action.type`。显式动作优先于媒体播放，三种动作均可由 `onHotspotClick(event).preventDefault()` 取消。
 
 项目新增可选 `popups: ProjectPopupDefinition[]`。每项包含唯一 `id`、非空 `title` 和有序 `blocks`；内容块 ID 在弹窗内唯一：
 
@@ -982,18 +982,24 @@ export function ControlledExample() {
 **视图** — `getView`、`setView`、`reset`、`lookTo`、`moveTo`、`zoomTo`、`lookToHotspot`。
 
 `setView` 与 `reset` 仍立即生效。导航方法返回
-`Promise<{ status: "completed" | "cancelled" | "not-found" }>`；新的导航或用户操作会取消前一个导航。默认时长为 700ms，缓动为
-`easeInOutCubic`，yaw 默认沿最短路径变化。`lookTo` 与 `lookToHotspot`
-未传 `fov` 时保持当前 FOV。
+`Promise<{ status: "completed" | "cancelled" | "not-found" }>`；新的导航或用户操作会取消前一个导航。未传 `duration` 时，运行时按角距离与 FOV
+估算时长，避免窄 FOV 下转动过快；显式传入 `duration`（含 `0`）可覆盖。默认从静止平滑加速到
+巡航速度，再在停止前平滑减速，yaw 沿最短路径变化。`speed` 默认 `0.8` 视口高度/秒。`acceleration` 默认 `1.2`、`deceleration`
+默认 `0.8`（视口高度/秒²）；`0` 表示跳过对应的加速或减速。传入
+`easing: "linear"` 或 `"easeInOutCubic"` 可改用固定曲线。`lookTo` 与 `lookToHotspot`
+未传 `fov` 时保持当前 FOV。单次调用的 `speed` 表示峰值视口高度/秒；`flyOut`
+会在长距离窄 FOV 转动中途临时拉远，拉远幅度限制在边缘拉伸约 1.3 倍、水平 FOV 不超过
+120°，避免明显畸变。系统开启 `prefers-reduced-motion: reduce`
+且未传 `duration` 时直接跳到目标。
 
 ```tsx
-const result = await viewer.lookToHotspot("visitor-guide", { fov: 55 });
+const result = await viewer.lookToHotspot("visitor-guide", { fov: 55, speed: 1.2 });
 
 if (result.status === "not-found") {
   // 该热点尚未挂载在这个 PanoViewer 中。
 }
 
-await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false });
+await viewer.moveTo({ yaw: 170, pitch: 0 }, { shortestPath: false, flyOut: true });
 await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 ```
 
@@ -1013,6 +1019,7 @@ await viewer.zoomTo(48, { duration: 400, easing: "linear" });
 
 - `initialView` — 省略时 yaw `0`、pitch `0`、fov `75`。只填部分字段时其余用上述默认值。
 - `littlePlanetIntro` — 可选的首景镜头开场，默认关闭。详见[小行星开场](#小行星开场)。
+- `navigation` — 命令式 `lookTo` / `moveTo` / `zoomTo` / `lookToHotspot` 在省略 `duration` 时的默认值：`speed`（峰值视口高度/秒，默认 `0.8`）、`acceleration` / `deceleration`（视口高度/秒²，默认 `1.2` / `0.8`）、`minDuration` / `maxDuration`（默认 `300` / `5000` 毫秒）、`easing`、`flyOut`（默认 `false`）。单次调用的同名选项会覆盖这些默认值。
 - `minFov` / `maxFov` — 默认 `30` / `100`。未单独配置 `viewLimits.fov` 时作为 FOV 上下限。
 - `viewLimits` — 相机中心的 yaw / pitch / fov 范围；场景级限制会覆盖对应轴。详见[相机中心范围](#相机中心范围)。
 - `dpr` — 画布像素比，默认 `[1, 2]`（按设备像素比夹在 1–2）。也可传单个数字。
@@ -2121,11 +2128,13 @@ export function Tour() {
 
 ## AutoRotate
 
-自动旋转默认关闭。在 `PanoViewer` 内渲染 `AutoRotate` 以启用，并将旋转配置与用户输入控件分离。`speed` 为度/秒；负值向左旋转。`acceleration` 为度/秒²，从零平滑加速到 `speed`（默认 `18`，即默认速度约 1 秒达到）。设为 `0` 则立即以固定速度旋转。`startDelay` 为 `enabled` 变为 true 起的毫秒延迟，默认 `2`。用户拖拽中，或拖拽惯性仍在衰减时，旋转暂停并在恢复时从零速度重新开始。组件挂载且 `enabled` 省略时按 `true` 处理；不渲染组件则不旋转。
+自动旋转默认关闭。在 `PanoViewer` 内渲染 `AutoRotate` 以启用，并将旋转配置与用户输入控件分离。`speed` 是参考 FOV（回退目标，或关闭回退时 viewer 的初始 FOV）下的度/秒；负值向左旋转。实际偏航速度随当前 FOV 缩放，使不同缩放下屏幕移动速度保持一致。`acceleration` 为度/秒²，按带符号速度逼近目标，同时覆盖加速、减速与反向（默认 `18`，即默认速度约 1 秒达到）。设为 `0` 则立即以固定速度旋转。`startDelay` 为 `enabled` 变为 true 起的毫秒延迟，默认 `2`。
+
+`resumeDelay` 是用户交互或 `lookTo` / `moveTo` / `zoomTo` 完成后，到旋转启动或恢复前的空闲毫秒数（默认 `3000`）。传 `0` 可恢复以前的立即恢复行为；传 `false` 表示用户交互后停止旋转，直到再次切换 `enabled`——已完成的导航仍按默认延迟等待后恢复。拖拽、触摸、键盘、滚轮或捏合缩放、关闭陀螺仪、公开 `setView` 与 `reset` 计为用户交互。导航进行中开启旋转不会取消该导航；旋转会等导航完成，再套用 `resumeDelay`。导航结束后恢复时不做 FOV 回退，以保留导航给出的 FOV；用户交互后恢复时，FOV 会与加速同步缓动回回退目标。在 `Scenes` 内，该目标为当前场景的 `initialView.fov`（未设置时回落到 viewer 的初始 FOV）。传 `fov={60}`（或其他数值）可指定回退目标，传 `fov={false}` 则保留当前缩放。回退过程中滚轮或捏合缩放会中断本轮回退。交互锁、小行星开场与 XR 仅暂停旋转，结束后立即恢复。暂停与恢复分别触发 `autorotatestop` / `autorotatestart`。组件挂载且 `enabled` 省略时按 `true` 处理；不渲染组件则不旋转。
 
 ```tsx
 <PanoViewer style={{ height: 560 }}>
-  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} />
+  <AutoRotate enabled speed={12} acceleration={6} startDelay={2_000} resumeDelay={3_000} />
   <Sphere src="/panoramas/room.webp" previewUrl="preview.webp" />
 </PanoViewer>
 ```

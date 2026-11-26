@@ -1,5 +1,13 @@
 # @ericchen1990/pano-view
 
+## 5.25.0
+
+### Minor Changes
+
+- 5ed3ad7: Improve AutoRotate startup: signed speed ramps for acceleration, deceleration, and reverse; yaw speed scales with FOV for consistent screen motion; and each start (including after interaction) eases FOV back to the initial view in parallel with the speed ramp, with an optional `fov` override or `false` to disable restore.
+- 77da11d: AutoRotate waits `resumeDelay` (default 3000ms) after user interaction or completed lookTo/moveTo/zoomTo before starting or resuming. Pass `resumeDelay={0}` for the previous immediate resume, or `false` to stop after user interaction until `enabled` is toggled again (navigation still resumes after the default delay). Completed navigations keep their FOV; user-driven resumes still restore FOV. Inside Scenes, FOV restore targets the current scene's initialView.fov. Legacy `controls.autoRotate` follows the same rules.
+- b8108ea: Make imperative view navigation FOV-aware when `duration` is omitted: duration scales with angular distance and field of view. The default profile accelerates from rest, cruises at 0.8 viewport heights per second, then decelerates to a stop (`acceleration` 1.2, `deceleration` 0.8). Per-call `speed` / `flyOut` and a viewer `navigation` defaults prop override this, and `prefers-reduced-motion` jumps immediately.
+
 ## 5.24.0
 
 ### Minor Changes

@@ -325,6 +325,7 @@ export type {
   MouseControlsOptions,
   PanoViewEasing,
   PanoViewLookToOptions,
+  PanoViewNavigationDefaults,
   PanoViewNavigationOptions,
   PanoViewNavigationResult,
   PanoramaControlsOptions,
