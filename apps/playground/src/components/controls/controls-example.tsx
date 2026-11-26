@@ -15,6 +15,7 @@ import {
 } from "@ericchen1990/pano-view";
 import { cn } from "../../cn";
 import {
+  controlInputClassName,
   controlLabelClassName,
   pageControlsClassName,
   playgroundViewerHeight,
@@ -22,6 +23,14 @@ import {
   segmentedButtonClassName,
   viewerChromeButtonClassName,
 } from "../../ui";
+
+/** Degrees per second. Negative values rotate left. */
+export const autoRotateSpeedLimits = {
+  min: -90,
+  max: 90,
+  step: 1,
+  initial: 18,
+} as const;
 
 function FullscreenButton({ toggle }: { toggle: () => void }) {
   const { t } = usePlaygroundLanguage();
@@ -39,9 +48,16 @@ function FullscreenButton({ toggle }: { toggle: () => void }) {
 
 export type ControlExampleKind = "navigation" | "automatic" | "gyro";
 
-export function ControlsExample({ example, onExampleChange }: {
+export function ControlsExample({
+  example,
+  onExampleChange,
+  rotateSpeed,
+  onRotateSpeedChange,
+}: {
   example: ControlExampleKind;
   onExampleChange: (example: ControlExampleKind) => void;
+  rotateSpeed: number;
+  onRotateSpeedChange: (speed: number) => void;
 }) {
   const { t } = usePlaygroundLanguage();
   const viewer = usePanoViewer();
@@ -119,14 +135,39 @@ export function ControlsExample({ example, onExampleChange }: {
           </>
         ) : null}
         {example === "automatic" ? (
-          <button
-            type="button"
-            className={segmentedButtonClassName}
-            aria-pressed={autoRotate}
-            onClick={() => setAutoRotate((value) => !value)}
-          >
-            {autoRotate ? t("Stop rotation") : t("Start rotation")}
-          </button>
+          <>
+            <button
+              type="button"
+              className={segmentedButtonClassName}
+              aria-pressed={autoRotate}
+              onClick={() => setAutoRotate((value) => !value)}
+            >
+              {autoRotate ? t("Stop rotation") : t("Start rotation")}
+            </button>
+            <label className={controlLabelClassName}>
+              <span>
+                {t("Rotation speed")}{" "}
+                <span aria-hidden="true" className="font-mono tracking-normal normal-case">
+                  {rotateSpeed}°/s
+                </span>
+              </span>
+              <input
+                type="range"
+                min={autoRotateSpeedLimits.min}
+                max={autoRotateSpeedLimits.max}
+                step={autoRotateSpeedLimits.step}
+                value={rotateSpeed}
+                className={cn(
+                  controlInputClassName,
+                  "w-44 p-0 focus-visible:outline-2 focus-visible:outline-[#75cbd3]",
+                )}
+                onChange={(event) => {
+                  const speed = event.currentTarget.valueAsNumber;
+                  if (Number.isFinite(speed)) onRotateSpeedChange(speed);
+                }}
+              />
+            </label>
+          </>
         ) : null}
         {example === "gyro" ? (
           <>
@@ -180,7 +221,7 @@ export function ControlsExample({ example, onExampleChange }: {
           graphic={{ kind: "circle", fill: "#df6b42" }}
           tooltip={t("Navigation target")}
         />
-        <AutoRotate enabled={autoRotate} speed={18} startDelay={1000} />
+        <AutoRotate enabled={autoRotate} speed={rotateSpeed} startDelay={1000} />
         <Gyro
           ref={gyro}
           enabled={gyroEnabled}
