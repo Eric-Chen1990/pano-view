@@ -3716,10 +3716,13 @@ import { CalloutHotspot } from "@ericchen1990/pano-view";
 
 `trigger` defaults to `"hover"`. `"click"` toggles the card; clicking empty
 panorama closes it. `"look"` opens when the camera forward direction stays
-within `lookAngle` (degrees, default `6`) for `lookDelay` (ms, default `250`),
-with exit hysteresis at `1.5 × lookAngle`. `"always"` opens on mount. On touch
-devices, `"hover"` falls back to tap-to-toggle. Keyboard Enter/Space toggles
-for every trigger except `"always"`.
+within an FOV-scaled enter angle for `lookDelay` (ms, default `250`).
+`lookAngle` (degrees, default `6`) is the enter radius at `referenceFov`
+(default `75`); the runtime angle widens at larger FOV and narrows when zoomed
+in so the on-screen hit area stays similar. Exit hysteresis uses
+`1.5 ×` that effective angle. `"always"` opens on mount. On touch devices,
+`"hover"` falls back to tap-to-toggle. Keyboard Enter/Space toggles for every
+trigger except `"always"`.
 
 `line.angle` is a screen angle in degrees (`0` right, `90` up). `line.length`
 and `line.width` are CSS pixels. Marker size uses `width` / `height` (defaults

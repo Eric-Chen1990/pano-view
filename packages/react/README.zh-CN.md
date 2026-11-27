@@ -3178,7 +3178,7 @@ import { CalloutHotspot } from "@ericchen1990/pano-view";
 />;
 ```
 
-`trigger` 默认为 `"hover"`。`"click"` 切换显示，点击空白全景关闭。`"look"` 在相机朝向与标记夹角持续处于 `lookAngle`（度，默认 `6`）内达 `lookDelay`（毫秒，默认 `250`）后打开，离开阈值为 `1.5 × lookAngle`。`"always"` 挂载后常开。触摸设备上 `"hover"` 回退为点按切换。除 `"always"` 外，键盘 Enter/Space 均可切换。
+`trigger` 默认为 `"hover"`。`"click"` 切换显示，点击空白全景关闭。`"look"` 在相机朝向与标记夹角持续处于按 FOV 缩放后的进入角内达 `lookDelay`（毫秒，默认 `250`）后打开。`lookAngle`（度，默认 `6`）是 `referenceFov`（默认 `75`）下的进入半径；运行时在更大 FOV 下变宽、缩小时变窄，使屏幕命中范围大致稳定。离开阈值为该有效角度的 `1.5` 倍。`"always"` 挂载后常开。触摸设备上 `"hover"` 回退为点按切换。除 `"always"` 外，键盘 Enter/Space 均可切换。
 
 `line.angle` 为屏幕角度（`0` 向右，`90` 向上）。`line.length` / `line.width` 为 CSS 像素。圆点尺寸沿用 `width` / `height`（默认 `3.2×3.2`），`marker.color` 控制圆点及外围半透明呼吸光晕（`prefers-reduced-motion` 下为静态光晕）。`appearance.background` 默认为深色半透明底板，保证正文可读；设为 `"transparent"` 可保持透空。标题与正文使用独立字号（`appearance.titleFontSize` 默认 `15`，`appearance.fontSize` 默认 `13`）；`appearance.padding` 默认 `12`。可选 `appearance.fontFamily` 同时作用于标题与正文（桌面未设置时继承宿主页面；WebXR 栅格回退到 `system-ui, sans-serif`）。字体须在设备上可用，或由宿主页面加载。callout 不使用共享的 `tooltip*` 字段。
 
