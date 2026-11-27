@@ -12,7 +12,12 @@ import {
 import { ExamplePage } from "../ExamplePage";
 import { ExampleCode } from "../ExampleCode";
 import { CodeSnippet } from "../CodeSnippet";
-import { SpatialExample, type SpatialExampleKind } from "./spatial-example";
+import {
+  SpatialExample,
+  spatialDialogExamples,
+  spatialDialogHotspot,
+  type SpatialExampleKind,
+} from "./spatial-example";
 import source from "./spatial-example.tsx?raw";
 import mediaSource from "./media-examples.tsx?raw";
 import modelSource from "./host-model-example.tsx?raw";
@@ -26,6 +31,33 @@ const examples = [
 
 const panorama = cubeTileJsx(undefined, "        ");
 const videoUrl = "/fixtures/360video/1/video-1024x512.mp4";
+
+function dialogHotspotJsx(kind: keyof typeof spatialDialogExamples) {
+  const { id, label } = spatialDialogExamples[kind];
+  const { position, width, height, scaleMode } = spatialDialogHotspot;
+  return `<TextHotspot id="${id}" text="${label}" ariaLabel="${label}"
+          position={{ yaw: ${position.yaw}, pitch: ${position.pitch} }}
+          width={${width}} height={${height}} scaleMode="${scaleMode}" onClick={() => setOpen(true)} />`;
+}
+
+const modelPreview = `function ModelPreview() {
+  const preview = useRef<HTMLDivElement>(null);
+  const [angle, setAngle] = useState(0);
+  const [scale, setScale] = useState(1);
+  const adapter = useMemo(() => ({
+    rotateBy: (yaw: number) => setAngle((angle) => angle + yaw),
+    zoomBy: (factor: number) => setScale((scale) => Math.max(0.5, Math.min(2, scale * factor))),
+    resetView: () => { setAngle(0); setScale(1); },
+  }), []);
+  usePanoSpatialControls(preview, adapter);
+
+  return <div ref={preview} style={{ padding: 32 }}>
+    <div style={{ width: 100, height: 100, background: "teal",
+      transform: \`perspective(200px) rotateY(\${angle}deg) scale(\${scale})\` }} />
+  </div>;
+}
+
+`;
 
 const snippets = {
   "scene-video": {
@@ -49,32 +81,21 @@ const snippets = {
     controls: "<PanoSpatialControls><PanoMediaControls controller={controller} /></PanoSpatialControls>",
   },
   model: {
-    hooks: "useMemo, useState",
-    imports: "Tile, PanoModelControls",
-    state: `  const [open, setOpen] = useState(false);
-  const [angle, setAngle] = useState(0);
-  const [scale, setScale] = useState(1);
-  const adapter = useMemo(() => ({
-    rotateBy: (yaw: number) => setAngle((angle) => angle + yaw),
-    zoomBy: (factor: number) => setScale((scale) => Math.max(0.5, Math.min(2, scale * factor))),
-    resetView: () => { setAngle(0); setScale(1); },
-  }), []);`,
-    scene: panorama,
-    controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open model</button>
-          <PanoDialog title="Model controls" open={open} onOpenChange={setOpen}>
-            <div style={{ width: 100, height: 100, margin: 32, background: "teal",
-              transform: \`perspective(200px) rotateY(\${angle}deg) scale(\${scale})\` }} />
-            <PanoModelControls adapter={adapter} />
+    hooks: "useMemo, useRef, useState",
+    imports: "Tile, TextHotspot, usePanoSpatialControls",
+    state: "  const [open, setOpen] = useState(false);",
+    scene: `${panorama}\n        ${dialogHotspotJsx("model")}`,
+    controls: `<PanoDialog title="${spatialDialogExamples.model.title}" open={open} onOpenChange={setOpen}>
+            <ModelPreview />
           </PanoDialog>`,
   },
   scroll: {
     hooks: "useRef, useState",
-    imports: "Tile, PanoScrollControls",
+    imports: "Tile, TextHotspot, PanoScrollControls",
     state: `  const [open, setOpen] = useState(false);
   const article = useRef<HTMLDivElement>(null);`,
-    scene: panorama,
-    controls: `<button type="button" style={{ pointerEvents: "auto" }} onClick={() => setOpen(true)}>Open article</button>
-          <PanoDialog title="Scroll controls" open={open} onOpenChange={setOpen}>
+    scene: `${panorama}\n        ${dialogHotspotJsx("scroll")}`,
+    controls: `<PanoDialog title="${spatialDialogExamples.scroll.title}" open={open} onOpenChange={setOpen}>
             <div ref={article} tabIndex={0} style={{ height: 160, overflow: "auto" }}>
               {Array.from({ length: 12 }, (_, index) => <p key={index}>Chapter {index + 1}</p>)}
             </div>
@@ -90,7 +111,7 @@ function spatialSnippet(kind: SpatialExampleKind) {
 import { PanoOverlay, PanoViewer, WebVR, usePanoViewer, ${imports} } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 ${dialog ? 'import { PanoDialog } from "@ericchen1990/pano-view/ui";\nimport "@ericchen1990/pano-view/ui/styles.css";\n' : ""}
-export function SpatialControlsExample() {
+${kind === "model" ? modelPreview : ""}export function SpatialControlsExample() {
   const viewer = usePanoViewer();
 ${state}
 
@@ -142,7 +163,9 @@ export function SpatialControlsPage() {
         </div>
       </div>
       <SpatialExample key={kind} kind={kind} />
-      <p className="px-6 text-sm text-muted-2">{t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls; drag the model, scroll to zoom, or focus it and use arrow keys. Open the model/article before entering VR to observe dialog state across entry and exit.")}</p>
+      <p className="px-6 text-sm text-muted-2">{kind === "model" || kind === "scroll"
+        ? t("In VR, select the hotspot with gaze or your controller. To move the dialog, aim at its header and hold the controller trigger, then release it to place the dialog.")
+        : t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls.")}</p>
       <ExampleCode react={{
         label: examples.find(({ id }) => id === kind)!.label,
         blurb: t("Connect the selected target to its controls inside the viewer."),

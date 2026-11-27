@@ -30,12 +30,12 @@ export function ComposedHotspotDialog({
     <PanoDialogRoot scrollTargetRef={scrollTargetRef} open={open} onOpenChange={onOpenChange}>
       <PanoDialogBackdrop style={{ background: "rgb(8 25 29 / 85%)" }} />
       <PanoDialogContent style={{ borderRadius: 0, border: "2px solid #df6b42", overflow: "hidden" }}>
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-orange-400 p-4">
+        <header data-pano-dialog-drag-handle="" className="flex shrink-0 items-center justify-between gap-4 border-b border-orange-400 p-4">
           <div>
             <PanoDialogTitle className="m-0 text-xl">{title}</PanoDialogTitle>
             <PanoDialogDescription className="m-0 text-sm text-slate-300">{t("A custom header built from dialog parts.")}</PanoDialogDescription>
           </div>
-          <PanoDialogClose className={closeButtonClassName}>{t("Close")}</PanoDialogClose>
+          <PanoDialogClose data-pano-dialog-close="" className={closeButtonClassName}>{t("Close")}</PanoDialogClose>
         </header>
         <div ref={scrollTargetRef} className="min-h-0 overflow-auto p-4">{children}</div>
       </PanoDialogContent>
