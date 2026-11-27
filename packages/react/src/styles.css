@@ -998,7 +998,7 @@
 .pano-media-controls .pano-control-button svg { width:24px; height:24px; }
 .pano-media-controls [data-pano-gaze-active] { outline:3px solid var(--pano-control-focus,#ffb300); outline-offset:2px; }
 
-.pano-scroll-controls { display:block; }
+.pano-scroll-controls { display:block; background:none; border-radius:0; }
 .pano-scroll-controls .pano-control-button { position:absolute; width:112px; height:44px; border:0; border-radius:12px; background:var(--pano-scroll-background,#101923); color:var(--pano-scroll-color,#fff); opacity:var(--pano-scroll-opacity,.3); pointer-events:auto; transition:opacity .15s; }
 .pano-scroll-controls .pano-control-button:hover,
 .pano-scroll-controls .pano-control-button:focus-visible,

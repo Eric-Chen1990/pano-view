@@ -382,6 +382,43 @@ export type LookGateState = {
 };
 
 /**
+ * Scales a look-at enter angle so its screen-space radius stays constant
+ * across FOV. `lookAngle` is the angular radius at `referenceFov`; the result
+ * is the matching radius at `currentFov`. Invalid FOV values fall back to the
+ * unscaled angle.
+ */
+export function fovScaledLookAngle(
+  lookAngle: number,
+  currentFov: number,
+  referenceFov: number,
+): number {
+  const angle = Math.max(0, lookAngle);
+  if (
+    !(currentFov > 0) ||
+    !(referenceFov > 0) ||
+    !Number.isFinite(currentFov) ||
+    !Number.isFinite(referenceFov) ||
+    !Number.isFinite(angle)
+  ) {
+    return Number.isFinite(angle) ? angle : 0;
+  }
+  if (currentFov === referenceFov) {
+    return angle;
+  }
+  const halfCurrent = (Math.min(179, currentFov) * Math.PI) / 360;
+  const halfReference = (Math.min(179, referenceFov) * Math.PI) / 360;
+  const referenceSlope = Math.tan(halfReference);
+  if (!(referenceSlope > 0)) {
+    return angle;
+  }
+  const screenRadius =
+    Math.tan((Math.min(179, angle) * Math.PI) / 180) / referenceSlope;
+  return (
+    (Math.atan(screenRadius * Math.tan(halfCurrent)) * 180) / Math.PI
+  );
+}
+
+/**
  * Gaze / look-at gate with enter delay and exit hysteresis
  * (`exitAngle = lookAngle * 1.5`).
  */

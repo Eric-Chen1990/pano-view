@@ -63,6 +63,13 @@ export type PanoVideoControlsOptions = PanoVideoControlsAppearance & {
   buttons?: Partial<Record<PanoVideoControlButton, boolean>>;
 };
 
+export type PanoVideoVROptions = {
+  /** Override visibility of the built-in VR playback bar. Defaults to the screen-mode setting. */
+  controls?: boolean;
+  /** Override visibility of VR captions and their controls. Defaults to the screen-mode setting. */
+  captions?: boolean;
+};
+
 export type PanoVideoErrorSource = "poster" | "video" | "track";
 
 export type PanoVideoErrorEvent = {

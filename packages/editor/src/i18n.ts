@@ -539,7 +539,8 @@ const zh: Record<string, string> = {
   "Marker color": "圆点颜色",
   "CSS color for the circular callout marker.": "圆形标注标记的 CSS 颜色。",
   "Look-at angle (°)": "看向角度（°）",
-  "Angular radius in degrees for opening a look-triggered callout.": "看向触发打开标注时的角度半径（度）。",
+  "Angular radius in degrees at the hotspot reference FOV for opening a look-triggered callout. The effective angle scales with the current FOV so the on-screen hit area stays similar when zooming.":
+    "在热点参考视野角下，看向触发打开标注所用的角度半径（度）。有效角度会随当前视野角缩放，使缩放时屏幕上的触发区域大小保持相近。",
   "Look-at delay (ms)": "看向延迟（毫秒）",
   "How long the view must stay on the marker before a look-triggered callout opens.": "看向触发打开标注前，视线需停留在标记上的时间。",
   "Line animation (ms)": "引线动画（毫秒）",

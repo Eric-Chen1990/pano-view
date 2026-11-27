@@ -158,7 +158,11 @@ export type CalloutHotspotDefinition = PointHotspotDefinitionBase & {
   appearance?: CalloutAppearance;
   animation?: CalloutAnimation;
   marker?: CalloutMarker;
-  /** Angular radius in degrees for look-at open. Defaults to 6. */
+  /**
+   * Angular radius in degrees for look-at open at `referenceFov` (default 75).
+   * The effective enter angle scales with the current FOV so screen-space size
+   * stays stable. Defaults to 6.
+   */
   lookAngle?: number;
   /** Hold time in ms before look-at opens. Defaults to 250. */
   lookDelay?: number;

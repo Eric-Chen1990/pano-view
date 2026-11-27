@@ -18,6 +18,7 @@ import type {
 import { canEnterViewerFullscreen } from "../ios-landscape-fullscreen";
 import { type PanoContextMenuActionsApi } from "../pano-context-menu";
 import { formatMediaTime, panoVideoTrackId } from "./format";
+import { VIDEO_ICON_PATHS, VIDEO_MENU_CHEVRONS } from "./icons";
 import {
   PanoVideoHostContext,
   useClaimPanoVideoControls,
@@ -131,19 +132,6 @@ function volumeFromClientY(clientY: number, track: HTMLElement): number {
   }
   return Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
 }
-
-const SPEAKER_PATH = "M3 9h4l5-4v14l-5-4H3z";
-const VIDEO_ICON_PATHS = {
-  play: "M7 4v16l13-8z",
-  pause: "M6 4h4v16H6zM14 4h4v16h-4z",
-  volume: `${SPEAKER_PATH} M14 9a3.5 3.5 0 0 1 0 6v-2.1a1.5 1.5 0 0 0 0-1.8zM16.8 6a7 7 0 0 1 0 12l-1-1.7a5 5 0 0 0 0-8.6z`,
-  muted: `${SPEAKER_PATH} M15.4 8.7l2.6 2.6 2.6-2.6L22 10l-2.6 2.6 2.6 2.6-1.4 1.4-2.6-2.6-2.6 2.6-1.4-1.4 2.6-2.6-2.6-2.6z`,
-  captions: "M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h16V6zM7 9h4v1.5H8v3h3V15H7a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5zm6.5 0h4v1.5h-3v3h3V15h-4a.5.5 0 0 1-.5-.5v-5a.5.5 0 0 1 .5-.5z",
-  settings: "M10 2H14L14.5 4.6 15.7 5.1 17.7 3.5 20.5 6.3 18.9 8.3 19.4 9.5 22 10V14L19.4 14.5 18.9 15.7 20.5 17.7 17.7 20.5 15.7 18.9 14.5 19.4 14 22H10L9.5 19.4 8.3 18.9 6.3 20.5 3.5 17.7 5.1 15.7 4.6 14.5 2 14V10L4.6 9.5 5.1 8.3 3.5 6.3 6.3 3.5 8.3 5.1 9.5 4.6zM15.3 12a3.3 3.3 0 1 1-6.6 0 3.3 3.3 0 1 1 6.6 0z",
-  vr: "M5 5h14a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-3.5a2 2 0 0 1-1.6-.8L12 14.7l-1.9 2.5a2 2 0 0 1-1.6.8H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zm0 2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3.5l2.3-3a1.5 1.5 0 0 1 2.4 0l2.3 3H19a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm2.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm9 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z",
-  enterFullscreen: "M3 3h7v2.5H5.5V10H3zM14 3h7v7h-2.5V5.5H14zM3 14h2.5v4.5H10V21H3zM18.5 14H21v7h-7v-2.5h4.5z",
-  exitFullscreen: "M7.5 3H10v7H3V7.5h4.5zM14 3h2.5v4.5H21V10h-7zM3 14h7v7H7.5v-4.5H3zM14 14h7v2.5h-4.5V21H14z",
-} as const;
 
 function Icon({ name }: { name: keyof typeof VIDEO_ICON_PATHS }) {
   return (
@@ -403,7 +391,7 @@ function CaptionsMenu({
             appearance={appearance}
             label={t("Settings")}
             onClick={onOpenSettings}
-            secondary={<span aria-hidden>›</span>}
+            secondary={<span aria-hidden>{VIDEO_MENU_CHEVRONS.next}</span>}
           />
         </>
       ) : (
@@ -412,7 +400,7 @@ function CaptionsMenu({
             appearance={appearance}
             label={t("Back")}
             onClick={onShowTracks}
-            secondary={<span aria-hidden>‹</span>}
+            secondary={<span aria-hidden>{VIDEO_MENU_CHEVRONS.previous}</span>}
           />
           <ChromeMenuDivider />
           <ChromeMenuSectionLabel>{t("Font size")}</ChromeMenuSectionLabel>

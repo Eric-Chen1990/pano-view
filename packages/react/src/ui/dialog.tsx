@@ -142,7 +142,7 @@ export function PanoDialog({ open, onOpenChange, title, description, closeLabel 
         }}
         aria-describedby={description == null ? undefined : descriptionId}
       >
-        <header className="pano-dialog-header" style={{ flexShrink: 0 }}>
+        <header data-pano-dialog-drag-handle="" className="pano-dialog-header" style={{ flexShrink: 0 }}>
           <div>
             <PanoDialogTitle className="pano-dialog-title">{title}</PanoDialogTitle>
             {description == null ? null : (

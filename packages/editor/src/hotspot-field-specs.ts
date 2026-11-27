@@ -288,7 +288,7 @@ const descriptions: Record<string, { label: string; help: string }> = {
   },
   lookAngle: {
     label: "Look-at angle (°)",
-    help: "Angular radius in degrees for opening a look-triggered callout.",
+    help: "Angular radius in degrees at the hotspot reference FOV for opening a look-triggered callout. The effective angle scales with the current FOV so the on-screen hit area stays similar when zooming.",
   },
   lookDelay: {
     label: "Look-at delay (ms)",

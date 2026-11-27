@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import {
   PanoOverlay,
   PanoScrollControls,
-  PanoVideo,
+  TextHotspot,
   Tile,
   WebVR,
   usePanoViewer,
@@ -20,17 +20,21 @@ import {
   viewerChromeButtonClassName,
 } from "../../ui";
 import { HostModelExample } from "./host-model-example";
-import {
-  PanoramaMovieControls,
-  SceneMovie,
-  SceneMovieControls,
-} from "./media-examples";
+import { SceneMovie, SceneMovieControls } from "./media-examples";
 
-export type SpatialExampleKind =
-  | "scene-video"
-  | "360-video"
-  | "model"
-  | "scroll";
+export type SpatialExampleKind = "scene-video" | "model" | "scroll";
+
+export const spatialDialogExamples = {
+  model: { id: "open-model", label: "Open model", title: "Host model controls" },
+  scroll: { id: "open-article", label: "Open article", title: "Scroll controls" },
+} as const;
+
+export const spatialDialogHotspot = {
+  position: { yaw: 15, pitch: -8 },
+  width: 19,
+  height: 6,
+  scaleMode: "fixed",
+} as const;
 
 function ScrollExample() {
   const { t } = usePlaygroundLanguage();
@@ -66,8 +70,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
   const [status, setStatus] = useState(
     "Select the example, then enter VR to see its icon controls.",
   );
-  const hasDialog = kind === "model" || kind === "scroll";
-  const openLabel = kind === "model" ? "Open model" : "Open article";
+  const dialog = kind === "model" || kind === "scroll" ? spatialDialogExamples[kind] : null;
   return (
     <>
       <div className={pageControlsClassName}>
@@ -84,13 +87,13 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
               )
           }
         >{t("Toggle VR")}</button>
-        {hasDialog ? (
+        {dialog ? (
           <button
             type="button"
             className={segmentedButtonClassName}
             onClick={() => setOpen(true)}
           >
-            {t(openLabel)}
+            {t(dialog.label)}
           </button>
         ) : null}
         <span className="text-sm" role="status">
@@ -108,40 +111,36 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
         style={{ height: playgroundViewerHeight }}
       >
         <WebVR />
-        {kind === "360-video" ? (
-          <PanoVideo
-            src="/fixtures/360video/1/video-1024x512.mp4"
-            poster="/fixtures/360video/1/video-1024x512-poster.jpg"
-            loop
-          />
-        ) : (
-          <Tile {...cubeTileProps()} />
-        )}
+        <Tile {...cubeTileProps()} />
         {kind === "scene-video" ? (
           <SceneMovie onController={setController} />
+        ) : null}
+        {dialog ? (
+          <TextHotspot
+            {...spatialDialogHotspot}
+            id={dialog.id}
+            text={t(dialog.label)}
+            ariaLabel={t(dialog.label)}
+            onClick={() => setOpen(true)}
+          />
         ) : null}
         <PanoOverlay>
           {kind === "scene-video" ? (
             <SceneMovieControls controller={controller} />
           ) : null}
-          {kind === "360-video" ? (
-            <PanoramaMovieControls viewer={viewer} />
-          ) : null}
-          {hasDialog ? (
+          {dialog ? (
             <>
               <button
                 type="button"
                 className={`${viewerChromeButtonClassName} pointer-events-auto absolute right-4 bottom-4`}
                 onClick={() => setOpen(true)}
               >
-                {t(openLabel)}
+                {t(dialog.label)}
               </button>
               <PanoDialog closeLabel={t("Close")}
                 open={open}
                 onOpenChange={setOpen}
-                title={
-                  kind === "model" ? t("Host model controls") : t("Scroll controls")
-                }
+                title={t(dialog.title)}
               >
                 {kind === "model" ? <HostModelExample /> : <ScrollExample />}
               </PanoDialog>

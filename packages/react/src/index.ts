@@ -201,6 +201,7 @@ export type {
   PanoVideoTrack,
   PanoVideoTrackKind,
   PanoVideoVariant,
+  PanoVideoVROptions,
 } from "./video/types";
 export { Scenes } from "./scenes";
 export type {
@@ -419,6 +420,8 @@ export { usePanoMediaController } from "./controls/media";
 
 export { WebVRSceneMenu, DEFAULT_WEBVR_SCENE_MENU_APPEARANCE } from "./webvr/scene-menu";
 export type { WebVRSceneMenuProps, WebVRSceneMenuAppearance } from "./webvr/scene-menu";
+export { WebVRMenu, WebVRMenuLabel, WebVRMenuButton } from "./webvr/menu";
+export type { WebVRMenuProps, WebVRMenuLabelProps, WebVRMenuButtonProps } from "./webvr/menu";
 
 export { PanoGeoMap } from "./geo-map/pano-geo-map";
 export { PanoGeoMapOverlay } from "./geo-map/pano-geo-map-overlay";

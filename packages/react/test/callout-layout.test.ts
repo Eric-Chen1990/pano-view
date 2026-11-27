@@ -8,6 +8,7 @@ import {
   calloutTitleBodyGap,
   calloutTitlePaddingY,
   directionAngleDegrees,
+  fovScaledLookAngle,
   resolveCalloutAppearance,
   resolveCalloutLayout,
   stepCalloutReveal,
@@ -155,6 +156,31 @@ test("look gate uses enter delay and exit hysteresis", () => {
   state = stepLookGate(state, 10, 6, 250, 1400);
   assert.equal(state.open, false);
   assert.equal(state.inside, false);
+});
+
+test("fovScaledLookAngle keeps screen radius across FOV", () => {
+  const referenceFov = 75;
+  const lookAngle = 6;
+  assert.equal(fovScaledLookAngle(lookAngle, referenceFov, referenceFov), lookAngle);
+
+  const wider = fovScaledLookAngle(lookAngle, 100, referenceFov);
+  const narrower = fovScaledLookAngle(lookAngle, 30, referenceFov);
+  assert.ok(wider > lookAngle);
+  assert.ok(narrower < lookAngle);
+  assert.ok(Math.abs(wider - 9.3) < 0.2);
+  assert.ok(Math.abs(narrower - 2.1) < 0.2);
+
+  const screenRadius = (angle: number, fov: number) =>
+    Math.tan((angle * Math.PI) / 180) / Math.tan((fov * Math.PI) / 360);
+  const expected = screenRadius(lookAngle, referenceFov);
+  for (const fov of [30, 70, 75, 100]) {
+    const scaled = fovScaledLookAngle(lookAngle, fov, referenceFov);
+    assert.ok(Math.abs(screenRadius(scaled, fov) - expected) < 1e-9);
+  }
+
+  assert.equal(fovScaledLookAngle(lookAngle, 0, referenceFov), lookAngle);
+  assert.equal(fovScaledLookAngle(lookAngle, 40, 0), lookAngle);
+  assert.equal(fovScaledLookAngle(lookAngle, Number.NaN, referenceFov), lookAngle);
 });
 
 test("directionAngleDegrees measures the smaller angle between unit vectors", () => {

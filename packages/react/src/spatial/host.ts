@@ -35,6 +35,7 @@ export function createSpatialHost() {
     suppressGazeUntil: 0,
     surfaces: new Set<SpatialSurface>(),
     panels: new Set<SpatialSurface>(),
+    openSceneMenus: new Set<object>(),
     controls: new Map<HTMLElement, PanoSpatialControlAdapter>(),
     revision: 0,
     action: null as GazeAction | null,

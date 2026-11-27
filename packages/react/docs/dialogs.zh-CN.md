@@ -621,6 +621,8 @@ export function DialogHelp() {
 
 第三方弹窗可使用主入口的 `usePanoDialogSurface({ open, onOpenChange })`，将 `contentRef` 连接到内容节点，使用返回的 `portalContainer`、`visibleRect` 和 `presentation`。将返回的 `onInteractOutside` 传给弹窗内容：空间模式和操作 viewer 外的宿主控件（包括进入 VR）时会阻止自动关闭，普通模式仍支持 viewer 内的遮罩点击关闭。空间模式将内容放到 viewer 内的离屏测量区域（保留 DOM 实例），不要对内容调用 `display:none` 或将 portal 移到 `body`。保留可凝视点击的关闭按钮。完整接入参见 Playground 的第三方弹窗示例。
 
+使用具备跟踪能力的 WebXR 手柄时，指向弹窗标题区并按住扳机，可左右或上下移动面板。松开扳机后面板停在新位置，每次打开时出现在当时的视线前方。`PanoDialog` 和 `ProjectPopupDialog` 自带此交互。组合式弹窗或第三方弹窗可在已注册内容的标题区添加 `data-pano-dialog-drag-handle=""`。标题区内的按钮和链接仍响应各自的操作。给自定义关闭按钮添加 `data-pano-dialog-close=""`，可使用标准的空间命中区域。
+
 宿主模型使用 `usePanoSpatialControls(elementRef, adapter)` 接入一次。`PanoSpatialControlAdapter` 支持 `rotateBy(yawDegrees, pitchDegrees)`、`zoomBy(factor)`、`resetView()`、`canExecute(action)`、`subscribeFrame(invalidate)` 和同一 WebGL 上下文的 `texture`。动作名为 `left/right/up/down/in/out/reset`。仅显示已提供能力；宿主负责限制观察角度、缩放范围及复位状态。独立 Canvas 应在渲染结束后提供可读取的画面；纹理必须属于当前 viewer 的渲染上下文。不会重新加载模型或改变项目 JSON。 对于 DOM 模型标记，`getOverlays()` 可以返回标记根元素：空间渲染器单独捕获透明标记层，并在实时 Canvas 之后合成。源 DOM 的可见性和遮挡状态同时约束显示与凝视命中。标题或气泡应包含在对应标记根元素内，以保留溢出内容。
 
 VR 中，视线移到弹窗外时可凝视场景热点。短暂经过热点或看向空白处会保持弹窗；在热点上完成现有 `cursorDwellMs` 后，先从上到下关闭当前弹窗栈，再触发一次目标热点操作，新操作打开的弹窗会保留，并按当前凝视方向重新定位。即使宿主复用同一个弹窗组件，也会先完成旧弹窗的关闭再执行目标操作。凝视弹窗内容时，弹窗优先于其后的热点。仅进入或退出 VR 不会关闭已打开的弹窗。
@@ -655,7 +657,7 @@ const controller = usePanoMediaController(mediaRef);
 </PanoOverlay>
 ```
 
-`position` 使用与热点相同的 yaw/pitch 度数；`width` 是角宽（默认 28°），`distance` 默认 2。省略 position 时，面板出现在进入 VR 时的视线下方并保持位置。面板应位于内容旁边，避免遮挡视频。360° 视频可通过 `usePanoViewer()` 的 `getVideo` / `subscribeVideo` 获取 controller；订阅后用同一组件。`VideoHotspot` 的 `ref` 返回 controller，配合 `onPlaybackStateChange` 同步宿主的 `playing` 状态。关闭、切源和卸载仍遵循媒体本身的生命周期。
+`position` 使用与热点相同的 yaw/pitch 度数；`width` 是角宽（默认 28°），`distance` 默认 2。省略 position 时，面板出现在进入 VR 时的视线下方并保持位置。面板应位于内容旁边，避免遮挡视频。360° 视频可通过 `usePanoViewer()` 的 `getVideo` / `subscribeVideo` 获取 controller；订阅后用同一组件。若用 `PanoMediaControls` 替换内置 VR 播放栏，需在 `PanoVideo` 上设置 `vr={{ controls: false }}`，否则两套控件会同时显示；进度条和字幕轨选择仅内置栏提供。`VideoHotspot` 的 `ref` 返回 controller，配合 `onPlaybackStateChange` 同步宿主的 `playing` 状态。关闭、切源和卸载仍遵循媒体本身的生命周期。
 
 `PanoModelControls` 接收已有 `adapter`，支持 `rotateSpeed`（默认每秒 30°）、`zoomSpeed`（默认每秒 1.5 倍）；不会加载模型或接管宿主视角状态。宿主通过 `canExecute` 限制角度和缩放范围。
 
@@ -683,7 +685,7 @@ const controller = usePanoMediaController(mediaRef);
 
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
-在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、360° 视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 聚焦普通 360° 视频播放、画质与字幕。
+在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 演示普通 360° 播放栏与内置 VR 播放栏，包括画质与字幕。
 
 ### VR 输入方式与控件适配
 
@@ -691,7 +693,7 @@ const controller = usePanoMediaController(mediaRef);
 
 手柄指向模型后按住扳机拖动可旋转模型，上下推摇杆可缩放；指向正文时摇杆滚动最近的可滚动区域，显式滚动目标优先。模型缩放优先于外层滚动。摇杆死区为 0.2，滚动最大每秒一屏，缩放默认每秒 1.5 倍。只有具备可用替代能力时，默认模型与滚动控件才隐藏对应方向按钮。复位、媒体、关闭和场景导航保留；显式 `actions` 和自定义渲染布局不会被自动过滤。
 
-使用过的手柄断开或丢失跟踪后暂停操作，不自动恢复凝视。默认 WebXR 会话工具栏提供退出和主动启用凝视的入口；等待输入或暂停时，只有启用凝视入口接受头部停留选择。宿主关闭 `cursor` 或自动凝视、固定输入策略、关闭 `chrome` 时，界面尊重宿主设置。恢复手柄的第一次明确选择只切换输入，不点击内容。系统瞬时输入不会因暂时消失而触发凝视回退。基础手势保留方向按钮；不提供双手缩放、近距离触碰或移动面板。
+使用过的手柄断开或丢失跟踪后，释放正在拖动的面板并暂停操作，不自动恢复凝视。默认 WebXR 会话工具栏提供退出和主动启用凝视的入口；等待输入或暂停时，只有启用凝视入口接受头部停留选择。宿主关闭 `cursor` 或自动凝视、固定输入策略、关闭 `chrome` 时，界面尊重宿主设置。恢复手柄的第一次明确选择只切换输入，不点击内容。系统瞬时输入不会因暂时消失而触发凝视回退。基础手势保留方向按钮。
 
 Immersive Web Emulator 接管画布时，模拟预览会铺满浏览器内容区域，使用与模拟器相同的显示尺寸及宽高比，并随窗口变化更新。不会调用浏览器 Fullscreen API。退出后恢复原 viewer 的画布样式；真实 WebXR 头显、手机 VR 和桌面非 XR 模式不受此适配影响。
 

@@ -32,6 +32,9 @@ try {
   assert.ok(!main.includes("@radix-ui/react-dialog"), "Core must not load Dialog code");
   for (const entry of [main, await readFile(join(destination, "dist/index.cjs"), "utf8")]) {
     assert.match(entry, /import\(["']three\/webgpu["']\)/, "WebGPU must load only when requested");
+    for (const name of ["WebVRMenu", "WebVRMenuLabel", "WebVRMenuButton"]) {
+      assert.match(entry, new RegExp(`\\b${name}\\b`), `${name} must be exported from the core package`);
+    }
     assert.match(entry, /\bPanoSun\b/, "PanoSun must be exported from the core package");
     assert.match(entry, /data:audio\/mpeg;base64,/, "The shutter recording must be embedded in the core package");
   }
@@ -115,13 +118,16 @@ if(popup.blocks[0].src!=="https://cdn.test/tour/photo.jpg")throw Error("Incorrec
   run(process.execPath, ["consumer.mjs"]);
   run(process.execPath, ["consumer.cjs"]);
   const typeExample = `import {sceneFromViewerConfig,loadPanoProject,type ViewerConfig,type PanoViewLimits,type LoadedPanoProject} from "@ericchen1990/pano-view/data";
-import type {PanoSunProps,ProjectScenesProps} from "@ericchen1990/pano-view";
+import type {WebVRMenuProps,WebVRMenuButtonProps,WebVRMenuLabelProps,PanoSunProps,ProjectScenesProps} from "@ericchen1990/pano-view";
 import type {PanoScreenshotOptions,PanoScreenshotMode,PanoScreenshotFocus} from "@ericchen1990/pano-view";
 import type {PanoDialogProps,PanoDialogContentProps,ProjectPopupDialogProps} from "@ericchen1990/pano-view/ui";
 import type {PanoMediaController,PanoControlAction,PanoSpatialControlsProps,PanoOverlayRenderContext,PanoViewerProps,PanoViewerHandle,PanoRendererBackend} from "@ericchen1990/pano-view";
 declare const config:ViewerConfig;
 const limits:PanoViewLimits={yaw:{min:170,max:-170},fov:{min:60,max:60}};
 const action:PanoControlAction={id:"custom",label:"Custom",update:seconds=>{void seconds;}};
+const menu:WebVRMenuProps={"aria-label":"Tour actions",children:null};
+const menuButton:WebVRMenuButtonProps={children:"Show markers",pressed:true,onClick:()=>{}};
+const menuLabel:WebVRMenuLabelProps={children:"Tour actions"}; void [menu,menuButton,menuLabel];
 const spatial:PanoSpatialControlsProps={children:null,position:{yaw:0,pitch:-20}};
 void [action,spatial];
 const viewer:PanoViewerProps={viewLimits:limits,renderer:"auto"};

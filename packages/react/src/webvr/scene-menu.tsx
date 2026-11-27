@@ -3,6 +3,7 @@ import { pointerInput, pointerStick } from "./input";
 import {
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -206,6 +207,16 @@ function MenuSurface({
   });
   const group = useRef<Group>(null);
   const direction = useMemo(() => new Vector3(), []);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const menu = state.current;
+    spatial.openSceneMenus.add(menu);
+    spatial.notify();
+    return () => {
+      spatial.openSceneMenus.delete(menu);
+      spatial.notify();
+    };
+  }, [open, spatial]);
   useEffect(() => {
     if (!open) state.current.initialized = false;
   }, [follow, followPitch, navigationPitch, open]);

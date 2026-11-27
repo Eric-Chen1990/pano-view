@@ -39,7 +39,7 @@ export const PAGE_META = {
   "/spatial-controls": {
     title: "VR Spatial Controls Demo | Pano View",
     description:
-      "Learn spatial icon controls for scene video, 360 video, host-rendered models and scrolling content in separate interactive examples.",
+      "Learn spatial icon controls for scene video, host-rendered models and scrolling content in separate interactive examples.",
   },
   "/immersive-tour": {
     title: "Immersive Tour Integration Demo | Pano View",

@@ -12,6 +12,7 @@ import {
   Color,
   Mesh,
   MeshBasicMaterial,
+  PerspectiveCamera,
   Vector3,
 } from "three";
 import { PanoEventBusContext } from "../pano-event-bus";
@@ -21,6 +22,7 @@ import {
   DEFAULT_CALLOUT_LOOK_DELAY,
   DEFAULT_CALLOUT_MARKER_COLOR,
   directionAngleDegrees,
+  fovScaledLookAngle,
   resolveCalloutContent,
   stepLookGate,
   type CalloutAnimation,
@@ -55,6 +57,7 @@ const HALO_OPACITY_MAX = 0.34;
 const HALO_OPACITY_MIN = 0.1;
 const HALO_PULSE_HZ = 0.55;
 const DEFAULT_MARKER_SIZE = 3.2;
+const DEFAULT_REFERENCE_FOV = 75;
 
 function subscribeReducedMotion(onStoreChange: () => void) {
   if (typeof window === "undefined" || !window.matchMedia) {
@@ -203,6 +206,7 @@ export function CalloutHotspot({
   height = DEFAULT_MARKER_SIZE,
   mode = "billboard",
   scaleMode = "fixed",
+  referenceFov = DEFAULT_REFERENCE_FOV,
   onClick,
   onHoverChange,
   ...anchorProps
@@ -291,10 +295,17 @@ export function CalloutHotspot({
       lookScratch.hotspotDir.y,
       lookScratch.hotspotDir.z,
     );
+    const currentFov =
+      camera instanceof PerspectiveCamera ? camera.fov : DEFAULT_REFERENCE_FOV;
+    const enterAngle = fovScaledLookAngle(
+      lookAngle,
+      currentFov,
+      referenceFov,
+    );
     const next = stepLookGate(
       lookGate.current,
       angle,
-      lookAngle,
+      enterAngle,
       lookDelay,
       performance.now(),
     );
@@ -348,6 +359,7 @@ export function CalloutHotspot({
         height={height}
         mode={mode}
         scaleMode={scaleMode}
+        referenceFov={referenceFov}
         onClick={onClick}
         onHoverChange={onHoverChange}
       >
@@ -366,6 +378,7 @@ export function CalloutHotspot({
       height={height}
       mode={mode}
       scaleMode={scaleMode}
+      referenceFov={referenceFov}
       onClick={handleClick}
       onHoverChange={handleHoverChange}
     >

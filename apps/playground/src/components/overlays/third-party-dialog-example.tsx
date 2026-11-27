@@ -53,9 +53,9 @@ export function ThirdPartyDialog({
               target?.focus({ preventScroll: true });
             }}
           >
-            <header className="flex shrink-0 items-center justify-between gap-4 border-b border-cyan-300 p-4">
+            <header data-pano-dialog-drag-handle="" className="flex shrink-0 items-center justify-between gap-4 border-b border-cyan-300 p-4">
               <Dialog.Title className="m-0 text-lg">{title}</Dialog.Title>
-              <Dialog.Close className={closeButtonClassName}>{t("Close")}</Dialog.Close>
+              <Dialog.Close data-pano-dialog-close="" className={closeButtonClassName}>{t("Close")}</Dialog.Close>
             </header>
             <PanoOverlayPortalProvider container={nestedContainer}>
               <div className="min-h-0 overflow-auto p-4">{children}</div>

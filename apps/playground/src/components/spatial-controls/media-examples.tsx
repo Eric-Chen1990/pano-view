@@ -1,5 +1,5 @@
 import { usePlaygroundLanguage } from "../../i18n/language";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import {
   PanoMediaControls,
   PanoSpatialControls,
@@ -7,7 +7,6 @@ import {
   hotspotSurfaceDistance,
   type HotspotMode,
   type PanoMediaController,
-  type UsePanoViewerResult,
 } from "@ericchen1990/pano-view";
 
 const SCENE_MOVIE_YAW = 145;
@@ -71,22 +70,6 @@ export function SceneMovieControls({
       width={anchor.width}
       distance={anchor.distance}
     >
-      <PanoMediaControls controller={controller} />
-    </PanoSpatialControls>
-  );
-}
-export function PanoramaMovieControls({
-  viewer,
-}: {
-  viewer: UsePanoViewerResult;
-}) {
-  const controller = useSyncExternalStore(
-    viewer.subscribeVideo,
-    viewer.getVideo,
-    () => null,
-  );
-  return (
-    <PanoSpatialControls>
       <PanoMediaControls controller={controller} />
     </PanoSpatialControls>
   );

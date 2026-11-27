@@ -38,6 +38,7 @@ import {
   type SpatialCaptureOverlay,
 } from "./capture";
 import { spatialPanelScale, spatialUvToPoint } from "./layout";
+import { createSpatialPanelDrag } from "./panel-drag";
 import { SPATIAL_UI_LAYER } from "./render-layer";
 import {
   useContext,
@@ -117,15 +118,24 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     y: number;
     moved: boolean;
     target: object;
+    drag?: { handle: HTMLElement; move: NonNullable<ReturnType<typeof createSpatialPanelDrag>> };
     updates: ReturnType<typeof createActionUpdateState>;
     release: () => void;
   };
   const contacts = useRef(new Map<number, Contact>());
   const hovering = useRef(new Map<number, Contact>());
+  const dragPointer = useRef<number | null>(null);
+  const dragHover = useRef<{ id: number; handle: HTMLElement } | null>(null);
+  const canDragPanel = (event: PointerInput) => {
+    const source = event.pointerState?.inputSource;
+    return !surface.anchor && host.input.canDrag && source &&
+      source === host.input.activeSource && source.targetRayMode === "tracked-pointer" && !source.hand;
+  };
   const stopContact = (id: number) => {
     const contact = contacts.current.get(id);
     if (contact) {
       contacts.current.delete(id);
+      if (dragPointer.current === id) dragPointer.current = null;
       contact.action?.end?.();
       contact.release();
       host.input.release(contact.target, id);
@@ -135,6 +145,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     const stop = () => {
       for (const id of [...contacts.current.keys()]) stopContact(id);
       hovering.current.clear();
+      dragHover.current = null;
     };
     const unsubscribe = host.input.onCancel(stop);
     return () => {
@@ -171,6 +182,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     adapter: null as PanoSpatialControlAdapter | null,
     modelAdapter: null as PanoSpatialControlAdapter | null,
     scrollTarget: null as HTMLElement | null,
+    dragHandle: null as HTMLElement | null,
     mediaTarget: null as HTMLMediaElement | null,
   });
   const getOverlays = () =>
@@ -268,6 +280,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     const releasePointer = () => {
       for (const id of [...contacts.current.keys()]) stopContact(id);
       hovering.current.clear();
+      dragHover.current = null;
       host.suppressGazeUntil = 0;
     };
     window.addEventListener("blur", releasePointer);
@@ -380,7 +393,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     const sceneId = sceneHost?.controller?.getActiveSceneId();
     const sceneChanged = () => {
       const next = sceneHost?.controller?.getActiveSceneId();
-      if (next && sceneId && next !== sceneId) surface.close();
+      if (next && sceneId && next !== sceneId) {
+        releasePointer();
+        surface.close();
+      }
     };
     sceneHost?.listeners.add(sceneChanged);
     return () => {
@@ -433,6 +449,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     const s = state.current;
     s.adapter = null;
     s.scrollTarget = null;
+    s.dragHandle = null;
     const { x, y } = spatialUvToPoint(uv, s.height);
     const button = [...s.edgeButtons, ...s.buttons].find(
       (b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h,
@@ -497,6 +514,11 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           clipped = true;
       }
       if (!clipped && getComputedStyle(el).visibility !== "hidden") target = el;
+    }
+    const handle = target.closest<HTMLElement>("[data-pano-dialog-drag-handle]");
+    if (handle && surface.element.contains(handle)) {
+      const control = target.closest('button,a,input,select,textarea,label,summary,iframe,video,audio,[role="button"],[role="link"],[role="slider"],[contenteditable],[tabindex]');
+      if (!control || control === surface.element || !surface.element.contains(control)) s.dragHandle = handle;
     }
     if (target instanceof HTMLIFrameElement) {
       try {
@@ -571,6 +593,10 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
     )
       host.input.cancel();
     for (const [id, contact] of contacts.current) {
+      if (contact.drag) {
+        if (!surface.element.contains(contact.drag.handle) || !panelMesh.current?.hasPointerCapture(id)) stopContact(id);
+        continue;
+      }
       if (
         contact.adapter &&
         ![...host.controls.values()].includes(contact.adapter)
@@ -1136,6 +1162,21 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
       );
       ctx.restore();
     }
+    const drag = dragPointer.current === null ? undefined : contacts.current.get(dragPointer.current)?.drag;
+    const handle = drag?.handle ?? dragHover.current?.handle;
+    if (handle && surface.element.contains(handle)) {
+      const bounds = scrollViewportBounds(surface.element, handle, BODY_HEIGHT);
+      if (bounds.width > 6 && bounds.height > 6) {
+        ctx.save();
+        ctx.strokeStyle = appearance.getPropertyValue("--pano-dialog-focus-color").trim() || "#ffb300";
+        ctx.globalAlpha = drag ? 1 : 0.65;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(bounds.x + 3, bounds.y + 3, bounds.width - 6, bounds.height - 6, 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
     ctx.textAlign = "start";
     ctx.restore();
     texture.needsUpdate = true;
@@ -1159,17 +1200,28 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
             return;
           const action = resolve(event.uv);
           const adapter = state.current.adapter;
+          const handle = state.current.dragHandle;
+          const move = !action && handle && group.current && canDragPanel(inputEvent)
+            ? createSpatialPanelDrag(group.current, event.point, event.ray)
+            : null;
           const target =
-            action?.id && typeof action.id === "object"
+            move ? surface.element : action?.id && typeof action.id === "object"
               ? action.id
               : (adapter ?? surface.element);
           if (!host.input.claim(target, inputEvent.pointerId)) return;
+          if (move) {
+            dragPointer.current = inputEvent.pointerId;
+            hovering.current.clear();
+            dragHover.current = null;
+            host.action = null;
+          }
           host.suppressGazeUntil = performance.now() + 350;
           event.eventObject.setPointerCapture(inputEvent.pointerId);
           contacts.current.set(inputEvent.pointerId, {
             event: inputEvent,
             action,
             adapter: action ? null : adapter,
+            drag: handle && move ? { handle, move } : undefined,
             scroll: state.current.scrollTarget,
             x: event.uv.x,
             y: event.uv.y,
@@ -1189,6 +1241,7 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           if (
             host.input.accept(e, "up") &&
             contact &&
+            !contact.drag &&
             !contact.moved &&
             event.uv
           ) {
@@ -1209,16 +1262,25 @@ function SurfacePanel({ surface }: { surface: SpatialSurface }) {
           stopContact(pointerInput(event).pointerId);
         }}
         onPointerOut={(event) => {
-          hovering.current.delete(pointerInput(event).pointerId);
+          const { pointerId } = pointerInput(event);
+          hovering.current.delete(pointerId);
+          if (dragHover.current?.id === pointerId) dragHover.current = null;
         }}
         userData={{ panoGazeResolve: resolve }}
         onPointerMove={(event) => {
           event.stopPropagation();
           const e = pointerInput(event);
-          if (!host.input.accept(e, "hover", !!pointerStick(e)) || !event.uv)
+          if (!host.input.accept(e, "hover", !!pointerStick(e))) return;
+          const contact = contacts.current.get(e.pointerId);
+          if (contact?.drag) {
+            if (canDragPanel(e)) contact.drag.move(event.ray);
             return;
-          const action = resolve(event.uv),
-            contact = contacts.current.get(e.pointerId);
+          }
+          if (!event.uv || dragPointer.current !== null) return;
+          const action = resolve(event.uv);
+          const handle = state.current.dragHandle;
+          if (!action && handle && canDragPanel(e)) dragHover.current = { id: e.pointerId, handle };
+          else dragHover.current = null;
           if (contact?.adapter?.rotateBy && host.input.canDrag) {
             const dx = event.uv.x - contact.x,
               dy = event.uv.y - contact.y;

@@ -10,6 +10,7 @@ import {
   type PanoVideoControlsOptions,
   type PanoVideoTrack,
   type PanoVideoVariant,
+  type PanoVideoVROptions,
 } from "@ericchen1990/pano-view";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { cn } from "../../cn";
@@ -107,6 +108,7 @@ function buildVideoSnippet(
   clickToTogglePlayback: boolean,
   showCenterPlayButton: boolean,
   buttons: VideoButtons,
+  vr: PanoVideoVROptions,
 ): string {
   const defaultTrack = captionLang === "zh" ? "zh" : "en";
   const tracks = profile === "files" ? VIDEO_TRACKS : HLS_TRACKS;
@@ -120,6 +122,7 @@ function buildVideoSnippet(
     captionLang === "off"
       ? "false"
       : `{ fontSize: ${fontSize}, color: "${captionColor}" }`;
+  const vrOptions = JSON.stringify(vr);
   return `import { PanoViewer, PanoVideo, WebVR } from "@ericchen1990/pano-view";
 import "@ericchen1990/pano-view/styles.css";
 
@@ -133,6 +136,7 @@ export function PanoramaVideo() {
       }}
       style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
+      {/* In VR, open controls with a controller grip or a quick downward nod in gaze mode. */}
       <WebVR />
       <PanoVideo
         autoPlay
@@ -140,7 +144,7 @@ export function PanoramaVideo() {
         clickToTogglePlayback={${clickToTogglePlayback}}
         showCenterPlayButton={${showCenterPlayButton}}
         captions={${captionsProp}}
-        controls={{ buttons: ${JSON.stringify(buttons)} }}
+        controls={{ buttons: ${JSON.stringify(buttons)} }}${vrOptions === "{}" ? "" : `\n        vr={${vrOptions}}`}
 ${sourceProps}
         tracks={[
 ${tracks.map((track) => `          { src: "${track.src}", srcLang: "${track.srcLang}", label: "${track.label}"${defaultTrack === track.srcLang ? ", default: true" : ""} },`).join("\n")}
@@ -167,6 +171,7 @@ export function VideoPage() {
   const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
   const [buttons, setButtons] = useState<VideoButtons>({});
   const controls = useMemo(() => ({ buttons }), [buttons]);
+  const [vr, setVr] = useState<PanoVideoVROptions>({});
   const [captionLang, setCaptionLang] = useState<CaptionLang>("en");
   const [fontSize, setFontSize] = useState(16);
   const [captionColor, setCaptionColor] = useState("#ffffff");
@@ -189,8 +194,8 @@ export function VideoPage() {
   }, [captionColor, captionLang, fontSize]);
 
   const snippet = useMemo(
-    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton, buttons),
-    [buttons, captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton],
+    () => buildVideoSnippet(loop, captionLang, fontSize, captionColor, profile, clickToTogglePlayback, showCenterPlayButton, buttons, vr),
+    [buttons, captionColor, captionLang, clickToTogglePlayback, fontSize, loop, profile, showCenterPlayButton, vr],
   );
 
   return (
@@ -289,6 +294,23 @@ export function VideoPage() {
               value={captionColor}
             />
           </label>
+          {(["controls", "captions"] as const).map((option) => (
+            <label key={option} className={controlLabelClassName}>
+              {t(option === "controls" ? "VR playback bar" : "VR captions")}
+              <select
+                className={controlInputClassName}
+                value={vr[option] === undefined ? "inherit" : vr[option] ? "show" : "hide"}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setVr((previous) => ({ ...previous, [option]: value === "inherit" ? undefined : value === "show" }));
+                }}
+              >
+                <option value="inherit">{t("Same as screen mode")}</option>
+                <option value="show">{t("Show in VR")}</option>
+                <option value="hide">{t("Hide in VR")}</option>
+              </select>
+            </label>
+          ))}
         </div>
         <details className="border-b border-line px-6 py-3 text-sm">
           <summary className="w-fit cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
@@ -339,6 +361,7 @@ export function VideoPage() {
               loop={loop}
               showCenterPlayButton={showCenterPlayButton}
               tracks={tracks}
+              vr={vr}
               src={profile === "desktop" ? HLS_SAMPLE : undefined}
               crossOrigin={profile === "files" ? undefined : "anonymous"}
               variants={profile === "files" ? VIDEO_VARIANTS : profile === "mobile" ? MOBILE_VARIANTS : undefined}
@@ -360,7 +383,7 @@ export function VideoPage() {
         <VideoPerformanceMetrics root={viewerRoot} motion={motion} />
         <ExampleCode
           react={{
-            blurb: t("Replace the sample URLs with your own video sources and captions."),
+            blurb: t("Press a controller grip to open or close playback controls. In gaze mode, quickly look down to open them and look up to close them. Captions float in the scene."),
             code: snippet,
             label: "PanoVideo",
           }}

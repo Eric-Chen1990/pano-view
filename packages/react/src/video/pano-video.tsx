@@ -27,6 +27,7 @@ import { usePanoMediaActivationIntent } from "../media-activation";
 import { isAutoplayPolicyError } from "../media-activation-event";
 import { useStandaloneSceneLoad } from "../scene-load-progress";
 import { PanoBasicMaterial } from "../pano-filter/pano-basic-material";
+import { WebVRRuntimeContext } from "../webvr/host";
 import { DEFAULT_PANORAMA_RADIUS } from "../panorama-radius";
 import { applyInlineVideoPlayback, mountTextureVideo } from "./inline-playback";
 import { prepareNativeHlsSwitch } from "./native-hls-switch";
@@ -63,6 +64,7 @@ import type {
   PanoVideoPlaybackSnapshot,
   PanoVideoTrack,
   PanoVideoVariant,
+  PanoVideoVROptions,
 } from "./types";
 
 const EMPTY_TRACKS: readonly PanoVideoTrack[] = [];
@@ -88,6 +90,8 @@ export type PanoVideoProps = {
    * Render `PanoVideoControls` as a PanoViewer child to replace the default.
    */
   controls?: boolean | PanoVideoControlsOptions;
+  /** Override playback bar and caption visibility independently in VR. */
+  vr?: PanoVideoVROptions;
   /** Click or tap the panorama to toggle playback in screen mode. Defaults to true. */
   clickToTogglePlayback?: boolean;
   /** Show a centered play button while the visible video is stopped. Defaults to true. */
@@ -301,6 +305,7 @@ export function PanoVideo({
   tracks: tracksProp,
   captions = true,
   controls = true,
+  vr,
   clickToTogglePlayback = true,
   showCenterPlayButton = true,
   yawOffset = 0,
@@ -324,6 +329,7 @@ export function PanoVideo({
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
   const host = useContext(PanoVideoHostContext);
+  const vrMode = useContext(WebVRRuntimeContext)?.mode;
   const variants = useMemo(
     () => resolvePanoVideoVariants({ poster, src, variants: variantsProp }),
     [poster, src, variantsProp],
@@ -332,7 +338,22 @@ export function PanoVideo({
   fallbackVariant.current = variants.find(({ id, sources }) =>
     id === fallbackVariantId && sources.some(({ src }) => src.trim().length > 0));
   const tracks = tracksProp ?? EMPTY_TRACKS;
-  const captionsEnabled = captions !== false;
+  const mediaSourceKey = useMemo(() =>
+    JSON.stringify(variants.map(({ id, sources, poster }) => ({ id, sources, poster }))),
+  [variants]);
+  const sourceKey = useMemo(() => JSON.stringify({
+    mediaSourceKey,
+    tracks: tracks.map(({ id, src, srcLang, kind }) => [id, src, srcLang, kind]),
+    crossOrigin,
+  }), [crossOrigin, mediaSourceKey, tracks]);
+  const [xrRecovery] = useState(() =>
+    visible && host?.xrRecovery?.sourceKey === sourceKey ? host.xrRecovery : null,
+  );
+  const screenCaptionsEnabled = captions !== false;
+  const vrCaptionsEnabled = vr?.captions ?? screenCaptionsEnabled;
+  const vrControls = vr?.controls;
+  const captionsEnabled = vrMode ? vrCaptionsEnabled : screenCaptionsEnabled;
+  const captionsAvailable = screenCaptionsEnabled || vrCaptionsEnabled;
   const captionAppearance = useMemo(
     () =>
       resolvePanoVideoCaptionAppearance(
@@ -341,12 +362,16 @@ export function PanoVideo({
     [captions],
   );
   const [selection, setSelection] = useState(() => ({
-    id: resolvePanoVideoVariantId(variants, defaultVariantId),
+    id: resolvePanoVideoVariantId(variants, xrRecovery?.variantId ?? defaultVariantId),
     revision: 0,
   }));
   const [trackId, setTrackId] = useState<string | null>(() =>
-    captionsEnabled ? defaultPanoVideoTrackId(tracks) : null,
+    captionsAvailable ? (xrRecovery ? xrRecovery.trackId : defaultPanoVideoTrackId(tracks)) : null,
   );
+  // Presentation changes preserve the selected track for the other mode.
+  const trackConfig = useRef({ captionsAvailable, tracks });
+  const cueTrackId = useRef<string | null>(null);
+  const recoveredAudio = useRef(xrRecovery && { muted, volume, recovery: xrRecovery });
   const [ready, setReady] = useState(false);
   const [frameKey, setFrameKey] = useState<string>();
   const [mediaFailure, setMediaFailure] = useState<{ key: string; error: unknown }>();
@@ -405,7 +430,7 @@ export function PanoVideo({
   const initialSourceVideoRef = useRef<HTMLVideoElement | null>(null);
   const pendingSwitch = useRef<PendingQualitySwitch | null>(null);
   const nativeVariantId = useRef<string | null>(null);
-  const resume = useRef<PlaybackResume | null>(null);
+  const resume = useRef<PlaybackResume | null>(xrRecovery);
   const playAfterLoad = useRef(false);
   const sourceFailure = useRef<((error: unknown) => void) | null>(null);
   const failedSource = useRef(false);
@@ -469,10 +494,7 @@ export function PanoVideo({
   ]) : "";
   const posterUrl = variants.find((variant) => variant.id === nativeVariantId.current)?.poster ?? activeVariant?.poster ?? poster;
   const { texture: posterTexture, failure: posterFailure } = usePosterTexture(posterUrl, onError);
-  const sourceKey = useMemo(() =>
-    JSON.stringify(variants.map(({ id, sources, poster }) => ({ id, sources, poster }))),
-  [variants]);
-  const loadKey = useMemo(() => ({ sourceKey, crossOrigin, gl }), [sourceKey, crossOrigin, gl]);
+  const loadKey = useMemo(() => ({ sourceKey: mediaSourceKey, crossOrigin, gl }), [mediaSourceKey, crossOrigin, gl]);
   const canLoadVideo = activeVariant?.sources.some(({ src }) => src.trim().length > 0) === true;
   const load = useStandaloneSceneLoad(
     loadKey,
@@ -522,6 +544,9 @@ export function PanoVideo({
         playbackRates: mediaCapabilitiesRef.current.playbackRates,
         playbackState,
         ...patch,
+        captionText: captionsEnabled && cueTrackId.current === trackId
+          ? (patch?.captionText ?? store.snapshot.captionText)
+          : "",
       };
       store.snapshot = next;
       store.listeners.forEach((listener) => {
@@ -625,24 +650,36 @@ export function PanoVideo({
   );
 
   useLayoutEffect(() => {
+    if (host && xrRecovery && host.xrRecovery === xrRecovery) host.xrRecovery = null;
+  }, [host, xrRecovery]);
+
+  useLayoutEffect(() => {
     if (!host || variants.length === 0) {
       return;
     }
     host.controls = controls;
-    host.captions = captionsEnabled;
+    host.captions = screenCaptionsEnabled;
+    host.vrControls = vrControls;
+    host.vrCaptions = vrCaptionsEnabled;
     host.clickToTogglePlayback = videoInteractionsEnabled && clickToTogglePlayback;
     host.showCenterPlayButton = videoInteractionsEnabled && showCenterPlayButton;
     host.controller = controller;
+    host.visibleSourceKey = videoInteractionsEnabled ? sourceKey : null;
+    if (videoInteractionsEnabled && host.xrRecovery?.sourceKey !== sourceKey) {
+      host.xrRecovery = null;
+    }
     notifyPanoVideoHost(host);
     return () => {
+      if (host.controller !== controller) return;
       host.controller = null;
+      host.visibleSourceKey = null;
       host.clickToTogglePlayback = false;
       host.showCenterPlayButton = false;
       notifyPanoVideoHost(host);
     };
   }, [
-    captionsEnabled, clickToTogglePlayback, controller, controls, host,
-    showCenterPlayButton, variants.length, videoInteractionsEnabled,
+    clickToTogglePlayback, controller, controls, host, screenCaptionsEnabled,
+    showCenterPlayButton, sourceKey, variants.length, videoInteractionsEnabled, vrCaptionsEnabled, vrControls,
   ]);
 
   useLayoutEffect(() => {
@@ -750,7 +787,7 @@ export function PanoVideo({
     video.addEventListener("canplay", handleLoadedData);
     const source = loadVideoSources(video, activeVariant.sources, {
       crossOrigin,
-      startImmediately: video.preload !== "none" || playAfterLoad.current,
+      startImmediately: video.preload !== "none" || playAfterLoad.current || Boolean(saved && saved.time > 0),
       hasLoaded: () => loaded,
       onError: (error) => {
         if (videoRef.current === video) queueMicrotask(() => {
@@ -964,12 +1001,22 @@ export function PanoVideo({
   useLayoutEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    const recovered = recoveredAudio.current;
+    if (recovered && (recovered.muted !== muted || recovered.volume !== volume)) {
+      recoveredAudio.current = null;
+    }
+    const audio = recoveredAudio.current?.recovery;
     video.loop = loop;
-    video.muted = muted;
-    if (mediaCapabilitiesRef.current.volumeAdjustable) video.volume = clampVolume(volume);
+    video.muted = audio?.muted ?? muted;
+    if (mediaCapabilitiesRef.current.volumeAdjustable) video.volume = clampVolume(audio?.volume ?? volume);
     applyInlineVideoPlayback(video, playsInline);
-    video.preload = preload;
-  }, [loop, muted, playsInline, preload, volume]);
+  }, [loop, muted, playsInline, volume]);
+
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.preload = preload === "none" && xrRecovery && xrRecovery.time > 0 && !ready ? "metadata" : preload;
+  }, [preload, ready, xrRecovery]);
 
   useEffect(() => {
     if (!video) return;
@@ -1052,7 +1099,9 @@ export function PanoVideo({
     if (!video) return;
     let selected: TextTrack | null = null;
     const handleCueChange = () => {
-      if (videoRef.current === video) emitSnapshot({ captionText: collectCaptionText(selected) });
+      if (videoRef.current !== video) return;
+      cueTrackId.current = trackId;
+      emitSnapshot({ captionText: collectCaptionText(selected) });
     };
     const applyModes = () => {
       const next = findTextTrack(video, trackId);
@@ -1085,12 +1134,14 @@ export function PanoVideo({
   }, [emitSnapshot, video, trackId, tracks]);
 
   useEffect(() => {
-    if (!captionsEnabled) {
+    if (trackConfig.current.captionsAvailable === captionsAvailable && trackConfig.current.tracks === tracks) return;
+    trackConfig.current = { captionsAvailable, tracks };
+    if (!captionsAvailable) {
       setTrackId(null);
       return;
     }
     setTrackId(defaultPanoVideoTrackId(tracks));
-  }, [captionsEnabled, tracks]);
+  }, [captionsAvailable, tracks]);
 
   const activeTexture = ready ? videoTexture : posterTexture;
   useEffect(() => {
