@@ -1473,6 +1473,10 @@ export function SphereExample() {
 传 `controls={false}` 可隐藏整条播放栏。传入对象可同时配置按钮和外观。所有可用按钮默认启用，可在 `controls.buttons` 中将 `play`、`volume`、`playbackRate`、`quality`、`captions`、`vr` 或 `fullscreen` 设为 `false`，同时隐藏它在「更多」中的入口。例如，`controls={{ buttons: { vr: false, fullscreen: false } }}` 会隐藏 VR 与全屏按钮。
 也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件以替换默认实例。
 
+同时挂载 `WebVR` 时，快速低头可显示头显内的播放栏，抬头收起。播放栏展开时固定在场景中。用手柄点击或凝视确认，可以播放、暂停、重播、跳转进度、静音、开关字幕和切换字幕轨。字幕悬浮在正前方下侧，平滑跟随视线，并由 `captions` 控制。
+
+VR 默认沿用普通模式的播放栏和字幕设置。用 `vr={{ controls: false }}` 仅隐藏 VR 播放栏，或用 `vr={{ captions: false }}` 仅隐藏 VR 字幕和字幕按钮。字段设为 `true` 时可单独在 VR 中启用对应功能。两种模式共用当前选择的字幕轨。
+
 字幕使用 WebVTT `tracks`。视频元素以透明的 1×1 像素节点挂载在查看器内，字幕提示文本（cue）通过屏幕空间叠加层渲染。`captions={false}` 会隐藏叠加层与语言菜单；对象会与默认外观合并（`color`、`background`、`fontSize`、`fontFamily`、`textShadow`、`padding`、`borderRadius`、`maxWidth`、`bottom`）。这些值作为字幕初始外观；观众仍可在运行时通过默认控制栏菜单调整字幕大小与背景。
 
 ```tsx

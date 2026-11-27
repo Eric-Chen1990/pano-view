@@ -201,6 +201,7 @@ export type {
   PanoVideoTrack,
   PanoVideoTrackKind,
   PanoVideoVariant,
+  PanoVideoVROptions,
 } from "./video/types";
 export { Scenes } from "./scenes";
 export type {

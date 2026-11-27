@@ -1559,6 +1559,18 @@ in More. For example, `controls={{ buttons: { vr: false, fullscreen: false } }}`
 hides both presentation buttons.
 Render `PanoVideoControls` as a `PanoViewer` child to replace the default instance.
 
+With `WebVR` mounted, quickly tilt your head down to reveal the immersive playback bar and look up
+to hide it. The bar holds its position and orientation in the scene while open.
+Use a controller or gaze to play, pause, replay, seek, mute, toggle captions, or pick
+a caption track. Captions float below the center of the view, gently follow head
+movement, and are controlled independently through `captions`.
+
+By default, VR inherits the screen-mode playback bar and caption settings.
+Override either feature with `vr={{ controls: false }}` or
+`vr={{ captions: false }}`. Set a field to `true` to enable that feature in VR
+even when it is disabled in screen mode. Both modes share the selected caption
+track.
+
 Captions use WebVTT `tracks`. The video element is mounted inside the viewer as a
 transparent 1×1-pixel node; cue text is rendered in a screen-space overlay. `captions={false}` hides the overlay and the language
 menu; an object merges with the default appearance (`color`, `background`,

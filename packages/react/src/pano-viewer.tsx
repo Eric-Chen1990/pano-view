@@ -145,11 +145,13 @@ import {
   usePanoChromeOverlay,
 } from "./video/chrome-overlay";
 import {
+  capturePanoVideoXRRecovery,
   createPanoVideoHost,
   PanoVideoHostContext,
   subscribePanoVideoStore,
 } from "./video/host";
 import { PanoVideoChromeBridge } from "./video/pano-video-chrome-bridge";
+import { PanoVideoVR } from "./video/pano-video-vr";
 import { WebVRChromeBridge } from "./webvr/chrome";
 import {
   createWebVRHost,
@@ -291,14 +293,6 @@ function PanoCursorTree({
   );
 }
 
-function PanoVideoHostReset() {
-  const host = useContext(PanoVideoHostContext);
-  if (host) {
-    host.controlClaims = 0;
-  }
-  return null;
-}
-
 function DefaultControlChannels({
   userControlsEnabled,
   mouseChannel,
@@ -413,6 +407,9 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
     const resumeView = useRef<PanoViewerState | null>(null);
     const screenshot = useMemo(() => createScreenshotHost(rootRef), []);
     const rendererRuntime = usePanoRenderer(renderer, () => {
+      if (webVRHost.snapshot.entering || webVRHost.pendingXR) {
+        capturePanoVideoXRRecovery(videoHost);
+      }
       screenshot.cancel("The viewer changed rendering backends.");
       if (introHost.isPlaying()) introHost.finish();
       sceneLoadProgress.reset();
@@ -1081,7 +1078,6 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   <PanoMediaActivationHostContext.Provider value={mediaActivationHost}>
                   <CompareHostContext.Provider value={compareHost}>
                   <ScreenshotContext.Provider value={screenshot}>
-                  <PanoVideoHostReset />
                   <PanoramaViewRuntime
                     ref={setControlsRuntime}
                     eventBus={eventBus}
@@ -1115,6 +1111,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   ) : null}
                   <ControlClaimsContext.Provider value={controlClaims}>
                     <SpatialPanels />
+                    {vrActive && <PanoVideoVR modalOpen={modalOpen} />}
                     {sceneChildren}
                     <DefaultControlChannels
                       fovSpeed={controlOptions.fovSpeed}
