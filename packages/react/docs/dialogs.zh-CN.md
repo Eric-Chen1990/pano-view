@@ -657,7 +657,7 @@ const controller = usePanoMediaController(mediaRef);
 </PanoOverlay>
 ```
 
-`position` 使用与热点相同的 yaw/pitch 度数；`width` 是角宽（默认 28°），`distance` 默认 2。省略 position 时，面板出现在进入 VR 时的视线下方并保持位置。面板应位于内容旁边，避免遮挡视频。360° 视频可通过 `usePanoViewer()` 的 `getVideo` / `subscribeVideo` 获取 controller；订阅后用同一组件。`VideoHotspot` 的 `ref` 返回 controller，配合 `onPlaybackStateChange` 同步宿主的 `playing` 状态。关闭、切源和卸载仍遵循媒体本身的生命周期。
+`position` 使用与热点相同的 yaw/pitch 度数；`width` 是角宽（默认 28°），`distance` 默认 2。省略 position 时，面板出现在进入 VR 时的视线下方并保持位置。面板应位于内容旁边，避免遮挡视频。360° 视频可通过 `usePanoViewer()` 的 `getVideo` / `subscribeVideo` 获取 controller；订阅后用同一组件。若用 `PanoMediaControls` 替换内置 VR 播放栏，需在 `PanoVideo` 上设置 `vr={{ controls: false }}`，否则两套控件会同时显示；进度条和字幕轨选择仅内置栏提供。`VideoHotspot` 的 `ref` 返回 controller，配合 `onPlaybackStateChange` 同步宿主的 `playing` 状态。关闭、切源和卸载仍遵循媒体本身的生命周期。
 
 `PanoModelControls` 接收已有 `adapter`，支持 `rotateSpeed`（默认每秒 30°）、`zoomSpeed`（默认每秒 1.5 倍）；不会加载模型或接管宿主视角状态。宿主通过 `canExecute` 限制角度和缩放范围。
 
@@ -685,7 +685,7 @@ const controller = usePanoMediaController(mediaRef);
 
 通过 `--pano-scroll-opacity`、`--pano-scroll-active-opacity`、`--pano-scroll-background` 和 `--pano-scroll-color` 定制滚动按钮。
 
-在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、360° 视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 聚焦普通 360° 视频播放、画质与字幕。
+在 `/overlays` 比较弹窗接入方式，在 `/spatial-controls` 分别查看场景视频、模型及滚动控件，在 `/immersive-tour` 验证完整组合。`/video` 演示普通 360° 播放栏与内置 VR 播放栏，包括画质与字幕。
 
 ### VR 输入方式与控件适配
 

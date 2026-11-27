@@ -651,7 +651,7 @@ const controller = usePanoMediaController(mediaRef);
 </PanoSpatialControls>
 ```
 
-`position` uses hotspot yaw/pitch degrees, `width` is angular width (28° by default), and `distance` defaults to 2. Omit position to place the bar below the initial VR view and keep it stationary. `PanoSpatialControls` must be inside `PanoOverlay`. Use `usePanoViewer().getVideo/subscribeVideo` for the active 360° video controller. `VideoHotspot` now accepts a controller `ref`; synchronize controlled `playing` through `onPlaybackStateChange`. Source and playback lifetime remain owned by the media component.
+`position` uses hotspot yaw/pitch degrees, `width` is angular width (28° by default), and `distance` defaults to 2. Omit position to place the bar below the initial VR view and keep it stationary. `PanoSpatialControls` must be inside `PanoOverlay`. Use `usePanoViewer().getVideo/subscribeVideo` for the active 360° video controller. To replace the built-in VR playback bar with `PanoMediaControls`, set `vr={{ controls: false }}` on `PanoVideo`; otherwise both bars appear. The built-in bar alone provides seek and caption-track controls. `VideoHotspot` now accepts a controller `ref`; synchronize controlled `playing` through `onPlaybackStateChange`. Source and playback lifetime remain owned by the media component.
 
 `PanoModelControls` takes an existing `adapter`, `rotateSpeed` (30 degrees/second) and `zoomSpeed` (1.5 times/second). The host retains loading, view state and limits through `canExecute`.
 
@@ -679,7 +679,7 @@ After `cursorDwellMs`, play, mute and reset fire once; seek, volume, rotation an
 
 Customize scroll arrows with `--pano-scroll-opacity`, `--pano-scroll-active-opacity`, `--pano-scroll-background` and `--pano-scroll-color`.
 
-Use `/overlays` to compare dialog integration styles, `/spatial-controls` for separate scene-video, 360-video, model and scrolling examples, and `/immersive-tour` for the complete combination. `/video` focuses on ordinary 360° playback, quality and captions.
+Use `/overlays` to compare dialog integration styles, `/spatial-controls` for separate scene-video, model and scrolling examples, and `/immersive-tour` for the complete combination. `/video` demonstrates ordinary 360° playback controls and the built-in VR playback bar, including quality and captions.
 
 ### VR input and adaptive controls
 

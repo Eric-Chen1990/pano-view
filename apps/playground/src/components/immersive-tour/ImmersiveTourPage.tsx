@@ -489,7 +489,7 @@ export function ImmersiveTourPage() {
           <summary>{t("Complete tour integration and selected dialog")}</summary>
           <CodeSnippet
             label={t("VR media controls")}
-            blurb={t("Scene video, shared media controls, and a 360° video control bar.")}
+            blurb={t("Scene video and shared media controls for VR icon playback.")}
             code={spatialControlsCode}
           />
           <CodeSnippet key={mode} {...dialogSnippet(mode)} />

@@ -24,7 +24,6 @@ import modelSource from "./host-model-example.tsx?raw";
 
 const examples = [
   { id: "scene-video", label: "Scene video" },
-  { id: "360-video", label: "360 video" },
   { id: "model", label: "Model" },
   { id: "scroll", label: "Scrolling" },
 ] as const;
@@ -72,13 +71,6 @@ const snippets = {
     controls: `<PanoSpatialControls position={{ yaw: 0, pitch: -12 }} width={28}>
             <PanoMediaControls controller={controller} />
           </PanoSpatialControls>`,
-  },
-  "360-video": {
-    hooks: "useSyncExternalStore",
-    imports: "PanoVideo, PanoSpatialControls, PanoMediaControls",
-    state: "  const controller = useSyncExternalStore(viewer.subscribeVideo, viewer.getVideo, () => null);",
-    scene: `<PanoVideo src="${videoUrl}" loop />`,
-    controls: "<PanoSpatialControls><PanoMediaControls controller={controller} /></PanoSpatialControls>",
   },
   model: {
     hooks: "useMemo, useRef, useState",
@@ -165,7 +157,7 @@ export function SpatialControlsPage() {
       <SpatialExample key={kind} kind={kind} />
       <p className="px-6 text-sm text-muted-2">{kind === "model" || kind === "scroll"
         ? t("In VR, select the hotspot with gaze or your controller. To move the dialog, aim at its header and hold the controller trigger, then release it to place the dialog.")
-        : t("Icon groups appear only in VR. Outside VR, click the scene video or use the 360 player controls.")}</p>
+        : t("Icon groups appear only in VR. Outside VR, click the scene video.")}</p>
       <ExampleCode react={{
         label: examples.find(({ id }) => id === kind)!.label,
         blurb: t("Connect the selected target to its controls inside the viewer."),
@@ -178,10 +170,10 @@ export function SpatialControlsPage() {
         blurb={t("The running component mounts only the selected target. PanoOverlay owns the dialog and spatial controls; the media and model implementations are below.")}
         code={source}
         />
-      {kind === "scene-video" || kind === "360-video" ? (
+      {kind === "scene-video" ? (
         <CodeSnippet
           label={t("Media controllers")}
-          blurb={t("VideoHotspot supplies a controller ref; the 360 player supplies its controller through usePanoViewer. Both feed PanoMediaControls inside PanoSpatialControls.")}
+          blurb={t("VideoHotspot supplies a controller ref that feeds PanoMediaControls inside PanoSpatialControls.")}
           code={mediaSource}
         />
       ) : null}

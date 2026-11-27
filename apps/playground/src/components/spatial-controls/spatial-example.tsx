@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 import {
   PanoOverlay,
   PanoScrollControls,
-  PanoVideo,
   TextHotspot,
   Tile,
   WebVR,
@@ -21,17 +20,9 @@ import {
   viewerChromeButtonClassName,
 } from "../../ui";
 import { HostModelExample } from "./host-model-example";
-import {
-  PanoramaMovieControls,
-  SceneMovie,
-  SceneMovieControls,
-} from "./media-examples";
+import { SceneMovie, SceneMovieControls } from "./media-examples";
 
-export type SpatialExampleKind =
-  | "scene-video"
-  | "360-video"
-  | "model"
-  | "scroll";
+export type SpatialExampleKind = "scene-video" | "model" | "scroll";
 
 export const spatialDialogExamples = {
   model: { id: "open-model", label: "Open model", title: "Host model controls" },
@@ -120,15 +111,7 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
         style={{ height: playgroundViewerHeight }}
       >
         <WebVR />
-        {kind === "360-video" ? (
-          <PanoVideo
-            src="/fixtures/360video/1/video-1024x512.mp4"
-            poster="/fixtures/360video/1/video-1024x512-poster.jpg"
-            loop
-          />
-        ) : (
-          <Tile {...cubeTileProps()} />
-        )}
+        <Tile {...cubeTileProps()} />
         {kind === "scene-video" ? (
           <SceneMovie onController={setController} />
         ) : null}
@@ -144,9 +127,6 @@ export function SpatialExample({ kind }: { kind: SpatialExampleKind }) {
         <PanoOverlay>
           {kind === "scene-video" ? (
             <SceneMovieControls controller={controller} />
-          ) : null}
-          {kind === "360-video" ? (
-            <PanoramaMovieControls viewer={viewer} />
           ) : null}
           {dialog ? (
             <>
