@@ -136,7 +136,7 @@ export function PanoramaVideo() {
       }}
       style={{ height: ${JSON.stringify(playgroundViewerHeight)} }}
     >
-      {/* In VR, quickly look down for playback controls. Captions float in the scene. */}
+      {/* In VR, open controls with a controller grip or a quick downward nod in gaze mode. */}
       <WebVR />
       <PanoVideo
         autoPlay
@@ -383,7 +383,7 @@ export function VideoPage() {
         <VideoPerformanceMetrics root={viewerRoot} motion={motion} />
         <ExampleCode
           react={{
-            blurb: t("Enter VR and quickly look down for playback controls. Use a controller or hold your gaze to activate a control. Captions float in the scene and can be turned off from the bar."),
+            blurb: t("Press a controller grip to open or close playback controls. In gaze mode, quickly look down to open them and look up to close them. Captions float in the scene."),
             code: snippet,
             label: "PanoVideo",
           }}

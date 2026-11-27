@@ -1056,6 +1056,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             value={vrRuntime}
           >
           <SpatialHostContext.Provider value={spatialHost}>
+          <PanoModalHostContext.Provider value={modalHost}>
           <PanoramaXROrigin headView={xrHeadView} audioPose={xrAudioPose} />
           <HotspotAccessibilityContext.Provider value={registry}>
             <HotspotTargetRegistryContext.Provider value={hotspotTargetRegistry}>
@@ -1111,7 +1112,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
                   ) : null}
                   <ControlClaimsContext.Provider value={controlClaims}>
                     <SpatialPanels />
-                    {vrActive && <PanoVideoVR modalOpen={modalOpen} />}
+                    {vrActive && <PanoVideoVR />}
                     {sceneChildren}
                     <DefaultControlChannels
                       fovSpeed={controlOptions.fovSpeed}
@@ -1141,6 +1142,7 @@ export const PanoViewer = forwardRef<PanoViewerHandle, PanoViewerProps>(
             </PanoEventBusContext.Provider>
             </HotspotTargetRegistryContext.Provider>
           </HotspotAccessibilityContext.Provider>
+          </PanoModalHostContext.Provider>
           </SpatialHostContext.Provider>
           </WebVRRuntimeContext.Provider>
           </XR>

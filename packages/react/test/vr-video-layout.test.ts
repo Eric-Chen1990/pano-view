@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createVRVideoLookDownGesture, vrVideoCaptionBounds, vrVideoEyeBounds, vrVideoLookDown, vrVideoSeekTime, vrVideoToolbarTransition, wrapVRCaption } from "../src/video/vr-video-layout";
+import { vrVideoCaptionBounds, vrVideoSeekTime, wrapVRCaption } from "../src/video/vr-video-layout";
+import { createLookDownGesture, lookDownPanelTransition, lookDownThreshold, vrEyeBounds } from "../src/webvr/look-down-layout";
 
 test("floating captions stay within the lower binocular safe area", () => {
   const eyeBottom = 1.2;
@@ -20,17 +21,17 @@ test("a tall caption scales into the safe band of a narrow view", () => {
 });
 
 test("VR playback controls use different pitch boundaries to reveal and hide", () => {
-  assert.equal(vrVideoLookDown(0, 0, -20, false), false);
-  assert.equal(vrVideoLookDown(-14, 0, -20, false), true);
-  assert.equal(vrVideoLookDown(-10, 0, -20, true), true);
-  assert.equal(vrVideoLookDown(-8, 0, -20, true), false);
-  assert.equal(vrVideoLookDown(-6, 0, -8, false), true);
-  assert.equal(vrVideoLookDown(0, 0, -4, true), false);
+  assert.equal(lookDownThreshold(0, 0, -20, false), false);
+  assert.equal(lookDownThreshold(-14, 0, -20, false), true);
+  assert.equal(lookDownThreshold(-10, 0, -20, true), true);
+  assert.equal(lookDownThreshold(-8, 0, -20, true), false);
+  assert.equal(lookDownThreshold(-6, 0, -8, false), true);
+  assert.equal(lookDownThreshold(0, 0, -4, true), false);
 });
 
 test("a quick downward nod reveals the VR toolbar at common headset frame rates", () => {
   for (const refreshRate of [60, 90, 120]) {
-    const gesture = createVRVideoLookDownGesture();
+    const gesture = createLookDownGesture();
     const delta = 1 / refreshRate;
     gesture.update(0, 0, -20, delta);
     let triggered = false;
@@ -42,7 +43,7 @@ test("a quick downward nod reveals the VR toolbar at common headset frame rates"
 });
 
 test("slow looks and later adjustments while looking down do not reveal the VR toolbar", () => {
-  const gesture = createVRVideoLookDownGesture();
+  const gesture = createLookDownGesture();
   const update = (pitch: number, delta = 1 / 60) => gesture.update(pitch, 0, -20, delta);
   for (let frame = 0; frame <= 90; frame++) {
     assert.equal(update(-frame / 3), false);
@@ -57,20 +58,20 @@ test("slow looks and later adjustments while looking down do not reveal the VR t
 });
 
 test("VR playback controls reverse a partial fade and only accept input once fully visible", () => {
-  const showing = vrVideoToolbarTransition(0, true, 0.048, false);
+  const showing = lookDownPanelTransition(0, true, 0.048, false);
   assert.ok(showing.opacity > 0 && showing.opacity < 1);
   assert.equal(showing.interactive, false);
 
-  const closing = vrVideoToolbarTransition(showing.progress, false, 0, false);
+  const closing = lookDownPanelTransition(showing.progress, false, 0, false);
   assert.equal(closing.opacity, showing.opacity);
-  assert.equal(vrVideoToolbarTransition(closing.progress, false, 0.048, false).opacity, 0);
-  assert.equal(vrVideoToolbarTransition(1, false, 0.016, false).interactive, false);
-  assert.equal(vrVideoToolbarTransition(0.96, true, 0.016, false).interactive, true);
+  assert.equal(lookDownPanelTransition(closing.progress, false, 0.048, false).opacity, 0);
+  assert.equal(lookDownPanelTransition(1, false, 0.016, false).interactive, false);
+  assert.equal(lookDownPanelTransition(0.96, true, 0.016, false).interactive, true);
 });
 
 test("VR playback controls reveal instantly with reduced motion enabled", () => {
-  assert.deepEqual(vrVideoToolbarTransition(0, true, 0, true), { progress: 1, opacity: 1, interactive: true });
-  assert.deepEqual(vrVideoToolbarTransition(1, false, 0, true), { progress: 0, opacity: 0, interactive: false });
+  assert.deepEqual(lookDownPanelTransition(0, true, 0, true), { progress: 1, opacity: 1, interactive: true });
+  assert.deepEqual(lookDownPanelTransition(1, false, 0, true), { progress: 0, opacity: 0, interactive: false });
 });
 
 test("VR video seek maps a finite duration and clamps to the progress bar edges", () => {
@@ -93,8 +94,8 @@ test("VR video layout uses the tighter limits of asymmetric eye projections", ()
   const eye = (shiftX: number, shiftY: number) => ({
     projectionMatrix: { elements: [1, 0, 0, 0, 0, 2, 0, 0, shiftX, shiftY] },
   });
-  const bounds = vrVideoEyeBounds([eye(-0.1, -0.1), eye(0.3, 0.2)], 2);
+  const bounds = vrEyeBounds([eye(-0.1, -0.1), eye(0.3, 0.2)], 2);
   assert.equal(bounds?.halfWidth, 1);
   assert.ok(Math.abs((bounds?.below ?? 0) - 0.6) < 1e-10);
-  assert.equal(vrVideoEyeBounds([], 2), null);
+  assert.equal(vrEyeBounds([], 2), null);
 });

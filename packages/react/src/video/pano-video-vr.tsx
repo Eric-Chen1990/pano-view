@@ -1,33 +1,25 @@
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { CanvasTexture, Euler, LinearFilter, MathUtils, Mesh, type MeshBasicMaterial, Quaternion, SRGBColorSpace, Vector3 } from "three";
+import { MathUtils, Mesh, Quaternion, Vector3 } from "three";
 import { cssFontFamily } from "../css-font-family";
-import { canRunSpatialGaze } from "../spatial/gaze-action";
-import { SpatialHostContext } from "../spatial/host";
-import { SPATIAL_UI_LAYER } from "../spatial/render-layer";
 import { usePanoUiTranslation } from "../ui-translation";
-import { getWebVRHotspotView, subscribeWebVRHost, WebVRRuntimeContext } from "../webvr/host";
-import { pointerInput, pointerStick } from "../webvr/input";
-import { sceneMenuView } from "../webvr/scene-menu-layout";
-import { PanoChromeOverlayContext } from "./chrome-overlay";
+import { subscribeWebVRHost, WebVRRuntimeContext } from "../webvr/host";
+import { LOOK_DOWN_DISTANCE } from "../webvr/look-down-layout";
+import {
+  LookDownPanel, spatialPanelLayer, useLookDownPanelAvailable, useVRPanelTexture, useVRPanelView,
+} from "../webvr/look-down-panel";
 import { formatMediaTime, panoVideoTrackId } from "./format";
 import { PanoVideoHostContext, subscribePanoVideoHost } from "./host";
 import { VIDEO_ICON_PATHS, VIDEO_MENU_CHEVRONS } from "./icons";
 import type { PanoVideoController, PanoVideoControlsOptions } from "./types";
 import {
-  createVRVideoLookDownGesture,
   vrVideoCaptionBounds,
-  vrVideoEyeBounds,
   vrVideoFollowBlend,
-  vrVideoLookDown,
   vrVideoSeekTime,
-  vrVideoToolbarTransition,
   wrapVRCaption,
 } from "./vr-video-layout";
 
-const DISTANCE = 2;
-const RAD = Math.PI / 180;
+const DISTANCE = LOOK_DOWN_DISTANCE;
 const WIDTH = 1024;
 const BAR_HEIGHT = 208;
 const CAPTION_HEIGHT = 384;
@@ -50,47 +42,13 @@ function drawIcon(context: CanvasRenderingContext2D, name: VideoIcon, x: number,
   context.restore();
 }
 
-function useVideoTexture(height: number) {
-  const resource = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = WIDTH;
-    canvas.height = height;
-    const context = canvas.getContext("2d")!;
-    const texture = new CanvasTexture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.minFilter = LinearFilter;
-    texture.generateMipmaps = false;
-    return { context, texture };
-  }, [height]);
-  useEffect(() => () => resource.texture.dispose(), [resource]);
-  return resource;
-}
-
-function spatialLayer(mesh: Mesh) {
-  mesh.layers.set(SPATIAL_UI_LAYER);
-}
-
 function useVideoSnapshot(controller: PanoVideoController) {
   return useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 }
 
-function useVideoView() {
-  const vr = useContext(WebVRRuntimeContext)!;
-  const { camera, gl } = useThree();
-  return () => {
-    const view = getWebVRHotspotView(vr, gl.xr.isPresenting);
-    if (!view?.projectionScaleY) return null;
-    const eyes = gl.xr.isPresenting
-      ? gl.xr.getCamera().cameras
-      : [vr.stereoView.stereo.cameraL, vr.stereoView.stereo.cameraR];
-    const bounds = vrVideoEyeBounds(eyes, DISTANCE);
-    return bounds ? { camera: view.camera, ...bounds } : null;
-  };
-}
-
 function PanoVideoVRCaptions({ controller }: { controller: PanoVideoController }) {
   const { captionText, captionAppearance: style, trackId, captionsEnabled } = useVideoSnapshot(controller);
-  const { context, texture } = useVideoTexture(CAPTION_HEIGHT);
+  const { context, texture } = useVRPanelTexture(WIDTH, CAPTION_HEIGHT);
   const mesh = useRef<Mesh>(null);
   const follow = useMemo(() => ({
     initialized: false,
@@ -99,7 +57,7 @@ function PanoVideoVRCaptions({ controller }: { controller: PanoVideoController }
     local: new Vector3(),
     inverse: new Quaternion(),
   }), []);
-  const readView = useVideoView();
+  const readView = useVRPanelView();
   const text = captionsEnabled && trackId ? captionText.trim() : "";
   const paintKey = JSON.stringify([text, style.color, style.background, style.fontFamily, style.fontSize, style.fontWeight]);
   const painted = useRef("");
@@ -189,7 +147,7 @@ function PanoVideoVRCaptions({ controller }: { controller: PanoVideoController }
   }, -0.5);
 
   return (
-    <mesh ref={mesh} onUpdate={spatialLayer} visible={false} renderOrder={DISPLAY_ORDER} raycast={() => {}}>
+    <mesh ref={mesh} onUpdate={spatialPanelLayer} visible={false} renderOrder={DISPLAY_ORDER} raycast={() => {}}>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial map={texture} transparent depthTest={false} depthWrite={false} toneMapped={false} />
     </mesh>
@@ -217,35 +175,9 @@ function PanoVideoVRControls({ controller, options }: {
   options?: PanoVideoControlsOptions;
 }) {
   const t = usePanoUiTranslation();
-  const spatial = useContext(SpatialHostContext)!;
-  const chrome = useContext(PanoChromeOverlayContext);
-  const gl = useThree((state) => state.gl);
   const snapshot = useVideoSnapshot(controller);
   const [trackPage, setTrackPage] = useState<number | null>(null);
-  const { context, texture } = useVideoTexture(BAR_HEIGHT);
-  const mesh = useRef<Mesh>(null);
-  const material = useRef<MeshBasicMaterial>(null);
-  const transitionProgress = useRef(0);
-  const interactive = useRef(false);
-  const reducedMotion = useRef(false);
-  const pointerTarget = useRef("");
-  const gazeSeek = useRef(0);
-  const actionOwner = useMemo(() => ({}), []);
-  const actionIds = useMemo(() => new Map<string, { owner: object; id: string }>(), []);
-  const anchor = useMemo(() => ({
-    headYaw: 0,
-    referencePitch: null as number | null,
-    position: new Vector3(),
-    direction: new Vector3(),
-    offset: new Vector3(),
-    rotation: new Euler(0, 0, 0, "YXZ"),
-  }), []);
-  const lookingDown = useRef(false);
-  const lookDownGesture = useMemo(createVRVideoLookDownGesture, []);
   const lastCaptionTrack = useRef(snapshot.trackId);
-  const painted = useRef("");
-  const readView = useVideoView();
-  const a11y = useRef<{ root: Root; element: HTMLDivElement } | null>(null);
   const { captionsEnabled, currentTime, duration, muted, playing, tracks } = snapshot;
   const showTracks = options?.buttons?.captions !== false && captionsEnabled && tracks.length > 0;
   const pageCount = Math.ceil(tracks.length / TRACKS_PER_PAGE);
@@ -310,149 +242,25 @@ function PanoVideoVRControls({ controller, options }: {
     if (snapshot.trackId) lastCaptionTrack.current = snapshot.trackId;
   }, [snapshot.trackId]);
 
-  const clearInput = () => {
-    pointerTarget.current = "";
-    if ((spatial.action?.id as { owner?: object } | undefined)?.owner === actionOwner) {
-      spatial.action = null;
-    }
-  };
-  useEffect(() => {
-    const unsubscribe = spatial.input.onCancel(clearInput);
-    return () => {
-      unsubscribe();
-      clearInput();
-    };
-  }, [spatial, actionOwner]);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => { reducedMotion.current = media.matches; };
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  const resolve = (uv: { x: number; y: number }, gaze: boolean) => {
-    if (!interactive.current) return null;
-    const x = uv.x * WIDTH;
-    const y = (1 - uv.y) * BAR_HEIGHT;
+  const resolveAction = (x: number, y: number) => {
     const button = buttons.find((item) => hitsButton(item, x, y));
-    const isSeek = seekEnabled && x >= 32 && x <= 992 && y >= 52 && y <= 109;
-    const id = button?.id ?? (isSeek ? "seek" : "");
-    if (!id) return null;
-    if (isSeek && gaze) gazeSeek.current = (x - 32) / 960;
-    let actionId = actionIds.get(id);
-    if (!actionId) {
-      actionId = { owner: actionOwner, id };
-      actionIds.set(id, actionId);
+    if (button) return button;
+    if (seekEnabled && x >= 32 && x <= 992 && y >= 52 && y <= 109) {
+      const dragTo = (pixel: number) => seek((pixel - 32) / 960);
+      return { id: "seek", activate: () => dragTo(x), dragTo };
     }
-    return {
-      id: actionId,
-      activate: button?.activate ?? (() => seek(gaze ? gazeSeek.current : (x - 32) / 960)),
-    };
   };
 
-  useEffect(() => {
-    const container = chrome?.overlayElement;
-    if (!container) return;
-    const element = document.createElement("div");
-    element.dataset.panoVrVideoControls = "";
-    container.append(element);
-    const root = createRoot(element);
-    a11y.current = { root, element };
-    return () => {
-      a11y.current = null;
-      element.remove();
-      // The canvas root can unmount while the host React root is committing.
-      queueMicrotask(() => root.unmount());
-    };
-  }, [chrome?.overlayElement]);
-
-  useEffect(() => {
-    a11y.current?.root.render(
-      <div role="group" aria-label={t("Video controls")}>
-        {seekEnabled && (
-          <input type="range" min={0} max={duration} step="any" value={Math.min(currentTime, duration)}
-            aria-label={t("Seek video")} aria-valuetext={formatMediaTime(currentTime)} className="pano-sr-only"
-            data-pano-vr-action="seek"
-            onChange={(event) => seek(Number(event.currentTarget.value) / duration)}
-          />
-        )}
-        {buttons.map(({ id, label, selected, activate }) => (
-          <button key={id} type="button" aria-label={label} aria-pressed={selected}
-            className="pano-sr-only" data-pano-vr-action={id} onClick={activate}
-          />
-        ))}
-      </div>,
-    );
-  });
-
-  useFrame((_, delta) => {
-    if (!mesh.current || !material.current) return;
-    const view = readView();
-    const now = performance.now();
-    if (!view || !canRunSpatialGaze(document.hidden, gl.xr.getSession()?.visibilityState, 0, now)) {
-      mesh.current.visible = false;
-      transitionProgress.current = 0;
-      interactive.current = false;
-      lookingDown.current = false;
-      lookDownGesture.reset();
-      clearInput();
-      return;
-    }
-
-    const active = document.activeElement;
-    const keyboardFocus = active instanceof HTMLElement && a11y.current?.element.contains(active)
-      ? active.dataset.panoVrAction : "";
-    const gazeAction = spatial.action?.id as { owner?: object; id?: string } | undefined;
-    const focused = keyboardFocus || pointerTarget.current || (gazeAction?.owner === actionOwner ? gazeAction.id : "") || "";
-    const centerY = -Math.min(0.72, view.below * 0.77);
-    const orientation = sceneMenuView(view.camera.getWorldDirection(anchor.direction), anchor.headYaw);
-    anchor.headYaw = orientation.yaw;
-    const referencePitch = anchor.referencePitch ??= MathUtils.clamp(orientation.pitch, -10, 10);
-    const barPitch = referencePitch + Math.atan2(centerY, DISTANCE) / RAD;
-    const quickLookDown = lookDownGesture.update(orientation.pitch, referencePitch, barPitch, delta);
-    lookingDown.current = lookingDown.current
-      ? vrVideoLookDown(orientation.pitch, referencePitch, barPitch, true)
-      : quickLookDown;
-    const show = lookingDown.current || Boolean(keyboardFocus);
-    const previousProgress = transitionProgress.current;
-    const transition = vrVideoToolbarTransition(previousProgress, show, delta, reducedMotion.current);
-    transitionProgress.current = transition.progress;
-    interactive.current = transition.interactive;
-    material.current.opacity = transition.opacity;
-    mesh.current.visible = transition.progress > 0;
-    if (!show) clearInput();
-    if (!mesh.current.visible) {
-      if (page !== null) setTrackPage(null);
-      return;
-    }
-    // Hold the scene pose until the bar finishes hiding, including during a reversal.
-    if (previousProgress === 0) {
-      const width = Math.min(1.64, view.halfWidth * 2, view.below * 1.8);
-      mesh.current.scale.set(width, width * BAR_HEIGHT / WIDTH, 1);
-      anchor.rotation.set(referencePitch * RAD, -orientation.yaw * RAD, 0);
-      anchor.offset.set(0, centerY, -DISTANCE).applyEuler(anchor.rotation);
-      anchor.position.copy(view.camera.position).add(anchor.offset);
-      mesh.current.rotation.set(orientation.pitch * RAD, -orientation.yaw * RAD, 0, "YXZ");
-    }
-    anchor.offset.set(0, -mesh.current.scale.y * 0.55 * (1 - transition.opacity), 0)
-      .applyQuaternion(mesh.current.quaternion);
-    mesh.current.position.copy(anchor.position).add(anchor.offset);
-    mesh.current.updateWorldMatrix(true, false);
-
-    const progress = seekEnabled ? Math.max(0, Math.min(960, Math.round(960 * currentTime / duration))) : 0;
-    const time = page === null
-      ? `${formatMediaTime(currentTime)} / ${duration > 0 ? formatMediaTime(duration) : "–:–"}`
-      : "";
-    const status = snapshot.blocked ? t("Press Play to start the video.") : "";
-    const title = page !== null ? t("Captions") : "";
-    const key = JSON.stringify([focused, time, progress, seekEnabled, status, title,
-      options?.background, options?.accent, options?.color, buttons.map(({ id, label, selected }) => [id, label, selected]),
-    ]);
-    if (painted.current === key) return;
-    painted.current = key;
-    context.clearRect(0, 0, WIDTH, BAR_HEIGHT);
+  const progress = seekEnabled ? Math.max(0, Math.min(960, Math.round(960 * currentTime / duration))) : 0;
+  const time = page === null
+    ? `${formatMediaTime(currentTime)} / ${duration > 0 ? formatMediaTime(duration) : "–:–"}`
+    : "";
+  const status = snapshot.blocked ? t("Press Play to start the video.") : "";
+  const title = page !== null ? t("Captions") : "";
+  const paintKey = JSON.stringify([time, progress, seekEnabled, status, title,
+    options?.background, options?.accent, options?.color, buttons.map(({ id, label, selected, icon }) => [id, label, selected, icon]),
+  ]);
+  const paint = (context: CanvasRenderingContext2D, focused: string) => {
     const background = options?.background ?? "rgba(9, 17, 25, 0.92)";
     const accent = options?.accent ?? "#7dd3fc";
     const color = options?.color ?? "#ffffff";
@@ -500,67 +308,53 @@ function PanoVideoVRControls({ controller, options }: {
         context.fill();
       }
     }
-    texture.needsUpdate = true;
-  }, -0.5);
+  };
 
   return (
-    <mesh
-      ref={mesh}
-      onUpdate={spatialLayer}
-      visible={false}
-      renderOrder={DISPLAY_ORDER + 1}
-      pointerEventsOrder={9}
-      userData={{ panoGazeResolve: (uv: { x: number; y: number }) => resolve(uv, true) }}
-      raycast={function (this: Mesh, raycaster, intersections) {
-        if (this.visible && interactive.current) Mesh.prototype.raycast.call(this, raycaster, intersections);
-      }}
-      onPointerDown={(event) => {
-        if (!event.uv || !resolve(event.uv, false)) return;
-        event.stopPropagation();
-        spatial.input.accept(pointerInput(event), "down", Boolean(pointerStick(pointerInput(event))));
-      }}
-      onPointerMove={(event) => {
-        const target = event.uv && resolve(event.uv, false);
-        if (!target) {
-          pointerTarget.current = "";
-          return;
-        }
-        event.stopPropagation();
-        if (spatial.input.accept(pointerInput(event), "hover", Boolean(pointerStick(pointerInput(event))))) {
-          pointerTarget.current = target.id.id;
-        }
-      }}
-      onPointerOut={() => { pointerTarget.current = ""; }}
-      onClick={(event) => {
-        const target = event.uv && resolve(event.uv, false);
-        if (!target) return;
-        event.stopPropagation();
-        if (spatial.input.accept(pointerInput(event), "click")) target.activate();
-      }}
-    >
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial ref={material} map={texture} transparent opacity={0} depthTest={false} depthWrite={false} toneMapped={false} />
-    </mesh>
+    <LookDownPanel
+      width={WIDTH}
+      height={BAR_HEIGHT}
+      label={t("Video controls")}
+      kind="video"
+      paintKey={paintKey}
+      paint={paint}
+      resolveAction={resolveAction}
+      onHidden={() => setTrackPage(null)}
+      accessibility={
+        <>
+          {seekEnabled && (
+            <input type="range" min={0} max={duration} step="any" value={Math.min(currentTime, duration)}
+              aria-label={t("Seek video")} aria-valuetext={formatMediaTime(currentTime)} className="pano-sr-only"
+              data-pano-vr-action="seek"
+              onChange={(event) => seek(Number(event.currentTarget.value) / duration)}
+            />
+          )}
+          {buttons.map(({ id, label, selected, activate }) => (
+            <button key={id} type="button" aria-label={label} aria-pressed={selected}
+              className="pano-sr-only" data-pano-vr-action={id} onClick={activate}
+            />
+          ))}
+        </>
+      }
+    />
   );
 }
 
-export function PanoVideoVR({ modalOpen }: { modalOpen: boolean }) {
+export function PanoVideoVR() {
   const host = useContext(PanoVideoHostContext)!;
   const vr = useContext(WebVRRuntimeContext)!;
-  const spatial = useContext(SpatialHostContext)!;
+  const controlsAvailable = useLookDownPanelAvailable();
   useSyncExternalStore((listener) => subscribePanoVideoHost(host, listener), () => host.revision);
-  useSyncExternalStore(spatial.subscribe, spatial.getSnapshot);
   const setupOpen = useSyncExternalStore(
     (listener) => subscribeWebVRHost(vr.host, listener), () => vr.host.snapshot.setupOpen,
   );
   const { controller, visibleSourceKey, controls, controlClaims } = host;
   if (!controller || !visibleSourceKey || setupOpen) return null;
   const showControls = host.vrControls ?? (controls !== false && controlClaims === 0);
-  const blocked = modalOpen || spatial.surfaces.size > 0 || spatial.openSceneMenus.size > 0;
   return (
     <group key={visibleSourceKey}>
       {host.vrCaptions && <PanoVideoVRCaptions controller={controller} />}
-      {showControls && !blocked && (
+      {showControls && controlsAvailable && (
         <PanoVideoVRControls controller={controller} options={typeof controls === "object" ? controls : undefined} />
       )}
     </group>

@@ -1473,7 +1473,7 @@ export function SphereExample() {
 传 `controls={false}` 可隐藏整条播放栏。传入对象可同时配置按钮和外观。所有可用按钮默认启用，可在 `controls.buttons` 中将 `play`、`volume`、`playbackRate`、`quality`、`captions`、`vr` 或 `fullscreen` 设为 `false`，同时隐藏它在「更多」中的入口。例如，`controls={{ buttons: { vr: false, fullscreen: false } }}` 会隐藏 VR 与全屏按钮。
 也可将 `PanoVideoControls` 作为 `PanoViewer` 子组件以替换默认实例。
 
-同时挂载 `WebVR` 时，快速低头可显示头显内的播放栏，抬头收起。播放栏展开时固定在场景中。用手柄点击或凝视确认，可以播放、暂停、重播、跳转进度、静音、开关字幕和切换字幕轨。字幕悬浮在正前方下侧，平滑跟随视线，并由 `captions` 控制。
+同时挂载 `WebVR` 时，按手柄握把键打开或关闭播放栏。凝视模式下，快速低头打开，抬头关闭。播放栏展开时固定在场景中。用扳机或凝视确认，可以播放、暂停、重播、定位进度、静音、开关字幕和切换字幕轨。字幕悬浮在视野下方，平滑跟随视线，并由 `captions` 控制。
 
 VR 默认沿用普通模式的播放栏和字幕设置。用 `vr={{ controls: false }}` 仅隐藏 VR 播放栏，或用 `vr={{ captions: false }}` 仅隐藏 VR 字幕和字幕按钮。字段设为 `true` 时可单独在 VR 中启用对应功能。两种模式共用当前选择的字幕轨。
 
@@ -3386,6 +3386,32 @@ viewLimits: {
 ## VR 操作按钮组
 
 视频、模型和滚动支持可定制图标按钮组，仅在 VR 显示。接口、凝视行为与完整示例见[VR 控件指南](./docs/dialogs.zh-CN.md#vr-图标控件与滚动)。
+
+## WebVRMenu
+
+在 `PanoViewer` 内与 `WebVR` 并列挂载 `WebVRMenu`。查看器在 VR 中定位并渲染菜单，应用负责动作和状态。
+
+```tsx
+import { WebVRMenu, WebVRMenuButton, WebVRMenuLabel } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<WebVRMenu aria-label="导览操作">
+  <WebVRMenuLabel>导览操作</WebVRMenuLabel>
+  <WebVRMenuButton pressed={showMarkers} onClick={toggleMarkers}>
+    显示标记
+  </WebVRMenuButton>
+  <WebVRMenuButton disabled={!canReset} onClick={resetProgress}>
+    重置进度
+  </WebVRMenuButton>
+</WebVRMenu>
+```
+
+- 按任一 WebXR 手柄的握把键打开或关闭菜单，用射线瞄准后扣扳机确认。凝视模式下，快速低头打开、抬头关闭，凝视按钮即可确认。
+- 从完全隐藏状态打开时，菜单定位在当前视野下方，并固定在场景中。Tab 聚焦也会打开菜单，并高亮当前控件。
+- 文字和按钮可以直接挂载，也可放在 Fragment 或数组中。文字独占一行，按钮每行最多三个。按钮支持 `pressed`、`disabled` 和可选的 `aria-label`。
+- 每个查看器在此位置使用一个菜单。视频页面可设置 `<PanoVideo vr={{ controls: false }} />` 来使用自定义菜单，普通播放栏和字幕继续按各自配置工作。WebXR 设备没有握把动作时，可用 `interactionMode="gaze"` 选择凝视。
+
+在 Playground 的 `/webvr` 体验菜单示例。
 
 ## WebVRSceneMenu
 

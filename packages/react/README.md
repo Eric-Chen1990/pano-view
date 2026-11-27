@@ -1559,11 +1559,11 @@ in More. For example, `controls={{ buttons: { vr: false, fullscreen: false } }}`
 hides both presentation buttons.
 Render `PanoVideoControls` as a `PanoViewer` child to replace the default instance.
 
-With `WebVR` mounted, quickly tilt your head down to reveal the immersive playback bar and look up
-to hide it. The bar holds its position and orientation in the scene while open.
-Use a controller or gaze to play, pause, replay, seek, mute, toggle captions, or pick
-a caption track. Captions float below the center of the view, gently follow head
-movement, and are controlled independently through `captions`.
+With `WebVR` mounted, press a controller grip to open or close the immersive playback bar.
+In gaze mode, quickly look down to open the bar and look up to close it. The bar holds
+its pose in the scene while open. Use the trigger or gaze dwell to play, pause, replay,
+seek, mute, toggle captions, or choose a caption track. Captions float below the center
+of the view, follow head movement, and are controlled independently through `captions`.
 
 By default, VR inherits the screen-mode playback bar and caption settings.
 Override either feature with `vr={{ controls: false }}` or
@@ -3979,6 +3979,32 @@ Hover runs once per logical hotspot boundary, skips touch and keyboard focus, an
 ## VR control groups
 
 Customizable VR-only icon groups support media, models and scrolling. See the [VR controls guide](./docs/dialogs.md#vr-icon-controls-and-scrolling) for APIs and examples.
+
+## WebVRMenu
+
+Mount `WebVRMenu` beside `WebVR` inside `PanoViewer`. The viewer positions and renders the menu in VR. Your application owns the actions and their state.
+
+```tsx
+import { WebVRMenu, WebVRMenuButton, WebVRMenuLabel } from "@ericchen1990/pano-view";
+import "@ericchen1990/pano-view/styles.css";
+
+<WebVRMenu aria-label="Tour actions">
+  <WebVRMenuLabel>Tour actions</WebVRMenuLabel>
+  <WebVRMenuButton pressed={showMarkers} onClick={toggleMarkers}>
+    Show markers
+  </WebVRMenuButton>
+  <WebVRMenuButton disabled={!canReset} onClick={resetProgress}>
+    Reset progress
+  </WebVRMenuButton>
+</WebVRMenu>
+```
+
+- Press either WebXR controller grip to open or close the menu. Aim with the ray and use the trigger to select. In gaze mode, quickly look down to open the menu, look up to close it, and dwell on a button to select.
+- A new opening places the menu below the current view and anchors it in the scene. Tab focus also reveals the menu and highlights the focused control.
+- Use text labels and buttons directly or inside fragments or arrays. Labels occupy a whole row. Buttons wrap after three per row. Buttons accept `pressed`, `disabled` and an optional `aria-label`.
+- Use one menu in this position per viewer. On a video page, pair your custom menu with `<PanoVideo vr={{ controls: false }} />` to keep ordinary playback controls and captions on their own settings. In WebXR, `interactionMode="gaze"` selects the gaze path for devices without a grip action.
+
+Try the menu in the Playground at `/webvr`.
 
 ## WebVRSceneMenu
 
