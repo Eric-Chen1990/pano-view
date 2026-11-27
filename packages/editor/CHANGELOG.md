@@ -1,5 +1,11 @@
 # @ericchen1990/pano-editor
 
+## 3.8.1
+
+### Patch Changes
+
+- Describe the callout look-at angle as the radius at the reference field of view. The effective angle scales with the current FOV so the on-screen hit area stays similar when zooming.
+
 ## 3.8.0
 
 ### Minor Changes

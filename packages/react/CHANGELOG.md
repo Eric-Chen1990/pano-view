@@ -1,5 +1,17 @@
 # @ericchen1990/pano-view
 
+## 5.26.0
+
+### Minor Changes
+
+- Drag an open spatial dialog with a tracked WebXR controller by aiming at the header and holding the trigger. `PanoDialog` and `ProjectPopupDialog` include the handle. Composed or third-party dialogs can mark a header with `data-pano-dialog-drag-handle`.
+- 76c25e9: Add WebVRMenu with text rows and action buttons. Custom menus and immersive video controls share scene anchoring, gaze and keyboard interactions, and controller grip toggling.
+- Let `PanoVideo` control the immersive playback bar and captions separately with `vr`. VR inherits the screen-mode settings unless `vr.controls` or `vr.captions` overrides them. Grip or look-down opens the bar, captions float with the view, and entering WebXR keeps the current playback position, quality, and caption track.
+
+### Patch Changes
+
+- e70600f: Scale callout look-at enter angles with the current FOV so the on-screen hit area stays stable when zooming.
+
 ## 5.25.0
 
 ### Minor Changes
